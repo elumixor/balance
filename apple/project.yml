@@ -63,8 +63,14 @@ targets:
       properties:
         WKApplication: true
         WKWatchOnly: false
+        WKCompanionAppBundleIdentifier: com.elumixor.balance
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+    entitlements:
+      path: "Balance Watch App/Balance Watch App.entitlements"
+      properties:
+        com.apple.security.application-groups:
+          - group.com.elumixor.balance
 
   "Balance Watch Widget Extension":
     type: app-extension
@@ -89,6 +95,11 @@ targets:
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: "Balance Watch Widget/Balance Watch Widget.entitlements"
+      properties:
+        com.apple.security.application-groups:
+          - group.com.elumixor.balance
 
 schemes:
   Balance:

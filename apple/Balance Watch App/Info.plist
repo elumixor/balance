@@ -24,6 +24,8 @@
 	</array>
 	<key>WKApplication</key>
 	<true/>
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>com.elumixor.balance</string>
 	<key>WKWatchOnly</key>
 	<false/>
 </dict>
