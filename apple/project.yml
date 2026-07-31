@@ -51,6 +51,7 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
 
   "Balance Watch App":
     type: application
