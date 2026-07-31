@@ -6,20 +6,4 @@ export type ActivityRow = typeof activities.$inferSelect & {
   weights: ActivityWeightRow[];
 };
 
-export type CategoryInput = {
-  name: string;
-  color: string;
-  targetHoursPerWeek: number;
-  trackingMode: "consistency" | "average";
-  isProductiveLoad: boolean;
-};
-
-export type ActivityWeightInput = {
-  categoryId: string;
-  weightPercent: number;
-};
-
-export type ActivityInput = {
-  name: string;
-  weights: ActivityWeightInput[];
-};
+export type { ActivityInput, ActivityWeightInput, CategoryInput } from "@/lib/categories-service";
