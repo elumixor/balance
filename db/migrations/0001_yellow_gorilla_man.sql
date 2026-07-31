@@ -1,0 +1,2 @@
+ALTER TABLE "categories" ADD COLUMN "is_buffer" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "categories_one_buffer_per_user" ON "categories" USING btree ("user_id") WHERE "categories"."is_buffer";

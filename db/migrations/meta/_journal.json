@@ -8,6 +8,13 @@
       "when": 1785492921792,
       "tag": "0000_fantastic_turbo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785496654841,
+      "tag": "0001_yellow_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

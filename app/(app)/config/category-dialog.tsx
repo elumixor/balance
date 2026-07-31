@@ -49,7 +49,7 @@ export function CategoryDialog({
   const [isProductiveLoad, setIsProductiveLoad] = useState(category?.isProductiveLoad ?? false);
 
   const otherTotal = allCategories
-    .filter((c) => c.id !== category?.id)
+    .filter((c) => c.id !== category?.id && !c.isBuffer)
     .reduce((sum, c) => sum + Number(c.targetHoursPerWeek), 0);
   const liveTotal = otherTotal + (Number.parseFloat(target) || 0);
 

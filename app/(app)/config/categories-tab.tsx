@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PieChart } from "@/components/pie-chart";
 import { archiveCategory } from "./actions";
 import { AllocationIndicator } from "./allocation-indicator";
 import { ArchiveButton } from "./archive-button";
@@ -12,7 +13,8 @@ import { CategoryDialog } from "./category-dialog";
 import type { CategoryRow } from "./types";
 
 export function CategoriesTab({ categories }: { categories: CategoryRow[] }) {
-  const totalHours = categories.reduce((sum, c) => sum + Number(c.targetHoursPerWeek), 0);
+  const realCategories = categories.filter((c) => !c.isBuffer);
+  const totalHours = realCategories.reduce((sum, c) => sum + Number(c.targetHoursPerWeek), 0);
 
   return (
     <div className="space-y-4">
@@ -20,8 +22,18 @@ export function CategoriesTab({ categories }: { categories: CategoryRow[] }) {
         <CardHeader>
           <CardTitle className="text-sm font-medium">Weekly allocation</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <AllocationIndicator totalHours={totalHours} />
+          <PieChart
+            segments={categories.map((c) => ({
+              id: c.id,
+              label: c.name,
+              color: c.color,
+              value: Number(c.targetHoursPerWeek),
+            }))}
+            formatValue={(v) => `${v}h`}
+            centerLabel={{ primary: "168h", secondary: "per week" }}
+          />
         </CardContent>
       </Card>
 
@@ -80,25 +92,32 @@ export function CategoriesTab({ categories }: { categories: CategoryRow[] }) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {category.isProductiveLoad && <Badge variant="default">productive</Badge>}
+                    <div className="flex gap-1">
+                      {category.isProductiveLoad && <Badge variant="default">productive</Badge>}
+                      {category.isBuffer && <Badge variant="outline">auto</Badge>}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <CategoryDialog
-                        category={category}
-                        allCategories={categories}
-                        trigger={
-                          <Button variant="ghost" size="icon-sm">
-                            <span className="sr-only">Edit {category.name}</span>
-                            <PencilIcon />
-                          </Button>
-                        }
-                      />
-                      <ArchiveButton
-                        itemName={category.name}
-                        onArchive={() => archiveCategory(category.id)}
-                      />
-                    </div>
+                    {category.isBuffer ? (
+                      <span className="text-xs text-muted-foreground">absorbs unallocated time</span>
+                    ) : (
+                      <div className="flex justify-end gap-1">
+                        <CategoryDialog
+                          category={category}
+                          allCategories={categories}
+                          trigger={
+                            <Button variant="ghost" size="icon-sm">
+                              <span className="sr-only">Edit {category.name}</span>
+                              <PencilIcon />
+                            </Button>
+                          }
+                        />
+                        <ArchiveButton
+                          itemName={category.name}
+                          onArchive={() => archiveCategory(category.id)}
+                        />
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               );

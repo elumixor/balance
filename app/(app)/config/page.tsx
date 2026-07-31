@@ -1,11 +1,13 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { activities, categories } from "@/db/schema";
+import { syncBufferCategory } from "@/lib/buffer-category";
 import { getOrCreateDbUser } from "@/lib/current-user";
 import { ConfigTabs } from "./config-tabs";
 
 export default async function ConfigPage() {
   const user = await getOrCreateDbUser();
+  await syncBufferCategory(user.id);
 
   const [categoryRows, activityRows] = await Promise.all([
     db.query.categories.findMany({

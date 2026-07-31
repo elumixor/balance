@@ -1,5 +1,5 @@
-import { relations } from "drizzle-orm";
-import { boolean, integer, numeric, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import { boolean, integer, numeric, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const trackingModeEnum = pgEnum("tracking_mode", ["consistency", "average"]);
 
@@ -9,19 +9,29 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const categories = pgTable("categories", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  color: text("color").notNull().default("#6366f1"),
-  targetHoursPerWeek: numeric("target_hours_per_week", { precision: 5, scale: 2 }).notNull(),
-  trackingMode: trackingModeEnum("tracking_mode").notNull().default("average"),
-  isProductiveLoad: boolean("is_productive_load").notNull().default(false),
-  archived: boolean("archived").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: text("color").notNull().default("#6366f1"),
+    targetHoursPerWeek: numeric("target_hours_per_week", { precision: 5, scale: 2 }).notNull(),
+    trackingMode: trackingModeEnum("tracking_mode").notNull().default("average"),
+    isProductiveLoad: boolean("is_productive_load").notNull().default(false),
+    /** The single system-managed category that absorbs all time unallocated by the user's other categories. */
+    isBuffer: boolean("is_buffer").notNull().default(false),
+    archived: boolean("archived").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("categories_one_buffer_per_user")
+      .on(table.userId)
+      .where(sql`${table.isBuffer}`),
+  ],
+);
 
 export const activities = pgTable("activities", {
   id: uuid("id").primaryKey().defaultRandom(),

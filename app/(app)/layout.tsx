@@ -5,7 +5,6 @@ const NAV_LINKS = [
   { href: "/track", label: "Track" },
   { href: "/stats", label: "Stats" },
   { href: "/config", label: "Config" },
-  { href: "/planner", label: "AI Planner" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

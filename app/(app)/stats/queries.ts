@@ -1,6 +1,7 @@
 import { and, eq, gte, isNull, lt, or } from "drizzle-orm";
 import { db } from "@/db";
 import { activities, categories, entries } from "@/db/schema";
+import { syncBufferCategory } from "@/lib/buffer-category";
 import type { ActivityInput, CategoryInput, EntryInput, WeightInput } from "./calculations";
 
 export interface StatsData {
@@ -16,6 +17,8 @@ export interface StatsData {
  * (i.e. including the lookback required for rolling trends).
  */
 export async function getStatsData(userId: string, rangeStart: Date, rangeEnd: Date): Promise<StatsData> {
+  await syncBufferCategory(userId);
+
   const [categoryRows, activityRows, weightRows, entryRows] = await Promise.all([
     db.query.categories.findMany({
       where: and(eq(categories.userId, userId), eq(categories.archived, false)),
