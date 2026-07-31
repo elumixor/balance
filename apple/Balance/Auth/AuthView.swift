@@ -1,5 +1,6 @@
 import SwiftUI
 import ClerkKit
+import AuthenticationServices
 
 /// Minimal native email/password sign-in & sign-up flow using ClerkKit's Auth APIs directly.
 /// (ClerkKitUI's prebuilt views aren't linked as an app-target dependency in project.yml, so we
@@ -40,7 +41,11 @@ struct AuthView: View {
 
                     switch step {
                     case .form:
-                        formSection
+                        VStack(spacing: 16) {
+                            socialButtons
+                            dividerWithLabel
+                            formSection
+                        }
                     case .verifyEmailCode:
                         verifySection
                     }
@@ -55,6 +60,46 @@ struct AuthView: View {
                 .padding(.horizontal, 24)
             }
             .scrollDismissesKeyboard(.interactively)
+        }
+    }
+
+    private var socialButtons: some View {
+        VStack(spacing: 12) {
+            Button {
+                Task { await signInWithApple() }
+            } label: {
+                HStack {
+                    Image(systemName: "apple.logo")
+                    Text("Continue with Apple")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.black)
+            .controlSize(.large)
+
+            Button {
+                Task { await signInWithOAuth(.google) }
+            } label: {
+                HStack {
+                    Image(systemName: "globe")
+                    Text("Continue with Google")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+        .disabled(isSubmitting)
+    }
+
+    private var dividerWithLabel: some View {
+        HStack(spacing: 12) {
+            Rectangle().frame(height: 1).foregroundStyle(.separator)
+            Text("or")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Rectangle().frame(height: 1).foregroundStyle(.separator)
         }
     }
 
@@ -133,6 +178,34 @@ struct AuthView: View {
                 code = ""
             }
             .font(.footnote)
+        }
+    }
+
+    private func signInWithApple() async {
+        errorMessage = nil
+        isSubmitting = true
+        defer { isSubmitting = false }
+
+        do {
+            try await Clerk.shared.auth.signInWithApple()
+        } catch let error as ASAuthorizationError where error.code == .canceled {
+            // User dismissed the Apple sign-in sheet.
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func signInWithOAuth(_ provider: OAuthProvider) async {
+        errorMessage = nil
+        isSubmitting = true
+        defer { isSubmitting = false }
+
+        do {
+            try await Clerk.shared.auth.signInWithOAuth(provider: provider)
+        } catch is CancellationError {
+            // User dismissed the OAuth browser sheet.
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

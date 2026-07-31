@@ -23,6 +23,11 @@ targets:
         product: ClerkKit
       - target: "Balance Watch App"
         embed: true
+    entitlements:
+      path: Balance/Balance.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.elumixor.balance
