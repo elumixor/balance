@@ -2,6 +2,11 @@ require "fileutils"
 
 default_platform(:ios)
 
+# fastlane's `sh` action runs from the "fastlane" subfolder (where this Fastfile
+# lives) by default, not the project root — resolve absolute paths from here so
+# FileUtils (real Ruby cwd) and sh (fastlane's own cwd) never disagree.
+APPLE_DIR = File.expand_path("..", __dir__)
+
 PROJECT = "Balance.xcodeproj"
 SCHEME = "Balance"
 APP_IDENTIFIER = "com.elumixor.balance"
@@ -50,7 +55,7 @@ platform :ios do
 
   desc "Build and upload a new TestFlight build"
   lane :beta do
-    sh("cd .. && xcodegen generate")
+    sh("cd #{APPLE_DIR} && xcodegen generate")
 
     api_key = make_api_key
 
@@ -115,7 +120,7 @@ platform :ios do
 
     archive_path = lane_context[SharedValues::XCODEBUILD_ARCHIVE]
     app_path = File.join(archive_path, "Products", "Applications", "#{SCHEME}.app")
-    ipa_dir = "build"
+    ipa_dir = File.join(APPLE_DIR, "build")
     ipa_path = File.join(ipa_dir, "Balance.ipa")
     FileUtils.mkdir_p(File.join(ipa_dir, "Payload"))
     FileUtils.rm_rf(File.join(ipa_dir, "Payload", "#{SCHEME}.app"))
