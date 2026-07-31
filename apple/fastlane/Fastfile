@@ -1,3 +1,5 @@
+require "fileutils"
+
 default_platform(:ios)
 
 PROJECT = "Balance.xcodeproj"
@@ -95,30 +97,36 @@ platform :ios do
       profile_name: widget_profile, build_configurations: ["Release"]
     )
 
+    # `xcodebuild -exportArchive` has a reproducible "Unknown Distribution Error" /
+    # "expected one {} but found app-store" bug on current Xcode (26.x) for this
+    # archive shape (iOS app embedding a watchOS app + widget extension) — confirmed
+    # both locally and on GitHub's macOS runner. gym's archive step itself works fine
+    # (skip_package_ipa: true stops before the broken export), so we archive via gym
+    # and then hand-package the IPA ourselves from the already-signed .app, exactly
+    # mirroring what a successful `xcodebuild archive` + manual `zip` produces.
     build_app(
       project: PROJECT,
       scheme: SCHEME,
       configuration: "Release",
-      export_method: "app-store",
-      output_directory: "build",
-      output_name: "Balance.ipa",
       clean: true,
-      export_options: {
-        method: "app-store",
-        signingStyle: "manual",
-        provisioningProfiles: {
-          APP_IDENTIFIER => app_profile,
-          WATCH_IDENTIFIER => watch_profile,
-          WIDGET_IDENTIFIER => widget_profile,
-        },
-      }
+      skip_package_ipa: true,
+      export_method: "app-store"
     )
+
+    archive_path = lane_context[SharedValues::XCODEBUILD_ARCHIVE]
+    app_path = File.join(archive_path, "Products", "Applications", "#{SCHEME}.app")
+    ipa_dir = "build"
+    ipa_path = File.join(ipa_dir, "Balance.ipa")
+    FileUtils.mkdir_p(File.join(ipa_dir, "Payload"))
+    FileUtils.rm_rf(File.join(ipa_dir, "Payload", "#{SCHEME}.app"))
+    FileUtils.cp_r(app_path, File.join(ipa_dir, "Payload", "#{SCHEME}.app"))
+    sh("cd #{ipa_dir} && rm -f Balance.ipa && zip -r -y Balance.ipa Payload")
 
     upload_to_testflight(
       api_key: api_key,
       app_identifier: APP_IDENTIFIER,
       skip_waiting_for_build_processing: true,
-      ipa: "build/Balance.ipa"
+      ipa: ipa_path
     )
   end
 end
