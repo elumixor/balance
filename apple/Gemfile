@@ -1,0 +1,8 @@
+source "https://rubygems.org"
+
+gem "fastlane"
+# Ruby 3.3.11+ on the CI runner dropped these from its default gems, but
+# fastlane's bundled actions (representable / google-apis) still require them.
+gem "multi_json"
+gem "abbrev"
+gem "mutex_m"

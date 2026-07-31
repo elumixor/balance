@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "release:ios": "git tag ios-v$(date +%Y%m%d%H%M%S) && git push origin --tags"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.33",

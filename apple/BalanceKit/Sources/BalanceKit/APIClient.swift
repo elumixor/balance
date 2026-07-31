@@ -84,15 +84,11 @@ public final class APIClient {
         public var name: String
         public var color: String
         public var targetHoursPerWeek: Double
-        public var trackingMode: TrackingMode
-        public var isProductiveLoad: Bool
 
-        public init(name: String, color: String, targetHoursPerWeek: Double, trackingMode: TrackingMode, isProductiveLoad: Bool) {
+        public init(name: String, color: String, targetHoursPerWeek: Double) {
             self.name = name
             self.color = color
             self.targetHoursPerWeek = targetHoursPerWeek
-            self.trackingMode = trackingMode
-            self.isProductiveLoad = isProductiveLoad
         }
     }
 

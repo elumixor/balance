@@ -1,0 +1,54 @@
+name: iOS TestFlight
+
+on:
+  push:
+    tags:
+      - "ios-v*"
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: apple
+
+      - name: Write ASC API key to disk
+        run: |
+          mkdir -p "$HOME/.appstoreconnect"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_CONTENT" > "$HOME/.appstoreconnect/key.p8"
+          echo "APP_STORE_CONNECT_API_KEY_PATH=$HOME/.appstoreconnect/key.p8" >> "$GITHUB_ENV"
+
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+
+      # No explicit profile download — fastlane's `sigh` (called inside the
+      # `beta` lane) creates/regenerates the App Store distribution profile
+      # via the ASC API every run.
+
+      - name: Fastlane beta
+        working-directory: apple
+        run: bundle exec fastlane beta

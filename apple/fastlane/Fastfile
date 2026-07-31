@@ -1,0 +1,136 @@
+default_platform(:ios)
+
+PROJECT = "Balance.xcodeproj"
+SCHEME = "Balance"
+APP_IDENTIFIER = "com.elumixor.balance"
+WATCH_IDENTIFIER = "com.elumixor.balance.watchkitapp"
+WIDGET_IDENTIFIER = "com.elumixor.balance.watchkitapp.widget"
+APP_GROUP = "group.com.elumixor.balance"
+TEAM_ID = "464K6UHCU4"
+
+def make_api_key
+  key_args = { key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
+               issuer_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ISSUER_ID"),
+               in_house: false }
+  if ENV["APP_STORE_CONNECT_API_KEY_PATH"]
+    key_args[:key_filepath] = ENV["APP_STORE_CONNECT_API_KEY_PATH"]
+  else
+    key_args[:key_content] = ENV.fetch("APP_STORE_CONNECT_API_KEY_CONTENT")
+    key_args[:is_key_content_base64] = false
+  end
+  app_store_connect_api_key(**key_args)
+end
+
+platform :ios do
+  # One-time (idempotent) provisioning: registers the watch + widget bundle
+  # IDs on the Developer Portal so they exist before sigh runs. The App Group
+  # itself (and ticking it on each ID) must be done once via an interactive
+  # Xcode GUI session — the App Store Connect API cannot create App Groups.
+  # Idempotent & non-fatal.
+  desc "Register watch/widget bundle IDs (idempotent)"
+  lane :setup_watch do
+    require "spaceship"
+    begin
+      token = Spaceship::ConnectAPI::Token.create(
+        key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
+        issuer_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ISSUER_ID"),
+        filepath: ENV["APP_STORE_CONNECT_API_KEY_PATH"]
+      )
+      Spaceship::ConnectAPI.token = token
+      ensure_bundle_id(WATCH_IDENTIFIER, "Balance Watch App")
+      ensure_bundle_id(WIDGET_IDENTIFIER, "Balance Watch Widget")
+    rescue => e
+      UI.important("setup_watch (non-fatal): #{e.message}")
+    end
+    UI.message("App Group #{APP_GROUP} must exist and be enabled on:")
+    UI.message("  #{APP_IDENTIFIER}, #{WATCH_IDENTIFIER}, #{WIDGET_IDENTIFIER}")
+  end
+
+  desc "Build and upload a new TestFlight build"
+  lane :beta do
+    sh("cd .. && xcodegen generate")
+
+    api_key = make_api_key
+
+    next_build = latest_testflight_build_number(
+      app_identifier: APP_IDENTIFIER,
+      api_key: api_key,
+      initial_build_number: 0
+    ) + 1
+
+    increment_build_number(
+      xcodeproj: PROJECT,
+      build_number: next_build
+    )
+
+    # Keep the embedded watch app + widget version-locked to the host app, or
+    # App Store validation rejects the upload.
+    app_version = get_info_plist_value(path: "Balance/Info.plist", key: "CFBundleShortVersionString")
+    [["Balance Watch App/Info.plist"], ["Balance Watch Widget/Info.plist"]].each do |(plist)|
+      set_info_plist_value(path: plist, key: "CFBundleShortVersionString", value: app_version)
+      set_info_plist_value(path: plist, key: "CFBundleVersion", value: next_build.to_s)
+    end
+
+    # Make sure the watch + widget identifiers exist before sigh runs.
+    setup_watch
+
+    # One App Store profile per signed target (force re-fetch — CI is stateless).
+    app_profile = make_profile(api_key, APP_IDENTIFIER)
+    watch_profile = make_profile(api_key, WATCH_IDENTIFIER)
+    widget_profile = make_profile(api_key, WIDGET_IDENTIFIER)
+
+    update_code_signing_settings(
+      path: PROJECT, use_automatic_signing: false, team_id: TEAM_ID,
+      targets: ["Balance"], code_sign_identity: "Apple Distribution",
+      profile_name: app_profile, build_configurations: ["Release"]
+    )
+    update_code_signing_settings(
+      path: PROJECT, use_automatic_signing: false, team_id: TEAM_ID,
+      targets: ["Balance Watch App"], code_sign_identity: "Apple Distribution",
+      profile_name: watch_profile, build_configurations: ["Release"]
+    )
+    update_code_signing_settings(
+      path: PROJECT, use_automatic_signing: false, team_id: TEAM_ID,
+      targets: ["Balance Watch Widget Extension"], code_sign_identity: "Apple Distribution",
+      profile_name: widget_profile, build_configurations: ["Release"]
+    )
+
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "build",
+      output_name: "Balance.ipa",
+      clean: true,
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        provisioningProfiles: {
+          APP_IDENTIFIER => app_profile,
+          WATCH_IDENTIFIER => watch_profile,
+          WIDGET_IDENTIFIER => widget_profile,
+        },
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      skip_waiting_for_build_processing: true,
+      ipa: "build/Balance.ipa"
+    )
+  end
+end
+
+def make_profile(api_key, app_identifier)
+  sigh(api_key: api_key, app_identifier: app_identifier, force: true)
+  lane_context[SharedValues::SIGH_NAME]
+end
+
+def ensure_bundle_id(identifier, name)
+  existing = Spaceship::ConnectAPI::BundleId.all.find { |b| b.identifier == identifier }
+  return existing if existing
+  UI.message("Registering bundle id #{identifier}")
+  Spaceship::ConnectAPI::BundleId.create(name: name, identifier: identifier, platform: "IOS", seed_id: TEAM_ID)
+end

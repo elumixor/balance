@@ -10,8 +10,6 @@ struct CategoryEditSheet: View {
     @State private var name: String
     @State private var color: Color
     @State private var targetHours: Double
-    @State private var trackingMode: TrackingMode
-    @State private var isProductiveLoad: Bool
     @State private var isSaving = false
 
     init(editingCategory: BalanceKit.Category?, onSave: @escaping (String?, APIClient.CategoryInput) async -> Void) {
@@ -20,8 +18,6 @@ struct CategoryEditSheet: View {
         _name = State(initialValue: editingCategory?.name ?? "")
         _color = State(initialValue: Color(hex: editingCategory?.color ?? "#4A90D9"))
         _targetHours = State(initialValue: editingCategory?.targetHoursPerWeek ?? 5)
-        _trackingMode = State(initialValue: editingCategory?.trackingMode ?? .consistency)
-        _isProductiveLoad = State(initialValue: editingCategory?.isProductiveLoad ?? true)
     }
 
     var body: some View {
@@ -40,23 +36,6 @@ struct CategoryEditSheet: View {
                         Text("\(Formatting.hoursAndMinutes(targetHours)) / week")
                     }
                 }
-
-                Section("Tracking Mode") {
-                    Picker("Tracking Mode", selection: $trackingMode) {
-                        Text("Consistency").tag(TrackingMode.consistency)
-                        Text("Average").tag(TrackingMode.average)
-                    }
-                    .pickerStyle(.segmented)
-                    Text(trackingMode == .consistency
-                         ? "Aim to hit the target most days."
-                         : "Aim to hit the target on average over the period.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    Toggle("Counts as productive load", isOn: $isProductiveLoad)
-                }
             }
             .navigationTitle(editingCategory == nil ? "New Category" : "Edit Category")
             .navigationBarTitleDisplayMode(.inline)
@@ -71,9 +50,7 @@ struct CategoryEditSheet: View {
                             let input = APIClient.CategoryInput(
                                 name: name,
                                 color: color.hexString,
-                                targetHoursPerWeek: targetHours,
-                                trackingMode: trackingMode,
-                                isProductiveLoad: isProductiveLoad
+                                targetHoursPerWeek: targetHours
                             )
                             await onSave(editingCategory?.id, input)
                             isSaving = false

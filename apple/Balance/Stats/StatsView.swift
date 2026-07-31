@@ -82,8 +82,6 @@ private struct CategoryStatRow: View {
                 Text(stat.name)
                     .font(.subheadline.bold())
 
-                trackingModeBadge
-
                 Spacer()
 
                 diffIndicator
@@ -98,25 +96,10 @@ private struct CategoryStatRow: View {
                     .foregroundStyle(.secondary)
 
                 Spacer()
-
-                if let daysHit = stat.daysHit, let daysTotal = stat.daysTotal {
-                    Text("\(daysHit)/\(daysTotal) days hit")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
         .padding()
         .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var trackingModeBadge: some View {
-        Text(stat.trackingMode == .consistency ? "Consistency" : "Average")
-            .font(.caption2.bold())
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.fill.secondary, in: Capsule())
-            .foregroundStyle(.secondary)
     }
 
     private var diffIndicator: some View {

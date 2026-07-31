@@ -5,29 +5,20 @@ public struct Category: Codable, Identifiable, Hashable, Sendable {
     public var name: String
     public var color: String
     public var targetHoursPerWeek: Double
-    public var trackingMode: TrackingMode
-    public var isProductiveLoad: Bool
     public var isBuffer: Bool
     public var archived: Bool
 
     public init(
         id: String, name: String, color: String, targetHoursPerWeek: Double,
-        trackingMode: TrackingMode, isProductiveLoad: Bool, isBuffer: Bool, archived: Bool
+        isBuffer: Bool, archived: Bool
     ) {
         self.id = id
         self.name = name
         self.color = color
         self.targetHoursPerWeek = targetHoursPerWeek
-        self.trackingMode = trackingMode
-        self.isProductiveLoad = isProductiveLoad
         self.isBuffer = isBuffer
         self.archived = archived
     }
-}
-
-public enum TrackingMode: String, Codable, Sendable {
-    case consistency
-    case average
 }
 
 public struct ActivityWeight: Codable, Hashable, Sendable {
@@ -90,15 +81,11 @@ public struct CategoryStat: Codable, Identifiable, Sendable {
     public let categoryId: String
     public let name: String
     public let color: String
-    public let trackingMode: TrackingMode
-    public let isProductiveLoad: Bool
     public let targetHours: Double
     public let actualHours: Double
     public let diffHours: Double
     public let diffPercent: Double
     public let status: String
-    public let daysHit: Int?
-    public let daysTotal: Int?
 }
 
 public struct StatsResponse: Codable, Sendable {
