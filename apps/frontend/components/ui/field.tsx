@@ -15,11 +15,9 @@ interface FieldProps {
   variant?: "boxed" | "inline";
   mono?: boolean;
   align?: "left" | "center" | "right";
-  editable?: boolean;
   /** Screen-reader name for fields whose meaning comes from a nearby row label. */
   accessibilityLabel?: string;
   style?: StyleProp<TextStyle>;
-  onSubmitEditing?: () => void;
 }
 
 export function Field({
@@ -32,10 +30,8 @@ export function Field({
   variant = "boxed",
   mono,
   align = "left",
-  editable = true,
   accessibilityLabel,
   style,
-  onSubmitEditing,
 }: FieldProps) {
   const { colors, spacing, radii, type } = useTheme();
   const [focused, setFocused] = useState(false);
@@ -52,9 +48,7 @@ export function Field({
       secureTextEntry={secureTextEntry}
       keyboardType={keyboardType}
       autoCapitalize={autoCapitalize ?? "none"}
-      editable={editable}
       accessibilityLabel={accessibilityLabel}
-      onSubmitEditing={onSubmitEditing}
       style={[
         base,
         {

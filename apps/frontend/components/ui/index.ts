@@ -16,6 +16,5 @@ export {
   Divider,
   EmptyState,
   ListItemIn,
-  FadeSwap,
   GUTTER,
 } from "./layout";

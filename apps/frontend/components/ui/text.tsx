@@ -3,7 +3,7 @@ import type { StyleProp, TextProps, TextStyle } from "react-native";
 import { useTheme } from "../../theme";
 import type { TypeRole } from "../../theme/typography";
 
-export type TextTone = "default" | "muted" | "faint" | "danger" | "positive" | "caution" | "inverse";
+type TextTone = "default" | "muted" | "faint" | "danger" | "positive" | "caution" | "inverse";
 
 interface Props extends Omit<TextProps, "role" | "style"> {
   role?: TypeRole;

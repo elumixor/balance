@@ -12,8 +12,6 @@ export type RingSegment = {
   color: string;
   /** Values share one unit; the ring maps their sum onto 360°. */
   value: number;
-  /** Locked segments absorb what their neighbour gives up but can't be dragged. */
-  locked?: boolean;
 };
 
 const GAP_FRACTION = 0.004;

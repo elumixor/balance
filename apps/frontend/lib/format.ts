@@ -17,15 +17,6 @@ export function formatHoursAndMinutes(hours: number): string {
   return `${sign}${h}h ${m}m`;
 }
 
-export function formatEntryDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 const pad = (n: number) => n.toString().padStart(2, "0");
 
 /** "14:05" — the format the inline entry editor reads and writes. */

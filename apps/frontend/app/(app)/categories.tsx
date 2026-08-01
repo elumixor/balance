@@ -84,7 +84,7 @@ export default function WeekScreen() {
 
   const segments: RingSegment[] = [
     ...drafts.map((d) => ({ id: d.key, label: d.name || "Untitled", color: d.color, value: d.hours })),
-    { id: "__rest__", label: "Rest + Buffer", color: restColor, value: restHours, locked: true },
+    { id: "__rest__", label: "Rest + Buffer", color: restColor, value: restHours },
   ];
 
   // Changes save themselves a moment after you stop moving things.

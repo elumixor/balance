@@ -126,19 +126,3 @@ export async function archiveActivityForUser(userId: string, id: string) {
     .set({ archived: true })
     .where(and(eq(activities.id, id), eq(activities.userId, userId)));
 }
-
-export async function getCategoriesForUser(userId: string) {
-  await syncBufferCategory(userId);
-  return db.query.categories.findMany({
-    where: and(eq(categories.userId, userId), eq(categories.archived, false)),
-    orderBy: (c, { asc }) => [asc(c.createdAt)],
-  });
-}
-
-export async function getActivitiesForUser(userId: string) {
-  return db.query.activities.findMany({
-    where: and(eq(activities.userId, userId), eq(activities.archived, false)),
-    orderBy: (a, { asc }) => [asc(a.createdAt)],
-    with: { weights: true },
-  });
-}

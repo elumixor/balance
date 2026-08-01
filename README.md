@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Balance
 
-## Getting Started
+A time-balance tracker: decide how the 168 hours in your week should be spent, track what you
+actually do, and see the drift.
 
-First, run the development server:
+## Layout
+
+| Path            | What it is                                                   |
+| --------------- | ------------------------------------------------------------ |
+| `apps/frontend` | Expo (React Native + web) app, routed with expo-router        |
+| `apps/backend`  | Nitro JSON API over Postgres (Neon) with Drizzle              |
+| `apple`         | Native iOS + watchOS project, released through fastlane       |
+| `e2e`           | Playwright suite, driven against the app's web build          |
+
+Auth is Clerk on both sides; the frontend sends its session token to `/mobile/*`.
+
+## Running it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+
+cd apps/backend && bun run dev       # http://localhost:3000
+cd apps/frontend && bun run start    # press "w" for web, "i" for a simulator
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Both apps read their own `.env`. The backend needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and
+`CLERK_SECRET_KEY`; the frontend needs `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` and
+`EXPO_PUBLIC_API_BASE_URL`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+bun run test:e2e     # starts both dev servers, then runs Playwright
+```
 
-## Learn More
+The suite signs in as a `+clerk_test` account, so it uses Clerk's fixed `424242` code instead of a
+real email.
 
-To learn more about Next.js, take a look at the following resources:
+## Releasing iOS
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+bun run release:ios  # tags the commit; GitHub Actions builds and ships to TestFlight
+```

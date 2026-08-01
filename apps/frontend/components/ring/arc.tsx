@@ -7,11 +7,6 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export const RING_START = -90;
 
-/** Fraction of the circle a value occupies, guarding against an empty total. */
-export function fraction(value: number, total: number) {
-  return total > 0 ? value / total : 0;
-}
-
 export function pointOnRing(cx: number, cy: number, r: number, frac: number) {
   const angle = ((RING_START + frac * 360) * Math.PI) / 180;
   return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };

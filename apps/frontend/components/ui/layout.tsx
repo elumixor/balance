@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTheme } from "../../theme";
 import { Text } from "./text";
 
@@ -128,16 +128,6 @@ export function ListItemIn({
   if (reduceMotion) return <View style={style}>{children}</View>;
   return (
     <Animated.View entering={FadeInDown.duration(260).delay(Math.min(index, 8) * 35)} style={style}>
-      {children}
-    </Animated.View>
-  );
-}
-
-export function FadeSwap({ children, id }: { children: ReactNode; id: string }) {
-  const { reduceMotion } = useTheme();
-  if (reduceMotion) return <>{children}</>;
-  return (
-    <Animated.View key={id} entering={FadeIn.duration(200)}>
       {children}
     </Animated.View>
   );

@@ -50,7 +50,7 @@ export function ActivityEditor({
 
   const segments: RingSegment[] = [
     ...categories.map((c) => ({ id: c.id, label: c.name, color: c.color, value: weights[c.id] ?? 0 })),
-    { id: "__free__", label: "Unclaimed", color: restColor, value: free, locked: true },
+    { id: "__free__", label: "Unclaimed", color: restColor, value: free },
   ];
 
   function setWeight(categoryId: string, value: number) {
