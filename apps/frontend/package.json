@@ -1,0 +1,44 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@clerk/clerk-expo": "^2.19.31",
+    "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
+    "@expo-google-fonts/dm-mono": "^0.4.2",
+    "@expo-google-fonts/instrument-sans": "^0.4.2",
+    "@expo/metro-runtime": "~57.0.8",
+    "date-fns": "^4.4.0",
+    "expo": "~57.0.9",
+    "expo-apple-authentication": "~57.0.1",
+    "expo-constants": "~57.0.8",
+    "expo-font": "^57.0.1",
+    "expo-linking": "~57.0.4",
+    "expo-router": "~57.0.9",
+    "expo-secure-store": "^57.0.1",
+    "expo-splash-screen": "^57.0.5",
+    "expo-status-bar": "~57.0.1",
+    "expo-web-browser": "~57.0.2",
+    "lucide-react-native": "^1.28.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-reanimated": "4.5.1",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "^15.15.5",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "private": true
+}

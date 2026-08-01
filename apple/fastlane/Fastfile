@@ -53,6 +53,13 @@ platform :ios do
     UI.message("  #{APP_IDENTIFIER}, #{WATCH_IDENTIFIER}, #{WIDGET_IDENTIFIER}")
   end
 
+  # NOTE: the iOS host app (`Balance` target, `apple/Balance/`) has been replaced by the
+  # React Native/Expo app at `apps/frontend`. This lane still archives the old xcodegen-built
+  # SwiftUI host, which no longer exists as the shipping app — it needs to be reworked to
+  # build the Expo app instead (e.g. `expo prebuild` to generate an iOS project, or an EAS
+  # build) while still embedding the watch app + widget extension as companion targets
+  # (same bundle-id relationship: WKCompanionAppBundleIdentifier must keep pointing at the
+  # Expo app's bundle id, com.elumixor.balance). Not reworked yet — flagging as follow-up.
   desc "Build and upload a new TestFlight build"
   lane :beta do
     sh("cd #{APPLE_DIR} && xcodegen generate")
