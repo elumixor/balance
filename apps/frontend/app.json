@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.elumixor.balance",
+      "appleTeamId": "464K6UHCU4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -30,6 +31,12 @@
       "bundler": "metro",
       "output": "single"
     },
-    "plugins": ["expo-router", "expo-status-bar", "expo-secure-store"]
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      "./plugins/withBalanceKitSwiftPackage.js",
+      "@bacons/apple-targets"
+    ]
   }
 }
