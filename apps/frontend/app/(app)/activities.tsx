@@ -9,6 +9,7 @@ import {
   Divider,
   EmptyState,
   GUTTER,
+  InlineError,
   LoadError,
   Panel,
   Screen,
@@ -22,7 +23,7 @@ import { useTheme } from "../../theme";
 export default function ActivitiesScreen() {
   const { colors, spacing } = useTheme();
   const insets = useSafeAreaInsets();
-  const { activities, categoryById, planned, editing, setEditing, loadError, load, save, archive } =
+  const { activities, categoryById, planned, editing, setEditing, loadError, actionError, load, save, archive } =
     useActivitiesData();
 
   return (
@@ -40,6 +41,8 @@ export default function ActivitiesScreen() {
           subtitle={activities ? `${activities.length} active` : undefined}
           trailing={<AccountMenu />}
         />
+
+        <InlineError message={actionError} />
 
         {loadError && !activities ? (
           <LoadError message={loadError} onRetry={load} />

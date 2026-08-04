@@ -38,6 +38,7 @@ export function useTrackData() {
   const [stopping, setStopping] = useState(false);
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -99,6 +100,16 @@ export function useTrackData() {
     return [...groups.entries()].map(([key, items]) => ({ key, date: new Date(key), items }));
   }, [entries]);
 
+  /** Keeps a failed write from disappearing into an unhandled rejection with nothing on screen. */
+  async function run(action: () => Promise<unknown>, fallback: string) {
+    try {
+      setActionError(null);
+      await action();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : fallback);
+    }
+  }
+
   async function refresh() {
     setRefreshing(true);
     try {
@@ -111,8 +122,10 @@ export function useTrackData() {
   async function onStart(activityId: string) {
     setStartingId(activityId);
     try {
-      setRunning(await startTimer(activityId));
-      await load();
+      await run(async () => {
+        setRunning(await startTimer(activityId));
+        await load();
+      }, "Couldn't start that timer.");
     } finally {
       setStartingId(null);
     }
@@ -121,25 +134,30 @@ export function useTrackData() {
   async function onStop() {
     setStopping(true);
     try {
-      await stopTimer();
-      setRunning(null);
-      await load();
+      await run(async () => {
+        await stopTimer();
+        setRunning(null);
+        await load();
+      }, "Couldn't stop the timer.");
     } finally {
       setStopping(false);
     }
   }
 
   async function onSave(entryId: string | "new", draft: EntryDraft) {
-    if (entryId === "new") await createManualEntry(draft);
-    else await updateEntry(entryId, draft);
-    setEditing(null);
-    await load();
+    await run(async () => {
+      if (entryId === "new") await createManualEntry(draft);
+      else await updateEntry(entryId, draft);
+      setEditing(null);
+      await load();
+    }, "Couldn't save that entry.");
   }
 
   async function onDelete(entry: Entry) {
     setEditing(null);
     setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-    await deleteEntry(entry.id);
+    await run(() => deleteEntry(entry.id), "Couldn't delete that entry.");
+    // The row is already gone from the list; this puts it back if the delete didn't land.
     await load();
   }
 
@@ -148,6 +166,7 @@ export function useTrackData() {
     activities,
     loaded,
     loadError,
+    actionError,
     refreshing,
     startingId,
     stopping,

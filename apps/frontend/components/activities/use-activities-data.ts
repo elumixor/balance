@@ -11,6 +11,7 @@ export function useActivitiesData() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -32,11 +33,23 @@ export function useActivitiesData() {
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const planned = useMemo(() => categories.filter((c) => !c.isBuffer), [categories]);
 
+  /** Keeps a failed write from disappearing into an unhandled rejection with nothing on screen. */
+  async function run(action: () => Promise<unknown>, fallback: string) {
+    try {
+      setActionError(null);
+      await action();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : fallback);
+    }
+  }
+
   async function save(id: string | "new", draft: ActivityDraft) {
-    if (id === "new") await createActivity(draft);
-    else await updateActivity(id, draft);
-    setEditing(null);
-    await load();
+    await run(async () => {
+      if (id === "new") await createActivity(draft);
+      else await updateActivity(id, draft);
+      setEditing(null);
+      await load();
+    }, "Couldn't save that activity.");
   }
 
   function archive(activity: Activity) {
@@ -45,14 +58,15 @@ export function useActivitiesData() {
       {
         text: "Archive",
         style: "destructive",
-        onPress: async () => {
-          setEditing(null);
-          await archiveActivity(activity.id);
-          await load();
-        },
+        onPress: () =>
+          run(async () => {
+            setEditing(null);
+            await archiveActivity(activity.id);
+            await load();
+          }, "Couldn't archive that activity."),
       },
     ]);
   }
 
-  return { activities, categoryById, planned, editing, setEditing, loadError, load, save, archive };
+  return { activities, categoryById, planned, editing, setEditing, loadError, actionError, load, save, archive };
 }

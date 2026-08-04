@@ -8,6 +8,7 @@ import { useTrackData } from "../../components/track/use-track-data";
 import {
   EmptyState,
   GUTTER,
+  InlineError,
   LoadError,
   Panel,
   Screen,
@@ -25,6 +26,7 @@ export default function TrackScreen() {
     activities,
     loaded,
     loadError,
+    actionError,
     refreshing,
     startingId,
     stopping,
@@ -52,6 +54,7 @@ export default function TrackScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.textMuted} onRefresh={refresh} />}
       >
         <ScreenTitle title="Track" trailing={<AccountMenu />} />
+        <InlineError message={actionError} />
 
         {loadError && !loaded ? (
           <LoadError message={loadError} onRetry={load} />
