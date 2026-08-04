@@ -6,6 +6,7 @@
     "apps/*"
   ],
   "scripts": {
+    "build": "bun scripts/build-vercel.ts",
     "dev": "devkit",
     "dev:open": "devkit --open",
     "lint": "biome check .",

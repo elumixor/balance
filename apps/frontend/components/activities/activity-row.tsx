@@ -1,4 +1,4 @@
-import { Archive } from "lucide-react-native";
+import Archive from "lucide-react-native/icons/archive";
 import { View } from "react-native";
 import { activitySplits } from "../../lib/splits";
 import type { Activity, Category } from "../../lib/types";

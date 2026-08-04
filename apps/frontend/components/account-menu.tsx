@@ -1,5 +1,8 @@
 import { useClerk, useUser } from "@clerk/clerk-expo";
-import { LogOut, Monitor, Moon, Sun } from "lucide-react-native";
+import LogOut from "lucide-react-native/icons/log-out";
+import Monitor from "lucide-react-native/icons/monitor";
+import Moon from "lucide-react-native/icons/moon";
+import Sun from "lucide-react-native/icons/sun";
 import { View } from "react-native";
 import { type ThemeMode, useTheme } from "../theme";
 import { Divider } from "./ui/layout";

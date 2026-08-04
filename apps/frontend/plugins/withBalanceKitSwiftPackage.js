@@ -1,12 +1,6 @@
 const path = require("path");
-const {
-  withXcodeProjectBeta,
-} = require("@bacons/apple-targets/build/with-bacons-xcode");
-const {
-  XCLocalSwiftPackageReference,
-  XCSwiftPackageProductDependency,
-  PBXBuildFile,
-} = require("@bacons/xcode");
+const { withXcodeProjectBeta } = require("@bacons/apple-targets/build/with-bacons-xcode");
+const { XCLocalSwiftPackageReference, XCSwiftPackageProductDependency, PBXBuildFile } = require("@bacons/xcode");
 
 // BalanceKit is a local Swift package (apple/BalanceKit) that isn't part of the Expo
 // `targets/` tree (@bacons/apple-targets has no config field for local SPM dependencies).
@@ -33,16 +27,11 @@ module.exports = function withBalanceKitSwiftPackage(config) {
   return withXcodeProjectBeta(config, (modConfig) => {
     const project = modConfig.modResults;
     const xcodeprojDir = project.getProjectRoot();
-    const balanceKitPath = path.resolve(
-      modConfig.modRequest.projectRoot,
-      "../../apple/BalanceKit",
-    );
+    const balanceKitPath = path.resolve(modConfig.modRequest.projectRoot, "../../apple/BalanceKit");
     const relativePath = path.relative(xcodeprojDir, balanceKitPath);
 
     let packageRef = [...project.values()].find(
-      (obj) =>
-        XCLocalSwiftPackageReference.is(obj) &&
-        obj.props.relativePath === relativePath,
+      (obj) => XCLocalSwiftPackageReference.is(obj) && obj.props.relativePath === relativePath,
     );
     if (!packageRef) {
       packageRef = XCLocalSwiftPackageReference.create(project, {
@@ -53,9 +42,9 @@ module.exports = function withBalanceKitSwiftPackage(config) {
     }
 
     function linkProduct(target, productName) {
-      let productDependency = (
-        target.props.packageProductDependencies ?? []
-      ).find((dep) => dep.props.productName === productName);
+      let productDependency = (target.props.packageProductDependencies ?? []).find(
+        (dep) => dep.props.productName === productName,
+      );
       if (!productDependency) {
         productDependency = XCSwiftPackageProductDependency.create(project, {
           package: packageRef,
@@ -77,20 +66,17 @@ module.exports = function withBalanceKitSwiftPackage(config) {
     }
 
     const allTargets = project.rootObject.props.targets ?? [];
-    const watchAppTarget = allTargets.find(
-      (t) => t.props.name === WATCH_APP_TARGET_NAME,
-    );
-    const watchWidgetTarget = allTargets.find(
-      (t) => t.props.name === WATCH_WIDGET_TARGET_NAME,
-    );
+    const watchAppTarget = allTargets.find((t) => t.props.name === WATCH_APP_TARGET_NAME);
+    const watchWidgetTarget = allTargets.find((t) => t.props.name === WATCH_WIDGET_TARGET_NAME);
 
     if (!watchAppTarget || !watchWidgetTarget) {
       throw new Error(
         `[withBalanceKitSwiftPackage] Could not find expected targets in the generated Xcode project ` +
           `(watchApp=${!!watchAppTarget}, watchWidget=${!!watchWidgetTarget}). ` +
-          `Check that the @bacons/apple-targets "name" fields still match ${JSON.stringify(
-            [WATCH_APP_TARGET_NAME, WATCH_WIDGET_TARGET_NAME],
-          )}, and that this plugin is listed BEFORE "@bacons/apple-targets" in app.json.`,
+          `Check that the @bacons/apple-targets "name" fields still match ${JSON.stringify([
+            WATCH_APP_TARGET_NAME,
+            WATCH_WIDGET_TARGET_NAME,
+          ])}, and that this plugin is listed BEFORE "@bacons/apple-targets" in app.json.`,
       );
     }
 

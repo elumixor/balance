@@ -1,4 +1,5 @@
-import { Check, Plus } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import Plus from "lucide-react-native/icons/plus";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AccountMenu } from "../../components/account-menu";

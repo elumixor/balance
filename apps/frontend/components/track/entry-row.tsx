@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react-native";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import { View } from "react-native";
 import { formatClock, formatHoursAndMinutes } from "../../lib/format";
 import type { Entry } from "../../lib/types";

@@ -1,6 +1,9 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Redirect, Tabs } from "expo-router";
-import { PieChart, Scale, Shapes, Timer } from "lucide-react-native";
+import PieChart from "lucide-react-native/icons/chart-pie";
+import Scale from "lucide-react-native/icons/scale";
+import Shapes from "lucide-react-native/icons/shapes";
+import Timer from "lucide-react-native/icons/timer";
 import { useTheme } from "../../theme";
 
 export default function AppLayout() {

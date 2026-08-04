@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react-native";
+import Plus from "lucide-react-native/icons/plus";
 import { View } from "react-native";
 import { formatDayHeading } from "../../lib/format";
 import type { Activity, Entry } from "../../lib/types";

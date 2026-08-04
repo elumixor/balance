@@ -56,3 +56,6 @@ next-env.d.ts
 
 # next.js build output (legacy web app)
 .next/
+
+# expo web export served by the backend
+apps/backend/public/

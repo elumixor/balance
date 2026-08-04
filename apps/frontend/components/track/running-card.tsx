@@ -1,4 +1,4 @@
-import { Square } from "lucide-react-native";
+import Square from "lucide-react-native/icons/square";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { formatClock, formatDuration } from "../../lib/format";

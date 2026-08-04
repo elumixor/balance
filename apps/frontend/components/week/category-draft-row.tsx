@@ -1,4 +1,4 @@
-import { X } from "lucide-react-native";
+import X from "lucide-react-native/icons/x";
 import { View } from "react-native";
 import { useTheme } from "../../theme";
 import { Divider, Field, IconButton, ListItemIn, Text } from "../ui";

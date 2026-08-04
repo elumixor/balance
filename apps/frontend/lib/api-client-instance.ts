@@ -1,6 +1,14 @@
+import { Platform } from "react-native";
 import { NitroAPI } from "./api-client";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+/**
+ * Where the API lives when `EXPO_PUBLIC_API_BASE_URL` isn't set — i.e. every release build.
+ * Native builds need the absolute URL; on web the app is served by the same Nitro deployment
+ * that owns `/mobile/*`, so a relative base keeps requests same-origin (no CORS preflight).
+ */
+const PRODUCTION_API_BASE_URL = "https://balance-app-mauve.vercel.app";
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || (Platform.OS === "web" ? "" : PRODUCTION_API_BASE_URL);
 
 export class ApiClientError extends Error {}
 
@@ -19,7 +27,14 @@ async function authenticatedFetch(input: Parameters<typeof fetch>[0], init?: Par
 
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${token}`);
-  return fetch(input, { ...init, headers });
+  try {
+    return await fetch(input, { ...init, headers });
+  } catch {
+    // A transport failure (offline, DNS, server down) surfaces as a platform-specific message —
+    // `TypeError: Network request failed` on web, an ExpoModulesCore stack trace on iOS. Neither
+    // means anything to the person holding the phone.
+    throw new ApiClientError("Can't reach the server. Check your connection and try again.");
+  }
 }
 
 export const api = new NitroAPI({ baseUrl: API_BASE_URL, fetch: authenticatedFetch }).mobile;
@@ -40,6 +55,8 @@ export async function callApi<T>(promise: Promise<T>): Promise<T> {
         if (parsed && typeof parsed === "object" && "error" in parsed) {
           throw new ApiClientError(String((parsed as { error: unknown }).error));
         }
+        // Non-JSON body (gateway HTML, empty 500) — the raw text is noise to the user.
+        throw new ApiClientError("The server had a problem. Try again in a moment.");
       }
     }
     throw e;
@@ -82,7 +99,10 @@ export async function apiGet<T>(path: string, query: Record<string, string | num
   const res = await authenticatedFetch(`${API_BASE_URL}/mobile${path}${suffix}`);
   const json = await res.json().catch(() => null);
   if (!res.ok) {
-    const message = json && typeof json === "object" && "error" in json ? String(json.error) : "Request failed";
+    const message =
+      json && typeof json === "object" && "error" in json
+        ? String(json.error)
+        : "The server had a problem. Try again in a moment.";
     throw new ApiClientError(message);
   }
   return json as T;

@@ -11,7 +11,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { configureApiAuth } from "../lib/api-client-instance";
@@ -45,7 +45,7 @@ function RootNavigator() {
   );
 }
 
-/** Holds the first frame until the type is ready, so nothing reflows on load. */
+/** Holds the first frame until the type is ready, so nothing reflows on load — native only. */
 function FontGate() {
   const { colors } = useTheme();
   const [loaded] = useFonts({
@@ -58,7 +58,9 @@ function FontGate() {
     DMMono_500Medium,
   });
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  // On web the fonts arrive as @font-face rules the browser swaps in on its own, so blocking here
+  // would only add a blank screen on top of an already-loading bundle.
+  if (!loaded && Platform.OS !== "web") return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   return <RootNavigator />;
 }
 
