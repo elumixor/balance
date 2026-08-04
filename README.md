@@ -9,7 +9,8 @@ actually do, and see the drift.
 | --------------- | ------------------------------------------------------------ |
 | `apps/frontend` | Expo (React Native + web) app, routed with expo-router        |
 | `apps/backend`  | Nitro JSON API over Postgres (Neon) with Drizzle              |
-| `apple`         | Native iOS + watchOS project, released through fastlane       |
+| `apple`         | Shared BalanceKit Swift package + fastlane release lane        |
+| `apps/frontend/targets` | watchOS companion app + widget, linked into the Expo iOS project by `@bacons/apple-targets` |
 | `e2e`           | Playwright suite, driven against the app's web build          |
 
 Auth is Clerk on both sides; the frontend sends its session token to `/mobile/*`.

@@ -6,8 +6,12 @@ default_platform(:ios)
 # lives) by default, not the project root — resolve absolute paths from here so
 # FileUtils (real Ruby cwd) and sh (fastlane's own cwd) never disagree.
 APPLE_DIR = File.expand_path("..", __dir__)
+ROOT_DIR = File.expand_path("../..", __dir__)
+FRONTEND_DIR = File.join(ROOT_DIR, "apps", "frontend")
+IOS_DIR = File.join(FRONTEND_DIR, "ios")
 
-PROJECT = "Balance.xcodeproj"
+PROJECT = File.join(IOS_DIR, "Balance.xcodeproj")
+WORKSPACE = File.join(IOS_DIR, "Balance.xcworkspace")
 SCHEME = "Balance"
 APP_IDENTIFIER = "com.elumixor.balance"
 WATCH_IDENTIFIER = "com.elumixor.balance.watchkitapp"
@@ -53,16 +57,15 @@ platform :ios do
     UI.message("  #{APP_IDENTIFIER}, #{WATCH_IDENTIFIER}, #{WIDGET_IDENTIFIER}")
   end
 
-  # NOTE: the iOS host app (`Balance` target, `apple/Balance/`) has been replaced by the
-  # React Native/Expo app at `apps/frontend`. This lane still archives the old xcodegen-built
-  # SwiftUI host, which no longer exists as the shipping app — it needs to be reworked to
-  # build the Expo app instead (e.g. `expo prebuild` to generate an iOS project, or an EAS
-  # build) while still embedding the watch app + widget extension as companion targets
-  # (same bundle-id relationship: WKCompanionAppBundleIdentifier must keep pointing at the
-  # Expo app's bundle id, com.elumixor.balance). Not reworked yet — flagging as follow-up.
   desc "Build and upload a new TestFlight build"
   lane :beta do
-    sh("cd #{APPLE_DIR} && xcodegen generate")
+    # The iOS host + watch app + widget are all generated into one project by
+    # `expo prebuild` (host from apps/frontend, watch/widget from apps/frontend/targets
+    # via the @bacons/apple-targets config plugin — see apps/frontend/app.json and
+    # apps/frontend/plugins/withBalanceKitSwiftPackage.js for how BalanceKit gets linked
+    # in). `--clean` regenerates `apps/frontend/ios` from scratch every run, mirroring
+    # what `xcodegen generate` used to do for the old hand-written project.
+    sh("cd #{FRONTEND_DIR} && bunx expo prebuild -p ios --clean")
 
     api_key = make_api_key
 
@@ -79,8 +82,11 @@ platform :ios do
 
     # Keep the embedded watch app + widget version-locked to the host app, or
     # App Store validation rejects the upload.
-    app_version = get_info_plist_value(path: "Balance/Info.plist", key: "CFBundleShortVersionString")
-    [["Balance Watch App/Info.plist"], ["Balance Watch Widget/Info.plist"]].each do |(plist)|
+    app_version = get_info_plist_value(path: File.join(IOS_DIR, "Balance", "Info.plist"), key: "CFBundleShortVersionString")
+    [
+      File.join(FRONTEND_DIR, "targets", "watch", "Info.plist"),
+      File.join(FRONTEND_DIR, "targets", "watch-widget", "Info.plist"),
+    ].each do |plist|
       set_info_plist_value(path: plist, key: "CFBundleShortVersionString", value: app_version)
       set_info_plist_value(path: plist, key: "CFBundleVersion", value: next_build.to_s)
     end
@@ -117,7 +123,7 @@ platform :ios do
     # and then hand-package the IPA ourselves from the already-signed .app, exactly
     # mirroring what a successful `xcodebuild archive` + manual `zip` produces.
     build_app(
-      project: PROJECT,
+      workspace: WORKSPACE,
       scheme: SCHEME,
       configuration: "Release",
       clean: true,
