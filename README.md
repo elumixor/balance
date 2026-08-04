@@ -35,6 +35,18 @@ The frontend's typed API client (`apps/frontend/lib/api-client`) is generated fr
 route handlers — run `cd apps/backend && bunx nitro-client` after changing a `server/routes/mobile/**`
 handler's schema or response shape, and commit the regenerated output.
 
+## Deploying the web app + API
+
+```bash
+bun run build  # Expo web export -> apps/backend/public, then Nitro's Vercel build output
+```
+
+Both halves ship as one Vercel deployment at
+[balance-app-mauve.vercel.app](https://balance-app-mauve.vercel.app): static pages for the app,
+one function for `/mobile/*` and `/health`. Pushing to `main` deploys it. Because they share an
+origin, the web client calls the API with a relative URL — native builds fall back to the
+production URL in `lib/api-client-instance.ts` when `EXPO_PUBLIC_API_BASE_URL` isn't set.
+
 ## Linting
 
 ```bash
