@@ -10,6 +10,9 @@ import { $ } from "bun";
 /** Paths the Nitro function owns; everything else belongs to the web app. */
 const API_PREFIXES = ["mobile", "health"];
 
+/** Expo Router's unmatched-route screen, as the static export names it. */
+const NOT_FOUND_FILE = "+not-found.html";
+
 const root = resolve(import.meta.dir, "..");
 const frontend = join(root, "apps/frontend");
 const backend = join(root, "apps/backend");
@@ -40,10 +43,13 @@ async function writeCleanUrlOverrides() {
   if (!existsSync(staticDir)) throw new Error(`No static output at ${staticDir} — did the web export land?`);
 
   // The Build Output API has no `cleanUrls` flag; an `overrides` entry per file is the equivalent.
+  // An override *moves* the file's path, so `index.html` and the not-found page — both of which are
+  // routed to by filename below — have to keep theirs.
+  const keepAsIs = new Set(["index.html", NOT_FOUND_FILE]);
   const overrides: Record<string, { path: string }> = { ...config.overrides };
   for (const entry of await readdir(staticDir, { withFileTypes: true })) {
     // Route-group folders (`(app)/track.html`) duplicate the flat routes Expo also emits.
-    if (!entry.isFile() || !entry.name.endsWith(".html") || entry.name === "index.html") continue;
+    if (!entry.isFile() || !entry.name.endsWith(".html") || keepAsIs.has(entry.name)) continue;
     overrides[entry.name] = { path: entry.name.replace(/\.html$/, "") };
   }
   config.overrides = overrides;
@@ -61,7 +67,7 @@ async function writeCleanUrlOverrides() {
     },
     {
       src: `/((?!${API_PREFIXES.join("|")}).*)`,
-      dest: "/+not-found.html",
+      dest: `/${NOT_FOUND_FILE}`,
       status: 404,
     },
   );
