@@ -4,13 +4,14 @@ import PieChart from "lucide-react-native/icons/chart-pie";
 import Scale from "lucide-react-native/icons/scale";
 import Shapes from "lucide-react-native/icons/shapes";
 import Timer from "lucide-react-native/icons/timer";
+import { AppLoading } from "../../components/ui/app-loading";
 import { useTheme } from "../../theme";
 
 export default function AppLayout() {
   const { isSignedIn, isLoaded } = useAuth();
   const { colors, fonts } = useTheme();
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return <AppLoading />;
   if (!isSignedIn) return <Redirect href="/sign-in" />;
 
   return (
