@@ -76,8 +76,10 @@ test.describe("Balance app", () => {
 
   test("create an activity split across the category", async () => {
     await page.goto("/activities");
-    if (await page.getByLabel("Edit Coding").isVisible()) {
-      await page.getByLabel("Edit Coding").click();
+    // The account is shared across runs, so it can hold more than one activity by this name.
+    const coding = page.getByLabel("Edit Coding").first();
+    if (await coding.isVisible()) {
+      await coding.click();
     } else {
       await page.getByLabel("Add activity").click();
     }
@@ -86,14 +88,15 @@ test.describe("Balance app", () => {
     await page.getByLabel("Deep Work share", { exact: true }).fill("60");
     await page.getByText("Save", { exact: true }).click();
 
-    const codingRow = page.getByLabel("Edit Coding");
+    const codingRow = page.getByLabel("Edit Coding").first();
     await expect(codingRow).toBeVisible({ timeout: 10_000 });
     await expect(codingRow).toContainText("Deep Work 60%");
   });
 
   test("start and stop a timer, entry shows in the list", async () => {
     await page.goto("/track");
-    await page.getByLabel("Start Coding").click();
+    // The account is shared across runs, so it can hold more than one activity by this name.
+    await page.getByLabel("Start Coding").first().click();
 
     await expect(page.getByText("Stop", { exact: true })).toBeVisible({ timeout: 10_000 });
     await page.getByText("Stop", { exact: true }).click();
