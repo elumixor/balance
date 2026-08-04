@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { View } from "react-native";
 import type { DimensionValue } from "react-native";
+import { View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { useTheme } from "../../theme";
 
@@ -25,10 +25,7 @@ export function Skeleton({
 
   return (
     <Animated.View
-      style={[
-        { width, height, borderRadius: radius ?? radii.sm, backgroundColor: colors.surfaceAlt },
-        style,
-      ]}
+      style={[{ width, height, borderRadius: radius ?? radii.sm, backgroundColor: colors.surfaceAlt }, style]}
     />
   );
 }

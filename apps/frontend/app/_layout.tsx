@@ -1,9 +1,6 @@
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
-import {
-  BricolageGrotesque_600SemiBold,
-  BricolageGrotesque_700Bold,
-} from "@expo-google-fonts/bricolage-grotesque";
+import { BricolageGrotesque_600SemiBold, BricolageGrotesque_700Bold } from "@expo-google-fonts/bricolage-grotesque";
 import { DMMono_400Regular, DMMono_500Medium } from "@expo-google-fonts/dm-mono";
 import {
   InstrumentSans_400Regular,
@@ -17,7 +14,7 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { configureApiAuth } from "../lib/api";
+import { configureApiAuth } from "../lib/api-client-instance";
 import { CLERK_PUBLISHABLE_KEY } from "../lib/clerk";
 import { ThemeProvider, useTheme } from "../theme";
 

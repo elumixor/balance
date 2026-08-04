@@ -22,11 +22,7 @@ export const categories = pgTable(
     archived: boolean("archived").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    uniqueIndex("categories_one_buffer_per_user")
-      .on(table.userId)
-      .where(sql`${table.isBuffer}`),
-  ],
+  (table) => [uniqueIndex("categories_one_buffer_per_user").on(table.userId).where(sql`${table.isBuffer}`)],
 );
 
 export const activities = pgTable("activities", {

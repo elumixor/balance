@@ -1,8 +1,8 @@
 import { View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { useTheme } from "../../theme";
-import { Arc, pointOnRing } from "./arc";
 import type { Split } from "../ui/split-bar";
+import { Arc, pointOnRing } from "./arc";
 
 /**
  * While a timer runs, the ring shows where those minutes are going — the running
@@ -28,7 +28,7 @@ export function TimerRing({
   const r = size / 2 - thickness / 2;
 
   const total = splits.reduce((sum, s) => sum + s.value, 0);
-  const handFraction = ((elapsedMs / 3_600_000) % 1 + 1) % 1;
+  const handFraction = (((elapsedMs / 3_600_000) % 1) + 1) % 1;
   const hand = pointOnRing(cx, cy, r, handFraction);
 
   let cursor = 0;
@@ -57,7 +57,14 @@ export function TimerRing({
             delay={i * 45}
           />
         ))}
-        <Circle cx={hand.x} cy={hand.y} r={thickness / 2 + 1.5} fill={colors.ink} stroke={colors.surface} strokeWidth={2} />
+        <Circle
+          cx={hand.x}
+          cy={hand.y}
+          r={thickness / 2 + 1.5}
+          fill={colors.ink}
+          stroke={colors.surface}
+          strokeWidth={2}
+        />
       </Svg>
       <View
         style={{

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
+import { View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTheme } from "../../theme";
 import { Text } from "./text";
@@ -14,15 +14,7 @@ export function Screen({ children, style }: { children: ReactNode; style?: Style
 }
 
 /** The screen title lives in the content, not in a nav bar, so it scrolls away. */
-export function ScreenTitle({
-  title,
-  subtitle,
-  trailing,
-}: {
-  title: string;
-  subtitle?: string;
-  trailing?: ReactNode;
-}) {
+export function ScreenTitle({ title, subtitle, trailing }: { title: string; subtitle?: string; trailing?: ReactNode }) {
   const { spacing } = useTheme();
   return (
     <View
@@ -36,7 +28,11 @@ export function ScreenTitle({
     >
       <View style={{ flex: 1, gap: 2 }}>
         <Text role="title">{title}</Text>
-        {subtitle ? <Text role="label" tone="muted">{subtitle}</Text> : null}
+        {subtitle ? (
+          <Text role="label" tone="muted">
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
       {trailing}
     </View>

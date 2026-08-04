@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
 import { View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Svg, { Circle, Line } from "react-native-svg";
+import { Gesture } from "react-native-gesture-handler";
+import Svg, { Circle } from "react-native-svg";
 import { useTheme } from "../../theme";
 import { Text } from "../ui/text";
-import { Arc, RING_START, pointOnRing } from "./arc";
+import { Arc, pointOnRing } from "./arc";
+import { useSeamDrag } from "./use-seam-drag";
+import { Seam, SplitHandle } from "./week-ring-handles";
 
 export type RingSegment = {
   id: string;
@@ -42,9 +43,6 @@ export function WeekRing({
   centerValue?: string;
 }) {
   const { colors } = useTheme();
-  const containerRef = useRef<View>(null);
-  const origin = useRef({ x: 0, y: 0 });
-  const [dragging, setDragging] = useState<number | null>(null);
 
   const cx = size / 2;
   const cy = size / 2;
@@ -59,42 +57,16 @@ export function WeekRing({
     return next;
   }, 0);
 
+  const { containerRef, captureOrigin, dragging, setDragging, moveSeam } = useSeamDrag(
+    segments,
+    bounds,
+    total,
+    onChange,
+  );
   const focused = dragging !== null ? segments[dragging] : null;
 
-  function fractionFromPoint(absoluteX: number, absoluteY: number) {
-    const x = absoluteX - origin.current.x - cx;
-    const y = absoluteY - origin.current.y - cy;
-    const deg = (Math.atan2(y, x) * 180) / Math.PI;
-    return ((deg - RING_START + 360) % 360) / 360;
-  }
-
-  function moveSeam(index: number, absoluteX: number, absoluteY: number) {
-    const raw = fractionFromPoint(absoluteX, absoluteY) * total;
-    const reference = bounds[index];
-    let value = raw;
-    while (value - reference > total / 2) value -= total;
-    while (value - reference < -total / 2) value += total;
-
-    const lower = index === 0 ? 0 : bounds[index - 1];
-    const upper = bounds[index + 1];
-    const clamped = Math.min(Math.max(value, lower), upper);
-
-    const next = segments.map((s) => s.value);
-    next[index] = Math.round((clamped - lower) * 10) / 10;
-    next[index + 1] = Math.round((upper - clamped) * 10) / 10;
-    onChange(next);
-  }
-
   return (
-    <View
-      ref={containerRef}
-      style={{ width: size, height: size }}
-      onLayout={() => {
-        containerRef.current?.measureInWindow((x, y) => {
-          origin.current = { x, y };
-        });
-      }}
-    >
+    <View ref={containerRef} style={{ width: size, height: size }} onLayout={captureOrigin}>
       <Svg width={size} height={size}>
         <Circle cx={cx} cy={cy} r={r} fill="none" stroke={colors.surfaceAlt} strokeWidth={thickness} />
         {segments.map((segment, i) => {
@@ -168,7 +140,7 @@ export function WeekRing({
             active={dragging === i}
             gesture={Gesture.Pan()
               .onBegin(() => setDragging(i))
-              .onUpdate((e) => moveSeam(i, e.absoluteX, e.absoluteY))
+              .onUpdate((e) => moveSeam(cx, cy, i, e.absoluteX, e.absoluteY))
               .onFinalize(() => setDragging(null))}
           />
         );
@@ -179,74 +151,4 @@ export function WeekRing({
 
 function round(value: number) {
   return Math.round(value * 10) / 10;
-}
-
-function Seam({
-  x,
-  y,
-  angle,
-  thickness,
-  active,
-  gesture,
-}: {
-  x: number;
-  y: number;
-  angle: number;
-  thickness: number;
-  active: boolean;
-  gesture: ReturnType<typeof Gesture.Pan>;
-}) {
-  const { colors } = useTheme();
-  const hit = 34;
-  const barHeight = thickness + 12;
-  return (
-    <GestureDetector gesture={gesture}>
-      <View
-        accessibilityRole="adjustable"
-        accessibilityLabel="Move hours between neighbouring slices"
-        style={{
-          position: "absolute",
-          left: x - hit / 2,
-          top: y - hit / 2,
-          width: hit,
-          height: hit,
-          alignItems: "center",
-          justifyContent: "center",
-          transform: [{ rotate: `${angle * 360}deg` }],
-        }}
-      >
-        <View
-          style={{
-            width: active ? 6 : 4,
-            height: barHeight,
-            borderRadius: 3,
-            backgroundColor: colors.ink,
-            borderWidth: 1.5,
-            borderColor: colors.surface,
-          }}
-        />
-      </View>
-    </GestureDetector>
-  );
-}
-
-function SplitHandle({ x, y, onPress, label }: { x: number; y: number; onPress: () => void; label: string }) {
-  const { colors } = useTheme();
-  const r = 12;
-  const tap = Gesture.Tap().onEnd(() => onPress());
-  return (
-    <GestureDetector gesture={tap}>
-      <View
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        style={{ position: "absolute", left: x - r, top: y - r, width: r * 2, height: r * 2 }}
-      >
-        <Svg width={r * 2} height={r * 2}>
-          <Circle cx={r} cy={r} r={r - 1} fill={colors.surface} stroke={colors.lineStrong} strokeWidth={1} />
-          <Line x1={r - 4.5} y1={r} x2={r + 4.5} y2={r} stroke={colors.text} strokeWidth={1.6} strokeLinecap="round" />
-          <Line x1={r} y1={r - 4.5} x2={r} y2={r + 4.5} stroke={colors.text} strokeWidth={1.6} strokeLinecap="round" />
-        </Svg>
-      </View>
-    </GestureDetector>
-  );
 }

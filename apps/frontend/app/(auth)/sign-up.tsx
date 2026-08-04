@@ -55,9 +55,7 @@ export default function SignUpScreen() {
   return (
     <AuthShell
       tagline={
-        awaitingCode
-          ? `We sent a six-digit code to ${email}.`
-          : "Decide how your week should go, then see how it went."
+        awaitingCode ? `We sent a six-digit code to ${email}.` : "Decide how your week should go, then see how it went."
       }
     >
       {awaitingCode ? (

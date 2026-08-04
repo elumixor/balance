@@ -1,6 +1,6 @@
 import { View } from "react-native";
-import { swatchPalette } from "../../theme/colors";
 import { useTheme } from "../../theme";
+import { swatchPalette } from "../../theme/colors";
 import { Popover } from "../ui/popover";
 import { Dot } from "../ui/split-bar";
 import { Touchable } from "../ui/touchable";

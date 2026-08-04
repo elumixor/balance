@@ -4,7 +4,7 @@ import { formatClock, formatHoursAndMinutes } from "../../lib/format";
 import type { Entry } from "../../lib/types";
 import { useTheme } from "../../theme";
 import { IconButton } from "../ui/button";
-import { SplitBar, type Split } from "../ui/split-bar";
+import { type Split, SplitBar } from "../ui/split-bar";
 import { Text } from "../ui/text";
 import { Touchable } from "../ui/touchable";
 
@@ -22,8 +22,7 @@ export function EntryRow({
   onDelete: () => void;
 }) {
   const { colors, spacing } = useTheme();
-  const hours =
-    (new Date(entry.endedAt ?? Date.now()).getTime() - new Date(entry.startedAt).getTime()) / 3_600_000;
+  const hours = (new Date(entry.endedAt ?? Date.now()).getTime() - new Date(entry.startedAt).getTime()) / 3_600_000;
 
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>

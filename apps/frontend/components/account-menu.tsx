@@ -1,7 +1,7 @@
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import { LogOut, Monitor, Moon, Sun } from "lucide-react-native";
 import { View } from "react-native";
-import { useTheme, type ThemeMode } from "../theme";
+import { type ThemeMode, useTheme } from "../theme";
 import { Divider } from "./ui/layout";
 import { Popover, PopoverItem } from "./ui/popover";
 import { Text } from "./ui/text";

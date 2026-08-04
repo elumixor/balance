@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { useTheme } from "../../theme";
-import { SplitBar, type Split } from "../ui/split-bar";
+import { type Split, SplitBar } from "../ui/split-bar";
 import { Text } from "../ui/text";
 import { Touchable } from "../ui/touchable";
 

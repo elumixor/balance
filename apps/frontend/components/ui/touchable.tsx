@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { Pressable } from "react-native";
 import type { PressableProps, StyleProp, ViewStyle } from "react-native";
+import { Pressable } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useTheme } from "../../theme";
 

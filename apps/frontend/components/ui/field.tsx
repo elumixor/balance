@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { TextInput, View } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
+import { TextInput, View } from "react-native";
 import { useTheme } from "../../theme";
 import { Text } from "./text";
 

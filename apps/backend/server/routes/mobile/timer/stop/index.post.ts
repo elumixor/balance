@@ -1,9 +1,9 @@
+import { handler } from "@elumixor/nitro-client/server";
 import { getDbUserForRequest } from "../../../../lib/current-user";
-import { stopTimerForUser } from "../../../../lib/entries-service";
-import { defineApiHandler } from "../../../../lib/handler";
+import { EntriesService } from "../../../../lib/entries-service";
 
-export default defineApiHandler(async (event) => {
+export default handler(async ({ event }) => {
   const user = await getDbUserForRequest(event);
-  await stopTimerForUser(user.id);
+  await new EntriesService(user.id).stopTimer();
   return { ok: true };
 });

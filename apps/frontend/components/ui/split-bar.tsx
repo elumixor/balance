@@ -1,5 +1,5 @@
-import { View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
+import { View } from "react-native";
 import { useTheme } from "../../theme";
 
 export type Split = { id: string; color: string; value: number };

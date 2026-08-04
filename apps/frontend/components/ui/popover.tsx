@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useRef, useState } from "react";
 import { Dimensions, Modal, Pressable, View } from "react-native";
 import Animated, { FadeIn, FadeInUp } from "react-native-reanimated";
 import { useTheme } from "../../theme";
@@ -101,10 +101,7 @@ export function PopoverItem({
       {icon}
       <Animated.Text
         entering={FadeIn}
-        style={[
-          type.body,
-          { flex: 1, color: tone === "danger" ? colors.danger : colors.text },
-        ]}
+        style={[type.body, { flex: 1, color: tone === "danger" ? colors.danger : colors.text }]}
       >
         {label}
       </Animated.Text>

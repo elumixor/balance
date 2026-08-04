@@ -1,166 +1,33 @@
-import { useFocusEffect } from "expo-router";
-import { Check, Plus, X } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Plus } from "lucide-react-native";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AccountMenu } from "../../components/account-menu";
-import { WeekRing, type RingSegment } from "../../components/ring/week-ring";
-import { ColorPicker } from "../../components/week/color-picker";
-import {
-  Divider,
-  Field,
-  GUTTER,
-  IconButton,
-  ListItemIn,
-  LoadError,
-  Screen,
-  ScreenTitle,
-  Skeleton,
-  Text,
-  Touchable,
-} from "../../components/ui";
+import { WeekRing } from "../../components/ring/week-ring";
+import { Divider, GUTTER, LoadError, Screen, ScreenTitle, Skeleton, Text, Touchable } from "../../components/ui";
+import { CategoryDraftRow } from "../../components/week/category-draft-row";
+import { useCategoryDrafts, WEEK_HOURS } from "../../components/week/use-category-drafts";
 import { formatHoursAndMinutes } from "../../lib/format";
-import { archiveCategory, createCategory, getCategories, updateCategory } from "../../lib/queries";
-import type { Category } from "../../lib/types";
 import { useTheme } from "../../theme";
-import { restColor, swatchPalette } from "../../theme/colors";
-
-const WEEK_HOURS = 168;
-
-type Draft = {
-  key: string;
-  id: string | null;
-  name: string;
-  color: string;
-  hours: number;
-  saved?: { name: string; color: string; hours: number };
-};
-
-function nextColor(used: string[]) {
-  return swatchPalette.find((c) => !used.includes(c)) ?? swatchPalette[used.length % swatchPalette.length];
-}
+import { restColor } from "../../theme/colors";
 
 export default function WeekScreen() {
   const { colors, spacing } = useTheme();
   const insets = useSafeAreaInsets();
-  const [categories, setCategories] = useState<Category[] | null>(null);
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setCategories(await getCategories());
-      setLoadError(null);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Couldn't load your week.");
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
-
-  useEffect(() => {
-    if (!categories) return;
-    setDrafts(
-      categories
-        .filter((c) => !c.isBuffer)
-        .map((c) => ({
-          key: c.id,
-          id: c.id,
-          name: c.name,
-          color: c.color,
-          hours: c.targetHoursPerWeek,
-          saved: { name: c.name, color: c.color, hours: c.targetHoursPerWeek },
-        })),
-    );
-  }, [categories]);
-
-  const restHours = Math.max(0, WEEK_HOURS - drafts.reduce((sum, d) => sum + d.hours, 0));
-
-  const segments: RingSegment[] = [
-    ...drafts.map((d) => ({ id: d.key, label: d.name || "Untitled", color: d.color, value: d.hours })),
-    { id: "__rest__", label: "Rest + Buffer", color: restColor, value: restHours },
-  ];
-
-  // Changes save themselves a moment after you stop moving things.
-  useEffect(() => {
-    if (saving) return;
-    if (drafts.some((d) => !d.name.trim())) return;
-    const changed = drafts.filter(
-      (d) => !d.saved || d.saved.name !== d.name || d.saved.color !== d.color || d.saved.hours !== d.hours,
-    );
-    if (changed.length === 0) return;
-
-    const timeout = setTimeout(async () => {
-      setSaving(true);
-      setError(null);
-      try {
-        for (const draft of changed) {
-          const payload = { name: draft.name, color: draft.color, targetHoursPerWeek: draft.hours };
-          if (draft.id) await updateCategory(draft.id, payload);
-          else await createCategory(payload);
-        }
-        await load();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Couldn't save your plan");
-      } finally {
-        setSaving(false);
-      }
-    }, 700);
-
-    return () => clearTimeout(timeout);
-  }, [drafts, saving, load]);
-
-  const dirty = useMemo(
-    () =>
-      drafts.some(
-        (d) => !d.saved || d.saved.name !== d.name || d.saved.color !== d.color || d.saved.hours !== d.hours,
-      ),
-    [drafts],
-  );
-
-  function updateDraft(key: string, patch: Partial<Draft>) {
-    setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
-  }
-
-  function splitSlice(index: number) {
-    const used = drafts.map((d) => d.color);
-    if (index >= drafts.length) {
-      setDrafts([
-        { key: `new-${drafts.length}-${restHours}`, id: null, name: "", color: nextColor(used), hours: restHours / 2 },
-      ]);
-      return;
-    }
-    const target = drafts[index];
-    const half = Math.round((target.hours / 2) * 10) / 10;
-    setDrafts((prev) => [
-      ...prev.slice(0, index),
-      { ...target, hours: half },
-      {
-        key: `new-${index}-${prev.length}`,
-        id: null,
-        name: "",
-        color: nextColor([...used, target.color]),
-        hours: Math.round((target.hours - half) * 10) / 10,
-      },
-      ...prev.slice(index + 1),
-    ]);
-  }
-
-  async function removeDraft(draft: Draft) {
-    if (!draft.id) {
-      setDrafts((prev) => prev.filter((d) => d.key !== draft.key));
-      return;
-    }
-    setDrafts((prev) => prev.filter((d) => d.key !== draft.key));
-    await archiveCategory(draft.id);
-    await load();
-  }
+  const {
+    categories,
+    drafts,
+    saving,
+    error,
+    loadError,
+    dirty,
+    restHours,
+    segments,
+    load,
+    updateDraft,
+    setAllHours,
+    splitSlice,
+    removeDraft,
+  } = useCategoryDrafts();
 
   return (
     <Screen>
@@ -191,9 +58,7 @@ export default function WeekScreen() {
               <View onStartShouldSetResponder={() => true}>
                 <WeekRing
                   segments={segments}
-                  onChange={(values) =>
-                    setDrafts((prev) => prev.map((d, i) => ({ ...d, hours: values[i] ?? d.hours })))
-                  }
+                  onChange={setAllHours}
                   onSplit={splitSlice}
                   centerValue={`${Math.round(WEEK_HOURS - restHours)}h`}
                   centerLabel="claimed of 168h"
@@ -231,56 +96,14 @@ export default function WeekScreen() {
 
             <View style={{ marginTop: spacing.lg }}>
               {drafts.map((draft, i) => (
-                <ListItemIn key={draft.key} index={i}>
-                  {i > 0 ? <Divider /> : null}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.sm,
-                      paddingVertical: spacing.sm,
-                    }}
-                  >
-                    <ColorPicker
-                      color={draft.color}
-                      taken={drafts.map((d) => d.color)}
-                      onChange={(color) => updateDraft(draft.key, { color })}
-                    />
-                    <Field
-                      variant="inline"
-                      value={draft.name}
-                      onChangeText={(name) => updateDraft(draft.key, { name })}
-                      placeholder="Category name"
-                      autoCapitalize="sentences"
-                      style={{ flex: 1 }}
-                    />
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Field
-                        variant="inline"
-                        mono
-                        align="right"
-                        keyboardType="decimal-pad"
-                        accessibilityLabel={`${draft.name || "New category"} hours`}
-                        value={String(draft.hours)}
-                        onChangeText={(value) => {
-                          const hours = Number(value);
-                          if (!Number.isNaN(hours)) updateDraft(draft.key, { hours });
-                        }}
-                        style={{ width: 44 }}
-                      />
-                      <Text role="data" tone="faint">
-                        h
-                      </Text>
-                    </View>
-                    <IconButton
-                      label={`Remove ${draft.name || "category"}`}
-                      tone="plain"
-                      onPress={() => removeDraft(draft)}
-                    >
-                      <X size={15} color={colors.textFaint} />
-                    </IconButton>
-                  </View>
-                </ListItemIn>
+                <CategoryDraftRow
+                  key={draft.key}
+                  draft={draft}
+                  index={i}
+                  taken={drafts.map((d) => d.color)}
+                  onChange={(patch) => updateDraft(draft.key, patch)}
+                  onRemove={() => removeDraft(draft)}
+                />
               ))}
 
               <Divider />

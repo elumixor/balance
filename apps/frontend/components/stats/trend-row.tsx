@@ -35,8 +35,7 @@ export function TrendRow({ trend, color }: { trend: CategoryTrend; color: string
         />
         <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 3, height: "100%" }}>
           {trend.points.map((point, i) => {
-            const ratio =
-              point.targetHours > 0 ? point.actualHours / point.targetHours : point.actualHours > 0 ? 2 : 0;
+            const ratio = point.targetHours > 0 ? point.actualHours / point.targetHours : point.actualHours > 0 ? 2 : 0;
             // The target line sits at half height, so a period on plan reaches it exactly.
             const height = Math.min(100, Math.max(3, ratio * 50));
             return (

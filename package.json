@@ -6,12 +6,34 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "devkit",
+    "dev:open": "devkit --open",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "test:e2e": "playwright test",
     "release:ios": "git tag ios-v$(date +%Y%m%d%H%M%S) && git push origin --tags"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
+    "@elumixor/devkit": "^0.4.1",
     "@playwright/test": "^1.62.1",
     "@types/node": "^20",
     "typescript": "^5"
+  },
+  "devkit": {
+    "apps": [
+      {
+        "name": "backend",
+        "filter": "@balance/backend",
+        "port": 3000,
+        "color": "blue"
+      },
+      {
+        "name": "frontend",
+        "port": 8081,
+        "color": "magenta",
+        "open": true
+      }
+    ]
   }
 }

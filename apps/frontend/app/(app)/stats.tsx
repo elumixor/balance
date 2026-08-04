@@ -62,20 +62,14 @@ export default function StatsScreen() {
     }, [load, period]),
   );
 
-  const bufferIds = useMemo(
-    () => new Set(categories.filter((c) => c.isBuffer).map((c) => c.id)),
-    [categories],
-  );
+  const bufferIds = useMemo(() => new Set(categories.filter((c) => c.isBuffer).map((c) => c.id)), [categories]);
   // Rest + Buffer is whatever the plan doesn't claim, so weighing it against a
   // target would be meaningless — it stays out of the ring and the list.
   const planned = useMemo(
     () => (data?.categories ?? []).filter((c) => !bufferIds.has(c.categoryId)),
     [data, bufferIds],
   );
-  const trends = useMemo(
-    () => (data?.trends ?? []).filter((t) => !bufferIds.has(t.categoryId)),
-    [data, bufferIds],
-  );
+  const trends = useMemo(() => (data?.trends ?? []).filter((t) => !bufferIds.has(t.categoryId)), [data, bufferIds]);
   const trackedHours = planned.reduce((sum, c) => sum + c.actualHours, 0);
   const plannedHours = planned.reduce((sum, c) => sum + c.targetHours, 0);
 
@@ -101,10 +95,7 @@ export default function StatsScreen() {
             <SkeletonRows count={5} />
           </View>
         ) : !hasData ? (
-          <EmptyState
-            title="Nothing to weigh yet."
-            hint="Plan your week, then track a few hours against it."
-          />
+          <EmptyState title="Nothing to weigh yet." hint="Plan your week, then track a few hours against it." />
         ) : (
           <>
             <View style={{ alignItems: "center", marginTop: spacing.xl, marginBottom: spacing.md }}>

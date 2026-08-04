@@ -1,11 +1,10 @@
-import { getRouterParam } from "h3";
+import { handler } from "@elumixor/nitro-client/server";
 import { getDbUserForRequest } from "../../../../lib/current-user";
-import { deleteEntryForUser } from "../../../../lib/entries-service";
-import { defineApiHandler } from "../../../../lib/handler";
+import { EntriesService } from "../../../../lib/entries-service";
 
-export default defineApiHandler(async (event) => {
-  const id = getRouterParam(event, "id")!;
+export default handler(async ({ router, event }) => {
+  const id = router.id;
   const user = await getDbUserForRequest(event);
-  await deleteEntryForUser(user.id, id);
+  await new EntriesService(user.id).deleteEntry(id);
   return { ok: true };
 });

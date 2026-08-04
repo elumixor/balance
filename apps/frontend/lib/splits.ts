@@ -1,5 +1,5 @@
-import { restColor } from "../theme/colors";
 import type { Split } from "../components/ui/split-bar";
+import { restColor } from "../theme/colors";
 import type { Activity, Category } from "./types";
 
 /**

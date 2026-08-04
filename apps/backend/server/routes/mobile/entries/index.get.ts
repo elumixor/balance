@@ -1,19 +1,18 @@
-import { getQuery } from "h3";
+import { handler } from "@elumixor/nitro-client/server";
+import { z } from "zod";
 import { getDbUserForRequest } from "../../../lib/current-user";
-import { serializeEntry } from "../../../lib/dto";
-import { getTrackDataForUser } from "../../../lib/entries-service";
-import { defineApiHandler } from "../../../lib/handler";
+import { EntryDTO } from "../../../lib/dto";
+import { EntriesService } from "../../../lib/entries-service";
 
-export default defineApiHandler(async (event) => {
+export default handler({ query: { limit: z.coerce.number().optional() } }, async ({ query, event }) => {
   const user = await getDbUserForRequest(event);
-  const query = getQuery(event);
-  const limitParam = Number(query.limit ?? "20");
+  const limitParam = query.limit ?? 20;
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 20;
 
-  const data = await getTrackDataForUser(user.id, limit);
+  const data = await new EntriesService(user.id).getTrackData(limit);
 
   return {
-    entries: data.entries.map(serializeEntry),
+    entries: data.entries.map((e) => new EntryDTO(e)),
     recentActivities: data.recentActivities,
     frequentActivities: data.frequentActivities,
   };

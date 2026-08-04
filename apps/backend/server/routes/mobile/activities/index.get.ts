@@ -1,11 +1,11 @@
+import { handler } from "@elumixor/nitro-client/server";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../../../db";
 import { activities } from "../../../db/schema";
 import { getDbUserForRequest } from "../../../lib/current-user";
-import { serializeActivity } from "../../../lib/dto";
-import { defineApiHandler } from "../../../lib/handler";
+import { ActivityDTO } from "../../../lib/dto";
 
-export default defineApiHandler(async (event) => {
+export default handler(async ({ event }) => {
   const user = await getDbUserForRequest(event);
 
   const rows = await db.query.activities.findMany({
@@ -14,5 +14,5 @@ export default defineApiHandler(async (event) => {
     with: { weights: true },
   });
 
-  return { activities: rows.map(serializeActivity) };
+  return { activities: rows.map((a) => new ActivityDTO(a)) };
 });

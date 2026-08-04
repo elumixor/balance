@@ -1,30 +1,27 @@
+import { handler } from "@elumixor/nitro-client/server";
 import { and, eq } from "drizzle-orm";
-import { getRouterParam } from "h3";
 import { db } from "../../../../../db";
 import { categories } from "../../../../../db/schema";
-import { ApiError } from "../../../../../lib/api-error";
-import { syncBufferCategory } from "../../../../../lib/buffer-category";
+import { ApiError, handleApiError } from "../../../../../lib/api-error";
+import { CategoryService } from "../../../../../lib/categories-service";
 import { getDbUserForRequest } from "../../../../../lib/current-user";
-import { defineApiHandler } from "../../../../../lib/handler";
 
-export default defineApiHandler(async (event) => {
-  const id = getRouterParam(event, "id")!;
+export default handler(async ({ router, event }) => {
+  const id = router.id;
   const user = await getDbUserForRequest(event);
 
-  const existing = await db.query.categories.findFirst({
-    where: and(eq(categories.id, id), eq(categories.userId, user.id)),
-  });
-  if (!existing) throw new ApiError("Category not found", 404);
-  if (existing.isBuffer) {
-    throw new ApiError("The Rest + Buffer category is system-managed and can't be archived directly", 403);
+  try {
+    const existing = await db.query.categories.findFirst({
+      where: and(eq(categories.id, id), eq(categories.userId, user.id)),
+    });
+    if (!existing) throw new ApiError("Category not found", 404);
+    if (existing.isBuffer) {
+      throw new ApiError("The Rest + Buffer category is system-managed and can't be archived directly", 403);
+    }
+
+    await new CategoryService(user.id).archive(id);
+    return { ok: true };
+  } catch (e) {
+    return handleApiError(event, e);
   }
-
-  await db
-    .update(categories)
-    .set({ archived: true })
-    .where(and(eq(categories.id, id), eq(categories.userId, user.id)));
-
-  await syncBufferCategory(user.id);
-
-  return { ok: true };
 });

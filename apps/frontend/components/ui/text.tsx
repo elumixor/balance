@@ -1,5 +1,5 @@
-import { Text as RNText } from "react-native";
 import type { StyleProp, TextProps, TextStyle } from "react-native";
+import { Text as RNText } from "react-native";
 import { useTheme } from "../../theme";
 import type { TypeRole } from "../../theme/typography";
 

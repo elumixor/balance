@@ -1,18 +1,15 @@
-import { and, eq } from "drizzle-orm";
-import { getRouterParam } from "h3";
-import { db } from "../../../../../db";
-import { activities } from "../../../../../db/schema";
+import { handler } from "@elumixor/nitro-client/server";
+import { handleApiError } from "../../../../../lib/api-error";
+import { ActivityService } from "../../../../../lib/categories-service";
 import { getDbUserForRequest } from "../../../../../lib/current-user";
-import { defineApiHandler } from "../../../../../lib/handler";
 
-export default defineApiHandler(async (event) => {
-  const id = getRouterParam(event, "id")!;
+export default handler(async ({ router, event }) => {
+  const id = router.id;
   const user = await getDbUserForRequest(event);
-
-  await db
-    .update(activities)
-    .set({ archived: true })
-    .where(and(eq(activities.id, id), eq(activities.userId, user.id)));
-
-  return { ok: true };
+  try {
+    await new ActivityService(user.id).archive(id);
+    return { ok: true };
+  } catch (e) {
+    return handleApiError(event, e);
+  }
 });

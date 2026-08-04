@@ -1,14 +1,14 @@
 import { Square } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
+import { formatClock, formatDuration } from "../../lib/format";
+import type { Entry } from "../../lib/types";
+import { useTheme } from "../../theme";
 import { TimerRing } from "../ring/timer-ring";
 import { Button } from "../ui/button";
 import { Panel } from "../ui/layout";
-import { Text } from "../ui/text";
 import type { Split } from "../ui/split-bar";
-import { formatClock, formatDuration } from "../../lib/format";
-import { useTheme } from "../../theme";
-import type { Entry } from "../../lib/types";
+import { Text } from "../ui/text";
 
 function useElapsed(startedAt: string) {
   const [now, setNow] = useState(() => Date.now());

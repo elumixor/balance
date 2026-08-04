@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import { AccessibilityInfo, useColorScheme } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { palette, radii, spacing } from "./colors";
+import type { ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { AccessibilityInfo, useColorScheme } from "react-native";
 import type { ThemeColors } from "./colors";
+import { palette, radii, spacing } from "./colors";
 import { fonts, type } from "./typography";
 
 export type ThemeMode = "system" | "light" | "dark";

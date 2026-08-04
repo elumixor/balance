@@ -3,7 +3,7 @@ import { View } from "react-native";
 import type { Activity, Category } from "../../lib/types";
 import { useTheme } from "../../theme";
 import { restColor } from "../../theme/colors";
-import { WeekRing, type RingSegment } from "../ring/week-ring";
+import { type RingSegment, WeekRing } from "../ring/week-ring";
 import { Button } from "../ui/button";
 import { Field, LabelledField } from "../ui/field";
 import { Dot } from "../ui/split-bar";
@@ -42,10 +42,7 @@ export function ActivityEditor({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const claimed = useMemo(
-    () => categories.reduce((sum, c) => sum + (weights[c.id] ?? 0), 0),
-    [categories, weights],
-  );
+  const claimed = useMemo(() => categories.reduce((sum, c) => sum + (weights[c.id] ?? 0), 0), [categories, weights]);
   const free = Math.max(0, 100 - claimed);
 
   const segments: RingSegment[] = [
@@ -151,13 +148,7 @@ export function ActivityEditor({
 
       <View style={{ flexDirection: "row", gap: spacing.sm }}>
         <Button label="Cancel" variant="outline" onPress={onCancel} style={{ flex: 1 }} />
-        <Button
-          label="Save"
-          onPress={submit}
-          loading={saving}
-          disabled={categories.length === 0}
-          style={{ flex: 1 }}
-        />
+        <Button label="Save" onPress={submit} loading={saving} disabled={categories.length === 0} style={{ flex: 1 }} />
       </View>
     </View>
   );

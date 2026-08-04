@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { useTheme } from "../../theme";
 import { Text } from "./text";
 import { Touchable } from "./touchable";
@@ -19,22 +19,11 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-export function Button({
-  label,
-  onPress,
-  variant = "solid",
-  size = "md",
-  disabled,
-  loading,
-  icon,
-  style,
-}: Props) {
+export function Button({ label, onPress, variant = "solid", size = "md", disabled, loading, icon, style }: Props) {
   const { colors, spacing, radii } = useTheme();
 
-  const fill =
-    variant === "solid" ? colors.ink : variant === "danger" ? colors.danger : "transparent";
-  const fg =
-    variant === "solid" ? colors.inkText : variant === "danger" ? colors.inkText : colors.text;
+  const fill = variant === "solid" ? colors.ink : variant === "danger" ? colors.danger : "transparent";
+  const fg = variant === "solid" ? colors.inkText : variant === "danger" ? colors.inkText : colors.text;
   const iconSize = size === "sm" ? 15 : 17;
 
   return (
@@ -59,11 +48,7 @@ export function Button({
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={fg} />
-      ) : icon ? (
-        <View>{icon(fg, iconSize)}</View>
-      ) : null}
+      {loading ? <ActivityIndicator size="small" color={fg} /> : icon ? <View>{icon(fg, iconSize)}</View> : null}
       <Text role={size === "sm" ? "label" : "bodyStrong"} color={fg}>
         {label}
       </Text>
