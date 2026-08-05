@@ -7,7 +7,8 @@
   let { children }: { children: Snippet } = $props();
 
   theme.start();
-  void auth.load();
+  // Failures surface through `auth.startupError`; this only keeps the rejection handled.
+  auth.load().catch(() => {});
 </script>
 
 {@render children()}

@@ -3,8 +3,9 @@
   import { auth } from "$lib/auth.svelte";
   import AppLoading from "$lib/components/AppLoading.svelte";
 
+  // Nowhere to send anyone if Clerk never started — AppLoading says so instead.
   $effect(() => {
-    if (auth.loaded) void goto(auth.signedIn ? "/track" : "/sign-in", { replaceState: true });
+    if (auth.loaded && !auth.startupError) void goto(auth.signedIn ? "/track" : "/sign-in", { replaceState: true });
   });
 </script>
 

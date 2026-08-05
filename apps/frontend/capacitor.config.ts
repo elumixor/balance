@@ -14,7 +14,17 @@ const config: CapacitorConfig = {
   appId: "com.elumixor.balance",
   appName: "Balance",
   webDir: "build",
-  server: liveReload ? { url: `http://${localIP()}:8081`, cleartext: true } : { androidScheme: "https" },
+  server: liveReload
+    ? { url: `http://${localIP()}:8081`, cleartext: true }
+    : {
+        // Serve the bundled app from `https://localhost` rather than Capacitor's default
+        // `capacitor://localhost`. Clerk refuses to authenticate a browser on a scheme it
+        // doesn't recognise ("Unable to authenticate this browser for your development
+        // instance"), and a real secure origin also gives the webview normal storage rules.
+        iosScheme: "https",
+        hostname: "localhost",
+        androidScheme: "https",
+      },
 };
 
 export default config;

@@ -16,7 +16,7 @@
   ];
 
   $effect(() => {
-    if (auth.loaded && !auth.signedIn) void goto("/sign-in", { replaceState: true });
+    if (auth.loaded && !auth.startupError && !auth.signedIn) void goto("/sign-in", { replaceState: true });
   });
 </script>
 

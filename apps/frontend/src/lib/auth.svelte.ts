@@ -1,4 +1,3 @@
-import { Capacitor } from "@capacitor/core";
 import { Clerk } from "@clerk/clerk-js";
 
 // Clerk publishable keys are public identifiers (not secrets) — safe to ship in the client bundle.
@@ -10,6 +9,8 @@ class Auth {
   loaded = $state(false);
   signedIn = $state(false);
   email = $state("");
+  /** Set when Clerk itself couldn't start. Without this the app sits on its splash forever. */
+  startupError = $state<string | null>(null);
 
   #clerk: Clerk | null = null;
   #ready: Promise<Clerk> | null = null;
@@ -22,10 +23,17 @@ class Auth {
 
   async #load() {
     const clerk = new Clerk(PUBLISHABLE_KEY);
-    // Inside the Capacitor webview the origin is `capacitor://localhost`, where Clerk's
-    // cookie-based session handling can't work. Token mode keeps the session in local
-    // storage instead — the same path Clerk uses for browser extensions.
-    await clerk.load({ standardBrowser: !Capacitor.isNativePlatform() });
+    // The webview is a standard browser as far as Clerk is concerned — `capacitor.config.ts`
+    // serves the app from `https://localhost` precisely so that stays true on device.
+    try {
+      await clerk.load();
+    } catch (e) {
+      // A signed-out app is still usable enough to show what went wrong; hanging on the
+      // splash tells the person holding the phone nothing at all.
+      this.startupError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      this.loaded = true;
+      throw e;
+    }
     this.#clerk = clerk;
     clerk.addListener(() => this.#sync());
     this.#sync();
