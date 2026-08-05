@@ -1,5 +1,4 @@
 App/build
-App/Pods
 App/output
 App/App/public
 DerivedData
@@ -8,6 +7,16 @@ xcuserdata
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins
 
-# Generated Config files
+# Generated config files
 App/App/capacitor.config.json
 App/App/config.xml
+
+# Fastlane
+build/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output
+*.ipa
+*.dSYM.zip
+*.mobileprovision
+*.p8

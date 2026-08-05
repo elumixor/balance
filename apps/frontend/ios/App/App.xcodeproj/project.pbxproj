@@ -7,17 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		02E645651F9C3A301A2936EE /* TrackingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C6312049BD355A1E1CBEEC /* TrackingView.swift */; };
-		02ED1C6EE68D64DBEBC73B59 /* NotSignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBABA046C6610AA769615678 /* NotSignedInView.swift */; };
-		04FA31FF8E22750CBBA45555 /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = BE8D707A92A9756D8C3FACE6 /* BalanceKit */; };
+		03170CB8919C28D24AB350BA /* TrackingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F35E29203F5D2CDCBFC1B8 /* TrackingViewModel.swift */; };
+		033FF098087D005F7FF2DD1F /* NotSignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A71202F60D2215F5BB29B9D5 /* NotSignedInView.swift */; };
 		076DE5B291A07A05EE760C8A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24E4EFED167B8918CB3E6963 /* ContentView.swift */; };
-		0DAD6721A4D7CD5B91A8EC27 /* BalanceWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E2C75A8AB4C0AE11829BF96 /* BalanceWatchApp.swift */; };
-		10FF556333DF8397E1D60358 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 246D8DFBE4E8EC265D3BEF76 /* ClerkKit */; };
-		1226C8ED61DE77118CD2F474 /* Balance Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C34AD65D7843751BF2EDA218 /* Balance Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1B70FCB1392291304C3EA0EE /* TrackingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 523A86BC9515F4FE68AB1C31 /* TrackingView.swift */; };
 		1BB1C3B7EC184DE156CAF564 /* NotSignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9261514AE973E80E5F4CC8 /* NotSignedInView.swift */; };
-		1F26B1DCEFFE771C60EAFDE0 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 376D86D9EEEB213BCBBB12E1 /* MainTabView.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
-		397C5E851726D5F6EFBFA800 /* TrackingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5450E09AD1FEF496BDD77DFD /* TrackingViewModel.swift */; };
+		3A9207703FD067354080DA65 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2C59E4C04751123DB290150 /* MainTabView.swift */; };
+		3E0B1DC2BDF47B3395ABB4F9 /* UsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D14A3586C595AC89BD9B3F /* UsageView.swift */; };
+		4BE68B094E2BEAA6AA938D6D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 478365B77BFC0C2881A29908 /* Assets.xcassets */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -25,48 +23,49 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
-		53DE60BFFD0565F197B6DA98 /* Balance Watch Widget Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D8BC8679D37EB5A58E254B39 /* Balance Watch Widget Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		590398CC5A877FCACC53998B /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1E680A8236D258E21D936F16 /* BalanceKit */; };
 		59B496F4F8A850DBE22D8510 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA5A69BC0F30291B1DEE7E4 /* MainTabView.swift */; };
 		5A45B0F80D0021ED30255C7D /* TrackingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAD9C6595E657AF9CA0F0579 /* TrackingView.swift */; };
 		5AD12502CA29B0164066731C /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
 		5B8AB9B22F04E93CAC26F565 /* UsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3748E5F4AC187D18E679A484 /* UsageView.swift */; };
-		607A0F72A238FF55C4A5D153 /* UsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC91182F71CF7AE848110D62 /* UsageView.swift */; };
 		68F14D6292FC05629DEBC9D9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
-		6990799BDF590F980CE183BD /* UsageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E58450F3A8A8396096375C7 /* UsageViewModel.swift */; };
 		6B307C1992FF9123084295C0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 43AA10EB57FDBA6086BF8A09 /* Assets.xcassets */; };
-		8577444DBDE1B92E45E208CD /* BalanceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 759868479E9B1CDBB3CFA7D0 /* BalanceWidget.swift */; };
-		86859B99819048572866AD47 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94104F8B66ADFCA1E23D09CA /* ContentView.swift */; };
+		7DC50BE4F88C06054556D4FD /* UsageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 781C354F1A5C26C245BEDC0A /* UsageViewModel.swift */; };
+		86D4ABEAA44C16D027E28DD4 /* BalanceWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFAC7F745C922ED3CF60E69 /* BalanceWatchApp.swift */; };
+		89354BF4EB0D2245C2EBC713 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDD39BCB991D737A43CCB2A8 /* ContentView.swift */; };
 		8949F7E27CA94530D88D425B /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = E04B3F993E24C65A76B2C49F /* BalanceKit */; };
 		8EB6857410219A3E566CEE7C /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = E99DDE8BAE6D60E087B18331 /* BalanceKit */; };
-		9006969D64C83150D81F1E1E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
-		9CA2C3D7F7B5596B5F2439D9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 06D2A62A24D8720E3A8330A0 /* Assets.xcassets */; };
-		B99ABB8E01B3FF44B8BFC862 /* BalanceWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91BFD61821B4B9959ACAE7E5 /* BalanceWidgetBundle.swift */; };
+		ABE6BBB3B7CFE41D0EE63620 /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 43D7B1124D74ACE46FFE43F6 /* BalanceKit */; };
 		BB86E10F339F38BBEB8194D8 /* BalanceWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDCFB2B9DE85375FC124B73 /* BalanceWatchApp.swift */; };
-		DF8135A5FF8186CCB0801FAC /* Balance Watch Widget Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 07AE288B97DE7E69C48A7FF3 /* Balance Watch Widget Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C1123C47BED591BA3B150505 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = CF939FADDE34D28595A3E5EC /* ClerkKit */; };
+		C3241DCB57CA1EDB007291E6 /* BalanceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED44F0DEB46C64552F250980 /* BalanceWidget.swift */; };
 		E1DFAA374875778133980A13 /* BalanceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB971057718A32A4783748C /* BalanceWidget.swift */; };
+		E53FA8E3980C5E0E4B133B8A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
+		EB5385E8E6FCD626CDE33813 /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 21B72B70C44F4E03B6A2FED7 /* BalanceKit */; };
 		ED6C6AFA2CF3D28CD80FE09D /* BalanceWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C925215712072AA684E224 /* BalanceWidgetBundle.swift */; };
 		EFEA5F95BAA97B6DE9C59AD2 /* TrackingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42E51C4952E9DA9DF8FE2EB /* TrackingViewModel.swift */; };
+		F0CFBC630A7E2988625112C1 /* BalanceWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = D14FDF6A082235A05E168284 /* BalanceWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F22846081FB09B4A0AF91803 /* BalanceWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030E6BEAAD93C1A8441D085F /* BalanceWidgetBundle.swift */; };
+		F38B5CDA07AD174AB7E38D45 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
 		F6C6AA937DA6EFDC3AEBFD2A /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3E538D2C4DABA25AC72AA1DF /* ClerkKit */; };
 		FAED60AE71ED71DA330A5D98 /* UsageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4689051B7763615C10CB77B /* UsageViewModel.swift */; };
-		FC3430CDA0F1453F011B1A85 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
+		FBF8D3D947F11019752D4F30 /* BalanceWatchWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 742DF2AE0970BFF6BB519D1D /* BalanceWatchWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		03DD9604EF7118B0DA86284D /* PBXContainerItemProxy */ = {
+		526DAD2D5577AEA45EF5E3A3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 853BDA1F51D3E5FAA6B0DD3D;
-			remoteInfo = "Balance Watch App";
+			remoteGlobalIDString = 0420A713F7086A742A0F09C9;
+			remoteInfo = BalanceWatch;
 		};
-		A481610DE7C181EC22D1989C /* PBXContainerItemProxy */ = {
+		A7553863C4D12339916B7467 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 70D1A08B44F1D85A039CD514;
-			remoteInfo = "Balance Watch Widget Extension";
+			remoteGlobalIDString = 35A1603F8F10E4A162E7E397;
+			remoteInfo = BalanceWatchWidget;
 		};
 		D0F36A94F0580FBE6836E8C5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -78,15 +77,26 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		25582A309063A1E15F76B683 /* Embed Foundation Extensions */ = {
+		5767EA4CEA033A9449825464 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				DF8135A5FF8186CCB0801FAC /* Balance Watch Widget Extension.appex in Embed Foundation Extensions */,
+				FBF8D3D947F11019752D4F30 /* BalanceWatchWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7B3ABA03B0FA0FCAD8E1B3F3 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				F0CFBC630A7E2988625112C1 /* BalanceWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C888D444873FEF121E60E2E8 /* Embed Watch Content */ = {
@@ -95,7 +105,6 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				1226C8ED61DE77118CD2F474 /* Balance Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -103,17 +112,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		02C6312049BD355A1E1CBEEC /* TrackingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackingView.swift; sourceTree = "<group>"; };
-		06D2A62A24D8720E3A8330A0 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		07AE288B97DE7E69C48A7FF3 /* Balance Watch Widget Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Balance Watch Widget Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		030E6BEAAD93C1A8441D085F /* BalanceWidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BalanceWidgetBundle.swift; path = ../../WatchWidget/BalanceWidgetBundle.swift; sourceTree = "<group>"; };
 		0DA5A69BC0F30291B1DEE7E4 /* MainTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		1E76F227FB05E517D9811787 /* Balance Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Balance Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		24E4EFED167B8918CB3E6963 /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		33A7C2D50AC8AC1A3C104873 /* Balance Watch Widget Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Balance Watch Widget Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3748E5F4AC187D18E679A484 /* UsageView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageView.swift; sourceTree = "<group>"; };
-		376D86D9EEEB213BCBBB12E1 /* MainTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		43AA10EB57FDBA6086BF8A09 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		478365B77BFC0C2881A29908 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../../WatchApp/Assets.xcassets; sourceTree = "<group>"; };
 		4D9261514AE973E80E5F4CC8 /* NotSignedInView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotSignedInView.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -123,35 +130,38 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
-		5450E09AD1FEF496BDD77DFD /* TrackingViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackingViewModel.swift; sourceTree = "<group>"; };
-		6E58450F3A8A8396096375C7 /* UsageViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageViewModel.swift; sourceTree = "<group>"; };
-		759868479E9B1CDBB3CFA7D0 /* BalanceWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BalanceWidget.swift; sourceTree = "<group>"; };
-		7E2C75A8AB4C0AE11829BF96 /* BalanceWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BalanceWatchApp.swift; sourceTree = "<group>"; };
-		91BFD61821B4B9959ACAE7E5 /* BalanceWidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BalanceWidgetBundle.swift; sourceTree = "<group>"; };
-		94104F8B66ADFCA1E23D09CA /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		523A86BC9515F4FE68AB1C31 /* TrackingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrackingView.swift; path = ../../WatchApp/TrackingView.swift; sourceTree = "<group>"; };
+		742DF2AE0970BFF6BB519D1D /* BalanceWatchWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BalanceWatchWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		781C354F1A5C26C245BEDC0A /* UsageViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UsageViewModel.swift; path = ../../WatchApp/UsageViewModel.swift; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		A71202F60D2215F5BB29B9D5 /* NotSignedInView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NotSignedInView.swift; path = ../../WatchApp/NotSignedInView.swift; sourceTree = "<group>"; };
 		AAD9C6595E657AF9CA0F0579 /* TrackingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackingView.swift; sourceTree = "<group>"; };
+		ABFAC7F745C922ED3CF60E69 /* BalanceWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BalanceWatchApp.swift; path = ../../WatchApp/BalanceWatchApp.swift; sourceTree = "<group>"; };
 		B3FFF1961015214059F13234 /* Balance Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Balance Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		B42E51C4952E9DA9DF8FE2EB /* TrackingViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackingViewModel.swift; sourceTree = "<group>"; };
 		C1C925215712072AA684E224 /* BalanceWidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BalanceWidgetBundle.swift; sourceTree = "<group>"; };
-		C34AD65D7843751BF2EDA218 /* Balance Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Balance Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C5D2CE248DE896A6E678B01C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		CDD39BCB991D737A43CCB2A8 /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = ../../WatchApp/ContentView.swift; sourceTree = "<group>"; };
+		D14FDF6A082235A05E168284 /* BalanceWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BalanceWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1F35E29203F5D2CDCBFC1B8 /* TrackingViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrackingViewModel.swift; path = ../../WatchApp/TrackingViewModel.swift; sourceTree = "<group>"; };
 		D8BC8679D37EB5A58E254B39 /* Balance Watch Widget Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Balance Watch Widget Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DBDCFB2B9DE85375FC124B73 /* BalanceWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BalanceWatchApp.swift; sourceTree = "<group>"; };
 		DCB971057718A32A4783748C /* BalanceWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BalanceWidget.swift; sourceTree = "<group>"; };
-		EBABA046C6610AA769615678 /* NotSignedInView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotSignedInView.swift; sourceTree = "<group>"; };
-		EC91182F71CF7AE848110D62 /* UsageView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageView.swift; sourceTree = "<group>"; };
+		ED44F0DEB46C64552F250980 /* BalanceWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BalanceWidget.swift; path = ../../WatchWidget/BalanceWidget.swift; sourceTree = "<group>"; };
+		F2C59E4C04751123DB290150 /* MainTabView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MainTabView.swift; path = ../../WatchApp/MainTabView.swift; sourceTree = "<group>"; };
+		F2D14A3586C595AC89BD9B3F /* UsageView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UsageView.swift; path = ../../WatchApp/UsageView.swift; sourceTree = "<group>"; };
 		F4689051B7763615C10CB77B /* UsageViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		39634FEDCC0A136E42F115AB /* Frameworks */ = {
+		0D5E4BC1E30371940ED956A1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				68F14D6292FC05629DEBC9D9 /* Foundation.framework in Frameworks */,
-				8EB6857410219A3E566CEE7C /* BalanceKit in Frameworks */,
+				F38B5CDA07AD174AB7E38D45 /* Foundation.framework in Frameworks */,
+				ABE6BBB3B7CFE41D0EE63620 /* BalanceKit in Frameworks */,
+				C1123C47BED591BA3B150505 /* ClerkKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -163,36 +173,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E779C4920ABEB2A3AA31704E /* Frameworks */ = {
+		586BD75206E4AA6B1B392DE6 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5AD12502CA29B0164066731C /* Foundation.framework in Frameworks */,
-				8949F7E27CA94530D88D425B /* BalanceKit in Frameworks */,
-				F6C6AA937DA6EFDC3AEBFD2A /* ClerkKit in Frameworks */,
+				E53FA8E3980C5E0E4B133B8A /* Foundation.framework in Frameworks */,
+				EB5385E8E6FCD626CDE33813 /* BalanceKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		500125086C0A00D563B12DB5 /* Watch */ = {
-			isa = PBXGroup;
-			children = (
-				DBDCFB2B9DE85375FC124B73 /* BalanceWatchApp.swift */,
-				24E4EFED167B8918CB3E6963 /* ContentView.swift */,
-				0DA5A69BC0F30291B1DEE7E4 /* MainTabView.swift */,
-				4D9261514AE973E80E5F4CC8 /* NotSignedInView.swift */,
-				AAD9C6595E657AF9CA0F0579 /* TrackingView.swift */,
-				B42E51C4952E9DA9DF8FE2EB /* TrackingViewModel.swift */,
-				3748E5F4AC187D18E679A484 /* UsageView.swift */,
-				F4689051B7763615C10CB77B /* UsageViewModel.swift */,
-				43AA10EB57FDBA6086BF8A09 /* Assets.xcassets */,
-			);
-			name = Watch;
-			path = ../../watch/App;
-			sourceTree = "<group>";
-		};
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
@@ -200,8 +192,8 @@
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
 				55C48B3CEAAA3B087F676E0B /* Frameworks */,
-				500125086C0A00D563B12DB5 /* Watch */,
-				7BC8A457CD787AAB8102A28E /* Watch Widget */,
+				64419C2D39C22DA6361D8C6F /* BalanceWatchWidget */,
+				6CB09735A2B97DA72A47005F /* BalanceWatch */,
 			);
 			sourceTree = "<group>";
 		};
@@ -209,12 +201,8 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
-				1E76F227FB05E517D9811787 /* Balance Watch App.app */,
-				33A7C2D50AC8AC1A3C104873 /* Balance Watch Widget Extension.appex */,
-				B3FFF1961015214059F13234 /* Balance Watch App.app */,
-				D8BC8679D37EB5A58E254B39 /* Balance Watch Widget Extension.appex */,
-				C34AD65D7843751BF2EDA218 /* Balance Watch App.app */,
-				07AE288B97DE7E69C48A7FF3 /* Balance Watch Widget Extension.appex */,
+				742DF2AE0970BFF6BB519D1D /* BalanceWatchWidget.appex */,
+				D14FDF6A082235A05E168284 /* BalanceWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -243,6 +231,33 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		64419C2D39C22DA6361D8C6F /* BalanceWatchWidget */ = {
+			isa = PBXGroup;
+			children = (
+				ED44F0DEB46C64552F250980 /* BalanceWidget.swift */,
+				030E6BEAAD93C1A8441D085F /* BalanceWidgetBundle.swift */,
+			);
+			name = BalanceWatchWidget;
+			path = App/WatchWidget;
+			sourceTree = "<group>";
+		};
+		6CB09735A2B97DA72A47005F /* BalanceWatch */ = {
+			isa = PBXGroup;
+			children = (
+				ABFAC7F745C922ED3CF60E69 /* BalanceWatchApp.swift */,
+				CDD39BCB991D737A43CCB2A8 /* ContentView.swift */,
+				F2C59E4C04751123DB290150 /* MainTabView.swift */,
+				A71202F60D2215F5BB29B9D5 /* NotSignedInView.swift */,
+				523A86BC9515F4FE68AB1C31 /* TrackingView.swift */,
+				D1F35E29203F5D2CDCBFC1B8 /* TrackingViewModel.swift */,
+				F2D14A3586C595AC89BD9B3F /* UsageView.swift */,
+				781C354F1A5C26C245BEDC0A /* UsageViewModel.swift */,
+				478365B77BFC0C2881A29908 /* Assets.xcassets */,
+			);
+			name = BalanceWatch;
+			path = App/WatchApp;
+			sourceTree = "<group>";
+		};
 		6CC66596B99245F847522B24 /* watchOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -251,37 +266,50 @@
 			name = watchOS;
 			sourceTree = "<group>";
 		};
-		7BC8A457CD787AAB8102A28E /* Watch Widget */ = {
-			isa = PBXGroup;
-			children = (
-				DCB971057718A32A4783748C /* BalanceWidget.swift */,
-				C1C925215712072AA684E224 /* BalanceWidgetBundle.swift */,
-			);
-			name = "Watch Widget";
-			path = ../../watch/Widget;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		18D0AC53230910C5D19F8CAC /* Balance Watch Widget Extension */ = {
+		0420A713F7086A742A0F09C9 /* BalanceWatch */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 45F1087BEB4B1D3459CE4854 /* Build configuration list for PBXNativeTarget "Balance Watch Widget Extension" */;
+			buildConfigurationList = B7FA0FEB3B60EB3B3439463C /* Build configuration list for PBXNativeTarget "BalanceWatch" */;
 			buildPhases = (
-				AF9CE2D7CA3C07EFCE4594F8 /* Sources */,
-				39634FEDCC0A136E42F115AB /* Frameworks */,
-				C989A9EDF6845491F0C70BEF /* Resources */,
+				B3CEC1C94404642CEF7C26BF /* Sources */,
+				0D5E4BC1E30371940ED956A1 /* Frameworks */,
+				510E49BFCA0898A29AF75693 /* Resources */,
+				5767EA4CEA033A9449825464 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F6A052CBE3ED0A42E627CD78 /* PBXTargetDependency */,
+			);
+			name = BalanceWatch;
+			packageProductDependencies = (
+				43D7B1124D74ACE46FFE43F6 /* BalanceKit */,
+				CF939FADDE34D28595A3E5EC /* ClerkKit */,
+			);
+			productName = BalanceWatch;
+			productReference = D14FDF6A082235A05E168284 /* BalanceWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		35A1603F8F10E4A162E7E397 /* BalanceWatchWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 56F64827AD0699C2CAF4D2FE /* Build configuration list for PBXNativeTarget "BalanceWatchWidget" */;
+			buildPhases = (
+				C61025EE06F88864646BBF79 /* Sources */,
+				586BD75206E4AA6B1B392DE6 /* Frameworks */,
+				36C52C5CE22C75FBD6C9D6D4 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = "Balance Watch Widget Extension";
+			name = BalanceWatchWidget;
 			packageProductDependencies = (
-				E99DDE8BAE6D60E087B18331 /* BalanceKit */,
+				21B72B70C44F4E03B6A2FED7 /* BalanceKit */,
 			);
-			productName = "Balance Watch Widget Extension";
-			productReference = 07AE288B97DE7E69C48A7FF3 /* Balance Watch Widget Extension.appex */;
+			productName = BalanceWatchWidget;
+			productReference = 742DF2AE0970BFF6BB519D1D /* BalanceWatchWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		504EC3031FED79650016851F /* App */ = {
@@ -292,11 +320,12 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				C888D444873FEF121E60E2E8 /* Embed Watch Content */,
+				7B3ABA03B0FA0FCAD8E1B3F3 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				3124970888AD346AF1CA91F1 /* PBXTargetDependency */,
+				D453D887519CC095C9A2EB8D /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -304,29 +333,6 @@
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
-			productType = "com.apple.product-type.application";
-		};
-		853BDA1F51D3E5FAA6B0DD3D /* Balance Watch App */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D213190EDA8749D39A536B3E /* Build configuration list for PBXNativeTarget "Balance Watch App" */;
-			buildPhases = (
-				6E62619815395E02A291A525 /* Sources */,
-				E779C4920ABEB2A3AA31704E /* Frameworks */,
-				AF9F8FC2A032DB43DCA428DB /* Resources */,
-				25582A309063A1E15F76B683 /* Embed Foundation Extensions */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				B84EE7361A78D26E7081EF71 /* PBXTargetDependency */,
-			);
-			name = "Balance Watch App";
-			packageProductDependencies = (
-				E04B3F993E24C65A76B2C49F /* BalanceKit */,
-				3E538D2C4DABA25AC72AA1DF /* ClerkKit */,
-			);
-			productName = "Balance Watch App";
-			productReference = C34AD65D7843751BF2EDA218 /* Balance Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -356,20 +362,27 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
-				9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */,
+				CF4AE9D796207FD76E86367C /* XCLocalSwiftPackageReference "BalanceKit" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
-				853BDA1F51D3E5FAA6B0DD3D /* Balance Watch App */,
-				18D0AC53230910C5D19F8CAC /* Balance Watch Widget Extension */,
+				35A1603F8F10E4A162E7E397 /* BalanceWatchWidget */,
+				0420A713F7086A742A0F09C9 /* BalanceWatch */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		36C52C5CE22C75FBD6C9D6D4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		504EC3021FED79650016851F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -383,18 +396,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AF9F8FC2A032DB43DCA428DB /* Resources */ = {
+		510E49BFCA0898A29AF75693 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6B307C1992FF9123084295C0 /* Assets.xcassets in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		C989A9EDF6845491F0C70BEF /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				4BE68B094E2BEAA6AA938D6D /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -410,44 +416,44 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		6E62619815395E02A291A525 /* Sources */ = {
+		B3CEC1C94404642CEF7C26BF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BB86E10F339F38BBEB8194D8 /* BalanceWatchApp.swift in Sources */,
-				076DE5B291A07A05EE760C8A /* ContentView.swift in Sources */,
-				59B496F4F8A850DBE22D8510 /* MainTabView.swift in Sources */,
-				1BB1C3B7EC184DE156CAF564 /* NotSignedInView.swift in Sources */,
-				5A45B0F80D0021ED30255C7D /* TrackingView.swift in Sources */,
-				EFEA5F95BAA97B6DE9C59AD2 /* TrackingViewModel.swift in Sources */,
-				5B8AB9B22F04E93CAC26F565 /* UsageView.swift in Sources */,
-				FAED60AE71ED71DA330A5D98 /* UsageViewModel.swift in Sources */,
+				86D4ABEAA44C16D027E28DD4 /* BalanceWatchApp.swift in Sources */,
+				89354BF4EB0D2245C2EBC713 /* ContentView.swift in Sources */,
+				3A9207703FD067354080DA65 /* MainTabView.swift in Sources */,
+				033FF098087D005F7FF2DD1F /* NotSignedInView.swift in Sources */,
+				1B70FCB1392291304C3EA0EE /* TrackingView.swift in Sources */,
+				03170CB8919C28D24AB350BA /* TrackingViewModel.swift in Sources */,
+				3E0B1DC2BDF47B3395ABB4F9 /* UsageView.swift in Sources */,
+				7DC50BE4F88C06054556D4FD /* UsageViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AF9CE2D7CA3C07EFCE4594F8 /* Sources */ = {
+		C61025EE06F88864646BBF79 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E1DFAA374875778133980A13 /* BalanceWidget.swift in Sources */,
-				ED6C6AFA2CF3D28CD80FE09D /* BalanceWidgetBundle.swift in Sources */,
+				C3241DCB57CA1EDB007291E6 /* BalanceWidget.swift in Sources */,
+				F22846081FB09B4A0AF91803 /* BalanceWidgetBundle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		3124970888AD346AF1CA91F1 /* PBXTargetDependency */ = {
+		D453D887519CC095C9A2EB8D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = "Balance Watch App";
-			target = 853BDA1F51D3E5FAA6B0DD3D /* Balance Watch App */;
-			targetProxy = 03DD9604EF7118B0DA86284D /* PBXContainerItemProxy */;
+			name = BalanceWatch;
+			target = 0420A713F7086A742A0F09C9 /* BalanceWatch */;
+			targetProxy = 526DAD2D5577AEA45EF5E3A3 /* PBXContainerItemProxy */;
 		};
-		B84EE7361A78D26E7081EF71 /* PBXTargetDependency */ = {
+		F6A052CBE3ED0A42E627CD78 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			name = "Balance Watch Widget Extension";
-			target = 18D0AC53230910C5D19F8CAC /* Balance Watch Widget Extension */;
-			targetProxy = D0F36A94F0580FBE6836E8C5 /* PBXContainerItemProxy */;
+			name = BalanceWatchWidget;
+			target = 35A1603F8F10E4A162E7E397 /* BalanceWatchWidget */;
+			targetProxy = A7553863C4D12339916B7467 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -490,6 +496,29 @@
 			};
 			name = Debug;
 		};
+		3252CB06E5F404F440B952DD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 464K6UHCU4;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WatchWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.elumixor.balance.watchkitapp.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
 		3C6561558585FDB426963CF7 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -508,6 +537,30 @@
 				SDKROOT = watchos;
 				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+		4DEF9EA846441139CCE444E9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 464K6UHCU4;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WatchWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.elumixor.balance.watchkitapp.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				VALIDATE_PRODUCT = YES;
@@ -694,101 +747,58 @@
 			};
 			name = Release;
 		};
-		6EEB04B3DF303186BF77D895 /* Release */ = {
+		9F1ECFC2477716333AA7BD03 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ../../watch/App/Watch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 464K6UHCU4;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ../../watch/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Balance;
-				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.elumixor.balance;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
-				MARKETING_VERSION = 1.0;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WatchApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.elumixor.balance.watchkitapp;
-				PRODUCT_NAME = Balance;
-				SDKROOT = watchos;
-				SKIP_INSTALL = NO;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				VALIDATE_PRODUCT = YES;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
-			};
-			name = Release;
-		};
-		6FCD5F22BA6A1AF3BDBB291C /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = ../../watch/Widget/Widget.entitlements;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 464K6UHCU4;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ../../watch/Widget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Balance;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.elumixor.balance.watchkitapp.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = NO;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				VALIDATE_PRODUCT = YES;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
-			};
-			name = Release;
-		};
-		81ACAFDD7394D3FD6B7AD6F1 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = ../../watch/App/Watch.entitlements;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 464K6UHCU4;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ../../watch/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Balance;
-				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.elumixor.balance;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.elumixor.balance.watchkitapp;
-				PRODUCT_NAME = Balance;
-				SDKROOT = watchos;
-				SKIP_INSTALL = NO;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Debug;
 		};
-		B0329F51F3F92DF47C55E1AD /* Debug */ = {
+		D0911E48546192AF7613613C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = ../../watch/Widget/Widget.entitlements;
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 464K6UHCU4;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ../../watch/Widget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Balance;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.elumixor.balance.watchkitapp.widget;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WatchApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.elumixor.balance.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = NO;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
 				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
-			name = Debug;
+			name = Release;
 		};
 		D438264755AA37C28D917B9F /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -817,15 +827,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		45F1087BEB4B1D3459CE4854 /* Build configuration list for PBXNativeTarget "Balance Watch Widget Extension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				5CBB758AD8B32AF4F761561B /* Release */,
-				170935ACD43840C2F81811A2 /* Debug */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		504EC2FF1FED79650016851F /* Build configuration list for PBXProject "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -844,11 +845,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D213190EDA8749D39A536B3E /* Build configuration list for PBXNativeTarget "Balance Watch App" */ = {
+		56F64827AD0699C2CAF4D2FE /* Build configuration list for PBXNativeTarget "BalanceWatchWidget" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3C6561558585FDB426963CF7 /* Release */,
-				D438264755AA37C28D917B9F /* Debug */,
+				4DEF9EA846441139CCE444E9 /* Release */,
+				3252CB06E5F404F440B952DD /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B7FA0FEB3B60EB3B3439463C /* Build configuration list for PBXNativeTarget "BalanceWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D0911E48546192AF7613613C /* Release */,
+				9F1ECFC2477716333AA7BD03 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -856,9 +866,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */ = {
+		CF4AE9D796207FD76E86367C /* XCLocalSwiftPackageReference "BalanceKit" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../../../apple/BalanceKit;
+			relativePath = ../BalanceKit;
 		};
 		D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -867,39 +877,36 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		1E680A8236D258E21D936F16 /* BalanceKit */ = {
+		21B72B70C44F4E03B6A2FED7 /* BalanceKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */;
+			package = CF4AE9D796207FD76E86367C /* XCLocalSwiftPackageReference "BalanceKit" */;
 			productName = BalanceKit;
-		};
-		246D8DFBE4E8EC265D3BEF76 /* ClerkKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */;
-			productName = ClerkKit;
 		};
 		3E538D2C4DABA25AC72AA1DF /* ClerkKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */;
 			productName = ClerkKit;
+		};
+		43D7B1124D74ACE46FFE43F6 /* BalanceKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF4AE9D796207FD76E86367C /* XCLocalSwiftPackageReference "BalanceKit" */;
+			productName = BalanceKit;
 		};
 		4D22ABE82AF431CB00220026 /* CapApp-SPM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
 		};
-		BE8D707A92A9756D8C3FACE6 /* BalanceKit */ = {
+		CF939FADDE34D28595A3E5EC /* ClerkKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */;
-			productName = BalanceKit;
+			package = CF4AE9D796207FD76E86367C /* XCLocalSwiftPackageReference "BalanceKit" */;
+			productName = ClerkKit;
 		};
 		E04B3F993E24C65A76B2C49F /* BalanceKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */;
 			productName = BalanceKit;
 		};
 		E99DDE8BAE6D60E087B18331 /* BalanceKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9AFE87E774A18BAE8AC0D12B /* XCLocalSwiftPackageReference "BalanceKit" */;
 			productName = BalanceKit;
 		};
 /* End XCSwiftPackageProductDependency section */

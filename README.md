@@ -8,10 +8,8 @@ actually do, and see the drift.
 | Path                  | What it is                                                            |
 | --------------------- | --------------------------------------------------------------------- |
 | `apps/frontend`       | SvelteKit app (static SPA), shipped to iOS inside a Capacitor webview  |
-| `apps/frontend/ios`   | The Capacitor Xcode project, committed — including the watch targets   |
-| `apps/frontend/watch` | watchOS companion app + widget, in Swift                               |
+| `apps/frontend/ios`   | Everything Apple: the committed Xcode project, BalanceKit, fastlane    |
 | `apps/backend`        | Nitro JSON API over Postgres (Neon) with Drizzle                       |
-| `apple`               | Shared BalanceKit Swift package + fastlane release lane                |
 | `e2e`                 | Playwright suite, driven against the app's web build                   |
 
 Auth is Clerk on both sides; the frontend sends its session token to `/mobile/*`.
@@ -57,9 +55,17 @@ bun run ios:prod  # bundles the production build into the app, then opens Xcode
 bun run assets    # regenerates icons + splash screens from assets/icon.png
 ```
 
-The Xcode project is committed. Capacitor only knows about the single iOS target, so the watchOS
-app and its widget are wired in by `apps/frontend/scripts/watch-targets.rb` — re-run it (it is
-idempotent) if Capacitor ever regenerates the project.
+Everything Apple lives under `apps/frontend/ios`: the committed Xcode project (`App/`), the watch
+app and widget sources (`App/WatchApp`, `App/WatchWidget`), the BalanceKit Swift package they
+share, and the fastlane lane. Capacitor only knows about the single iOS target, so the watch app
+and widget are wired in by `ios/wire_watch_targets.rb` — re-run it (it is idempotent) if Capacitor
+ever regenerates the project, and commit the resulting `project.pbxproj`.
+
+The watch app writes a running-timer snapshot that the widget reads through the
+`group.com.elumixor.balance` App Group. That group has to be ticked on all three bundle IDs in the
+Apple Developer portal — the App Store Connect API can't do it — and the entitlement added to both
+watch targets. Until then the widget falls back to its placeholder, which is where it has been
+since before the Capacitor move.
 
 ## Linting
 

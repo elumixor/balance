@@ -20,6 +20,7 @@ the API is Nitro, in `apps/backend`.
 
 - `apps/frontend/src/lib/api-client/` is generated from the backend's routes (`bunx nitro-client`).
   Never hand-edit it; regenerate and commit.
-- `apps/frontend/ios/` is a committed Xcode project. The watch app and widget targets are added by
-  `apps/frontend/scripts/watch-targets.rb`, which is idempotent — change the script, re-run it, and
-  commit the resulting `project.pbxproj` rather than editing the project by hand.
+- `apps/frontend/ios/` is a committed Xcode project, and holds everything Apple: `App/WatchApp`,
+  `App/WatchWidget`, the `BalanceKit` package they share, and `fastlane/`. The watch app and widget
+  targets are added by `ios/wire_watch_targets.rb`, which is idempotent — change the script, re-run
+  it, and commit the resulting `project.pbxproj` rather than editing the project by hand.
