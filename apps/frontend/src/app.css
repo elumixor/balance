@@ -1,0 +1,252 @@
+/* Ahead of Tailwind: that import inlines a whole stylesheet, and a plain `@import` may not
+   follow other statements. */
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+/*
+ * Balance keeps its chrome achromatic on purpose: the only hue in the app comes
+ * from the user's own categories, so every week plan colours the app differently.
+ */
+:root {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-alt: #eeeeeb;
+  --line: #e2e2dd;
+  --line-strong: #c7c7c0;
+  --fg: #15171a;
+  --fg-muted: #6a6f75;
+  --fg-faint: #9ba1a7;
+  --ink: #15171a;
+  --ink-fg: #ffffff;
+  --danger: #b3402f;
+  --positive: #2e7d5b;
+  --caution: #a8761f;
+  --overlay: rgba(21, 23, 26, 0.32);
+}
+
+html.dark {
+  --bg: #0e1013;
+  --surface: #16191c;
+  --surface-alt: #1e2226;
+  --line: #262b30;
+  --line-strong: #3a4046;
+  --fg: #f1f2f0;
+  --fg-muted: #949aa1;
+  --fg-faint: #6a7076;
+  --ink: #f1f2f0;
+  --ink-fg: #0e1013;
+  --danger: #e4796a;
+  --positive: #62bf97;
+  --caution: #d9a54b;
+  --overlay: rgba(0, 0, 0, 0.55);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+  --color-ink: var(--ink);
+  --color-ink-fg: var(--ink-fg);
+  --color-danger: var(--danger);
+  --color-positive: var(--positive);
+  --color-caution: var(--caution);
+
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+
+  /* Low radii on purpose — the ring is the only round thing that matters. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+/*
+ * Prose speaks in Instrument Sans, quantities in DM Mono. Anything that is a
+ * duration, an hour count or a percentage is a readout and gets the mono face.
+ */
+@utility t-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 34px;
+  letter-spacing: -0.8px;
+}
+@utility t-heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 24px;
+  letter-spacing: -0.3px;
+}
+@utility t-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 21px;
+}
+@utility t-body-strong {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 21px;
+}
+@utility t-label {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 18px;
+}
+@utility t-micro {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 15px;
+  letter-spacing: 0.2px;
+}
+@utility t-data {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 19px;
+  font-variant-numeric: tabular-nums;
+}
+@utility t-data-strong {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 23px;
+  font-variant-numeric: tabular-nums;
+}
+@utility t-data-micro {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+}
+@utility t-readout {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 32px;
+  line-height: 38px;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Every tappable surface in the app dips the same amount, so touch feels uniform. */
+@utility press {
+  transition:
+    transform 110ms ease,
+    opacity 110ms ease;
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+    opacity: 0.85;
+  }
+  &:disabled {
+    opacity: 0.45;
+  }
+}
+@utility press-sm {
+  transition:
+    transform 110ms ease,
+    opacity 110ms ease;
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+    opacity: 0.85;
+  }
+  &:disabled {
+    opacity: 0.45;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--bg);
+  color: var(--fg);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: none;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  background-color: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+/* Staggered entrance for list rows; suppressed when the system asks for less motion. */
+@keyframes list-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.list-item-in {
+  animation: list-item-in 260ms ease both;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.skeleton {
+  background-color: var(--surface-alt);
+  animation: pulse-soft 1.7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list-item-in,
+  .skeleton {
+    animation: none;
+  }
+  .press,
+  .press-sm {
+    transition: none;
+  }
+}

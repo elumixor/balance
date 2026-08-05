@@ -5,12 +5,15 @@
     "includes": [
       "**",
       "!apple",
-      "!**/.expo",
       "!**/generated",
       "!**/dist",
       "!apps/backend/.output",
       "!apps/backend/.nitro",
-      "!apps/frontend/lib/api-client",
+      "!apps/frontend/.svelte-kit",
+      "!apps/frontend/build",
+      "!apps/frontend/ios",
+      "!apps/frontend/src/lib/api-client",
+      "!**/*.svelte",
       "!e2e"
     ]
   },

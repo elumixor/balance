@@ -6,7 +6,7 @@ gem "fastlane"
 gem "multi_json"
 gem "abbrev"
 gem "mutex_m"
-# `expo prebuild` shells out to `pod install` as part of the beta lane. Since the
-# whole lane runs under `bundle exec`, Bundler intercepts that subprocess call too
-# and refuses to run a `pod` binstub that isn't declared in this Gemfile.
-gem "cocoapods"
+# The beta lane stamps the version across the host, watch and widget targets itself.
+# (Capacitor 8 wires its plugins through Swift Package Manager, so there is no CocoaPods
+# step in this project at all.)
+gem "xcodeproj"

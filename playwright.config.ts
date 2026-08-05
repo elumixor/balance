@@ -16,12 +16,12 @@ export default defineConfig({
     {
       command: "bun run dev",
       cwd: "./apps/backend",
-      url: "http://localhost:3000",
+      url: "http://localhost:3100",
       reuseExistingServer: true,
       timeout: 30_000,
     },
     {
-      command: "bunx expo start --web --port 8081",
+      command: "bun run dev",
       cwd: "./apps/frontend",
       url: "http://localhost:8081",
       reuseExistingServer: true,

@@ -1,17 +1,14 @@
 #!/usr/bin/env bun
-// Builds the whole product into a single Vercel deployment: the Expo web app as static files,
+// Builds the whole product into a single Vercel deployment: the SvelteKit app as static files,
 // the Nitro API as the one serverless function behind them. Both live at the same origin, so the
 // web client calls `/mobile/*` without CORS and there is one URL to remember.
 import { existsSync } from "node:fs";
-import { readdir, rename, rm } from "node:fs/promises";
+import { cp, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { $ } from "bun";
 
 /** Paths the Nitro function owns; everything else belongs to the web app. */
 const API_PREFIXES = ["mobile", "health"];
-
-/** Expo Router's unmatched-route screen, as the static export names it. */
-const NOT_FOUND_FILE = "+not-found.html";
 
 const root = resolve(import.meta.dir, "..");
 const frontend = join(root, "apps/frontend");
@@ -20,8 +17,12 @@ const webDir = join(backend, "public");
 const nitroOutput = join(backend, ".vercel/output");
 const finalOutput = join(root, ".vercel/output");
 
+// The typed client is generated from the route handlers, so it has to exist before the app compiles.
+await $`bunx nitro-client`.cwd(backend);
+
+await $`bun run build`.cwd(frontend);
 await rm(webDir, { recursive: true, force: true });
-await $`bunx expo export --platform web --output-dir ${webDir}`.cwd(frontend);
+await cp(join(frontend, "build"), webDir, { recursive: true });
 
 await rm(nitroOutput, { recursive: true, force: true });
 await $`bunx nitro build --preset vercel`.cwd(backend);
@@ -29,49 +30,25 @@ await $`bunx nitro build --preset vercel`.cwd(backend);
 await rm(finalOutput, { recursive: true, force: true });
 await rename(nitroOutput, finalOutput);
 
-await writeCleanUrlOverrides();
+await routeUnmatchedPathsToTheApp();
 
 /**
- * Teaches Vercel the two things Nitro's generated config can't know: that Expo's per-route files
- * (`track.html`) answer to the URL people actually type (`/track`), and that an unknown path is a
- * missing app screen rather than a missing API route.
+ * The app is one client-rendered bundle, so every path it owns has to answer with `index.html`
+ * and let the router sort it out. Nitro ends its routes with a catch-all into the function, which
+ * would otherwise answer an unknown web path with an API-shaped 404 JSON body.
  */
-async function writeCleanUrlOverrides() {
+async function routeUnmatchedPathsToTheApp() {
   const configPath = join(finalOutput, "config.json");
   const config = await Bun.file(configPath).json();
   const staticDir = join(finalOutput, "static");
-  if (!existsSync(staticDir)) throw new Error(`No static output at ${staticDir} — did the web export land?`);
+  if (!existsSync(staticDir)) throw new Error(`No static output at ${staticDir} — did the web build land?`);
 
-  // The Build Output API has no `cleanUrls` flag; an `overrides` entry per file is the equivalent.
-  // An override *moves* the file's path, so `index.html` and the not-found page — both of which are
-  // routed to by filename below — have to keep theirs.
-  const keepAsIs = new Set(["index.html", NOT_FOUND_FILE]);
-  const overrides: Record<string, { path: string }> = { ...config.overrides };
-  for (const entry of await readdir(staticDir, { withFileTypes: true })) {
-    // Route-group folders (`(app)/track.html`) duplicate the flat routes Expo also emits.
-    if (!entry.isFile() || !entry.name.endsWith(".html") || keepAsIs.has(entry.name)) continue;
-    overrides[entry.name] = { path: entry.name.replace(/\.html$/, "") };
-  }
-  config.overrides = overrides;
-
-  // Nitro ends its routes with a catch-all into the function, which would answer an unknown web
-  // path with an API-shaped 404 JSON body. Hand those to the app's own not-found screen instead.
   const catchAll = config.routes.findIndex((route: { dest?: string }) => route.dest === "/__fallback");
-  config.routes.splice(
-    catchAll < 0 ? config.routes.length : catchAll,
-    0,
-    {
-      // `/` has no file of its own for the filesystem handler to find.
-      src: "/",
-      dest: "/index.html",
-    },
-    {
-      src: `/((?!${API_PREFIXES.join("|")}).*)`,
-      dest: `/${NOT_FOUND_FILE}`,
-      status: 404,
-    },
-  );
+  config.routes.splice(catchAll < 0 ? config.routes.length : catchAll, 0, {
+    src: `/((?!${API_PREFIXES.join("|")}).*)`,
+    dest: "/index.html",
+  });
 
   await Bun.write(configPath, JSON.stringify(config, null, 2));
-  console.log(`Mapped ${Object.keys(overrides).length} clean URLs`);
+  console.log("Unmatched web paths route to the app shell");
 }

@@ -1,4 +1,5 @@
 require "fileutils"
+require "xcodeproj"
 
 default_platform(:ios)
 
@@ -8,16 +9,19 @@ default_platform(:ios)
 APPLE_DIR = File.expand_path("..", __dir__)
 ROOT_DIR = File.expand_path("../..", __dir__)
 FRONTEND_DIR = File.join(ROOT_DIR, "apps", "frontend")
-IOS_DIR = File.join(FRONTEND_DIR, "ios")
+IOS_DIR = File.join(FRONTEND_DIR, "ios", "App")
 
-PROJECT = File.join(IOS_DIR, "Balance.xcodeproj")
-WORKSPACE = File.join(IOS_DIR, "Balance.xcworkspace")
-SCHEME = "Balance"
+PROJECT = File.join(IOS_DIR, "App.xcodeproj")
+SCHEME = "App"
+PRODUCTION_API_URL = "https://balance-app-mauve.vercel.app"
 APP_IDENTIFIER = "com.elumixor.balance"
 WATCH_IDENTIFIER = "com.elumixor.balance.watchkitapp"
 WIDGET_IDENTIFIER = "com.elumixor.balance.watchkitapp.widget"
 APP_GROUP = "group.com.elumixor.balance"
 TEAM_ID = "464K6UHCU4"
+
+WATCH_TARGET = "Balance Watch App"
+WIDGET_TARGET = "Balance Watch Widget Extension"
 
 def make_api_key
   key_args = { key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
@@ -59,13 +63,11 @@ platform :ios do
 
   desc "Build and upload a new TestFlight build"
   lane :beta do
-    # The iOS host + watch app + widget are all generated into one project by
-    # `expo prebuild` (host from apps/frontend, watch/widget from apps/frontend/targets
-    # via the @bacons/apple-targets config plugin — see apps/frontend/app.json and
-    # apps/frontend/plugins/withBalanceKitSwiftPackage.js for how BalanceKit gets linked
-    # in). `--clean` regenerates `apps/frontend/ios` from scratch every run, mirroring
-    # what `xcodegen generate` used to do for the old hand-written project.
-    sh("cd #{FRONTEND_DIR} && bunx expo prebuild -p ios --clean")
+    # The web app is what ships inside the webview, so it is built first and copied into the
+    # native project. `cap sync` also refreshes the plugin list; the Xcode project itself is
+    # checked in (including the watch targets — see apps/frontend/scripts/watch-targets.rb)
+    # and is never regenerated here.
+    sh("cd #{FRONTEND_DIR} && VITE_API_BASE_URL=#{PRODUCTION_API_URL} bun run build && bunx cap sync ios")
 
     api_key = make_api_key
 
@@ -75,21 +77,9 @@ platform :ios do
       initial_build_number: 0
     ) + 1
 
-    increment_build_number(
-      xcodeproj: PROJECT,
-      build_number: next_build
-    )
-
-    # Keep the embedded watch app + widget version-locked to the host app, or
-    # App Store validation rejects the upload.
-    app_version = get_info_plist_value(path: File.join(IOS_DIR, "Balance", "Info.plist"), key: "CFBundleShortVersionString")
-    [
-      File.join(FRONTEND_DIR, "targets", "watch", "Info.plist"),
-      File.join(FRONTEND_DIR, "targets", "watch-widget", "Info.plist"),
-    ].each do |plist|
-      set_info_plist_value(path: plist, key: "CFBundleShortVersionString", value: app_version)
-      set_info_plist_value(path: plist, key: "CFBundleVersion", value: next_build.to_s)
-    end
+    # The host app, the watch app and the widget each carry their own version settings, and App
+    # Store validation rejects the upload unless all three agree.
+    stamp_version(next_build)
 
     # Make sure the watch + widget identifiers exist before sigh runs.
     setup_watch
@@ -101,17 +91,17 @@ platform :ios do
 
     update_code_signing_settings(
       path: PROJECT, use_automatic_signing: false, team_id: TEAM_ID,
-      targets: ["Balance"], code_sign_identity: "Apple Distribution",
+      targets: [SCHEME], code_sign_identity: "Apple Distribution",
       profile_name: app_profile, build_configurations: ["Release"]
     )
     update_code_signing_settings(
       path: PROJECT, use_automatic_signing: false, team_id: TEAM_ID,
-      targets: ["Balance Watch App"], code_sign_identity: "Apple Distribution",
+      targets: [WATCH_TARGET], code_sign_identity: "Apple Distribution",
       profile_name: watch_profile, build_configurations: ["Release"]
     )
     update_code_signing_settings(
       path: PROJECT, use_automatic_signing: false, team_id: TEAM_ID,
-      targets: ["Balance Watch Widget Extension"], code_sign_identity: "Apple Distribution",
+      targets: [WIDGET_TARGET], code_sign_identity: "Apple Distribution",
       profile_name: widget_profile, build_configurations: ["Release"]
     )
 
@@ -123,7 +113,7 @@ platform :ios do
     # and then hand-package the IPA ourselves from the already-signed .app, exactly
     # mirroring what a successful `xcodebuild archive` + manual `zip` produces.
     build_app(
-      workspace: WORKSPACE,
+      project: PROJECT,
       scheme: SCHEME,
       configuration: "Release",
       clean: true,
@@ -147,6 +137,26 @@ platform :ios do
       ipa: ipa_path
     )
   end
+end
+
+# Writes the build number onto every target, and reads back the marketing version the host app
+# already declares so the watch side can't drift from it.
+def stamp_version(build_number)
+  project = Xcodeproj::Project.open(PROJECT)
+  app_target = project.targets.find { |t| t.name == SCHEME }
+  app_version = app_target.build_configurations
+                          .map { |c| c.build_settings["MARKETING_VERSION"] }
+                          .compact.first
+  UI.user_error!("No MARKETING_VERSION on the #{SCHEME} target") unless app_version
+
+  project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings["CURRENT_PROJECT_VERSION"] = build_number.to_s
+      config.build_settings["MARKETING_VERSION"] = app_version
+    end
+  end
+  project.save
+  UI.message("Version #{app_version} (#{build_number}) across #{project.targets.count} targets")
 end
 
 def make_profile(api_key, app_identifier)

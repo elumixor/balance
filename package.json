@@ -9,6 +9,8 @@
     "build": "bun scripts/build-vercel.ts",
     "dev": "devkit",
     "dev:open": "devkit --open",
+    "check": "bun --filter frontend check",
+    "ios": "bun --filter frontend ios",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test:e2e": "playwright test",
@@ -26,7 +28,7 @@
       {
         "name": "backend",
         "filter": "@balance/backend",
-        "port": 3000,
+        "port": 3100,
         "color": "blue"
       },
       {

@@ -1,5 +1,5 @@
 export default {
   src: "server",
-  out: "../frontend/lib/api-client",
+  out: "../frontend/src/lib/api-client",
   tsconfig: "tsconfig.json",
 };
