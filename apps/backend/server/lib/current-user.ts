@@ -7,6 +7,11 @@ import { ApiError } from "./api-error";
 
 type DbUser = typeof users.$inferSelect;
 
+export const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY!,
+  publishableKey: "pk_test_Y2VudHJhbC1jb25kb3ItMzguY2xlcmsuYWNjb3VudHMuZGV2JA",
+});
+
 /**
  * Verifies the request's `Authorization: Bearer <session-token>` header against Clerk,
  * then looks up (or JIT-provisions) the internal `users` row for that Clerk identity —
@@ -14,11 +19,6 @@ type DbUser = typeof users.$inferSelect;
  * has no built-in Clerk middleware.
  */
 export class AuthService {
-  private readonly clerkClient = createClerkClient({
-    secretKey: process.env.CLERK_SECRET_KEY!,
-    publishableKey: "pk_test_Y2VudHJhbC1jb25kb3ItMzguY2xlcmsuYWNjb3VudHMuZGV2JA",
-  });
-
   async resolveUser(event: H3Event): Promise<DbUser> {
     const clerkUserId = await this.authenticate(event);
     return this.findOrProvisionUser(clerkUserId);
@@ -29,7 +29,7 @@ export class AuthService {
     const token = authHeader?.match(/^Bearer (.+)$/)?.[1];
     if (!token) throw new ApiError("Not authenticated", 401);
 
-    const requestState = await this.clerkClient.authenticateRequest(
+    const requestState = await clerkClient.authenticateRequest(
       new Request("https://balance-app.internal/", {
         headers: { authorization: `Bearer ${token}` },
       }),

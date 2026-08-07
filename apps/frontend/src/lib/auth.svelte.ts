@@ -1,4 +1,6 @@
+import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Clerk } from "@clerk/clerk-js";
+import { API_BASE_URL } from "./api";
 
 // Clerk publishable keys are public identifiers (not secrets) — safe to ship in the client bundle.
 const PUBLISHABLE_KEY =
@@ -80,6 +82,35 @@ class Auth {
       redirectUrl: `${window.location.origin}/sso-callback`,
       redirectUrlComplete: returnTo,
     });
+  }
+
+  /**
+   * Google forbids OAuth consent inside an embedded WKWebView, so on iOS `startSSO`'s
+   * redirect flow gets bounced out to system Safari — which can't resolve the app's
+   * `https://localhost` origin and never returns. Native Google Sign-In sidesteps the
+   * whole redirect dance: get an idToken from the OS-native picker, trade it for a
+   * short-lived Clerk sign-in ticket via the backend, and redeem the ticket right here.
+   */
+  async signInWithNativeGoogle() {
+    await SocialLogin.initialize({
+      google: { iOSClientId: "836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com" },
+    });
+    const { result } = await SocialLogin.login({ provider: "google", options: { scopes: ["email", "profile"] } });
+    const idToken = "idToken" in result ? result.idToken : undefined;
+    if (!idToken) throw new Error("Google didn't return an ID token.");
+
+    const response = await fetch(`${API_BASE_URL}/mobile/auth/native/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+    const body = (await response.json()) as { ticket?: string; error?: string };
+    if (!response.ok || !body.ticket) throw new Error(body.error ?? "Sign in didn't finish.");
+
+    const signIn = await this.signIn();
+    const ticketResult = await signIn.create({ strategy: "ticket", ticket: body.ticket });
+    if (ticketResult.status !== "complete") throw new Error("Sign in didn't finish.");
+    await this.activate(ticketResult.createdSessionId);
   }
 
   async handleRedirectCallback(afterSignIn: string) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Capacitor } from "@capacitor/core";
   import { goto } from "$app/navigation";
   import { auth, authErrorMessage } from "$lib/auth.svelte";
   import AuthShell from "$lib/components/AuthShell.svelte";
@@ -60,6 +61,13 @@
   async function onSSO(strategy: "oauth_google" | "oauth_apple") {
     error = null;
     try {
+      // Google blocks OAuth consent inside the app's embedded webview, so on iOS this
+      // goes through the native account picker instead of Clerk's redirect flow.
+      if (strategy === "oauth_google" && Capacitor.getPlatform() === "ios") {
+        await auth.signInWithNativeGoogle();
+        await goto("/track", { replaceState: true });
+        return;
+      }
       await auth.startSSO(strategy, "/track");
     } catch (e) {
       error = authErrorMessage(e, "Sign in didn't finish.");

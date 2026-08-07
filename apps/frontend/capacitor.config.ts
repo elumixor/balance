@@ -25,6 +25,14 @@ const config: CapacitorConfig = {
         hostname: "localhost",
         androidScheme: "https",
       },
+  plugins: {
+    SocialLogin: {
+      google: {
+        iOSClientId: "836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com",
+        mode: "online",
+      },
+    },
+  },
 };
 
 export default config;

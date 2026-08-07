@@ -53,6 +53,17 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a</string>
+			</array>
+		</dict>
+	</array>
+	<key>GIDClientID</key>
+	<string>836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

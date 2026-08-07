@@ -6,7 +6,7 @@ import { auth } from "./auth.svelte";
  * `/mobile/*`, so a relative base keeps requests same-origin (no CORS preflight). Dev servers
  * and native builds get an absolute URL from `vite.config.ts`.
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApiClientError extends Error {}
 

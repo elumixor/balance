@@ -19,6 +19,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.5.0",
     "@capacitor/preferences": "^8.0.1",
+    "@capgo/capacitor-social-login": "^8.3.40",
     "@clerk/clerk-js": "^6.26.0",
     "lucide-svelte": "^1.0.1"
   },
