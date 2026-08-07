@@ -1,4 +1,4 @@
-import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "$lib/dates";
+import { addDays, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "$lib/dates";
 import type { CalendarEvent } from "$lib/types";
 
 export const HOUR_PX = 48;
@@ -35,22 +35,22 @@ export interface AllDaySpan {
  * One segment per day an event touches. Splitting here is what makes a midnight-crossing event
  * draw on both days and a three-day event draw on three, without any special case downstream.
  */
-export function segmentsForWeek(events: readonly CalendarEvent[], weekStart: Date): Segment[] {
-  const weekEnd = addDays(weekStart, DAYS_PER_WEEK);
+export function segmentsForRange(events: readonly CalendarEvent[], rangeStart: Date, dayCount: number): Segment[] {
+  const rangeEnd = addDays(rangeStart, dayCount);
   const segments: Segment[] = [];
 
   for (const event of events) {
     if (event.allDay) continue;
     const start = new Date(event.start);
     const end = new Date(event.end);
-    if (end <= weekStart || start >= weekEnd) continue;
+    if (end <= rangeStart || start >= rangeEnd) continue;
 
-    const firstDay = Math.max(0, dayIndexOf(start, weekStart));
-    const lastDay = Math.min(DAYS_PER_WEEK - 1, dayIndexOf(new Date(end.getTime() - 1), weekStart));
+    const firstDay = Math.max(0, dayIndexOf(start, rangeStart));
+    const lastDay = Math.min(dayCount - 1, dayIndexOf(new Date(end.getTime() - 1), rangeStart));
 
     for (let dayIndex = firstDay; dayIndex <= lastDay; dayIndex++) {
-      const startsHere = dayIndex === firstDay && start >= weekStart;
-      const endsHere = dayIndex === lastDay && end <= weekEnd;
+      const startsHere = dayIndex === firstDay && start >= rangeStart;
+      const endsHere = dayIndex === lastDay && end <= rangeEnd;
       segments.push({
         event,
         dayIndex,
@@ -66,19 +66,23 @@ export function segmentsForWeek(events: readonly CalendarEvent[], weekStart: Dat
 }
 
 /** All-day events sit in their own strip, spanning whole day columns rather than hours. */
-export function allDaySpansForWeek(events: readonly CalendarEvent[], weekStart: Date): AllDaySpan[] {
-  const weekEnd = addDays(weekStart, DAYS_PER_WEEK);
+export function allDaySpansForRange(
+  events: readonly CalendarEvent[],
+  rangeStart: Date,
+  dayCount: number,
+): AllDaySpan[] {
+  const rangeEnd = addDays(rangeStart, dayCount);
 
   return events
     .filter((e) => e.allDay)
     .flatMap((event) => {
       const start = new Date(event.start);
       const end = new Date(event.end);
-      if (end <= weekStart || start >= weekEnd) return [];
+      if (end <= rangeStart || start >= rangeEnd) return [];
 
-      const firstDay = Math.max(0, dayIndexOf(start, weekStart));
+      const firstDay = Math.max(0, dayIndexOf(start, rangeStart));
       // Google's all-day end date is exclusive, so the last drawn day is the one before it.
-      const lastDay = Math.min(DAYS_PER_WEEK - 1, dayIndexOf(new Date(end.getTime() - 1), weekStart));
+      const lastDay = Math.min(dayCount - 1, dayIndexOf(new Date(end.getTime() - 1), rangeStart));
       return [{ event, dayIndex: firstDay, days: lastDay - firstDay + 1 }];
     });
 }
@@ -131,6 +135,6 @@ export function snapMinutes(minutes: number): number {
   return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
 }
 
-function dayIndexOf(date: Date, weekStart: Date): number {
-  return Math.floor((startOfDay(date).getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
+function dayIndexOf(date: Date, rangeStart: Date): number {
+  return Math.floor((startOfDay(date).getTime() - rangeStart.getTime()) / (24 * 60 * 60 * 1000));
 }

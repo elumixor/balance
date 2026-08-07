@@ -17,7 +17,6 @@
     ghost = false,
     flatTop = false,
     flatBottom = false,
-    onclick,
   }: {
     event: CalendarEvent;
     categories: Map<string, Category>;
@@ -25,8 +24,6 @@
     ghost?: boolean;
     flatTop?: boolean;
     flatBottom?: boolean;
-    /** Handed the block's own box, so whatever opens can sit beside the block you tapped. */
-    onclick?: (rect: DOMRect) => void;
   } = $props();
 
   const color = $derived.by(() => {
@@ -45,7 +42,6 @@
 <button
   type="button"
   aria-label="{event.title}, {formatClock(new Date(event.start))}"
-  onclick={(e) => onclick?.(e.currentTarget.getBoundingClientRect())}
   disabled={ghost}
   class="absolute inset-0 flex min-w-0 flex-col items-start overflow-hidden border-l-2 px-1.5 py-0.5 text-left
     {ghost ? 'pointer-events-none opacity-70' : 'press-sm'}

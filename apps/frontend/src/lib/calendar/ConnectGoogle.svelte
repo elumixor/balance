@@ -24,7 +24,7 @@
     try {
       await connectGoogle();
       invalidate.integrations();
-      await Promise.all([store.calendars.refresh(), data.week.refresh()]);
+      await Promise.all([store.calendars.refresh(), data.refreshWeeks()]);
     } catch (e) {
       error = e instanceof Error ? e.message : "Couldn't start the connection.";
     } finally {

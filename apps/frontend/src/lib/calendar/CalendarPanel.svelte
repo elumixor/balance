@@ -34,7 +34,7 @@
     try {
       await updateCalendarPrefs(input);
       invalidate.integrations();
-      await Promise.all([prefs.refresh(), data.week.refresh()]);
+      await Promise.all([prefs.refresh(), data.refreshWeeks()]);
     } catch (e) {
       data.actionError = e instanceof Error ? e.message : "Couldn't save that.";
     }
@@ -51,7 +51,7 @@
     try {
       await disconnectGoogle();
       invalidate.integrations();
-      await Promise.all([prefs.refresh(), data.week.refresh()]);
+      await Promise.all([prefs.refresh(), data.refreshWeeks()]);
     } catch (e) {
       data.actionError = e instanceof Error ? e.message : "Couldn't disconnect.";
     }

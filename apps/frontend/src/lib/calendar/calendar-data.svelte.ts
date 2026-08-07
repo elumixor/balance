@@ -1,5 +1,5 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, weekKey, weekStartFromKey } from "$lib/dates";
+import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "$lib/dates";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -10,6 +10,9 @@ import {
 import { calendarWeek, invalidate, store } from "$lib/store.svelte";
 import type { Activity, ActivityWeight, CalendarEvent, MappingScope } from "$lib/types";
 import { DEFAULT_EVENT_MINUTES, snapMinutes } from "./week-grid";
+
+/** Three weeks of columns, so there's a week to scroll into on either side of the seven shown. */
+export const STRIP_DAYS = 3 * DAYS_PER_WEEK;
 
 /** How far a finger has to travel before a tap becomes a drag, and how long before a hold does. */
 const DRAG_THRESHOLD_PX = 6;
@@ -25,7 +28,8 @@ export interface DragState {
   readonly weights: ActivityWeight[];
   readonly activityId: string | null;
   readonly event: CalendarEvent | null;
-  dayIndex: number;
+  /** The day the block is over, as a date: the strip runs across weeks, so an index won't do. */
+  day: Date;
   startMinutes: number;
   endMinutes: number;
 }
@@ -37,6 +41,10 @@ interface PendingDrag {
   readonly originY: number;
   readonly activity: Activity | null;
   readonly event: CalendarEvent | null;
+  /** An event someone else owns: it still opens on a tap, it just can't be dragged anywhere. */
+  readonly locked: boolean;
+  /** The element the press started on, and the one a started drag captures the pointer to. */
+  readonly el: Element;
   timer: ReturnType<typeof setTimeout> | null;
   armed: boolean;
 }
@@ -54,29 +62,41 @@ class CalendarData {
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
 
-  /** The 7-column area, registered by the grid so the palette can hit-test against it. */
+  /** The whole 21-day strip, registered by the grid so the palette can hit-test against it. */
   columnsEl = $state<HTMLElement | undefined>(undefined);
   scrollerEl = $state<HTMLElement | undefined>(undefined);
 
   #pending: PendingDrag | null = null;
+  /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
+  #dragged = false;
   #autoscroll: number | null = null;
 
-  readonly key = $derived(weekKey(this.anchor));
-  readonly weekStart = $derived(weekStartFromKey(this.key));
-  readonly week = $derived(calendarWeek(this.key));
+  /** The first of the seven days on screen — any day, not just a Monday. */
+  readonly windowStart = $derived(startOfDay(this.anchor));
 
   /**
-   * The week either side is loaded too: the grid scrolls sideways between them, so a week has to
-   * be drawn before it's centred rather than after.
+   * The grid draws three whole weeks and shows seven days of them, so there's always a week
+   * either side to scroll into and the day columns line up with the week the events came in.
    */
-  readonly panes = $derived(
-    [-1, 0, 1].map((offset) => {
-      const start = addDays(this.weekStart, offset * DAYS_PER_WEEK);
-      return { offset, start, week: calendarWeek(weekKey(start)) };
-    }),
+  readonly stripStart = $derived(addDays(startOfWeek(this.windowStart), -DAYS_PER_WEEK));
+  readonly dayOffset = $derived(daysBetween(this.stripStart, this.windowStart));
+  readonly weeks = $derived(
+    [0, DAYS_PER_WEEK, 2 * DAYS_PER_WEEK].map((day) => calendarWeek(weekKey(addDays(this.stripStart, day)))),
   );
 
-  readonly events = $derived(this.week.value?.events ?? []);
+  /** One copy of each event: the ones that straddle Sunday night come back in two weeks' answers. */
+  readonly events = $derived([
+    ...new Map(this.weeks.flatMap((week) => week.value?.events ?? []).map((event) => [event.id, event])).values(),
+  ]);
+
+  /**
+   * Seven days always overlap two calendar weeks; the one holding four or more of them is the
+   * week the meters and the title are about. Adding three days lands on that week by itself.
+   */
+  readonly weekStart = $derived(startOfWeek(addDays(this.windowStart, 3)));
+  readonly key = $derived(weekKey(this.weekStart));
+  readonly week = $derived(calendarWeek(this.key));
+
   readonly connected = $derived(this.week.value?.connected ?? store.integrations.value?.[0]?.connected ?? false);
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(new Date()));
@@ -84,6 +104,16 @@ class CalendarData {
   select(event: CalendarEvent, rect: DOMRect) {
     this.selected = event;
     this.selectedRect = rect;
+  }
+
+  /**
+   * A block's own click, which arrives on whatever captured the pointer rather than on the button
+   * inside it — hence a tap being answered here and not by the block. A press that turned into a
+   * real drag still ends in a click, and that one isn't a tap.
+   */
+  tap(event: CalendarEvent, rect: DOMRect) {
+    if (this.#dragged) return;
+    this.select(event, rect);
   }
 
   deselect() {
@@ -101,16 +131,21 @@ class CalendarData {
   }
 
   ensureWeeks() {
-    return Promise.all(this.panes.map((pane) => pane.week.ensure()));
+    return Promise.all(this.weeks.map((week) => week.ensure()));
   }
 
-  goToWeek(offset: number) {
-    this.anchor = addDays(this.weekStart, offset * DAYS_PER_WEEK);
+  refreshWeeks() {
+    return Promise.all(this.weeks.map((week) => week.refresh()));
+  }
+
+  /** Scrolling sideways moves the window a day at a time. */
+  goToDay(shift: number) {
+    this.anchor = addDays(this.windowStart, shift);
     void this.ensureWeeks();
   }
 
   goToToday() {
-    this.anchor = new Date();
+    this.anchor = startOfWeek(new Date());
     void this.ensureWeeks();
   }
 
@@ -121,10 +156,17 @@ class CalendarData {
     this.#arm({ kind: "create", activity, event: null, e, armed: false });
   }
 
-  /** A block: a tap opens its sheet, so moving it takes a hold rather than a nudge. */
+  /** A block: a tap opens its editor, so moving it takes a hold rather than a nudge. */
   beginMove(event: CalendarEvent, e: PointerEvent) {
-    if (event.readOnly) return;
-    this.#arm({ kind: "move", activity: null, event, e, armed: false, longPress: true });
+    this.#arm({
+      kind: "move",
+      activity: null,
+      event,
+      e,
+      armed: false,
+      longPress: !event.readOnly,
+      locked: event.readOnly,
+    });
   }
 
   beginResize(event: CalendarEvent, e: PointerEvent) {
@@ -153,7 +195,7 @@ class CalendarData {
       return;
     }
     const length = this.drag.endMinutes - this.drag.startMinutes;
-    this.drag.dayIndex = at.dayIndex;
+    this.drag.day = at.day;
     this.drag.startMinutes = Math.min(at.minutes, MINUTES_PER_DAY - length);
     this.drag.endMinutes = this.drag.startMinutes + length;
   }
@@ -165,8 +207,8 @@ class CalendarData {
     this.drag = null;
     if (!drag) return;
 
-    const start = this.#instantAt(drag.dayIndex, drag.startMinutes);
-    const end = this.#instantAt(drag.dayIndex, drag.endMinutes);
+    const start = this.#instantAt(drag.day, drag.startMinutes);
+    const end = this.#instantAt(drag.day, drag.endMinutes);
 
     if (drag.kind === "create" && drag.activityId) void this.#create(drag.activityId, drag.title, start, end);
     else if (drag.event) void this.retimeEvent(drag.event, start, end);
@@ -235,10 +277,10 @@ class CalendarData {
     try {
       await action();
       invalidate.calendar();
-      await this.week.refresh();
+      await this.refreshWeeks();
     } catch (e) {
       this.actionError = e instanceof Error ? e.message : "That didn't save.";
-      await this.week.refresh();
+      await this.refreshWeeks();
     }
   }
 
@@ -251,15 +293,18 @@ class CalendarData {
     e: PointerEvent;
     armed: boolean;
     longPress?: boolean;
+    locked?: boolean;
   }) {
-    (input.e.currentTarget as Element).setPointerCapture?.(input.e.pointerId);
+    this.#dragged = false;
     const pending: PendingDrag = {
       kind: input.kind,
+      el: input.e.currentTarget as Element,
       pointerId: input.e.pointerId,
       originX: input.e.clientX,
       originY: input.e.clientY,
       activity: input.activity,
       event: input.event,
+      locked: input.locked ?? false,
       armed: input.armed,
       timer: null,
     };
@@ -269,8 +314,12 @@ class CalendarData {
   }
 
   #start(pending: PendingDrag) {
-    if (this.drag) return;
+    if (this.drag || pending.locked) return;
     pending.armed = true;
+    this.#dragged = true;
+    // Captured only now: a captured pointer sends its click to whatever captured it, which would
+    // swallow the tap that opens an event. Nothing to capture for until something is moving.
+    pending.el.setPointerCapture?.(pending.pointerId);
     if (pending.timer) clearTimeout(pending.timer);
 
     if (pending.kind === "create" && pending.activity) {
@@ -280,7 +329,7 @@ class CalendarData {
         weights: pending.activity.weights,
         activityId: pending.activity.id,
         event: null,
-        dayIndex: 0,
+        day: this.windowStart,
         startMinutes: 0,
         endMinutes: DEFAULT_EVENT_MINUTES,
       };
@@ -296,7 +345,7 @@ class CalendarData {
       weights: pending.event.weights,
       activityId: pending.event.activityId,
       event: pending.event,
-      dayIndex: Math.floor((start.getTime() - this.weekStart.getTime()) / (24 * 60 * 60 * 1000)),
+      day: startOfDay(start),
       startMinutes: start.getHours() * 60 + start.getMinutes(),
       endMinutes: end.getHours() * 60 + end.getMinutes(),
     };
@@ -307,16 +356,16 @@ class CalendarData {
     this.#pending = null;
   }
 
-  #pointerToSlot(e: PointerEvent): { dayIndex: number; minutes: number } | null {
+  #pointerToSlot(e: PointerEvent): { day: Date; minutes: number } | null {
     if (!this.columnsEl) return null;
     const rect = this.columnsEl.getBoundingClientRect();
-    const dayIndex = clamp(Math.floor(((e.clientX - rect.left) / rect.width) * DAYS_PER_WEEK), 0, DAYS_PER_WEEK - 1);
+    const index = clamp(Math.floor(((e.clientX - rect.left) / rect.width) * STRIP_DAYS), 0, STRIP_DAYS - 1);
     const minutes = clamp(snapMinutes(((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY), 0, MINUTES_PER_DAY);
-    return { dayIndex, minutes };
+    return { day: addDays(this.stripStart, index), minutes };
   }
 
-  #instantAt(dayIndex: number, minutes: number): Date {
-    const at = addDays(this.weekStart, dayIndex);
+  #instantAt(day: Date, minutes: number): Date {
+    const at = new Date(day);
     at.setMinutes(minutes);
     return at;
   }
@@ -341,6 +390,10 @@ class CalendarData {
     cancelAnimationFrame(this.#autoscroll);
     this.#autoscroll = null;
   }
+}
+
+function daysBetween(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 function clamp(value: number, min: number, max: number) {

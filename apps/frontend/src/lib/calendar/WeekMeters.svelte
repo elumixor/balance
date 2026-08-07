@@ -1,5 +1,5 @@
 <script lang="ts">
-  import DeviationBar from "$lib/components/DeviationBar.svelte";
+  import ProgressBar from "$lib/components/ProgressBar.svelte";
   import { formatHoursAndMinutes } from "$lib/format";
   import type { CalendarEvent, Category } from "$lib/types";
   import { weekTotals } from "./week-totals";
@@ -27,7 +27,7 @@
           {formatHoursAndMinutes(category.actualHours)}/{formatHoursAndMinutes(category.plannedHours)}
         </span>
       </div>
-      <DeviationBar ratio={category.actualHours / category.plannedHours} color={category.color} height={3} />
+      <ProgressBar ratio={category.actualHours / category.plannedHours} color={category.color} height={3} />
     </div>
   {/each}
 </div>
