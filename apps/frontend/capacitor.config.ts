@@ -31,6 +31,12 @@ const config: CapacitorConfig = {
         iOSClientId: "836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com",
         mode: "online",
       },
+      apple: {
+        // Unused at the OS level on iOS — native Sign in with Apple is scoped by the app's
+        // bundle ID and the `com.apple.developer.applesignin` entitlement, not this value.
+        // The plugin still requires a non-empty string to know which provider to initialize.
+        clientId: "com.elumixor.balance",
+      },
     },
   },
 };

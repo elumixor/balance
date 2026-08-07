@@ -85,11 +85,12 @@ class Auth {
   }
 
   /**
-   * Google forbids OAuth consent inside an embedded WKWebView, so on iOS `startSSO`'s
-   * redirect flow gets bounced out to system Safari — which can't resolve the app's
-   * `https://localhost` origin and never returns. Native Google Sign-In sidesteps the
-   * whole redirect dance: get an idToken from the OS-native picker, trade it for a
-   * short-lived Clerk sign-in ticket via the backend, and redeem the ticket right here.
+   * Google and Apple both forbid (or can't reliably return from) OAuth consent inside an
+   * embedded WKWebView — Google forces a hand-off to system Safari, which can't resolve the
+   * app's `https://localhost` origin and never returns; Apple's web flow shares the same
+   * fate. Native sign-in sidesteps the whole redirect dance: get an idToken from the OS's
+   * own picker, trade it for a short-lived Clerk sign-in ticket via the backend, and redeem
+   * the ticket right here — no browser involved at all.
    */
   async signInWithNativeGoogle() {
     await SocialLogin.initialize({
@@ -98,8 +99,19 @@ class Auth {
     const { result } = await SocialLogin.login({ provider: "google", options: { scopes: ["email", "profile"] } });
     const idToken = "idToken" in result ? result.idToken : undefined;
     if (!idToken) throw new Error("Google didn't return an ID token.");
+    await this.#redeemNativeIdToken("google", idToken);
+  }
 
-    const response = await fetch(`${API_BASE_URL}/mobile/auth/native/google`, {
+  async signInWithNativeApple() {
+    await SocialLogin.initialize({ apple: { clientId: "com.elumixor.balance" } });
+    const { result } = await SocialLogin.login({ provider: "apple", options: { scopes: ["email", "name"] } });
+    const idToken = "idToken" in result ? result.idToken : undefined;
+    if (!idToken) throw new Error("Apple didn't return an ID token.");
+    await this.#redeemNativeIdToken("apple", idToken);
+  }
+
+  async #redeemNativeIdToken(provider: "google" | "apple", idToken: string) {
+    const response = await fetch(`${API_BASE_URL}/mobile/auth/native/${provider}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),

@@ -61,10 +61,12 @@
   async function onSSO(strategy: "oauth_google" | "oauth_apple") {
     error = null;
     try {
-      // Google blocks OAuth consent inside the app's embedded webview, so on iOS this
-      // goes through the native account picker instead of Clerk's redirect flow.
-      if (strategy === "oauth_google" && Capacitor.getPlatform() === "ios") {
-        await auth.signInWithNativeGoogle();
+      // Both providers' OAuth flows fall apart inside the app's embedded webview on iOS
+      // (Google blocks it outright, Apple's redirect can't get back in), so native sign-in
+      // replaces Clerk's redirect flow there entirely.
+      if (Capacitor.getPlatform() === "ios") {
+        if (strategy === "oauth_google") await auth.signInWithNativeGoogle();
+        else await auth.signInWithNativeApple();
         await goto("/track", { replaceState: true });
         return;
       }
