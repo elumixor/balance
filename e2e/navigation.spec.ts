@@ -16,7 +16,7 @@ test.describe("Moving between tabs", () => {
     await authenticate(page);
     await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 15_000 });
     // The startup warm-up fetches every tab's data; let it finish before counting requests.
-    await expect.poll(() => page.getByRole("link", { name: "Balance" }).count()).toBeGreaterThan(0);
+    await expect.poll(() => page.getByRole("link", { name: "Planning" }).count()).toBeGreaterThan(0);
     await page.waitForTimeout(2500);
   });
 
@@ -27,14 +27,15 @@ test.describe("Moving between tabs", () => {
   test("costs no requests when nothing has changed", async () => {
     const calls = recordApiCalls(page);
 
-    for (const [label, marker] of [
-      ["Balance", /This month/],
-      ["Week", /Rest \+ Buffer/],
-      ["Activities", /Coding/],
-      ["Calendar", /Connect Google Calendar/],
-      ["Balance", /This month/],
+    // Tabs move between screens; Planning's own two sections are tabs within one screen.
+    for (const [role, label, marker] of [
+      ["link", "Planning", /Rest \+ Buffer/],
+      ["tab", "Activities", /Coding/],
+      ["tab", "Week", /Rest \+ Buffer/],
+      ["link", "Calendar", /Connect Google Calendar/],
+      ["link", "Planning", /Rest \+ Buffer/],
     ] as const) {
-      await page.getByRole("link", { name: label }).first().click();
+      await page.getByRole(role, { name: label }).first().click();
       await expect(page.getByText(marker).first()).toBeVisible();
     }
 
@@ -42,16 +43,15 @@ test.describe("Moving between tabs", () => {
   });
 
   test("refetches the screens a write left stale", async () => {
-    await page.getByRole("link", { name: "Activities" }).first().click();
+    await page.goto("/planning/activities");
     await page.getByLabel("Edit Coding").first().click();
     await page.getByPlaceholder("Activity name").fill("Coding");
     await page.getByText("Save", { exact: true }).click();
     await expect(page.getByPlaceholder("Activity name")).toHaveCount(0, { timeout: 10_000 });
 
-    // An activity's split changes what its events count toward, so Balance is now stale.
+    // An activity's split changes what its events count toward, so the week is now stale.
     const calls = recordApiCalls(page);
-    await page.getByRole("link", { name: "Balance" }).first().click();
-    await expect(page.getByRole("tab", { name: "This month" })).toBeVisible();
-    await expect.poll(() => calls).toContain("/mobile/stats");
+    await page.getByRole("link", { name: "Calendar" }).first().click();
+    await expect.poll(() => calls.some((call) => call.startsWith("/mobile/calendar/events"))).toBe(true);
   });
 });

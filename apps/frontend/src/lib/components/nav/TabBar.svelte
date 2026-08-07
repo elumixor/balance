@@ -1,13 +1,13 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { NAV_TABS } from "$lib/nav";
+  import { isActive, NAV_TABS } from "$lib/nav";
 
   /** The phone's navigation, under the thumb. Replaced by SideNav from `md` up. */
 </script>
 
 <nav class="safe-bottom flex border-t border-line bg-surface md:hidden">
   {#each NAV_TABS as tab (tab.href)}
-    {@const active = page.url.pathname === tab.href}
+    {@const active = isActive(page.url.pathname, tab.href)}
     <a
       href={tab.href}
       aria-current={active ? "page" : undefined}

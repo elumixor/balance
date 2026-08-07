@@ -3,11 +3,11 @@
   import { auth } from "$lib/auth.svelte";
   import AccountMenu from "$lib/components/AccountMenu.svelte";
   import BrandMark from "$lib/components/BrandMark.svelte";
-  import { NAV_TABS } from "$lib/nav";
+  import { isActive, NAV_TABS } from "$lib/nav";
 
   /**
    * The wide-screen rail. Where the tab bar can only afford an icon, this has room for the
-   * mark, the four screens as a read-down list, and the account — so no screen has to carry
+   * mark, both screens as a read-down list, and the account — so no screen has to carry
    * chrome that isn't its own content.
    */
 </script>
@@ -20,7 +20,7 @@
 
   <div class="flex flex-col gap-0.5">
     {#each NAV_TABS as tab (tab.href)}
-      {@const active = page.url.pathname === tab.href}
+      {@const active = isActive(page.url.pathname, tab.href)}
       <a
         href={tab.href}
         aria-current={active ? "page" : undefined}

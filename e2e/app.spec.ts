@@ -24,7 +24,7 @@ test.describe("Balance app", () => {
   });
 
   test("create a category by splitting the week ring", async () => {
-    await page.goto("/categories");
+    await page.goto("/planning/week");
     await expect(page.getByText("Rest + Buffer")).toBeVisible();
 
     // The suite runs against a persistent account, so only create it once.
@@ -47,7 +47,7 @@ test.describe("Balance app", () => {
   });
 
   test("create an activity split across the category", async () => {
-    await page.goto("/activities");
+    await page.goto("/planning/activities");
     // The account is shared across runs, so it can hold more than one activity by this name.
     const coding = page.getByLabel("Edit Coding").first();
     if (await coding.isVisible()) {
@@ -70,11 +70,5 @@ test.describe("Balance app", () => {
     await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 10_000 });
     // Without a calendar there is no grid to drop onto, so the palette isn't drawn either.
     await expect(page.getByText("Drag onto the week")).toHaveCount(0);
-  });
-
-  test("balance screen asks for a calendar before it weighs anything", async () => {
-    await page.goto("/stats");
-    await expect(page.getByRole("tab", { name: "This month" })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible();
   });
 });

@@ -8,7 +8,6 @@ import type {
   Category,
   IntegrationStatus,
   MappingScope,
-  StatsResponse,
 } from "./types";
 
 // Categories
@@ -62,7 +61,3 @@ export const saveEventMapping = (input: {
 }) => callApi(api.calendar.mappings.$post(input)).then(unwrapOk);
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
   callApi(api.calendar.mappings.$delete(input)).then(unwrapOk);
-
-// Stats
-export const getStats = (period: "day" | "week" | "month", date?: string) =>
-  apiGet<StatsResponse>("/stats", { period, date });

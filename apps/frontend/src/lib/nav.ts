@@ -1,9 +1,15 @@
-import { CalendarDays, ChartPie, Scale, Shapes } from "lucide-svelte";
+import { CalendarDays, ChartPie } from "lucide-svelte";
 
-/** The four screens, in the order the week is worked: schedule it, weigh it, plan it, define it. */
+/**
+ * The two halves of the app: the week as it happens, and the week as you meant it to go.
+ * Planning holds its own two sections — the plan's shape, and the activities that fill it.
+ */
 export const NAV_TABS = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/stats", label: "Balance", icon: Scale },
-  { href: "/categories", label: "Week", icon: ChartPie },
-  { href: "/activities", label: "Activities", icon: Shapes },
+  { href: "/planning", label: "Planning", icon: ChartPie },
 ];
+
+/** A tab stays lit for everything under it, so Planning's own sections don't unlight the rail. */
+export function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}

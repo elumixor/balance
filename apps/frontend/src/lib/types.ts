@@ -27,6 +27,8 @@ export interface CalendarEvent {
   calendarId: string;
   seriesId: string | null;
   title: string;
+  /** The event's notes in the calendar. null when it has none. */
+  description: string | null;
   start: string;
   end: string;
   allDay: boolean;
@@ -74,49 +76,6 @@ export interface IntegrationStatus {
   email: string | null;
 }
 
-export type BalanceStatus = "over" | "under" | "on-target";
-
-export interface CategoryBreakdownItem {
-  activityId: string;
-  activityName: string;
-  hours: number;
-}
-
-export interface CategoryStat {
-  categoryId: string;
-  name: string;
-  color: string;
-  targetHours: number;
-  actualHours: number;
-  diffHours: number;
-  diffPercent: number;
-  status: BalanceStatus;
-  breakdown: CategoryBreakdownItem[];
-}
-
-export interface TrendPoint {
-  periodStart: string;
-  periodEnd: string;
-  actualHours: number;
-  targetHours: number;
-}
-
-export interface CategoryTrend {
-  categoryId: string;
-  name: string;
-  color: string;
-  points: TrendPoint[];
-}
-
-export interface StatsResponse {
-  period: { start: string; end: string; kind: string };
-  connected: boolean;
-  needsReconnect: boolean;
-  categories: CategoryStat[];
-  trends: CategoryTrend[];
-  trendPeriodCount: number;
-}
-
 /** A stacked-bar slice: an activity's share of one category. */
 export type Split = { id: string; color: string; value: number };
 
@@ -126,12 +85,4 @@ export type RingSegment = {
   color: string;
   /** Values share one unit; the ring maps their sum onto 360°. */
   value: number;
-};
-
-export type BalanceSlice = {
-  id: string;
-  label: string;
-  color: string;
-  targetHours: number;
-  actualHours: number;
 };

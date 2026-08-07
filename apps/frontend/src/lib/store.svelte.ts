@@ -1,14 +1,14 @@
 import { Cached } from "./cache.svelte";
 import { weekKey, weekRange } from "./dates";
-import { getActivities, getCalendarPrefs, getCalendarWeek, getCategories, getIntegrations, getStats } from "./queries";
-import type { CalendarWeek, StatsResponse } from "./types";
+import { getActivities, getCalendarPrefs, getCalendarWeek, getCategories, getIntegrations } from "./queries";
+import type { CalendarWeek } from "./types";
 
 /**
  * Every screen's data, held once for the whole app session.
  *
- * Four screens read overlapping rows — categories alone back the ring on Week, the colours on
- * Activities, the tint of every block on Calendar, and the names on Balance. Sharing one cache
- * per thing means a tab tap renders from memory, and a write on any screen lands on all of them.
+ * Both screens read overlapping rows — categories alone back the ring on Planning, the colours
+ * on its activity list, and the tint of every block on Calendar. Sharing one cache per thing
+ * means a tab tap renders from memory, and a write on any screen lands on all of them.
  */
 export const store = {
   categories: new Cached(getCategories, "Couldn't load your categories."),
@@ -17,24 +17,10 @@ export const store = {
   calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars."),
 };
 
-export type PeriodKind = "day" | "week" | "month";
-
-/** Stats are three separate answers, so the segmented control gets a cache per period. */
-const statsByPeriod = new Map<PeriodKind, Cached<StatsResponse>>();
-
-export function statsFor(period: PeriodKind) {
-  let cached = statsByPeriod.get(period);
-  if (!cached) {
-    cached = new Cached(() => getStats(period), "Couldn't load your balance.");
-    statsByPeriod.set(period, cached);
-  }
-  return cached;
-}
-
 /**
- * A week is its own answer too, so each one gets a cache — keyed by its Monday. Unlike the three
- * stats periods these are unbounded, so the map keeps only as many as a month of paging either
- * way could want, dropping whichever arrived first.
+ * A week is its own answer, so each one gets a cache — keyed by its Monday. Paging is unbounded,
+ * so the map keeps only as many weeks as a month of paging either way could want, dropping
+ * whichever arrived first.
  */
 const weeks = new Map<string, Cached<CalendarWeek>>();
 const WEEKS_KEPT = 9;
@@ -57,38 +43,30 @@ export function calendarWeek(key: string) {
 /**
  * What a write changed, and therefore what everything else is now showing stale.
  * `invalidate` rather than `refresh`: the affected screens keep their current rows and refetch
- * when they're next visited, instead of firing four requests nobody is waiting on.
+ * when they're next visited, instead of firing a request nobody is waiting on.
  */
 export const invalidate = {
   /** Names, colours and targets feed every screen's labels. */
   categories() {
     store.categories.invalidate();
     invalidateWeeks();
-    invalidateStats();
   },
   /** An activity's weights change what every event mapped to it counts toward. */
   activities() {
     store.activities.invalidate();
     invalidateWeeks();
-    invalidateStats();
   },
   /** An event moved, or started counting as something else. */
   calendar() {
     invalidateWeeks();
-    invalidateStats();
   },
   /** Connecting or disconnecting replaces every event on screen. */
   integrations() {
     store.integrations.invalidate();
     store.calendars.invalidate();
     invalidateWeeks();
-    invalidateStats();
   },
 };
-
-function invalidateStats() {
-  for (const cached of statsByPeriod.values()) cached.invalidate();
-}
 
 function invalidateWeeks() {
   for (const cached of weeks.values()) cached.invalidate();
@@ -96,7 +74,7 @@ function invalidateWeeks() {
 
 /**
  * Fetched once, as soon as there's a session — before any screen asks.
- * The four tabs are one app, not four pages: by the time a tab is tapped its rows are already
+ * The two tabs are one app, not two pages: by the time a tab is tapped its rows are already
  * here, so the only screen that ever shows a skeleton is the one open at startup.
  */
 export function warmStore() {
@@ -105,13 +83,11 @@ export function warmStore() {
     store.activities.ensure(),
     store.integrations.ensure(),
     calendarWeek(weekKey(new Date())).ensure(),
-    statsFor("week").ensure(),
   ]);
 }
 
 /** Signing out has to take the previous account's rows with it. */
 export function clearStore() {
   for (const cached of Object.values(store)) cached.clear();
-  statsByPeriod.clear();
   weeks.clear();
 }

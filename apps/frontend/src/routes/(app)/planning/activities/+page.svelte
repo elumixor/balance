@@ -8,20 +8,37 @@
   import LoadError from "$lib/components/LoadError.svelte";
   import Panel from "$lib/components/Panel.svelte";
   import Rows from "$lib/components/Rows.svelte";
-  import Screen from "$lib/components/Screen.svelte";
+  import SectionHeader from "$lib/components/SectionHeader.svelte";
   import SkeletonRows from "$lib/components/SkeletonRows.svelte";
 
   void data.enter();
+
+  const count = $derived(data.activities?.length ?? 0);
 </script>
 
-<Screen title="Activities" subtitle={data.activities ? `${data.activities.length} active` : undefined}>
+<!-- Rows this dense read badly across a full desktop width, so the list keeps its own measure
+     inside the wider Planning frame. -->
+<div class="max-w-2xl">
   <InlineError message={data.actionError} />
 
   {#if data.loadError && !data.activities}
     <LoadError message={data.loadError} onretry={data.load} />
   {:else if !data.activities}
     <SkeletonRows count={5} />
+  {:else if data.planned.length === 0}
+    <!-- An activity is defined as a split across categories, so there is nothing to split yet. -->
+    <EmptyState title="Shape your week first." hint="Activities split their hours across the categories you plan.">
+      {#snippet action()}
+        <a href="/planning/week" class="t-label underline underline-offset-4">Plan the week</a>
+      {/snippet}
+    </EmptyState>
   {:else}
+    <SectionHeader title="Activities">
+      {#snippet trailing()}
+        <span class="t-micro text-fg-faint">{count} active</span>
+      {/snippet}
+    </SectionHeader>
+
     {#if data.activities.length === 0 && data.editing !== "new"}
       <EmptyState
         title="No activities yet."
@@ -57,4 +74,4 @@
       <AddRow label="Add activity" onclick={() => (data.editing = "new")} />
     {/if}
   {/if}
-</Screen>
+</div>
