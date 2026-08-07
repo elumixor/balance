@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { tick } from "svelte";
   import { addDays, minutesIntoDay, startOfDay } from "$lib/dates";
   import type { CalendarEvent, Category } from "$lib/types";
   import { calendarData, STRIP_DAYS } from "./calendar-data.svelte";
@@ -32,11 +31,15 @@
   const VISIBLE_DAYS = 7;
   /** How long the scroll has to sit still before it counts as having landed on a day. */
   const SETTLE_MS = 120;
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
   const data = calendarData;
 
   let viewWidth = $state(0);
   let settle: ReturnType<typeof setTimeout> | null = null;
+  /** Which strip the current scroll offset was measured against, and whether it's been placed yet. */
+  let stripAt: number | null = null;
+  let opened = false;
 
   const dayWidth = $derived(Math.max(0, viewWidth - GUTTER_PX) / VISIBLE_DAYS);
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
@@ -83,45 +86,46 @@
     };
   });
 
-  // Opens on the working day, with the window's first day against the hours.
+  // Opens on the working day, with the window's first day against the hours. Re-runs on a resize,
+  // where the columns are a different width and the same offset means a different day.
   $effect(() => {
     const scroller = data.scrollerEl;
-    if (!scroller || dayWidth === 0) return;
+    const width = dayWidth;
+    if (!scroller || width === 0) return;
     // Next frame: the columns have to be laid out at their new width before an offset into them
     // means anything — set it too early and the browser clamps it to a scroll range of zero.
     const frame = requestAnimationFrame(() => {
-      scroller.scrollTop = OPENING_HOUR * HOUR_PX;
-      centre();
+      if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
+      opened = true;
+      scroller.scrollLeft = data.dayOffset * width;
+      stripAt = data.stripStart.getTime();
     });
     return () => cancelAnimationFrame(frame);
   });
 
-  /** Puts the window's first day back against the hours, in this frame and the one after it. */
-  function centre() {
+  /**
+   * The strip is rebuilt a week over whenever the window crosses into the next one. Nothing should
+   * move on screen when that happens, so the scroll is walked back by exactly the days it shifted.
+   */
+  $effect(() => {
+    const start = data.stripStart.getTime();
     const scroller = data.scrollerEl;
-    if (!scroller || dayWidth === 0) return;
-    const left = data.dayOffset * dayWidth;
-    scroller.scrollLeft = left;
-    requestAnimationFrame(() => {
-      scroller.scrollLeft = left;
-    });
-  }
+    if (!scroller || stripAt === null || start === stripAt) return;
+    scroller.scrollLeft -= Math.round((start - stripAt) / MS_PER_DAY) * dayWidth;
+    stripAt = start;
+  });
 
   function onscroll() {
     if (settle) clearTimeout(settle);
     settle = setTimeout(land, SETTLE_MS);
   }
 
-  /** The column the scroll came to rest on becomes the first day, and the strip shifts under it. */
-  async function land() {
+  /** The column the scroll came to rest on becomes the first day on screen. */
+  function land() {
     const scroller = data.scrollerEl;
     if (!scroller || dayWidth === 0 || data.drag) return;
     const shift = Math.round(scroller.scrollLeft / dayWidth) - data.dayOffset;
-    if (shift === 0) return;
-    data.goToDay(shift);
-    // The strip only holds its new days after the update, and the scroll only holds after that.
-    await tick();
-    centre();
+    if (shift !== 0) data.goToDay(shift);
   }
 </script>
 
@@ -146,8 +150,10 @@
 
     <div class="min-w-0">
       <div class="sticky top-0 z-20 border-line border-b bg-surface" style="height:{headerPx}px">
+        <!-- Unkeyed: the columns are fixed slots the days move through, and moving DOM nodes
+             under a scroller resets the very scroll offset this grid is holding. -->
         <div class="grid" style="grid-template-columns:{columns};height:{DAY_HEAD_PX}px">
-          {#each days as day (day.getTime())}
+          {#each days as day}
             {@const today = day.getTime() === todayStart}
             <div class="flex flex-col justify-center border-line border-l px-1 text-center">
               <div class="t-micro text-fg-faint">{day.toLocaleDateString(undefined, { weekday: "short" })}</div>
@@ -159,7 +165,8 @@
         {#if allDay.length > 0}
           <div class="grid gap-px px-px" style="grid-template-columns:{columns};height:{ALL_DAY_PX}px">
             {#each allDay as span (span.event.id)}
-              <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 class="relative py-0.5"
                 style="grid-column:{span.dayIndex + 1} / span {span.days}"
@@ -179,10 +186,11 @@
         style="grid-template-columns:{columns};height:{24 *
           HOUR_PX}px;background-image:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px {HOUR_PX}px)"
       >
-        {#each days as day, index (day.getTime())}
+        {#each days as day, index}
           <div class="relative snap-start border-line border-l">
             {#each placedByDay[index] as segment (segment.event.id)}
-              <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 class="absolute touch-none px-px"
                 style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:{segment.widthPercent}%"
@@ -200,7 +208,8 @@
                   flatBottom={segment.continuesAfter}
                 />
                 {#if !segment.event.readOnly && !segment.continuesAfter}
-                  <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <span
                     class="absolute inset-x-0 bottom-0 h-3 cursor-ns-resize touch-none"
                     onpointerdown={(e) => data.beginResize(segment.event, e)}

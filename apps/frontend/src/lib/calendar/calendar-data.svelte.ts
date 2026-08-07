@@ -55,7 +55,8 @@ interface PendingDrag {
  * you were looking at.
  */
 class CalendarData {
-  anchor = $state(new Date());
+  /** Opens on the current week; scrolling moves it off a Monday and that's fine. */
+  anchor = $state(startOfWeek(new Date()));
   selected = $state<CalendarEvent | null>(null);
   /** Where the tapped block is on screen, so its editor can open beside it rather than over it. */
   selectedRect = $state<DOMRect | null>(null);
@@ -97,6 +98,8 @@ class CalendarData {
   readonly key = $derived(weekKey(this.weekStart));
   readonly week = $derived(calendarWeek(this.key));
 
+  /** Whether there's a grid to draw at all — a week still loading must not unmount the one on show. */
+  readonly ready = $derived(this.weeks.some((week) => week.hasValue));
   readonly connected = $derived(this.week.value?.connected ?? store.integrations.value?.[0]?.connected ?? false);
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(new Date()));

@@ -80,20 +80,20 @@
     <div class="px-3 pt-2 md:px-4"><InlineError message={data.actionError} /></div>
   {/if}
 
-  {#if week.error && !week.hasValue}
+  {#if week.error && !data.ready}
     <div class="p-4"><LoadError message={week.error} onretry={() => void week.refresh()} /></div>
-  {:else if !week.hasValue}
+  {:else if !data.ready}
     <div class="p-4"><Skeleton height={384} radius={10} /></div>
-  {:else if !data.connected}
-    <!-- The rail already asks on a wide screen, so there the empty week itself is the answer. -->
-    <div class="flex flex-1 items-center justify-center p-6 md:hidden">
-      <div class="w-full max-w-sm"><ConnectGoogle /></div>
-    </div>
-    <div class="hidden min-h-0 flex-1 md:block">
-      <WeekGrid categories={categoryById} />
-    </div>
   {:else}
-    <div class="min-h-0 flex-1">
+    {#if !data.connected}
+      <!-- The rail already asks on a wide screen, so there the empty week itself is the answer. -->
+      <div class="flex flex-1 items-center justify-center p-6 md:hidden">
+        <div class="w-full max-w-sm"><ConnectGoogle /></div>
+      </div>
+    {/if}
+    <!-- One grid, shown or hidden. A second instance would remount it, and a remounted scroller
+         forgets which day it was on. -->
+    <div class="min-h-0 flex-1 {data.connected ? '' : 'hidden md:block'}">
       <WeekGrid categories={categoryById} />
     </div>
   {/if}
