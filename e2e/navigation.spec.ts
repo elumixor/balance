@@ -27,15 +27,12 @@ test.describe("Moving between tabs", () => {
   test("costs no requests when nothing has changed", async () => {
     const calls = recordApiCalls(page);
 
-    // Tabs move between screens; Planning's own two sections are tabs within one screen.
-    for (const [role, label, marker] of [
-      ["link", "Planning", /Rest \+ Buffer/],
-      ["tab", "Activities", /Coding/],
-      ["tab", "Week", /Rest \+ Buffer/],
-      ["link", "Calendar", /Connect Google Calendar/],
-      ["link", "Planning", /Rest \+ Buffer/],
+    for (const [label, marker] of [
+      ["Planning", /Rest \+ Buffer/],
+      ["Calendar", /Connect Google Calendar/],
+      ["Planning", /Coding/],
     ] as const) {
-      await page.getByRole(role, { name: label }).first().click();
+      await page.getByRole("link", { name: label }).first().click();
       await expect(page.getByText(marker).first()).toBeVisible();
     }
 
@@ -43,7 +40,7 @@ test.describe("Moving between tabs", () => {
   });
 
   test("refetches the screens a write left stale", async () => {
-    await page.goto("/planning/activities");
+    await page.goto("/planning");
     await page.getByLabel("Edit Coding").first().click();
     await page.getByPlaceholder("Activity name").fill("Coding");
     await page.getByText("Save", { exact: true }).click();

@@ -1,35 +1,51 @@
 <script lang="ts">
-  import Field from "./Field.svelte";
-
-  /** A quantity with its unit welded on: right-aligned mono digits, faint unit, no spinner. */
+  /**
+   * A quantity with its unit welded on: right-aligned mono digits, faint unit, no spinner.
+   * The box belongs to the pair, not the input, so the unit sits inside the same outline the
+   * digits get on focus.
+   *
+   * What's typed is kept as typed until it parses — otherwise "1." collapses to "1" mid-keystroke
+   * and a decimal can never be entered.
+   */
   let {
     value,
     unit,
     ariaLabel,
     onchange,
+    width = "w-11",
     inputmode = "decimal",
   }: {
     value: number;
     unit: string;
     ariaLabel: string;
     onchange: (value: number) => void;
+    /** Percentages need one more digit than hours. */
+    width?: string;
     inputmode?: "numeric" | "decimal";
   } = $props();
+
+  let typed = $state<string | null>(null);
+  const shown = $derived(typed ?? String(value));
+
+  function edit(next: string) {
+    typed = next;
+    const parsed = Number(next);
+    if (next.trim() !== "" && !Number.isNaN(parsed)) onchange(parsed);
+  }
 </script>
 
-<span class="flex items-center">
-  <Field
-    variant="inline"
-    mono
-    align="right"
+<span
+  class="flex h-9 items-center rounded-md border border-transparent pr-1.5 pl-1 transition-[border-color,box-shadow]
+    duration-150 hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
+>
+  <input
     {inputmode}
-    {ariaLabel}
-    value={String(value)}
-    oninput={(next) => {
-      const parsed = Number(next);
-      if (!Number.isNaN(parsed)) onchange(parsed);
-    }}
-    class="w-11"
+    autocomplete="off"
+    aria-label={ariaLabel}
+    value={shown}
+    oninput={(e) => edit(e.currentTarget.value)}
+    onblur={() => (typed = null)}
+    class="t-data {width} bg-transparent text-right text-fg focus:outline-none"
   />
-  <span class="t-data text-fg-faint">{unit}</span>
+  <span class="t-data pl-0.5 text-fg-faint">{unit}</span>
 </span>

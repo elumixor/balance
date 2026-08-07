@@ -24,7 +24,7 @@ test.describe("Balance app", () => {
   });
 
   test("create a category by splitting the week ring", async () => {
-    await page.goto("/planning/week");
+    await page.goto("/planning");
     await expect(page.getByText("Rest + Buffer")).toBeVisible();
 
     // The suite runs against a persistent account, so only create it once.
@@ -47,7 +47,7 @@ test.describe("Balance app", () => {
   });
 
   test("create an activity split across the category", async () => {
-    await page.goto("/planning/activities");
+    await page.goto("/planning");
     // The account is shared across runs, so it can hold more than one activity by this name.
     const coding = page.getByLabel("Edit Coding").first();
     if (await coding.isVisible()) {

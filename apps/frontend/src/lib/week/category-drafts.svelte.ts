@@ -39,6 +39,17 @@ function toDraft(category: Category): Draft {
   };
 }
 
+export type PlanUnit = "h" | "%";
+
+/** Hours are what's stored; a percentage is the same number read against the 168 in a week. */
+export const toUnit = (hours: number, unit: PlanUnit) =>
+  unit === "h" ? round(hours) : round((hours / WEEK_HOURS) * 100);
+
+export const fromUnit = (value: number, unit: PlanUnit) =>
+  unit === "h" ? round(value) : round((value / 100) * WEEK_HOURS);
+
+const round = (value: number) => Math.round(value * 10) / 10;
+
 /**
  * Owns the Week screen's editable category plan: per-row drafts over the shared store, the
  * save the page debounces, and the split/remove mutations the ring and row list drive.
@@ -47,6 +58,8 @@ class CategoryDrafts {
   drafts = $state<Draft[]>([]);
   saving = $state(false);
   error = $state<string | null>(null);
+  /** Whether the plan reads in hours or in shares of the week. Outlives any one visit to the screen. */
+  unit = $state<PlanUnit>("h");
 
   categories = $derived(store.categories.hasValue ? (store.categories.value ?? []) : null);
   loadError = $derived(store.categories.error);

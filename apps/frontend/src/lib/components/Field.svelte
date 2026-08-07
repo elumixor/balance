@@ -1,5 +1,11 @@
 <script lang="ts">
-  /** "inline" blends into a row; "boxed" sits on its own filled surface. */
+  /**
+   * One text input, two jobs. "boxed" is a form control on its own surface; "inline" sits in a
+   * row and only draws its box once you point at it, so a list of rows stays a list.
+   *
+   * Both share the same focus treatment — the border firms up and a soft ring lands outside it,
+   * replacing the global outline so a click and a tab key look the same.
+   */
   let {
     value = $bindable(""),
     /** For fields whose value is derived elsewhere and can't simply be bound. */
@@ -37,8 +43,10 @@
   {autocapitalize}
   autocomplete="off"
   aria-label={ariaLabel}
-  class="{mono ? 't-data' : 't-body'} w-full rounded-md border border-transparent py-2.5 text-fg
-    placeholder:text-fg-faint focus:border-line-strong
-    {variant === 'boxed' ? 'bg-surface-alt px-3' : 'px-1'}
+  class="{mono ? 't-data' : 't-body'} w-full rounded-md border text-fg transition-[border-color,box-shadow,background-color]
+    duration-150 placeholder:text-fg-faint focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none
+    {variant === 'boxed'
+    ? 'h-10 border-line bg-surface px-3 hover:border-line-strong'
+    : 'h-9 border-transparent px-2 hover:border-line'}
     {align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : ''} {klass}"
 />
