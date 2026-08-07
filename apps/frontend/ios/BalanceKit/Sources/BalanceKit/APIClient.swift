@@ -134,53 +134,6 @@ public final class APIClient {
         try await send(path: "/api/mobile/activities/\(id)/archive", method: "POST")
     }
 
-    // MARK: Entries & Timer
-
-    public func fetchTrackData(limit: Int = 20) async throws -> TrackData {
-        try await send(path: "/api/mobile/entries?limit=\(limit)", method: "GET")
-    }
-
-    public func fetchRunningEntry() async throws -> Entry? {
-        struct Response: Decodable { let entry: Entry? }
-        let response: Response = try await send(path: "/api/mobile/entries/running", method: "GET")
-        return response.entry
-    }
-
-    public func startTimer(activityId: String) async throws {
-        struct Body: Encodable { let activityId: String }
-        try await send(path: "/api/mobile/timer/start", method: "POST", body: Body(activityId: activityId))
-    }
-
-    public func stopTimer() async throws {
-        try await send(path: "/api/mobile/timer/stop", method: "POST")
-    }
-
-    public struct ManualEntryInput: Encodable {
-        public var activityId: String
-        public var startedAt: Date
-        public var endedAt: Date
-        public var note: String?
-
-        public init(activityId: String, startedAt: Date, endedAt: Date, note: String?) {
-            self.activityId = activityId
-            self.startedAt = startedAt
-            self.endedAt = endedAt
-            self.note = note
-        }
-    }
-
-    public func createEntry(_ input: ManualEntryInput) async throws {
-        try await send(path: "/api/mobile/entries", method: "POST", body: input)
-    }
-
-    public func updateEntry(id: String, _ input: ManualEntryInput) async throws {
-        try await send(path: "/api/mobile/entries/\(id)", method: "PATCH", body: input)
-    }
-
-    public func deleteEntry(id: String) async throws {
-        try await send(path: "/api/mobile/entries/\(id)", method: "DELETE")
-    }
-
     // MARK: Stats
 
     public func fetchStats(period: String, date: Date = Date()) async throws -> StatsResponse {

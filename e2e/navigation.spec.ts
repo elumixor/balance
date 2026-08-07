@@ -14,7 +14,7 @@ test.describe("Moving between tabs", () => {
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
     await authenticate(page);
-    await expect(page.getByText("Logged")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 15_000 });
     // The startup warm-up fetches every tab's data; let it finish before counting requests.
     await expect.poll(() => page.getByRole("link", { name: "Balance" }).count()).toBeGreaterThan(0);
     await page.waitForTimeout(2500);
@@ -28,11 +28,11 @@ test.describe("Moving between tabs", () => {
     const calls = recordApiCalls(page);
 
     for (const [label, marker] of [
-      ["Balance", /tracked of .* planned/],
+      ["Balance", /This month/],
       ["Week", /Rest \+ Buffer/],
       ["Activities", /Coding/],
-      ["Track", /Logged/],
-      ["Balance", /tracked of .* planned/],
+      ["Calendar", /Connect Google Calendar/],
+      ["Balance", /This month/],
     ] as const) {
       await page.getByRole("link", { name: label }).first().click();
       await expect(page.getByText(marker).first()).toBeVisible();
@@ -42,16 +42,16 @@ test.describe("Moving between tabs", () => {
   });
 
   test("refetches the screens a write left stale", async () => {
-    await page.getByRole("link", { name: "Track" }).first().click();
-    await page.getByLabel("Start Coding").first().click();
-    await expect(page.getByText("Stop", { exact: true })).toBeVisible({ timeout: 10_000 });
-    await page.getByText("Stop", { exact: true }).click();
-    await expect(page.getByText("Stop", { exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: "Activities" }).first().click();
+    await page.getByLabel("Edit Coding").first().click();
+    await page.getByPlaceholder("Activity name").fill("Coding");
+    await page.getByText("Save", { exact: true }).click();
+    await expect(page.getByPlaceholder("Activity name")).toHaveCount(0, { timeout: 10_000 });
 
-    // Balance was left holding totals from before the entry existed.
+    // An activity's split changes what its events count toward, so Balance is now stale.
     const calls = recordApiCalls(page);
     await page.getByRole("link", { name: "Balance" }).first().click();
-    await expect(page.getByText(/tracked of .* planned/)).toBeVisible();
+    await expect(page.getByRole("tab", { name: "This month" })).toBeVisible();
     await expect.poll(() => calls).toContain("/mobile/stats");
   });
 });

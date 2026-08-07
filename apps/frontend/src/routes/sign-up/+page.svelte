@@ -35,7 +35,7 @@
       const result = await signUp.attemptEmailAddressVerification({ code });
       if (result.status === "complete") {
         await auth.activate(result.createdSessionId);
-        await goto("/track", { replaceState: true });
+        await goto("/calendar", { replaceState: true });
       } else {
         error = "That code didn't work. Check the email and try again.";
       }

@@ -20,34 +20,20 @@ export default handler({ query: { period: z.string(), date: z.string().optional(
     const anchor = query.date ? new Date(query.date) : new Date();
     if (Number.isNaN(anchor.getTime())) throw new ApiError("date must be a valid ISO 8601 string");
 
-    const now = new Date();
     const period = periodResolver.resolve(kind, anchor);
     const trendPeriods = periodResolver.buildTrendPeriods(period, kind, TREND_PERIODS_BACK);
     const rangeStart = periodResolver.earliestTrendStart(period, kind, TREND_PERIODS_BACK);
 
     const data = await new StatsRepository(user.id).get(rangeStart, period.end);
 
-    const stats = categoryStatsCalculator.compute(
-      data.categories,
-      data.activities,
-      data.entries,
-      data.weights,
-      period,
-      now,
-    );
+    const stats = categoryStatsCalculator.compute(data.categories, data.events, period);
     const ranked = categoryStatsCalculator.rankByDeviation(stats);
-    const trends = categoryTrendsCalculator.compute(
-      data.categories,
-      data.entries,
-      data.weights,
-      period,
-      kind,
-      now,
-      TREND_PERIODS_BACK,
-    );
+    const trends = categoryTrendsCalculator.compute(data.categories, data.events, period, kind, TREND_PERIODS_BACK);
 
     return {
       period: { start: period.start.toISOString(), end: period.end.toISOString(), kind },
+      connected: data.connected,
+      needsReconnect: data.needsReconnect,
       categories: ranked.map((s) => ({
         categoryId: s.categoryId,
         name: s.name,

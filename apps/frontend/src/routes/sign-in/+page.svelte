@@ -15,7 +15,7 @@
   let loading = $state(false);
 
   $effect(() => {
-    if (auth.loaded && auth.signedIn) void goto("/track", { replaceState: true });
+    if (auth.loaded && auth.signedIn) void goto("/calendar", { replaceState: true });
   });
 
   async function onSignIn() {
@@ -26,7 +26,7 @@
       const result = await signIn.create({ identifier: email, password });
       if (result.status === "complete") {
         await auth.activate(result.createdSessionId);
-        await goto("/track", { replaceState: true });
+        await goto("/calendar", { replaceState: true });
         return;
       }
       // The account asks for a second step; Balance only offers the emailed code.
@@ -47,7 +47,7 @@
       const result = await signIn.attemptSecondFactor({ strategy: "email_code", code });
       if (result.status === "complete") {
         await auth.activate(result.createdSessionId);
-        await goto("/track", { replaceState: true });
+        await goto("/calendar", { replaceState: true });
       } else {
         error = "That code didn't work. Check the email and try again.";
       }
@@ -67,10 +67,10 @@
       if (Capacitor.getPlatform() === "ios") {
         if (strategy === "oauth_google") await auth.signInWithNativeGoogle();
         else await auth.signInWithNativeApple();
-        await goto("/track", { replaceState: true });
+        await goto("/calendar", { replaceState: true });
         return;
       }
-      await auth.startSSO(strategy, "/track");
+      await auth.startSSO(strategy, "/calendar");
     } catch (e) {
       error = authErrorMessage(e, "Sign in didn't finish.");
     }

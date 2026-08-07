@@ -11,23 +11,19 @@ export interface Period {
   end: Date;
 }
 
-export interface EntryInput {
-  id: string;
-  activityId: string;
-  startedAt: Date;
-  /** null means the timer is still running */
-  endedAt: Date | null;
-}
-
 export interface WeightInput {
-  activityId: string;
   categoryId: string;
   weightPercent: number;
 }
 
-export interface ActivityInput {
+/** A calendar event, with what it counts as already resolved by the calendar layer. */
+export interface EventInput {
   id: string;
-  name: string;
+  startedAt: Date;
+  endedAt: Date;
+  weights: WeightInput[];
+  /** What the breakdown list calls this time — the mapped activity, or the event itself. */
+  source: { id: string; name: string };
 }
 
 export interface CategoryInput {

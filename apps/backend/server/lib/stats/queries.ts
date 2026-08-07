@@ -1,14 +1,15 @@
-import { and, eq, gte, isNull, lt, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { activities, categories, entries } from "../../db/schema";
+import { categories } from "../../db/schema";
 import { bufferCategoryService } from "../buffer-category";
-import type { ActivityInput, CategoryInput, EntryInput, WeightInput } from "./types";
+import { CalendarEventsService } from "../calendar/events-service";
+import type { CategoryInput, EventInput } from "./types";
 
 export interface StatsData {
   categories: CategoryInput[];
-  activities: ActivityInput[];
-  entries: EntryInput[];
-  weights: WeightInput[];
+  events: EventInput[];
+  connected: boolean;
+  needsReconnect: boolean;
 }
 
 /** Fetches everything needed to compute stats for a user across a date range. */
@@ -22,40 +23,33 @@ export class StatsRepository {
   async get(rangeStart: Date, rangeEnd: Date): Promise<StatsData> {
     await bufferCategoryService.sync(this.userId);
 
-    const [categoryRows, activityRows, weightRows, entryRows] = await Promise.all([
+    const [categoryRows, range] = await Promise.all([
       db.query.categories.findMany({
         where: and(eq(categories.userId, this.userId), eq(categories.archived, false)),
       }),
-      db.query.activities.findMany({
-        where: eq(activities.userId, this.userId),
-      }),
-      db.query.activityCategoryWeights.findMany(),
-      db.query.entries.findMany({
-        where: and(
-          eq(entries.userId, this.userId),
-          lt(entries.startedAt, rangeEnd),
-          or(isNull(entries.endedAt), gte(entries.endedAt, rangeStart)),
-        ),
-      }),
+      new CalendarEventsService(this.userId).resolve(rangeStart, rangeEnd),
     ]);
 
-    const activityIds = new Set(activityRows.map((a) => a.id));
-
     return {
+      connected: range.connected,
+      needsReconnect: range.needsReconnect,
       categories: categoryRows.map((c) => ({
         id: c.id,
         name: c.name,
         color: c.color,
         targetHoursPerWeek: Number(c.targetHoursPerWeek),
       })),
-      activities: activityRows.map((a) => ({ id: a.id, name: a.name })),
-      weights: weightRows.filter((w) => activityIds.has(w.activityId)),
-      entries: entryRows.map((e) => ({
-        id: e.id,
-        activityId: e.activityId,
-        startedAt: e.startedAt,
-        endedAt: e.endedAt,
-      })),
+      // An event mapped straight to categories has no activity to name it, so it stands for
+      // itself in the breakdown — which reads better than "Other" anyway.
+      events: range.events
+        .filter((e) => e.countsTowardHours && e.weights.length > 0)
+        .map((e) => ({
+          id: e.id,
+          startedAt: e.start,
+          endedAt: e.end,
+          weights: e.weights,
+          source: { id: e.mapping?.activityId ?? `event:${e.id}`, name: e.mapping?.activityName ?? e.title },
+        })),
     };
   }
 }

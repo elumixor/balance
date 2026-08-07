@@ -19,24 +19,59 @@ export interface Activity {
   weights: ActivityWeight[];
 }
 
-export interface Entry {
+export type MappingScope = "instance" | "series";
+
+/** An event in the connected calendar, with what it counts as already resolved. */
+export interface CalendarEvent {
   id: string;
-  activityId: string;
-  activityName: string;
-  startedAt: string;
-  endedAt: string | null;
-  note: string | null;
+  calendarId: string;
+  seriesId: string | null;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  declined: boolean;
+  tentative: boolean;
+  readOnly: boolean;
+  /** All-day and declined events are drawn and mappable, but move no category's total. */
+  countsTowardHours: boolean;
+  url: string | null;
+  mappingScope: MappingScope | null;
+  activityId: string | null;
+  activityName: string | null;
+  weights: ActivityWeight[];
 }
 
-export interface ActivityRef {
+export interface CalendarWeek {
+  from: string;
+  to: string;
+  connected: boolean;
+  needsReconnect: boolean;
+  writeCalendarId: string;
+  events: CalendarEvent[];
+}
+
+export interface CalendarRef {
   id: string;
   name: string;
+  color: string | null;
+  primary: boolean;
+  readOnly: boolean;
 }
 
-export interface TrackData {
-  entries: Entry[];
-  recentActivities: ActivityRef[];
-  frequentActivities: ActivityRef[];
+export interface CalendarPrefs {
+  connected: boolean;
+  needsReconnect: boolean;
+  calendars: CalendarRef[];
+  visibleCalendarIds: string[];
+  writeCalendarId: string;
+}
+
+export interface IntegrationStatus {
+  provider: string;
+  connected: boolean;
+  needsReconnect: boolean;
+  email: string | null;
 }
 
 export type BalanceStatus = "over" | "under" | "on-target";
@@ -75,6 +110,8 @@ export interface CategoryTrend {
 
 export interface StatsResponse {
   period: { start: string; end: string; kind: string };
+  connected: boolean;
+  needsReconnect: boolean;
   categories: CategoryStat[];
   trends: CategoryTrend[];
   trendPeriodCount: number;

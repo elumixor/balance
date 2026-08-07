@@ -11,7 +11,7 @@ struct ContentView: View {
 
     var body: some View {
         if clerk.session != nil {
-            MainTabView()
+            UsageView()
         } else {
             NotSignedInView()
         }

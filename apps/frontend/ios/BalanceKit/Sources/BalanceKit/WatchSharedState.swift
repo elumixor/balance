@@ -1,37 +1,42 @@
 import Foundation
 
-/// A minimal snapshot of the currently-running timer, written by the Watch app whenever it
-/// starts/stops tracking and read by the Widget extension, which runs in its own process and
-/// has no other cheap way to know what's running without making its own network call.
-public struct TrackingSnapshot: Codable, Sendable, Equatable {
-    public let activityId: String
-    public let activityName: String
-    public let startedAt: Date
+/// A minimal snapshot of how the week is going, written by the Watch app whenever it refreshes
+/// and read by the Widget extension, which runs in its own process and has no other cheap way to
+/// show anything without making its own network call.
+public struct WeekSnapshot: Codable, Sendable, Equatable {
+    /// The category furthest from its target — the one thing worth showing on a watch face.
+    public let categoryName: String
+    public let categoryColor: String
+    public let actualHours: Double
+    public let targetHours: Double
+    public let updatedAt: Date
 
-    public init(activityId: String, activityName: String, startedAt: Date) {
-        self.activityId = activityId
-        self.activityName = activityName
-        self.startedAt = startedAt
+    public init(categoryName: String, categoryColor: String, actualHours: Double, targetHours: Double, updatedAt: Date) {
+        self.categoryName = categoryName
+        self.categoryColor = categoryColor
+        self.actualHours = actualHours
+        self.targetHours = targetHours
+        self.updatedAt = updatedAt
     }
 }
 
-/// Reads and writes ``TrackingSnapshot`` to a shared App Group container.
+/// Reads and writes ``WeekSnapshot`` to a shared App Group container.
 ///
-/// This is the chosen mechanism for keeping the Balance Watch Widget in sync with the Watch
-/// app: the app writes here every time it starts/stops a timer (and asks WidgetKit to reload),
-/// so the widget's own timeline provider only ever needs to read a small local UserDefaults
-/// blob — no network call, no extra latency, no extra failure mode inside the widget process.
+/// This is the chosen mechanism for keeping the Balance Watch Widget in sync with the Watch app:
+/// the app writes here every time it refreshes its stats (and asks WidgetKit to reload), so the
+/// widget's own timeline provider only ever needs to read a small local UserDefaults blob — no
+/// network call, no extra latency, no extra failure mode inside the widget process.
 public enum WatchSharedState {
     /// Must match the App Group entitlement added to both the Watch app and Widget extension targets.
     public static let appGroupID = "group.com.elumixor.balance"
 
-    private static let key = "currentTrackingSnapshot"
+    private static let key = "currentWeekSnapshot"
 
     private static var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
     }
 
-    public static func save(_ snapshot: TrackingSnapshot?) {
+    public static func save(_ snapshot: WeekSnapshot?) {
         guard let defaults else { return }
         guard let snapshot else {
             defaults.removeObject(forKey: key)
@@ -42,9 +47,9 @@ public enum WatchSharedState {
         }
     }
 
-    public static func load() -> TrackingSnapshot? {
+    public static func load() -> WeekSnapshot? {
         guard let defaults, let data = defaults.data(forKey: key) else { return nil }
-        return try? decoder.decode(TrackingSnapshot.self, from: data)
+        return try? decoder.decode(WeekSnapshot.self, from: data)
     }
 
     private static let encoder: JSONEncoder = {

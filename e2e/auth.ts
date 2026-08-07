@@ -28,7 +28,7 @@ export async function authenticate(page: Page) {
 
   await code.fill(TEST_CODE);
   await page.getByText("Verify", { exact: true }).click();
-  await expect(page).toHaveURL(/\/track/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/calendar/, { timeout: 20_000 });
 }
 
 /** Records the API calls a page makes from here on, so a test can assert on what it didn't fetch. */

@@ -25,6 +25,19 @@ the matching `invalidate.*()` and refreshes its own cache; the screens it touche
 their existing rows the next time they're opened. Don't fetch from a component, and don't
 instantiate a screen's data class per mount — they're module-level singletons.
 
+## The calendar is the source of truth, the database is thin
+
+Events live in Google Calendar and are never cached here. `apps/backend/server/lib/calendar/` owns
+the whole integration: a `CalendarProvider` interface with one Google implementation, the OAuth
+grant in `provider_accounts` (tokens encrypted, see `lib/crypto.ts`), and `event_mappings` saying
+what each event counts as. `CalendarEventsService.resolve` is the single read path — the calendar
+screen and `/mobile/stats` both go through it, so they can't disagree about a week.
+
+Two consequences worth knowing before changing anything here. "Not connected" and "the grant
+expired" are states the screens render, returned as 200 with `connected` / `needsReconnect` — never
+a 401, which the frontend reads as a dead Clerk session and bounces to sign-in. And every write
+must call `eventCache.invalidate(userId)`, or the next read is served a 30-second-old memo.
+
 ## Generated and committed
 
 - `apps/frontend/src/lib/api-client/` is generated from the backend's routes (`bunx nitro-client`).

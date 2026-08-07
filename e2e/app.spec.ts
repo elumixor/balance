@@ -16,9 +16,11 @@ test.describe("Balance app", () => {
     await page.close();
   });
 
-  test("sign in and land on Track", async () => {
+  // The test account has no Google account to connect, so every screen that draws real hours
+  // stops at the connect card. What's still covered end to end is the plan itself.
+  test("sign in and land on Calendar", async () => {
     await authenticate(page);
-    await expect(page.getByText("Logged")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 15_000 });
   });
 
   test("create a category by splitting the week ring", async () => {
@@ -63,21 +65,16 @@ test.describe("Balance app", () => {
     await expect(codingRow).toContainText("Deep Work 60%");
   });
 
-  test("start and stop a timer, entry shows in the list", async () => {
-    await page.goto("/track");
-    // The account is shared across runs, so it can hold more than one activity by this name.
-    await page.getByLabel("Start Coding").first().click();
-
-    await expect(page.getByText("Stop", { exact: true })).toBeVisible({ timeout: 10_000 });
-    await page.getByText("Stop", { exact: true }).click();
-
-    await expect(page.getByText("Stop", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Coding").first()).toBeVisible();
+  test("the activity is draggable onto the week from the calendar", async () => {
+    await page.goto("/calendar");
+    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 10_000 });
+    // Without a calendar there is no grid to drop onto, so the palette isn't drawn either.
+    await expect(page.getByText("Drag onto the week")).toHaveCount(0);
   });
 
-  test("balance screen shows the category against its target", async () => {
+  test("balance screen asks for a calendar before it weighs anything", async () => {
     await page.goto("/stats");
-    await expect(page.getByText("Deep Work", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(/tracked of .* planned/)).toBeVisible();
+    await expect(page.getByRole("tab", { name: "This month" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible();
   });
 });

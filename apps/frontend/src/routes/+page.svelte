@@ -5,7 +5,7 @@
 
   // Nowhere to send anyone if Clerk never started — AppLoading says so instead.
   $effect(() => {
-    if (auth.loaded && !auth.startupError) void goto(auth.signedIn ? "/track" : "/sign-in", { replaceState: true });
+    if (auth.loaded && !auth.startupError) void goto(auth.signedIn ? "/calendar" : "/sign-in", { replaceState: true });
   });
 </script>
 

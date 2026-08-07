@@ -6,7 +6,7 @@
   // Where Clerk drops the browser after a provider round-trip; it reads the result
   // off the URL, activates the session and moves on.
   $effect(() => {
-    auth.handleRedirectCallback("/track").catch(() => goto("/sign-in", { replaceState: true }));
+    auth.handleRedirectCallback("/calendar").catch(() => goto("/sign-in", { replaceState: true }));
   });
 </script>
 

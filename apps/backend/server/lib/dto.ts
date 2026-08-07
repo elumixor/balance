@@ -1,4 +1,6 @@
 import type { activityCategoryWeights, categories } from "../db/schema";
+import type { ResolvedEvent } from "./calendar/events-service";
+import type { CalendarRef, MappingScope } from "./calendar/types";
 
 /** Serializes a `categories` row into the shape the mobile app expects. */
 export class CategoryDTO {
@@ -41,28 +43,61 @@ export class ActivityDTO {
   }
 }
 
-/** Serializes an entry (with its activity's name) into the shape the mobile app expects. */
-export class EntryDTO {
+/** Serializes one of the connected account's calendars. */
+export class CalendarDTO {
   readonly id: string;
-  readonly activityId: string;
-  readonly activityName: string;
-  readonly startedAt: string;
-  readonly endedAt: string | null;
-  readonly note: string | null;
+  readonly name: string;
+  readonly color: string | null;
+  readonly primary: boolean;
+  readonly readOnly: boolean;
 
-  constructor(e: {
-    id: string;
-    activityId: string;
-    startedAt: Date;
-    endedAt: Date | null;
-    note: string | null;
-    activity: { name: string };
-  }) {
+  constructor(c: CalendarRef) {
+    this.id = c.id;
+    this.name = c.name;
+    this.color = c.color;
+    this.primary = c.primary;
+    this.readOnly = c.readOnly;
+  }
+}
+
+/**
+ * Serializes an external event with what it counts as. Category colours are deliberately absent:
+ * the app already holds the categories, and one source of truth for a colour is enough.
+ */
+export class CalendarEventDTO {
+  readonly id: string;
+  readonly calendarId: string;
+  readonly seriesId: string | null;
+  readonly title: string;
+  readonly start: string;
+  readonly end: string;
+  readonly allDay: boolean;
+  readonly declined: boolean;
+  readonly tentative: boolean;
+  readonly readOnly: boolean;
+  readonly countsTowardHours: boolean;
+  readonly url: string | null;
+  readonly mappingScope: MappingScope | null;
+  readonly activityId: string | null;
+  readonly activityName: string | null;
+  readonly weights: ActivityWeightDTO[];
+
+  constructor(e: ResolvedEvent) {
     this.id = e.id;
-    this.activityId = e.activityId;
-    this.activityName = e.activity.name;
-    this.startedAt = e.startedAt.toISOString();
-    this.endedAt = e.endedAt ? e.endedAt.toISOString() : null;
-    this.note = e.note;
+    this.calendarId = e.calendarId;
+    this.seriesId = e.seriesId;
+    this.title = e.title;
+    this.start = e.start.toISOString();
+    this.end = e.end.toISOString();
+    this.allDay = e.allDay;
+    this.declined = e.selfResponse === "declined";
+    this.tentative = e.status === "tentative" || e.selfResponse === "tentative";
+    this.readOnly = e.readOnly;
+    this.countsTowardHours = e.countsTowardHours;
+    this.url = e.url;
+    this.mappingScope = e.mapping?.scope ?? null;
+    this.activityId = e.mapping?.activityId ?? null;
+    this.activityName = e.mapping?.activityName ?? null;
+    this.weights = e.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent }));
   }
 }

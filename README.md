@@ -1,7 +1,12 @@
 # Balance
 
-A time-balance tracker: decide how the 168 hours in your week should be spent, track what you
-actually do, and see the drift.
+A time-balance tracker: decide how the 168 hours in your week should be spent, then let your own
+calendar say what actually happened, and see the drift.
+
+Google Calendar is the source of truth for events — nothing about them is stored here. What this
+app adds is meaning: each event is mapped to an *activity* (a template that splits one hour across
+several categories), or, as an exception, straight to categories. Drag an activity onto the week
+and it becomes a real event in your calendar.
 
 ## Layout
 
@@ -25,11 +30,25 @@ bun run dev:open  # same, and opens the frontend URL once it's up
 That's `backend` on `http://localhost:3100` and `frontend` on `http://localhost:8081`. To run just
 one: `cd apps/backend && bun run dev`, or `cd apps/frontend && bun run dev`.
 
-Both apps read their own `.env`. The backend needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and
-`CLERK_SECRET_KEY`; the frontend needs `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL`. With
+Both apps read their own `.env`. The backend needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
+`CLERK_SECRET_KEY`, and for the calendar integration `GOOGLE_OAUTH_CLIENT_ID`,
+`GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and
+`OAUTH_STATE_SECRET` (the last two are `openssl rand -base64 32`). The frontend needs `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL`. With
 no `VITE_API_BASE_URL`, dev falls back to this machine's LAN address (so a phone on the same
 network reaches the backend) and a release build falls back to the empty string, which is what
 makes the deployed web app talk to its own origin.
+
+### Connecting Google Calendar
+
+The OAuth client is a **web** client (the iOS sign-in client has no secret and can't do a
+server-side code exchange), with `calendar.events` and `calendar.calendarlist.readonly` — both
+sensitive scopes, so the consent screen needs verification before anyone but a listed test user
+can use it. Redirect URI is `<origin>/mobile/integrations/google/callback`; Google only allows
+`http` on `localhost`, so connect against `localhost:3100` in dev rather than the LAN address.
+
+While the consent screen is in testing Google expires refresh tokens after seven days. That is a
+state the app renders rather than an error: the token store is marked revoked and every endpoint
+answers 200 with `needsReconnect: true`.
 
 The frontend's typed API client (`apps/frontend/src/lib/api-client`) is generated from the
 backend's route handlers — run `cd apps/backend && bunx nitro-client` after changing a
@@ -61,7 +80,8 @@ share, and the fastlane lane. Capacitor only knows about the single iOS target, 
 and widget are wired in by `ios/wire_watch_targets.rb` — re-run it (it is idempotent) if Capacitor
 ever regenerates the project, and commit the resulting `project.pbxproj`.
 
-The watch app writes a running-timer snapshot that the widget reads through the
+The watch app writes a snapshot of the week's most off-target category that the widget reads
+through the
 `group.com.elumixor.balance` App Group. That group has to be ticked on all three bundle IDs in the
 Apple Developer portal — the App Store Connect API can't do it — and the entitlement added to both
 watch targets. Until then the widget falls back to its placeholder, which is where it has been

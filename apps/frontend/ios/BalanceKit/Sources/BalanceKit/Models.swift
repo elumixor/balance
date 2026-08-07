@@ -45,37 +45,6 @@ public struct Activity: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-public struct Entry: Codable, Identifiable, Hashable, Sendable {
-    public let id: String
-    public let activityId: String
-    public let activityName: String
-    public let startedAt: Date
-    public var endedAt: Date?
-    public var note: String?
-
-    public init(id: String, activityId: String, activityName: String, startedAt: Date, endedAt: Date?, note: String?) {
-        self.id = id
-        self.activityId = activityId
-        self.activityName = activityName
-        self.startedAt = startedAt
-        self.endedAt = endedAt
-        self.note = note
-    }
-
-    public var isRunning: Bool { endedAt == nil }
-}
-
-public struct TrackData: Codable, Sendable {
-    public let entries: [Entry]
-    public let recentActivities: [ActivityRef]
-    public let frequentActivities: [ActivityRef]
-}
-
-public struct ActivityRef: Codable, Identifiable, Hashable, Sendable {
-    public let id: String
-    public let name: String
-}
-
 public struct CategoryStat: Codable, Identifiable, Sendable {
     public var id: String { categoryId }
     public let categoryId: String
@@ -89,5 +58,7 @@ public struct CategoryStat: Codable, Identifiable, Sendable {
 }
 
 public struct StatsResponse: Codable, Sendable {
+    public let connected: Bool
+    public let needsReconnect: Bool
     public let categories: [CategoryStat]
 }

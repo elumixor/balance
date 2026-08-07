@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ConnectCard from "$lib/calendar/ConnectCard.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import Panel from "$lib/components/Panel.svelte";
@@ -50,8 +51,11 @@
     <div class="mt-6"><LoadError message={loadError} onretry={retry} /></div>
   {:else if !data}
     <div class="mt-6"><SkeletonRows count={5} /></div>
+  {:else if !data.connected}
+    <!-- Actual hours come from the calendar, so without one there is nothing to weigh a plan against. -->
+    <div class="mt-6"><ConnectCard needsReconnect={data.needsReconnect} /></div>
   {:else if planned.length === 0}
-    <EmptyState title="Nothing to weigh yet." hint="Plan your week, then track a few hours against it." />
+    <EmptyState title="Nothing to weigh yet." hint="Plan your week, then put a few hours in your calendar." />
   {:else}
     <div class="mt-6">
       <SplitPane>

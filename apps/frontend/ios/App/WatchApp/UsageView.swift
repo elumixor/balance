@@ -1,8 +1,8 @@
 import SwiftUI
 import BalanceKit
 
-/// Second page (reached by a horizontal swipe from ``TrackingView``): compact this-week
-/// actual-vs-target per category.
+/// The whole watch app: compact this-week actual-vs-target per category. Hours come from the
+/// connected calendar, so there is nothing here to start or stop.
 struct UsageView: View {
     @State private var viewModel = UsageViewModel()
 
@@ -10,6 +10,11 @@ struct UsageView: View {
         Group {
             if viewModel.isLoading && viewModel.categories.isEmpty {
                 ProgressView()
+            } else if viewModel.needsCalendar {
+                Text("Connect a calendar on your phone")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
             } else if viewModel.categories.isEmpty {
                 Text("No data yet")
                     .foregroundStyle(.secondary)

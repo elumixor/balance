@@ -1,6 +1,6 @@
 import { categoryStatsCalculator } from "./category-stats";
 import { periodResolver } from "./period";
-import type { CategoryInput, CategoryTrend, EntryInput, Period, PeriodKind, TrendPoint, WeightInput } from "./types";
+import type { CategoryInput, CategoryTrend, EventInput, Period, PeriodKind, TrendPoint } from "./types";
 
 const DEFAULT_PERIODS_BACK = 6;
 
@@ -12,22 +12,20 @@ export class CategoryTrendsCalculator {
    */
   compute(
     categories: CategoryInput[],
-    entries: EntryInput[],
-    weights: WeightInput[],
+    events: EventInput[],
     currentPeriod: Period,
     kind: PeriodKind,
-    now: Date,
     periodsBack = DEFAULT_PERIODS_BACK,
   ): CategoryTrend[] {
     const periods = periodResolver.buildTrendPeriods(currentPeriod, kind, periodsBack);
+    const hoursByPeriod = periods.map((period) => categoryStatsCalculator.accumulate(events, period));
 
     return categories.map((category) => {
-      const points: TrendPoint[] = periods.map((period) => {
-        const activityHours = categoryStatsCalculator.sumActivityHoursInPeriod(entries, period, now);
-        const actualHours =
-          categoryStatsCalculator.distributeToCategories(activityHours, weights).get(category.id)?.hours ?? 0;
-        return { period, actualHours, targetHours: periodResolver.targetForPeriod(category, period) };
-      });
+      const points: TrendPoint[] = periods.map((period, index) => ({
+        period,
+        actualHours: hoursByPeriod[index].get(category.id)?.hours ?? 0,
+        targetHours: periodResolver.targetForPeriod(category, period),
+      }));
       return { categoryId: category.id, name: category.name, color: category.color, points };
     });
   }

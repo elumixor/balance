@@ -1,7 +1,7 @@
 import { handler } from "@elumixor/nitro-client/server";
 import { z } from "zod";
-import { clerkClient } from "../../../../lib/current-user";
 import { ApiError, handleApiError } from "../../../../lib/api-error";
+import { clerkClient } from "../../../../lib/current-user";
 
 const GOOGLE_IOS_CLIENT_ID = "836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com";
 
@@ -21,7 +21,9 @@ interface GoogleTokenInfo {
  */
 export default handler({ body: { idToken: z.string().min(1) } }, async ({ body, event }) => {
   try {
-    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(body.idToken)}`);
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(body.idToken)}`,
+    );
     if (!response.ok) throw new ApiError("Invalid Google token", 401);
     const info = (await response.json()) as GoogleTokenInfo;
 

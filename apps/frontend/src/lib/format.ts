@@ -1,12 +1,3 @@
-export function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const two = (n: number) => n.toString().padStart(2, "0");
-  return hours > 0 ? `${hours}:${two(minutes)}:${two(seconds)}` : `${two(minutes)}:${two(seconds)}`;
-}
-
 export function formatHoursAndMinutes(hours: number): string {
   const totalMinutes = Math.round(Math.abs(hours) * 60);
   const h = Math.floor(totalMinutes / 60);
