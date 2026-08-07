@@ -61,7 +61,8 @@
 
     <WeekMeters events={data.events} {categories} weekStart={data.weekStart} />
 
-    <div class="md:hidden">
+    <!-- Nothing connected yet? The empty week below is already asking, so this stays out of it. -->
+    <div class="md:hidden" class:hidden={!data.connected}>
       <Popover width={280}>
         {#snippet trigger(open: () => void)}
           <IconButton label="Calendars and activities" onclick={open}>
