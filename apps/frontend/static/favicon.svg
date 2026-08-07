@@ -1,9 +1,0 @@
-<!-- The product's own artefact: a week, already divided. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44">
-  <g fill="none" stroke-width="8.8">
-    <circle cx="22" cy="22" r="17.6" stroke="#CE7B36" stroke-dasharray="37.1 73.5" stroke-dashoffset="0" transform="rotate(-90 22 22)"/>
-    <circle cx="22" cy="22" r="17.6" stroke="#7E9B45" stroke-dasharray="23.3 87.3" stroke-dashoffset="-37.6" transform="rotate(-90 22 22)"/>
-    <circle cx="22" cy="22" r="17.6" stroke="#3B8E9E" stroke-dasharray="16.6 94.0" stroke-dashoffset="-62.5" transform="rotate(-90 22 22)"/>
-    <circle cx="22" cy="22" r="17.6" stroke="#9A5EA8" stroke-dasharray="30.2 80.4" stroke-dashoffset="-80.4" transform="rotate(-90 22 22)"/>
-  </g>
-</svg>
