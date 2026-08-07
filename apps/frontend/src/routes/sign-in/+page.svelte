@@ -79,7 +79,7 @@
   <AuthShell tagline="We sent a code to {email}.">
     <Field bind:value={code} placeholder="Verification code" inputmode="numeric" mono />
     {#if error}<p class="t-label text-danger">{error}</p>{/if}
-    <Button label="Verify" onclick={onVerify} {loading} disabled={!code} />
+    <Button label="Verify" onclick={onVerify} {loading} disabled={!code} full />
   </AuthShell>
 {:else}
   <AuthShell tagline="Pick up your week where you left it.">
@@ -90,7 +90,7 @@
 
     {#if error}<p class="t-label text-danger">{error}</p>{/if}
 
-    <Button label="Sign in" onclick={onSignIn} {loading} disabled={!email || !password} />
+    <Button label="Sign in" onclick={onSignIn} {loading} disabled={!email || !password} full />
 
     <div class="flex items-center gap-3">
       <div class="flex-1"><Divider /></div>
@@ -99,8 +99,8 @@
     </div>
 
     <div class="space-y-2">
-      <Button label="Continue with Google" variant="outline" onclick={() => onSSO("oauth_google")} />
-      <Button label="Continue with Apple" variant="outline" onclick={() => onSSO("oauth_apple")} />
+      <Button label="Continue with Google" variant="outline" onclick={() => onSSO("oauth_google")} full />
+      <Button label="Continue with Apple" variant="outline" onclick={() => onSSO("oauth_apple")} full />
     </div>
 
     <div class="flex justify-center gap-1">

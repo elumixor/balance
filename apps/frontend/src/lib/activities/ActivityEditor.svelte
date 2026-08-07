@@ -1,9 +1,10 @@
 <script lang="ts">
   import { restColor } from "$lib/colors";
-  import Button from "$lib/components/Button.svelte";
   import Dot from "$lib/components/Dot.svelte";
   import Field from "$lib/components/Field.svelte";
+  import FormActions from "$lib/components/FormActions.svelte";
   import LabelledField from "$lib/components/LabelledField.svelte";
+  import NumberField from "$lib/components/NumberField.svelte";
   import WeekRing from "$lib/components/ring/WeekRing.svelte";
   import type { Activity, Category, RingSegment } from "$lib/types";
   import type { ActivityDraft } from "./activities-data.svelte";
@@ -54,10 +55,8 @@
     weights = next;
   }
 
-  function setWeight(categoryId: string, value: string) {
-    const number = Number(value);
-    if (Number.isNaN(number)) return;
-    weights = { ...weights, [categoryId]: Math.max(0, Math.round(number)) };
+  function setWeight(categoryId: string, value: number) {
+    weights = { ...weights, [categoryId]: Math.max(0, Math.round(value)) };
   }
 
   async function submit() {
@@ -104,19 +103,13 @@
         <div class="flex items-center gap-2">
           <Dot color={category.color} size={9} />
           <span class="t-body flex-1 truncate">{category.name}</span>
-          <span class="flex items-center">
-            <Field
-              variant="inline"
-              mono
-              align="right"
-              inputmode="numeric"
-              ariaLabel="{category.name} share"
-              value={String(weights[category.id] ?? 0)}
-              oninput={(value) => setWeight(category.id, value)}
-              class="w-11"
-            />
-            <span class="t-data text-fg-faint">%</span>
-          </span>
+          <NumberField
+            value={weights[category.id] ?? 0}
+            unit="%"
+            inputmode="numeric"
+            ariaLabel="{category.name} share"
+            onchange={(share) => setWeight(category.id, share)}
+          />
         </div>
       {/each}
       {#if free > 0}
@@ -129,8 +122,5 @@
     <p class="t-label text-danger">{error}</p>
   {/if}
 
-  <div class="flex gap-2">
-    <Button label="Cancel" variant="outline" onclick={oncancel} class="flex-1" />
-    <Button label="Save" onclick={submit} loading={saving} disabled={categories.length === 0} class="flex-1" />
-  </div>
+  <FormActions {oncancel} onsave={submit} {saving} disabled={categories.length === 0} />
 </div>

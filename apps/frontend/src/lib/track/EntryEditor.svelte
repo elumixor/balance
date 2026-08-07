@@ -1,7 +1,7 @@
 <script lang="ts">
-  import Button from "$lib/components/Button.svelte";
   import Chip from "$lib/components/Chip.svelte";
   import Field from "$lib/components/Field.svelte";
+  import FormActions from "$lib/components/FormActions.svelte";
   import LabelledField from "$lib/components/LabelledField.svelte";
   import { formatClock, formatDateInput, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
   import type { Activity, Entry } from "$lib/types";
@@ -117,8 +117,5 @@
     <p class="t-label text-danger">{error}</p>
   {/if}
 
-  <div class="flex gap-2">
-    <Button label="Cancel" variant="outline" onclick={oncancel} class="flex-1" />
-    <Button label="Save" onclick={submit} loading={saving} class="flex-1" />
-  </div>
+  <FormActions {oncancel} onsave={submit} {saving} />
 </div>

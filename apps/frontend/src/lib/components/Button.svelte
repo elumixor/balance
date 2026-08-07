@@ -10,6 +10,8 @@
     size = "md",
     disabled = false,
     loading = false,
+    /** A button element sizes to its label unless told otherwise; primary actions fill their column. */
+    full = false,
     icon,
     class: klass = "",
   }: {
@@ -19,6 +21,7 @@
     size?: "md" | "sm";
     disabled?: boolean;
     loading?: boolean;
+    full?: boolean;
     icon?: Snippet;
     class?: string;
   } = $props();
@@ -34,7 +37,7 @@
   disabled={disabled || loading}
   aria-label={label}
   aria-busy={loading}
-  class="press flex items-center justify-center gap-2 rounded-md border {variant === 'outline'
+  class="press flex items-center justify-center gap-2 rounded-md border {full ? 'w-full' : ''} {variant === 'outline'
     ? 'border-line-strong'
     : 'border-transparent'} {fill} {size === 'sm' ? 'px-3 py-2' : 'px-4 py-3'} {klass}"
 >

@@ -1,19 +1,20 @@
 <script lang="ts">
-  import AccountMenu from "$lib/components/AccountMenu.svelte";
-  import Divider from "$lib/components/Divider.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import Panel from "$lib/components/Panel.svelte";
   import BalanceRing from "$lib/components/ring/BalanceRing.svelte";
-  import ScreenTitle from "$lib/components/ScreenTitle.svelte";
+  import Rows from "$lib/components/Rows.svelte";
+  import Screen from "$lib/components/Screen.svelte";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
   import SkeletonRows from "$lib/components/SkeletonRows.svelte";
+  import SplitPane from "$lib/components/SplitPane.svelte";
   import { formatHoursAndMinutes } from "$lib/format";
   import { getCategories, getStats } from "$lib/queries";
   import CategoryRow from "$lib/stats/CategoryRow.svelte";
   import TrendRow from "$lib/stats/TrendRow.svelte";
   import type { Category, StatsResponse } from "$lib/types";
+  import { viewport } from "$lib/viewport.svelte";
 
   type PeriodKind = "day" | "week" | "month";
 
@@ -54,61 +55,61 @@
   const plannedHours = $derived(planned.reduce((sum, c) => sum + c.targetHours, 0));
 </script>
 
-<div class="safe-top px-5 pt-4 pb-10">
-  <ScreenTitle title="Balance">
-    {#snippet trailing()}
-      <AccountMenu />
-    {/snippet}
-  </ScreenTitle>
-
+<Screen title="Balance" wide>
   <Segmented options={PERIODS} value={period} onchange={(value) => (period = value)} />
 
   {#if loadError && !data}
-    <LoadError message={loadError} onretry={() => load(period)} />
+    <div class="mt-6"><LoadError message={loadError} onretry={() => load(period)} /></div>
   {:else if loading && !data}
     <div class="mt-6"><SkeletonRows count={5} /></div>
   {:else if planned.length === 0}
     <EmptyState title="Nothing to weigh yet." hint="Plan your week, then track a few hours against it." />
   {:else}
-    <div class="mt-6 mb-3 flex justify-center">
-      <BalanceRing
-        slices={planned.map((c) => ({
-          id: c.categoryId,
-          label: c.name,
-          color: c.color,
-          targetHours: c.targetHours,
-          actualHours: c.actualHours,
-        }))}
-        centerValue={formatHoursAndMinutes(trackedHours)}
-        centerLabel="tracked of {formatHoursAndMinutes(plannedHours)} planned"
-      />
-    </div>
+    <div class="mt-6">
+      <SplitPane>
+        {#snippet aside()}
+          <BalanceRing
+            slices={planned.map((c) => ({
+              id: c.categoryId,
+              label: c.name,
+              color: c.color,
+              targetHours: c.targetHours,
+              actualHours: c.actualHours,
+            }))}
+            size={viewport.xl ? 300 : 236}
+            centerValue={formatHoursAndMinutes(trackedHours)}
+            centerLabel="tracked of {formatHoursAndMinutes(plannedHours)} planned"
+          />
+          <p class="t-micro mt-5 max-w-[34ch] text-center text-fg-faint">
+            Outer arc is your plan, inner arc is what you actually did.
+          </p>
+        {/snippet}
 
-    <div class="mt-4">
-      {#each planned as stat, i (stat.categoryId)}
-        <div class="list-item-in" style="animation-delay:{Math.min(i, 8) * 35}ms">
-          {#if i > 0}<Divider />{/if}
-          <CategoryRow {stat} />
+        <div class="mt-6 xl:mt-0">
+          <Rows items={planned} key={(stat) => stat.categoryId}>
+            {#snippet children(stat)}
+              <CategoryRow {stat} />
+            {/snippet}
+          </Rows>
+
+          {#if trends.length > 0}
+            <div class="mt-8">
+              <SectionHeader title="Last {data?.trendPeriodCount ?? trends[0].points.length} {period}s">
+                {#snippet trailing()}
+                  <span class="t-micro text-fg-faint">line = target</span>
+                {/snippet}
+              </SectionHeader>
+              <Panel>
+                <Rows items={trends} key={(trend) => trend.categoryId} stagger={false}>
+                  {#snippet children(trend)}
+                    <TrendRow {trend} />
+                  {/snippet}
+                </Rows>
+              </Panel>
+            </div>
+          {/if}
         </div>
-      {/each}
+      </SplitPane>
     </div>
-
-    {#if trends.length > 0}
-      <div class="mt-6">
-        <SectionHeader title="Last {data?.trendPeriodCount ?? trends[0].points.length} {period}s">
-          {#snippet trailing()}
-            <span class="t-micro text-fg-faint">line = target</span>
-          {/snippet}
-        </SectionHeader>
-        <Panel>
-          {#each trends as trend, i (trend.categoryId)}
-            {#if i > 0}<Divider />{/if}
-            <TrendRow {trend} />
-          {/each}
-        </Panel>
-      </div>
-    {/if}
-
-    <p class="t-micro mt-4 text-fg-faint">Outer arc is your plan, inner arc is what you actually did.</p>
   {/if}
-</div>
+</Screen>

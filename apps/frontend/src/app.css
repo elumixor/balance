@@ -76,6 +76,12 @@ html.dark {
   font-size: 30px;
   line-height: 34px;
   letter-spacing: -0.8px;
+  /* A wide screen gets a bigger voice; the scale steps up once, at the side-rail breakpoint. */
+  @media (width >= 48rem) {
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: -1.4px;
+  }
 }
 @utility t-heading {
   font-family: var(--font-display);
@@ -139,6 +145,18 @@ html.dark {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * A pointer changes what a row owes you: it has to answer the cursor. Guarded on
+ * `hover: hover` so a touch screen never leaves a row stuck in its hovered state.
+ */
+@utility hoverable {
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--surface-alt);
+    }
+  }
+}
+
 @utility safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -172,43 +190,57 @@ html.dark {
   }
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/*
+ * These resets must stay inside `@layer base`. Unlayered CSS outranks every layer, so a bare
+ * `button { background: none }` beats `bg-ink` and leaves the app's primary buttons unfilled —
+ * which is exactly what it did before this layer existed.
+ */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-html {
-  background-color: var(--bg);
-  color: var(--fg);
-  -webkit-tap-highlight-color: transparent;
-  -webkit-text-size-adjust: 100%;
-  overscroll-behavior-y: none;
-}
+  html {
+    background-color: var(--bg);
+    color: var(--fg);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+  }
 
-body {
-  margin: 0;
-  min-height: 100dvh;
-  font-family: var(--font-sans);
-  background-color: var(--bg);
-  -webkit-font-smoothing: antialiased;
-}
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
 
-button {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
 
-input {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  outline: none;
+  input {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    outline: none;
+  }
+
+  /* Keyboards are a desktop reality: every control shows where focus is. */
+  :focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
 }
 
 /* Staggered entrance for list rows; suppressed when the system asks for less motion. */

@@ -34,7 +34,7 @@
     {/if}
   </div>
 
-  <Button label="Stop" onclick={onstop} loading={stopping} class="self-stretch">
+  <Button label="Stop" onclick={onstop} loading={stopping} full>
     {#snippet icon()}
       <Square size={14} fill="currentColor" />
     {/snippet}

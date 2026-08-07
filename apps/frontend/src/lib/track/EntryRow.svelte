@@ -24,7 +24,7 @@
     onclick={ontoggle}
     aria-expanded={expanded}
     aria-label="{entry.activityName}, {formatHoursAndMinutes(hours)}"
-    class="flex flex-1 items-center gap-3 py-3 text-left"
+    class="hoverable -mx-2 flex flex-1 items-center gap-3 rounded-md px-2 py-3 text-left"
   >
     <SplitBar {splits} vertical thickness={3} class="min-h-[34px] self-stretch" />
 

@@ -55,14 +55,14 @@
   {#if awaitingCode}
     <Field bind:value={code} placeholder="Verification code" inputmode="numeric" mono />
     {#if error}<p class="t-label text-danger">{error}</p>{/if}
-    <Button label="Verify" onclick={onVerify} {loading} disabled={!code} />
+    <Button label="Verify" onclick={onVerify} {loading} disabled={!code} full />
   {:else}
     <div class="space-y-2">
       <Field bind:value={email} placeholder="Email" inputmode="email" />
       <Field bind:value={password} placeholder="Password" type="password" />
     </div>
     {#if error}<p class="t-label text-danger">{error}</p>{/if}
-    <Button label="Sign up" onclick={onSignUp} {loading} disabled={!email || !password} />
+    <Button label="Sign up" onclick={onSignUp} {loading} disabled={!email || !password} full />
     <div class="flex justify-center gap-1">
       <span class="t-label text-fg-muted">Already have an account?</span>
       <a href="/sign-in" class="t-label text-fg">Sign in</a>
