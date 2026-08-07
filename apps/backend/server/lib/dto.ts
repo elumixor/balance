@@ -69,6 +69,7 @@ export class CalendarEventDTO {
   readonly calendarId: string;
   readonly seriesId: string | null;
   readonly title: string;
+  readonly description: string | null;
   readonly start: string;
   readonly end: string;
   readonly allDay: boolean;
@@ -87,6 +88,7 @@ export class CalendarEventDTO {
     this.calendarId = e.calendarId;
     this.seriesId = e.seriesId;
     this.title = e.title;
+    this.description = e.description;
     this.start = e.start.toISOString();
     this.end = e.end.toISOString();
     this.allDay = e.allDay;

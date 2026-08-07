@@ -19,7 +19,12 @@
   }: { title: string; subtitle?: string; wide?: boolean; children: Snippet } = $props();
 </script>
 
-<div class="safe-top mx-auto w-full px-5 pt-4 pb-10 md:px-10 md:pt-10 md:pb-16 {wide ? 'max-w-5xl' : 'max-w-2xl'}">
+<!-- The scroll lives here rather than on the shell, so a screen can opt out of it entirely. -->
+<div
+  class="safe-top mx-auto h-full w-full overflow-y-auto px-5 pt-4 pb-10 md:px-10 md:pt-10 md:pb-16 {wide
+    ? 'max-w-5xl'
+    : 'max-w-2xl'}"
+>
   <header class="mb-5 flex items-start justify-between gap-3 md:mb-8">
     <div class="flex-1 space-y-0.5">
       <h1 class="t-title">{title}</h1>

@@ -9,7 +9,23 @@ export type ConnectMode = "app" | "web";
 export interface OAuthState {
   readonly userId: string;
   readonly mode: ConnectMode;
+  /** Where the app is running, so the callback can hand the browser back to it. */
+  readonly origin: string;
   readonly exp: number;
+}
+
+/**
+ * The origin is only ever the app's own — a signed-in user's browser told us where it was — but
+ * the callback turns it into a redirect, so it stays confined to the shapes the app can have.
+ */
+export function isAppOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    if (url.protocol === "https:") return true;
+    return url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+  } catch {
+    return false;
+  }
 }
 
 /**

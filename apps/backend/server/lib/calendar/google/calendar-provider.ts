@@ -26,7 +26,7 @@ const RATE_LIMIT_RETRY_MS = 500;
 const IGNORED_EVENT_TYPES = new Set(["workingLocation", "birthday"]);
 
 const EVENT_FIELDS =
-  "nextPageToken,timeZone,accessRole,items(id,status,summary,start,end,recurringEventId,eventType,htmlLink,attendees(self,responseStatus))";
+  "nextPageToken,timeZone,accessRole,items(id,status,summary,description,start,end,recurringEventId,eventType,htmlLink,attendees(self,responseStatus))";
 
 export class GoogleCalendarProvider implements CalendarProvider {
   readonly name = "google";
@@ -57,6 +57,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       method: "POST",
       body: {
         summary: input.title,
+        ...(input.description === undefined ? {} : { description: input.description }),
         start: { dateTime: input.start.toISOString() },
         end: { dateTime: input.end.toISOString() },
       },
@@ -71,6 +72,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
         method: "PATCH",
         body: {
           ...(patch.title === undefined ? {} : { summary: patch.title }),
+          ...(patch.description === undefined ? {} : { description: patch.description }),
           ...(patch.start === undefined ? {} : { start: { dateTime: patch.start.toISOString() } }),
           ...(patch.end === undefined ? {} : { end: { dateTime: patch.end.toISOString() } }),
         },
@@ -135,6 +137,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       calendarId,
       seriesId: event.recurringEventId ?? null,
       title: event.summary ?? "Untitled",
+      description: event.description ?? null,
       start: instant(event.start),
       end: instant(event.end),
       allDay,

@@ -49,6 +49,8 @@ interface PendingDrag {
 class CalendarData {
   anchor = $state(new Date());
   selected = $state<CalendarEvent | null>(null);
+  /** Where the tapped block is on screen, so its editor can open beside it rather than over it. */
+  selectedRect = $state<DOMRect | null>(null);
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
 
@@ -62,28 +64,54 @@ class CalendarData {
   readonly key = $derived(weekKey(this.anchor));
   readonly weekStart = $derived(weekStartFromKey(this.key));
   readonly week = $derived(calendarWeek(this.key));
+
+  /**
+   * The week either side is loaded too: the grid scrolls sideways between them, so a week has to
+   * be drawn before it's centred rather than after.
+   */
+  readonly panes = $derived(
+    [-1, 0, 1].map((offset) => {
+      const start = addDays(this.weekStart, offset * DAYS_PER_WEEK);
+      return { offset, start, week: calendarWeek(weekKey(start)) };
+    }),
+  );
+
   readonly events = $derived(this.week.value?.events ?? []);
   readonly connected = $derived(this.week.value?.connected ?? store.integrations.value?.[0]?.connected ?? false);
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(new Date()));
+
+  select(event: CalendarEvent, rect: DOMRect) {
+    this.selected = event;
+    this.selectedRect = rect;
+  }
+
+  deselect() {
+    this.selected = null;
+    this.selectedRect = null;
+  }
 
   enter() {
     return Promise.all([
       store.categories.ensure(),
       store.activities.ensure(),
       store.integrations.ensure(),
-      this.week.ensure(),
+      this.ensureWeeks(),
     ]);
+  }
+
+  ensureWeeks() {
+    return Promise.all(this.panes.map((pane) => pane.week.ensure()));
   }
 
   goToWeek(offset: number) {
     this.anchor = addDays(this.weekStart, offset * DAYS_PER_WEEK);
-    void this.week.ensure();
+    void this.ensureWeeks();
   }
 
   goToToday() {
     this.anchor = new Date();
-    void this.week.ensure();
+    void this.ensureWeeks();
   }
 
   // --- dragging -------------------------------------------------------------
@@ -172,22 +200,25 @@ class CalendarData {
     );
   }
 
-  async renameEvent(event: CalendarEvent, title: string) {
-    await this.#run(() => updateCalendarEvent(event.id, { calendarId: event.calendarId, title }));
-  }
-
-  async retimeEvent(event: CalendarEvent, start: Date, end: Date) {
+  /** The editor saves title, notes and times together — one write, so one refetch and one undo. */
+  async editEvent(event: CalendarEvent, patch: { title?: string; description?: string; start?: Date; end?: Date }) {
     await this.#run(() =>
       updateCalendarEvent(event.id, {
         calendarId: event.calendarId,
-        start: start.toISOString(),
-        end: end.toISOString(),
+        title: patch.title,
+        description: patch.description,
+        start: patch.start?.toISOString(),
+        end: patch.end?.toISOString(),
       }),
     );
   }
 
+  retimeEvent(event: CalendarEvent, start: Date, end: Date) {
+    return this.editEvent(event, { start, end });
+  }
+
   async deleteEvent(event: CalendarEvent) {
-    this.selected = null;
+    this.deselect();
     await this.#run(() => deleteCalendarEvent(event.id, event.calendarId));
   }
 

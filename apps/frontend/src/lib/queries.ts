@@ -29,8 +29,8 @@ export const archiveActivity = (id: string) => callApi(api.activities(id).archiv
 // Integrations
 export const getIntegrations = () =>
   callApi(api.integrations.$get()).then((r) => unwrapOk(r).integrations as IntegrationStatus[]);
-export const startGoogleConnect = (mode: "app" | "web") =>
-  callApi(api.integrations.google.start.$post({ mode })).then((r) => unwrapOk(r).url);
+export const startGoogleConnect = (mode: "app" | "web", origin: string) =>
+  callApi(api.integrations.google.start.$post({ mode, origin })).then((r) => unwrapOk(r).url);
 export const disconnectGoogle = () => callApi(api.integrations.google.$delete()).then(unwrapOk);
 
 // Calendar
@@ -48,7 +48,7 @@ export const createCalendarEvent = (input: {
 }) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
 export const updateCalendarEvent = (
   id: string,
-  input: { calendarId: string; title?: string; start?: string; end?: string },
+  input: { calendarId: string; title?: string; description?: string; start?: string; end?: string },
 ) => callApi(api.calendar.events(id).$patch(input)).then((r) => unwrapOk(r).event as CalendarEvent);
 export const deleteCalendarEvent = (id: string, calendarId: string) =>
   callApi(api.calendar.events(id).$delete({ calendarId })).then(unwrapOk);

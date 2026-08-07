@@ -1,7 +1,7 @@
 import { eventHandler, getQuery, setResponseHeader, setResponseStatus } from "h3";
 import { googleOAuthService } from "../../../../lib/calendar/google/oauth";
 import { ProviderAccountService } from "../../../../lib/calendar/provider-accounts";
-import { type ConnectMode, verifyOAuthState } from "../../../../lib/calendar/state";
+import { type ConnectMode, isAppOrigin, verifyOAuthState } from "../../../../lib/calendar/state";
 
 /**
  * The one route that answers HTML instead of JSON, and the one that isn't authenticated: Google
@@ -14,10 +14,12 @@ export default eventHandler(async (event) => {
   const code = typeof query.code === "string" ? query.code : "";
 
   let mode: ConnectMode = "web";
+  let origin = "";
   try {
     if (typeof query.error === "string") throw new Error(`Google cancelled the connection (${query.error})`);
     const verified = verifyOAuthState(state);
     mode = verified.mode;
+    origin = verified.origin;
     if (!code) throw new Error("Google didn't send an authorization code");
 
     const { tokens, identity } = await googleOAuthService.exchangeCode(code);
@@ -25,6 +27,7 @@ export default eventHandler(async (event) => {
 
     return page({
       mode,
+      origin,
       title: "Calendar connected",
       body: `Balance is now reading ${identity.email ?? "your calendar"}.`,
     });
@@ -32,6 +35,7 @@ export default eventHandler(async (event) => {
     setResponseStatus(event, 400);
     return page({
       mode,
+      origin,
       title: "That didn't work",
       body: e instanceof Error ? e.message : "Something went wrong connecting your calendar.",
       failed: true,
@@ -43,13 +47,29 @@ const escapeHtml = (value: string) =>
   value.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
 
 /**
- * On web this tab is the app's own tab, so it goes back to the calendar. On iOS it's a Safari
- * sheet the app opened; nothing here can dismiss it reliably, so it says so and the app notices
- * the connection on its own.
+ * On web this tab is the app's own tab, so it goes back to the calendar — at the origin the app
+ * is actually served from, which in dev is the Vite server rather than this one. On iOS it's a
+ * Safari sheet the app opened; nothing here can dismiss it reliably, so it says so and the app
+ * notices the connection on its own.
  */
-function page({ mode, title, body, failed }: { mode: ConnectMode; title: string; body: string; failed?: boolean }) {
+function page({
+  mode,
+  origin,
+  title,
+  body,
+  failed,
+}: {
+  mode: ConnectMode;
+  origin: string;
+  title: string;
+  body: string;
+  failed?: boolean;
+}) {
+  const back = `${origin}/calendar`;
   const redirect =
-    mode === "web" && !failed ? '<script>setTimeout(() => location.replace("/calendar"), 900)</script>' : "";
+    mode === "web" && !failed && isAppOrigin(origin)
+      ? `<script>setTimeout(() => location.replace(${JSON.stringify(back)}), 900)</script>`
+      : "";
   const hint = mode === "app" ? "You can close this window and go back to Balance." : "Taking you back to Balance…";
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

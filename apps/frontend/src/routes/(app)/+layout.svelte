@@ -28,8 +28,9 @@
   <div class="flex h-dvh bg-bg">
     <SideNav />
     <div class="flex min-w-0 flex-1 flex-col">
-      <!-- The content column scrolls, not the page: the rail and the tab bar stay put. -->
-      <main class="flex-1 overflow-y-auto">
+      <!-- The screen scrolls itself, not the page: the rail and the tab bar stay put, and a
+           screen that wants the whole height (the calendar) can take it. -->
+      <main class="min-h-0 flex-1 overflow-hidden">
         {@render children()}
       </main>
       <TabBar />

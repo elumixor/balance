@@ -4,11 +4,12 @@
   import AccountMenu from "$lib/components/AccountMenu.svelte";
   import BrandMark from "$lib/components/BrandMark.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
+  import { sidePanel } from "./side-panel.svelte";
 
   /**
    * The wide-screen rail. Where the tab bar can only afford an icon, this has room for the
-   * mark, both screens as a read-down list, and the account — so no screen has to carry
-   * chrome that isn't its own content.
+   * mark, the four screens as a read-down list, the current screen's own controls, and the
+   * account — so no screen has to carry chrome that isn't its own content.
    */
 </script>
 
@@ -35,7 +36,13 @@
     {/each}
   </div>
 
-  <div class="mt-auto flex items-center gap-2.5 px-1">
+  {#if sidePanel.section}
+    <div class="mt-6 min-h-0 border-t border-line pt-6">
+      {@render sidePanel.section()}
+    </div>
+  {/if}
+
+  <div class="mt-auto flex items-center gap-2.5 px-1 pt-6">
     <AccountMenu />
     {#if auth.email}
       <span class="t-micro min-w-0 flex-1 truncate text-fg-faint">{auth.email}</span>

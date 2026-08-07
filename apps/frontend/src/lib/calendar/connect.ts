@@ -15,7 +15,8 @@ const POLL_TIMEOUT_MS = 60_000;
  */
 export async function connectGoogle(): Promise<void> {
   const native = Capacitor.isNativePlatform();
-  const url = await startGoogleConnect(native ? "app" : "web");
+  // The callback runs on the backend's origin, which in dev isn't the one serving the app.
+  const url = await startGoogleConnect(native ? "app" : "web", window.location.origin);
 
   if (!native) {
     window.location.href = url;

@@ -10,6 +10,7 @@ export default handler(
     body: {
       calendarId: z.string().min(1),
       title: z.string().trim().min(1).optional(),
+      description: z.string().optional(),
       start: z.string().optional(),
       end: z.string().optional(),
     },
@@ -23,6 +24,7 @@ export default handler(
 
       const updated = await new CalendarEventsService(user.id).update(body.calendarId, router.id, {
         title: body.title,
+        description: body.description,
         start,
         end,
       });

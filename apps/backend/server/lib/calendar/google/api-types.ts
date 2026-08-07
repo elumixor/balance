@@ -19,6 +19,7 @@ export interface GoogleEvent {
   id: string;
   status: "confirmed" | "tentative" | "cancelled";
   summary?: string;
+  description?: string;
   start: GoogleEventDateTime;
   end: GoogleEventDateTime;
   recurringEventId?: string;

@@ -25,6 +25,8 @@ export interface ExternalEvent {
   /** The series this occurrence repeats from, or null for a one-off. */
   readonly seriesId: string | null;
   readonly title: string;
+  /** The event's own notes, as the provider stores them. Empty is indistinguishable from absent. */
+  readonly description: string | null;
   /** Absolute instants — all-day dates are resolved against the calendar's own time zone. */
   readonly start: Date;
   readonly end: Date;
@@ -39,12 +41,15 @@ export interface ExternalEvent {
 export interface CreateEventInput {
   readonly calendarId: string;
   readonly title: string;
+  readonly description?: string;
   readonly start: Date;
   readonly end: Date;
 }
 
 export interface UpdateEventInput {
   readonly title?: string;
+  /** An empty string clears the notes, which is why this isn't merged into the absent case. */
+  readonly description?: string;
   readonly start?: Date;
   readonly end?: Date;
 }
