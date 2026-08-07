@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** The product's own artefact: a wheel, balanced on every side. */
+  /** The product's own artefact: a sphere held in perfect equilibrium. */
   let { size = 44 }: { size?: number } = $props();
 </script>
 
