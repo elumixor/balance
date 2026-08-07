@@ -1,37 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-
-// Clerk test-mode convention: any email containing "+clerk_test" uses the fixed
-// verification code 424242 instead of sending a real email. See:
-// https://clerk.com/docs/testing/test-emails-and-phones
-const TEST_EMAIL = `balance-e2e+clerk_test@example.com`;
-const TEST_PASSWORD = "Sup3r-Secret-Password!";
-const TEST_CODE = "424242";
+import { authenticate } from "./auth";
 
 test.describe.configure({ mode: "serial" });
-
-/** Signs the shared test account in, creating it the first time it's needed. */
-async function authenticate(page: Page) {
-  await page.goto("/sign-in");
-  await page.getByPlaceholder("Email").fill(TEST_EMAIL);
-  await page.getByPlaceholder("Password").fill(TEST_PASSWORD);
-  await page.getByText("Sign in", { exact: true }).click();
-
-  const code = page.getByPlaceholder("Verification code");
-  const accountMissing = page.getByText("Couldn't find your account.");
-  await expect(code.or(accountMissing)).toBeVisible({ timeout: 20_000 });
-
-  if (await accountMissing.isVisible()) {
-    await page.goto("/sign-up");
-    await page.getByPlaceholder("Email").fill(TEST_EMAIL);
-    await page.getByPlaceholder("Password").fill(TEST_PASSWORD);
-    await page.getByText("Sign up", { exact: true }).click();
-    await expect(code).toBeVisible({ timeout: 20_000 });
-  }
-
-  await code.fill(TEST_CODE);
-  await page.getByText("Verify", { exact: true }).click();
-  await expect(page).toHaveURL(/\/track/, { timeout: 20_000 });
-}
 
 test.describe("Balance app", () => {
   // One signed-in page for the whole file: signing in per test would mean

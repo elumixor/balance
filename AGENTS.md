@@ -16,6 +16,15 @@ runs inside a Capacitor webview, and everything on screen depends on a Clerk ses
 exists in the browser. Don't add server-side load functions, form actions, or `+server.ts` routes —
 the API is Nitro, in `apps/backend`.
 
+## Screens don't fetch, the store does
+
+`src/lib/store.svelte.ts` holds every screen's data for the session, one `Cached` per thing. A
+screen calls `ensure()` on mount, which fetches only what's missing or stale, so switching tabs
+costs no requests and shows no skeleton — `e2e/navigation.spec.ts` holds that line. A write calls
+the matching `invalidate.*()` and refreshes its own cache; the screens it touched refetch behind
+their existing rows the next time they're opened. Don't fetch from a component, and don't
+instantiate a screen's data class per mount — they're module-level singletons.
+
 ## Generated and committed
 
 - `apps/frontend/src/lib/api-client/` is generated from the backend's routes (`bunx nitro-client`).

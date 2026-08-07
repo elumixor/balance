@@ -1,33 +1,31 @@
-import { archiveActivity, createActivity, getActivities, getCategories, updateActivity } from "$lib/queries";
-import type { Activity, Category } from "$lib/types";
+import { archiveActivity, createActivity, updateActivity } from "$lib/queries";
+import { invalidate, store } from "$lib/store.svelte";
+import type { Activity } from "$lib/types";
 
 export interface ActivityDraft {
   name: string;
   weights: { categoryId: string; weightPercent: number }[];
 }
 
-/** Owns the Activities screen's data loading and create/update/archive mutations. */
-export class ActivitiesData {
-  activities = $state<Activity[] | null>(null);
+/** Owns the Activities screen's create/update/archive mutations over the shared store. */
+class ActivitiesData {
   editing = $state<string | "new" | null>(null);
-  loadError = $state<string | null>(null);
   actionError = $state<string | null>(null);
 
-  #categories = $state<Category[]>([]);
+  activities = $derived(store.activities.hasValue ? (store.activities.value ?? []) : null);
+  loadError = $derived(store.activities.error ?? store.categories.error);
 
-  categoryById = $derived(new Map(this.#categories.map((c) => [c.id, c])));
-  planned = $derived(this.#categories.filter((c) => !c.isBuffer));
+  categoryById = $derived(new Map((store.categories.value ?? []).map((c) => [c.id, c])));
+  planned = $derived((store.categories.value ?? []).filter((c) => !c.isBuffer));
 
-  load = async () => {
-    try {
-      const [activities, categories] = await Promise.all([getActivities(), getCategories()]);
-      this.activities = activities;
-      this.#categories = categories;
-      this.loadError = null;
-    } catch (e) {
-      this.loadError = e instanceof Error ? e.message : "Couldn't load your activities.";
-    }
+  /** What the screen calls on mount: no request at all once the app already has these rows. */
+  enter = () => {
+    this.editing = null;
+    this.actionError = null;
+    return this.load();
   };
+
+  load = () => Promise.all([store.activities.ensure(), store.categories.ensure()]);
 
   /** Keeps a failed write from disappearing into an unhandled rejection with nothing on screen. */
   async #run(action: () => Promise<unknown>, fallback: string) {
@@ -44,7 +42,8 @@ export class ActivitiesData {
       if (id === "new") await createActivity(draft);
       else await updateActivity(id, draft);
       this.editing = null;
-      await this.load();
+      invalidate.activities();
+      await store.activities.refresh();
     }, "Couldn't save that activity.");
   };
 
@@ -54,7 +53,10 @@ export class ActivitiesData {
     await this.#run(async () => {
       this.editing = null;
       await archiveActivity(activity.id);
-      await this.load();
+      invalidate.activities();
+      await store.activities.refresh();
     }, "Couldn't archive that activity.");
   };
 }
+
+export const activitiesData = new ActivitiesData();

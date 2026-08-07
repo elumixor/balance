@@ -10,13 +10,10 @@
   import SkeletonRows from "$lib/components/SkeletonRows.svelte";
   import SplitPane from "$lib/components/SplitPane.svelte";
   import { formatHoursAndMinutes } from "$lib/format";
-  import { getCategories, getStats } from "$lib/queries";
   import CategoryRow from "$lib/stats/CategoryRow.svelte";
+  import { statsFor, store, type PeriodKind } from "$lib/store.svelte";
   import TrendRow from "$lib/stats/TrendRow.svelte";
-  import type { Category, StatsResponse } from "$lib/types";
   import { viewport } from "$lib/viewport.svelte";
-
-  type PeriodKind = "day" | "week" | "month";
 
   const PERIODS: { value: PeriodKind; label: string }[] = [
     { value: "day", label: "Today" },
@@ -25,24 +22,15 @@
   ];
 
   let period = $state<PeriodKind>("week");
-  let data = $state<StatsResponse | null>(null);
-  let categories = $state<Category[]>([]);
-  let loading = $state(true);
-  let loadError = $state<string | null>(null);
 
-  async function load(kind: PeriodKind) {
-    loading = true;
-    try {
-      const [stats, cats] = await Promise.all([getStats(kind), getCategories()]);
-      data = stats;
-      categories = cats;
-      loadError = null;
-    } catch (e) {
-      loadError = e instanceof Error ? e.message : "Couldn't load your balance.";
-    } finally {
-      loading = false;
-    }
-  }
+  // Each period keeps its own answer, so flipping back to one already seen is instant.
+  const stats = $derived(statsFor(period));
+  const data = $derived(stats.value ?? null);
+  const categories = $derived(store.categories.value ?? []);
+  const loadError = $derived(stats.error ?? store.categories.error);
+
+  const load = (kind: PeriodKind) => Promise.all([statsFor(kind).ensure(), store.categories.ensure()]);
+  const retry = () => Promise.all([stats.refresh(), store.categories.refresh()]);
 
   $effect(() => void load(period));
 
@@ -59,8 +47,8 @@
   <Segmented options={PERIODS} value={period} onchange={(value) => (period = value)} />
 
   {#if loadError && !data}
-    <div class="mt-6"><LoadError message={loadError} onretry={() => load(period)} /></div>
-  {:else if loading && !data}
+    <div class="mt-6"><LoadError message={loadError} onretry={retry} /></div>
+  {:else if !data}
     <div class="mt-6"><SkeletonRows count={5} /></div>
   {:else if planned.length === 0}
     <EmptyState title="Nothing to weigh yet." hint="Plan your week, then track a few hours against it." />

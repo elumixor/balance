@@ -10,10 +10,9 @@
   import LoggedEntries from "$lib/track/LoggedEntries.svelte";
   import QuickStart from "$lib/track/QuickStart.svelte";
   import RunningCard from "$lib/track/RunningCard.svelte";
-  import { TrackData } from "$lib/track/track-data.svelte";
+  import { trackData as data } from "$lib/track/track-data.svelte";
 
-  const data = new TrackData();
-  void data.load();
+  void data.enter();
 </script>
 
 <Screen title="Track" wide>

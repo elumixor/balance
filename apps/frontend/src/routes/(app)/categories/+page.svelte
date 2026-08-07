@@ -10,12 +10,11 @@
   import SplitPane from "$lib/components/SplitPane.svelte";
   import { formatHoursAndMinutes } from "$lib/format";
   import { viewport } from "$lib/viewport.svelte";
-  import { AUTOSAVE_DELAY_MS, CategoryDrafts, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
+  import { AUTOSAVE_DELAY_MS, categoryDrafts as data, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
   import CategoryDraftRow from "$lib/week/CategoryDraftRow.svelte";
   import { Check } from "lucide-svelte";
 
-  const data = new CategoryDrafts();
-  void data.load();
+  void data.enter();
 
   // Changes save themselves a moment after you stop moving things.
   $effect(() => {

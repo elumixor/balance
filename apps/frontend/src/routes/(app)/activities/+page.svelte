@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ActivitiesData } from "$lib/activities/activities-data.svelte";
+  import { activitiesData as data } from "$lib/activities/activities-data.svelte";
   import ActivityEditor from "$lib/activities/ActivityEditor.svelte";
   import ActivityRow from "$lib/activities/ActivityRow.svelte";
   import AddRow from "$lib/components/AddRow.svelte";
@@ -11,8 +11,7 @@
   import Screen from "$lib/components/Screen.svelte";
   import SkeletonRows from "$lib/components/SkeletonRows.svelte";
 
-  const data = new ActivitiesData();
-  void data.load();
+  void data.enter();
 </script>
 
 <Screen title="Activities" subtitle={data.activities ? `${data.activities.length} active` : undefined}>

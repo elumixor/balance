@@ -4,12 +4,20 @@
   import AppLoading from "$lib/components/AppLoading.svelte";
   import SideNav from "$lib/components/nav/SideNav.svelte";
   import TabBar from "$lib/components/nav/TabBar.svelte";
-  import type { Snippet } from "svelte";
+  import { warmStore } from "$lib/store.svelte";
+  import { untrack, type Snippet } from "svelte";
 
   let { children }: { children: Snippet } = $props();
 
   $effect(() => {
     if (auth.loaded && !auth.startupError && !auth.signedIn) void goto("/sign-in", { replaceState: true });
+  });
+
+  // Every tab's data, fetched together the moment there's a session to fetch it with.
+  // Untracked: warming reads every cache, and tracking those reads would turn this into a
+  // loop that refetches the world each time a write marks something stale.
+  $effect(() => {
+    if (auth.signedIn) untrack(() => void warmStore());
   });
 </script>
 

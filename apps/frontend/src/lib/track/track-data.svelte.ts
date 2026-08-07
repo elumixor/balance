@@ -1,18 +1,7 @@
-import {
-  createManualEntry,
-  deleteEntry,
-  getActivities,
-  getCategories,
-  getRunningEntry,
-  getTrackData,
-  startTimer,
-  stopTimer,
-  updateEntry,
-} from "$lib/queries";
+import { createManualEntry, deleteEntry, startTimer, stopTimer, updateEntry } from "$lib/queries";
 import { activitySplits } from "$lib/splits";
-import type { Activity, ActivityRef, Category, Entry, Split } from "$lib/types";
-
-const TRACK_DATA_LIMIT = 20;
+import { invalidate, store } from "$lib/store.svelte";
+import type { Entry, Split } from "$lib/types";
 
 export interface EntryDraft {
   activityId: string;
@@ -33,46 +22,43 @@ export interface StartTile {
   splits: Split[];
 }
 
-/** Owns the Track screen's data loading, derived view models, and timer/entry mutations. */
-export class TrackData {
-  running = $state<Entry | null>(null);
-  activities = $state<Activity[]>([]);
-  loaded = $state(false);
-  refreshing = $state(false);
+/** Owns the Track screen's view models and timer/entry mutations over the shared store. */
+class TrackData {
   startingId = $state<string | null>(null);
   stopping = $state(false);
   editing = $state<string | "new" | null>(null);
-  loadError = $state<string | null>(null);
   actionError = $state<string | null>(null);
 
-  #entries = $state<Entry[]>([]);
-  #recent = $state<ActivityRef[]>([]);
-  #frequent = $state<ActivityRef[]>([]);
-  #categories = $state<Category[]>([]);
+  /** A pending delete the list should already be hiding, before the server has confirmed it. */
+  #removed = $state(new Set<string>());
 
-  #categoryById = $derived(new Map(this.#categories.map((c) => [c.id, c])));
+  running = $derived(store.running.value ?? null);
+  activities = $derived(store.activities.value ?? []);
+  loaded = $derived(store.track.hasValue && store.activities.hasValue && store.categories.hasValue);
+  refreshing = $derived(store.track.loading || store.running.loading);
+  loadError = $derived(store.track.error ?? store.activities.error ?? store.categories.error ?? store.running.error);
+
+  #entries = $derived((store.track.value?.entries ?? []).filter((e) => !this.#removed.has(e.id)));
+  #categoryById = $derived(new Map((store.categories.value ?? []).map((c) => [c.id, c])));
   #activityById = $derived(new Map(this.activities.map((a) => [a.id, a])));
 
-  load = async () => {
-    try {
-      const [running, trackData, activities, categories] = await Promise.all([
-        getRunningEntry(),
-        getTrackData(TRACK_DATA_LIMIT),
-        getActivities(),
-        getCategories(),
-      ]);
-      this.running = running;
-      this.#entries = trackData.entries;
-      this.#recent = trackData.recentActivities;
-      this.#frequent = trackData.frequentActivities;
-      this.activities = activities;
-      this.#categories = categories;
-      this.loaded = true;
-      this.loadError = null;
-    } catch (e) {
-      this.loadError = e instanceof Error ? e.message : "Couldn't load your entries.";
-    }
+  /** What the screen calls on mount: no request at all once the app already has these rows. */
+  enter = () => {
+    this.editing = null;
+    this.actionError = null;
+    return this.load();
   };
+
+  load = () =>
+    Promise.all([store.track.ensure(), store.activities.ensure(), store.categories.ensure(), store.running.ensure()]);
+
+  refresh = () =>
+    Promise.all([
+      store.track.refresh(),
+      store.activities.refresh(),
+      store.categories.refresh(),
+      store.running.refresh(),
+    ]);
 
   splitsFor(activityId: string): Split[] {
     const activity = this.#activityById.get(activityId);
@@ -81,7 +67,8 @@ export class TrackData {
 
   tiles = $derived.by<StartTile[]>(() => {
     const order = new Map<string, number>();
-    [...this.#recent, ...this.#frequent].forEach((a, i) => {
+    const refs = [...(store.track.value?.recentActivities ?? []), ...(store.track.value?.frequentActivities ?? [])];
+    refs.forEach((a, i) => {
       if (!order.has(a.id)) order.set(a.id, i);
     });
     return [...this.activities]
@@ -111,21 +98,19 @@ export class TrackData {
     }
   }
 
-  refresh = async () => {
-    this.refreshing = true;
-    try {
-      await this.load();
-    } finally {
-      this.refreshing = false;
-    }
-  };
+  /** An entry moved: the tiles and every stats period are now out of date. */
+  async #entriesChanged() {
+    invalidate.entries();
+    await store.track.refresh();
+  }
 
   start = async (activityId: string) => {
     this.startingId = activityId;
     try {
       await this.#run(async () => {
-        this.running = await startTimer(activityId);
-        await this.load();
+        // The response is the running entry, so the card appears without waiting on a reload.
+        store.running.set(await startTimer(activityId));
+        await this.#entriesChanged();
       }, "Couldn't start that timer.");
     } finally {
       this.startingId = null;
@@ -137,8 +122,8 @@ export class TrackData {
     try {
       await this.#run(async () => {
         await stopTimer();
-        this.running = null;
-        await this.load();
+        store.running.set(null);
+        await this.#entriesChanged();
       }, "Couldn't stop the timer.");
     } finally {
       this.stopping = false;
@@ -150,15 +135,22 @@ export class TrackData {
       if (entryId === "new") await createManualEntry(draft);
       else await updateEntry(entryId, draft);
       this.editing = null;
-      await this.load();
+      await this.#entriesChanged();
     }, "Couldn't save that entry.");
   };
 
   remove = async (entry: Entry) => {
     this.editing = null;
-    this.#entries = this.#entries.filter((e) => e.id !== entry.id);
+    this.#removed = new Set(this.#removed).add(entry.id);
     await this.#run(() => deleteEntry(entry.id), "Couldn't delete that entry.");
-    // The row is already gone from the list; this puts it back if the delete didn't land.
-    await this.load();
+    await this.#entriesChanged();
+    // The refreshed list is the truth now — whether or not the delete landed.
+    const removed = new Set(this.#removed);
+    removed.delete(entry.id);
+    this.#removed = removed;
   };
 }
+
+export const trackData = new TrackData();
+
+export type { TrackData };

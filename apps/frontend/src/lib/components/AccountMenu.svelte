@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/auth.svelte";
+  import { clearStore } from "$lib/store.svelte";
   import { theme, type ThemeMode } from "$lib/theme.svelte";
   import { LogOut, Monitor, Moon, Sun } from "lucide-svelte";
   import Divider from "./Divider.svelte";
@@ -18,6 +19,8 @@
   async function signOut(close: () => void) {
     close();
     await auth.signOut();
+    // Whatever is cached belongs to the account that just left.
+    clearStore();
     await goto("/sign-in");
   }
 </script>
