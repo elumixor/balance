@@ -58,8 +58,6 @@ class CategoryDrafts {
   drafts = $state<Draft[]>([]);
   saving = $state(false);
   error = $state<string | null>(null);
-  /** Whether the plan reads in hours or in shares of the week. Outlives any one visit to the screen. */
-  unit = $state<PlanUnit>("h");
 
   categories = $derived(store.categories.hasValue ? (store.categories.value ?? []) : null);
   loadError = $derived(store.categories.error);

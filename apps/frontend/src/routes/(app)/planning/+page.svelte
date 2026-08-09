@@ -16,15 +16,8 @@
   import Skeleton from "$lib/components/Skeleton.svelte";
   import SkeletonRows from "$lib/components/SkeletonRows.svelte";
   import SplitPane from "$lib/components/SplitPane.svelte";
-  import { formatHoursAndMinutes } from "$lib/format";
   import { viewport } from "$lib/viewport.svelte";
-  import {
-    AUTOSAVE_DELAY_MS,
-    categoryDrafts as week,
-    toUnit,
-    WEEK_HOURS,
-    type PlanUnit,
-  } from "$lib/week/category-drafts.svelte";
+  import { AUTOSAVE_DELAY_MS, categoryDrafts as week, toUnit, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
   import CategoryDraftRow from "$lib/week/CategoryDraftRow.svelte";
   import { Check } from "lucide-svelte";
 
@@ -39,13 +32,8 @@
   void week.enter();
   void activities.enter();
 
-  const UNITS: PlanUnit[] = ["h", "%"];
   const claimedHours = $derived(WEEK_HOURS - week.restHours);
-
-  /** The ring's centre answers in whatever unit the list is being read in. */
-  const claimed = $derived(
-    week.unit === "h" ? `${Math.round(claimedHours)}h` : `${Math.round((claimedHours / WEEK_HOURS) * 100)}%`,
-  );
+  const claimedPercent = $derived(Math.round((claimedHours / WEEK_HOURS) * 100));
 
   // Changes save themselves a moment after you stop moving things.
   $effect(() => {
@@ -72,8 +60,8 @@
           onsplit={week.split}
           size={viewport.xl ? 300 : 232}
           thickness={viewport.xl ? 32 : 26}
-          centerValue={claimed}
-          centerLabel="claimed of 168h"
+          centerValue="{Math.round(claimedHours)}h"
+          centerLabel="{claimedPercent}% of 168h claimed"
         />
 
         <div class="mt-4 flex min-h-5 items-center justify-center gap-1.5">
@@ -93,32 +81,13 @@
       {/snippet}
 
       <div class="mt-8 xl:mt-0">
-        <SectionHeader title="Categories">
-          {#snippet trailing()}
-            <!-- The same plan, read two ways: hours a week, or a share of the week. -->
-            <div class="flex overflow-hidden rounded-md border border-line" role="group" aria-label="Show plan in">
-              {#each UNITS as option (option)}
-                <button
-                  type="button"
-                  aria-pressed={week.unit === option}
-                  onclick={() => (week.unit = option)}
-                  class="t-data-micro px-2.5 py-1 transition-colors {week.unit === option
-                    ? 'bg-ink text-ink-fg'
-                    : 'text-fg-muted hover:bg-surface-alt'}"
-                >
-                  {option}
-                </button>
-              {/each}
-            </div>
-          {/snippet}
-        </SectionHeader>
+        <SectionHeader title="Categories" />
 
         <Rows items={week.drafts} key={(draft) => draft.key}>
           {#snippet children(draft)}
             <CategoryDraftRow
               {draft}
               taken={week.drafts.map((d) => d.color)}
-              unit={week.unit}
               onchange={(patch) => week.update(draft.key, patch)}
               onremove={() => week.remove(draft)}
             />
@@ -130,10 +99,17 @@
           <span class="flex w-8 justify-center">
             <span class="size-3.5 rounded-full" style="background:{restColor}"></span>
           </span>
-          <span class="t-body flex-1 text-fg-muted">Rest + Buffer</span>
-          <span class="t-data pr-9 text-fg-muted">
-            {week.unit === "h" ? formatHoursAndMinutes(week.restHours) : `${toUnit(week.restHours, "%")}%`}
+          <span class="t-body min-w-0 flex-1 text-fg-muted">Rest + Buffer</span>
+          <!-- Not editable — it's whatever the categories above leave — but it lines up under them. -->
+          <span class="flex h-9 items-center pr-1.5 pl-1">
+            <span class="t-data w-11 text-right text-fg-muted">{toUnit(week.restHours, "h")}</span>
+            <span class="t-data pl-0.5 text-fg-faint">h</span>
           </span>
+          <span class="flex h-9 items-center pr-1.5 pl-1">
+            <span class="t-data w-10 text-right text-fg-muted">{toUnit(week.restHours, "%")}</span>
+            <span class="t-data pl-0.5 text-fg-faint">%</span>
+          </span>
+          <span class="w-8 shrink-0"></span>
         </div>
 
         <AddRow
@@ -144,11 +120,7 @@
 
         <!-- The rule is wider than the one between rows: this is the next thing, not the next row. -->
         <section class="mt-12 border-t border-line pt-8">
-          <SectionHeader title="Activities">
-            {#snippet trailing()}
-              <span class="t-micro text-fg-faint">how each one splits</span>
-            {/snippet}
-          </SectionHeader>
+          <SectionHeader title="Activities" />
 
           <InlineError message={activities.actionError} />
 
