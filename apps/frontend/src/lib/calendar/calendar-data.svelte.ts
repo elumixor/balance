@@ -1,4 +1,5 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { SvelteMap } from "svelte/reactivity";
 import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "$lib/dates";
 import {
   createCalendarEvent,
@@ -9,6 +10,7 @@ import {
 } from "$lib/queries";
 import { calendarWeek, invalidate, store } from "$lib/store.svelte";
 import type { Activity, ActivityWeight, CalendarEvent, MappingScope } from "$lib/types";
+import { CalendarHistory } from "./history.svelte";
 import { DEFAULT_EVENT_MINUTES, snapMinutes } from "./week-grid";
 
 /** Three weeks of columns, so there's a week to scroll into on either side of the seven shown. */
@@ -20,7 +22,42 @@ const LONG_PRESS_MS = 350;
 const AUTOSCROLL_EDGE_PX = 48;
 const AUTOSCROLL_STEP_PX = 12;
 
+/** How many times a write asks the calendar to agree with it before taking no for an answer. */
+const SETTLE_ATTEMPTS = 3;
+const SETTLE_DELAY_MS = 600;
+/** The id a block wears between being drawn and the calendar giving it a real one. */
+const DRAFT_PREFIX = "draft:";
+
 export type DragKind = "create" | "move" | "resize";
+
+/** What a write draws on the grid before the server has confirmed it — `null` being "gone". */
+interface Drawn {
+  readonly id: string;
+  readonly event: CalendarEvent | null;
+}
+
+/**
+ * A handle on one event across the writes that touch it. Undoing a delete makes a new event with
+ * a new id, and the steps recorded before that have to keep pointing at the same block.
+ */
+interface EventRef {
+  id: string;
+  calendarId: string;
+}
+
+/** Everything the editor and a drag can change about an event, in the shape a write takes. */
+interface EventFields {
+  readonly title: string;
+  readonly description: string | null;
+  readonly start: Date;
+  readonly end: Date;
+}
+
+/** What an event counts as, in the shape the mapping endpoints take. */
+interface Mapping {
+  readonly scope: MappingScope;
+  readonly choice: { activityId?: string; weights?: ActivityWeight[] };
+}
 
 export interface DragState {
   readonly kind: DragKind;
@@ -62,12 +99,27 @@ class CalendarData {
   selectedRect = $state<DOMRect | null>(null);
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
+  /** The writes ⌘Z can take back — every editing method records one. */
+  readonly history = new CalendarHistory();
 
   /** The whole 21-day strip, registered by the grid so the palette can hit-test against it. */
   columnsEl = $state<HTMLElement | undefined>(undefined);
   scrollerEl = $state<HTMLElement | undefined>(undefined);
 
-  #pending: PendingDrag | null = null;
+  /**
+   * What a write has already done to the grid, before the server has agreed to it. Letting go of
+   * a block has to leave it where it was let go — a round trip to Google is most of a second, and
+   * for that whole second the old version is a lie the app is telling about work already done.
+   *
+   * A `null` is an event deleted. Entries live until the refetch that replaces them lands, so the
+   * block never blinks back to where it came from, and a write that failed is undone by the
+   * server's own answer rather than by remembering what to put back.
+   */
+  readonly #pending = new SvelteMap<string, CalendarEvent | null>();
+  /** Ids for events that don't have one yet — see `#create`. */
+  #nextTempId = 0;
+
+  #pendingDrag: PendingDrag | null = null;
   /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
   #dragged = false;
   #autoscroll: number | null = null;
@@ -85,10 +137,18 @@ class CalendarData {
     [0, DAYS_PER_WEEK, 2 * DAYS_PER_WEEK].map((day) => calendarWeek(weekKey(addDays(this.stripStart, day)))),
   );
 
-  /** One copy of each event: the ones that straddle Sunday night come back in two weeks' answers. */
-  readonly events = $derived([
-    ...new Map(this.weeks.flatMap((week) => week.value?.events ?? []).map((event) => [event.id, event])).values(),
-  ]);
+  /**
+   * One copy of each event — the ones that straddle Sunday night come back in two weeks'
+   * answers — with anything the finger has already done laid over the top.
+   */
+  readonly events = $derived.by(() => {
+    const byId = new Map(this.weeks.flatMap((week) => week.value?.events ?? []).map((event) => [event.id, event]));
+    for (const [id, event] of this.#pending) {
+      if (event) byId.set(id, event);
+      else byId.delete(id);
+    }
+    return [...byId.values()];
+  });
 
   /**
    * Seven days always overlap two calendar weeks; the one holding four or more of them is the
@@ -179,12 +239,10 @@ class CalendarData {
   }
 
   moveDrag(e: PointerEvent) {
-    const pending = this.#pending;
+    const pending = this.#pendingDrag;
     if (pending && !pending.armed) {
       const travelled = Math.hypot(e.clientX - pending.originX, e.clientY - pending.originY);
       if (travelled < DRAG_THRESHOLD_PX) return;
-      // A hold that turns into a swipe is a scroll, not a move.
-      if (pending.kind === "move") return this.#cancelPending();
       this.#start(pending);
     }
     if (!this.drag) return;
@@ -219,42 +277,75 @@ class CalendarData {
 
   // --- writes ---------------------------------------------------------------
 
+  /**
+   * A whole series recolours every instance of it, which is more than this screen can work out
+   * on its own — so only the single-instance case gets to show its answer early.
+   */
   async mapEvent(
     event: CalendarEvent,
     scope: MappingScope,
     choice: { activityId?: string; weights?: ActivityWeight[] },
   ) {
-    await this.#run(() =>
-      saveEventMapping({
-        calendarId: event.calendarId,
-        externalEventId: scope === "series" && event.seriesId ? event.seriesId : event.id,
-        scope,
-        ...choice,
-      }),
+    const activity = store.activities.value?.find((a) => a.id === choice.activityId) ?? null;
+    await this.#run(
+      () =>
+        saveEventMapping({
+          calendarId: event.calendarId,
+          externalEventId: scope === "series" && event.seriesId ? event.seriesId : event.id,
+          scope,
+          ...choice,
+        }),
+      scope === "instance"
+        ? {
+            id: event.id,
+            event: {
+              ...event,
+              mappingScope: "instance",
+              activityId: choice.activityId ?? null,
+              activityName: activity?.name ?? null,
+              weights: choice.weights ?? activity?.weights ?? [],
+            },
+          }
+        : undefined,
     );
   }
 
   async unmapEvent(event: CalendarEvent) {
     const scope = event.mappingScope ?? "instance";
-    await this.#run(() =>
-      removeEventMapping({
-        calendarId: event.calendarId,
-        externalEventId: scope === "series" && event.seriesId ? event.seriesId : event.id,
-        scope,
-      }),
+    await this.#run(
+      () =>
+        removeEventMapping({
+          calendarId: event.calendarId,
+          externalEventId: scope === "series" && event.seriesId ? event.seriesId : event.id,
+          scope,
+        }),
+      scope === "instance"
+        ? { id: event.id, event: { ...event, mappingScope: null, activityId: null, activityName: null, weights: [] } }
+        : undefined,
     );
   }
 
   /** The editor saves title, notes and times together — one write, so one refetch and one undo. */
   async editEvent(event: CalendarEvent, patch: { title?: string; description?: string; start?: Date; end?: Date }) {
-    await this.#run(() =>
-      updateCalendarEvent(event.id, {
-        calendarId: event.calendarId,
-        title: patch.title,
-        description: patch.description,
-        start: patch.start?.toISOString(),
-        end: patch.end?.toISOString(),
-      }),
+    await this.#run(
+      () =>
+        updateCalendarEvent(event.id, {
+          calendarId: event.calendarId,
+          title: patch.title,
+          description: patch.description,
+          start: patch.start?.toISOString(),
+          end: patch.end?.toISOString(),
+        }),
+      {
+        id: event.id,
+        event: {
+          ...event,
+          title: patch.title ?? event.title,
+          description: patch.description ?? event.description,
+          start: (patch.start ?? new Date(event.start)).toISOString(),
+          end: (patch.end ?? new Date(event.end)).toISOString(),
+        },
+      },
     );
   }
 
@@ -264,27 +355,95 @@ class CalendarData {
 
   async deleteEvent(event: CalendarEvent) {
     this.deselect();
-    await this.#run(() => deleteCalendarEvent(event.id, event.calendarId));
+    await this.#run(() => deleteCalendarEvent(event.id, event.calendarId), { id: event.id, event: null });
   }
 
+  /**
+   * A new block has no id until the calendar gives it one, so it's drawn under a made-up one and
+   * the real event takes its place when the refetch lands.
+   */
   async #create(activityId: string, title: string, start: Date, end: Date) {
-    await this.#run(async () => {
-      await createCalendarEvent({ activityId, title, start: start.toISOString(), end: end.toISOString() });
-      await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
-    });
+    const activity = store.activities.value?.find((a) => a.id === activityId) ?? null;
+    const draft: CalendarEvent = {
+      id: `${DRAFT_PREFIX}${this.#nextTempId++}`,
+      calendarId: this.week.value?.writeCalendarId ?? "",
+      seriesId: null,
+      title,
+      description: null,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      allDay: false,
+      declined: false,
+      tentative: false,
+      readOnly: false,
+      countsTowardHours: true,
+      url: null,
+      mappingScope: "instance",
+      activityId,
+      activityName: activity?.name ?? title,
+      weights: activity?.weights ?? [],
+    };
+    await this.#run(
+      async () => {
+        await createCalendarEvent({ activityId, title, start: start.toISOString(), end: end.toISOString() });
+        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
+      },
+      { id: draft.id, event: draft },
+    );
   }
 
-  /** Every write ends the same way: the server is the truth, so the week is refetched from it. */
-  async #run(action: () => Promise<unknown>) {
+  /**
+   * Every write puts its answer on the grid first and asks the server second. The server is still
+   * the truth: the week is refetched either way, and the drawn-ahead version is only dropped once
+   * that refetch has landed — so a write that failed rolls back to what the server actually holds
+   * without a frame of the old value showing in between.
+   */
+  async #run(action: () => Promise<unknown>, drawn?: Drawn) {
+    const id = drawn?.id;
+    if (id !== undefined) this.#pending.set(id, drawn?.event ?? null);
     this.actionError = null;
+    let saved = false;
     try {
       await action();
       invalidate.calendar();
-      await this.refreshWeeks();
+      saved = true;
     } catch (e) {
       this.actionError = e instanceof Error ? e.message : "That didn't save.";
-      await this.refreshWeeks();
     }
+    try {
+      if (saved && drawn) await this.#settle(drawn);
+      else await this.refreshWeeks();
+    } finally {
+      if (id !== undefined) this.#pending.delete(id);
+    }
+  }
+
+  /**
+   * Google will happily answer a read with the version from before the write it just accepted, so
+   * refetching once and trusting it is how a block ends up back where it started a second after
+   * being moved. The drawn-ahead version stays up until the server's answer matches it, or until
+   * asking again stops being worth the wait — at which point what the server says wins anyway.
+   */
+  async #settle(drawn: Drawn) {
+    for (let attempt = 0; ; attempt++) {
+      await this.refreshWeeks();
+      if (attempt >= SETTLE_ATTEMPTS - 1 || this.#serverAgrees(drawn)) return;
+      await new Promise((resolve) => setTimeout(resolve, SETTLE_DELAY_MS));
+    }
+  }
+
+  #serverAgrees(drawn: Drawn) {
+    const events = this.weeks.flatMap((week) => week.value?.events ?? []);
+    // A deletion: agreement is the event being gone.
+    if (!drawn.event) return !events.some((event) => event.id === drawn.id);
+    // A creation, which has no server id to look up — the slot it was drawn in being taken is
+    // as close as this gets.
+    const wanted = drawn.event;
+    if (drawn.id.startsWith(DRAFT_PREFIX)) return events.some((event) => sameTimes(event, wanted));
+    const found = events.find((event) => event.id === drawn.id);
+    return Boolean(
+      found && sameTimes(found, wanted) && found.title === wanted.title && found.activityId === wanted.activityId,
+    );
   }
 
   // --- pointer geometry -----------------------------------------------------
@@ -312,7 +471,7 @@ class CalendarData {
       timer: null,
     };
     if (input.longPress) pending.timer = setTimeout(() => this.#start(pending), LONG_PRESS_MS);
-    this.#pending = pending;
+    this.#pendingDrag = pending;
     if (input.armed) this.#start(pending);
   }
 
@@ -355,8 +514,8 @@ class CalendarData {
   }
 
   #cancelPending() {
-    if (this.#pending?.timer) clearTimeout(this.#pending.timer);
-    this.#pending = null;
+    if (this.#pendingDrag?.timer) clearTimeout(this.#pendingDrag.timer);
+    this.#pendingDrag = null;
   }
 
   #pointerToSlot(e: PointerEvent): { day: Date; minutes: number } | null {
@@ -393,6 +552,14 @@ class CalendarData {
     cancelAnimationFrame(this.#autoscroll);
     this.#autoscroll = null;
   }
+}
+
+/** Times come back RFC 3339 with a zone offset, which the same instant can spell more than one way. */
+function sameTimes(a: CalendarEvent, b: CalendarEvent) {
+  return (
+    new Date(a.start).getTime() === new Date(b.start).getTime() &&
+    new Date(a.end).getTime() === new Date(b.end).getTime()
+  );
 }
 
 function daysBetween(from: Date, to: Date): number {
