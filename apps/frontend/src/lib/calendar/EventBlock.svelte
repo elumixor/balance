@@ -44,6 +44,9 @@
 
   const plannable = $derived([...categories.values()].filter((c) => !c.isBuffer && !c.archived));
 
+  const selected = $derived(data.selected?.id === event.id);
+  const isPast = $derived(new Date(event.end) < new Date());
+
   const durationMinutes = $derived((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60_000);
   /** Under 45 minutes there's only room for one line: icon, title and start time together. */
   const oneLine = $derived(narrow || durationMinutes < 45);
@@ -62,21 +65,23 @@
   role="button"
   tabindex={ghost ? -1 : 0}
   aria-label="{event.title}, {formatClock(new Date(event.start))}"
-  class="absolute inset-0 flex min-w-0 flex-col justify-start overflow-hidden px-1.5 py-0.5 text-left leading-tight
+  class="absolute inset-0 flex min-w-0 flex-col overflow-hidden px-1.5 text-left leading-tight
+    {oneLine ? 'justify-center py-0' : 'justify-start py-0.5'}
     {ghost ? 'pointer-events-none opacity-70' : 'press-fade'}"
 >
   <span
-    class="pointer-events-none absolute inset-x-0 top-px bottom-px border-l-2
+    class="event-fill pointer-events-none absolute inset-x-0 top-px bottom-px border-l-2
       {flatTop ? '' : 'rounded-t-sm'} {flatBottom ? '' : 'rounded-b-sm'}
       {event.declined ? 'border-dashed opacity-50' : ''}
-      {event.tentative ? 'border-dotted' : ''}"
-    style="background:{color};border-color:{color}"
+      {event.tentative ? 'border-dotted' : ''}
+      {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''}"
+    style="--c:{color};border-color:{color}"
   ></span>
 
   <div class="relative flex w-full min-w-0 gap-1 {oneLine ? 'items-center' : 'items-start'}">
     {#if ghost}
       <span
-        class="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-black/15 text-[9px] font-bold leading-none text-white"
+        class="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-fg/10 text-[9px] font-bold leading-none text-fg"
         >{letter}</span
       >
     {:else}
@@ -89,7 +94,7 @@
               open();
             }}
             aria-label="Change category"
-            class="z-10 flex size-3.5 shrink-0 items-center justify-center rounded-full bg-black/15 text-[9px] font-bold leading-none text-white"
+            class="z-10 flex size-3.5 shrink-0 items-center justify-center rounded-full bg-fg/10 text-[9px] font-bold leading-none text-fg"
             >{letter}</button
           >
         {/snippet}
@@ -107,19 +112,21 @@
 
     <div class="flex min-w-0 flex-1 {oneLine ? 'flex-row items-center gap-1' : 'flex-col'}">
       {#if oneLine}
-        <span class="t-micro min-w-0 flex-1 truncate text-white {event.declined ? 'line-through' : ''}"
+        <span class="t-micro min-w-0 flex-1 overflow-hidden whitespace-nowrap text-fg {event.declined ? 'line-through' : ''}"
           >{event.title}</span
         >
         {#if !narrow}
-          <span class="t-data-micro shrink-0 text-white/70">{formatClock(new Date(event.start))}</span>
+          <span class="shrink-0 font-sans text-[10px] leading-none text-fg-muted/60"
+            >{formatClock(new Date(event.start))}</span
+          >
         {/if}
       {:else}
         <span
-          class="t-micro w-full text-white {event.declined ? 'line-through' : ''}"
+          class="t-micro w-full text-fg {event.declined ? 'line-through' : ''}"
           style="display:-webkit-box;-webkit-line-clamp:{titleLines};-webkit-box-orient:vertical;overflow:hidden"
           >{event.title}</span
         >
-        <span class="t-data-micro w-full shrink-0 text-white/70">
+        <span class="w-full shrink-0 font-sans text-[10px] leading-none text-fg-muted/60">
           {formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}
         </span>
       {/if}

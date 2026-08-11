@@ -189,11 +189,12 @@
         {#each days as day, index}
           <div class="relative snap-start border-line border-l">
             {#each placedByDay[index] as segment (segment.event.id)}
+              {@const dragging = data.drag?.event?.id === segment.event.id}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
-                class="absolute touch-none px-px"
-                style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:{segment.widthPercent}%"
+                class="absolute touch-none select-none {dragging ? 'opacity-0' : ''}"
+                style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - 10px)"
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
                 onpointerup={() => data.endDrag()}
@@ -203,7 +204,7 @@
                 <EventBlock
                   event={segment.event}
                   {categories}
-                  narrow={segment.widthPercent < NARROW_BLOCK_PERCENT || segment.height < (2 * HOUR_PX) / 3}
+                  narrow={segment.widthPercent < NARROW_BLOCK_PERCENT}
                   flatTop={segment.continuesBefore}
                   flatBottom={segment.continuesAfter}
                 />
@@ -221,11 +222,23 @@
               </div>
             {/each}
 
-            {#if ghostEvent && data.drag && data.drag.day.getTime() === day.getTime()}
+            {#if data.drag && data.drag.day.getTime() === day.getTime()}
+              <!-- Where the block will land once let go — snapped, not where it's held. -->
               <div
-                class="absolute inset-x-0 px-px"
+                class="pointer-events-none absolute inset-x-0 rounded-sm border-2 border-fg/50 border-dashed"
                 style="top:{(data.drag.startMinutes / 60) * HOUR_PX}px;height:{((data.drag.endMinutes -
                   data.drag.startMinutes) /
+                  60) *
+                  HOUR_PX}px"
+              ></div>
+            {/if}
+
+            {#if ghostEvent && data.drag && data.drag.day.getTime() === day.getTime()}
+              <!-- The block itself, following the pointer unsnapped. -->
+              <div
+                class="pointer-events-none absolute inset-x-0 px-px"
+                style="top:{(data.drag.freeStartMinutes / 60) * HOUR_PX}px;height:{((data.drag.freeEndMinutes -
+                  data.drag.freeStartMinutes) /
                   60) *
                   HOUR_PX}px"
               >

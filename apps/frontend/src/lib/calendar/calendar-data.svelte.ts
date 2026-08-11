@@ -72,6 +72,12 @@ export interface DragState {
   day: Date;
   startMinutes: number;
   endMinutes: number;
+  /**
+   * Where the block itself follows the pointer, unsnapped — `startMinutes`/`endMinutes` stay on
+   * the 15-minute grid so the drop target rectangle can show where a release will land.
+   */
+  freeStartMinutes: number;
+  freeEndMinutes: number;
 }
 
 interface PendingDrag {
@@ -133,6 +139,8 @@ class CalendarData {
   readonly #drawnBy = new Map<string, symbol>();
 
   #pendingDrag: PendingDrag | null = null;
+  /** Minutes between the pointer and the moved block's top at grab time — see `#start`. */
+  #grabOffsetMinutes = 0;
   /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
   #dragged = false;
   #autoscroll: number | null = null;
@@ -266,12 +274,15 @@ class CalendarData {
 
     if (this.drag.kind === "resize") {
       this.drag.endMinutes = Math.max(this.drag.startMinutes + 15, at.minutes);
+      this.drag.freeEndMinutes = Math.max(this.drag.startMinutes + 15, at.rawMinutes);
       return;
     }
     const length = this.drag.endMinutes - this.drag.startMinutes;
     this.drag.day = at.day;
     this.drag.startMinutes = Math.min(at.minutes, MINUTES_PER_DAY - length);
     this.drag.endMinutes = this.drag.startMinutes + length;
+    this.drag.freeStartMinutes = Math.min(at.rawMinutes, MINUTES_PER_DAY - length);
+    this.drag.freeEndMinutes = this.drag.freeStartMinutes + length;
   }
 
   endDrag() {
@@ -634,6 +645,8 @@ class CalendarData {
     longPress?: boolean;
     locked?: boolean;
   }) {
+    // Otherwise a press-drag across a title selects its text instead of moving the block.
+    input.e.preventDefault();
     this.#dragged = false;
     const pending: PendingDrag = {
       kind: input.kind,
@@ -661,6 +674,8 @@ class CalendarData {
     pending.el.setPointerCapture?.(pending.pointerId);
     if (pending.timer) clearTimeout(pending.timer);
 
+    this.#grabOffsetMinutes = 0;
+
     if (pending.kind === "create" && pending.activity) {
       this.drag = {
         kind: "create",
@@ -671,6 +686,8 @@ class CalendarData {
         day: this.windowStart,
         startMinutes: 0,
         endMinutes: DEFAULT_EVENT_MINUTES,
+        freeStartMinutes: 0,
+        freeEndMinutes: DEFAULT_EVENT_MINUTES,
       };
       return;
     }
@@ -678,6 +695,16 @@ class CalendarData {
 
     const start = new Date(pending.event.start);
     const end = new Date(pending.event.end);
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const endMinutes = end.getHours() * 60 + end.getMinutes();
+
+    // A move grabs the block wherever the pointer landed on it, not its top edge — remember the
+    // gap so the block doesn't jump to put its top under the pointer once dragging starts.
+    if (pending.kind === "move") {
+      const origin = this.#pointerToSlot({ clientX: pending.originX, clientY: pending.originY } as PointerEvent);
+      if (origin) this.#grabOffsetMinutes = startMinutes - origin.rawMinutes;
+    }
+
     this.drag = {
       kind: pending.kind,
       title: pending.event.title,
@@ -685,8 +712,10 @@ class CalendarData {
       activityId: pending.event.activityId,
       event: pending.event,
       day: startOfDay(start),
-      startMinutes: start.getHours() * 60 + start.getMinutes(),
-      endMinutes: end.getHours() * 60 + end.getMinutes(),
+      startMinutes,
+      endMinutes,
+      freeStartMinutes: startMinutes,
+      freeEndMinutes: endMinutes,
     };
   }
 
@@ -695,12 +724,17 @@ class CalendarData {
     this.#pendingDrag = null;
   }
 
-  #pointerToSlot(e: PointerEvent): { day: Date; minutes: number } | null {
+  #pointerToSlot(e: PointerEvent): { day: Date; minutes: number; rawMinutes: number } | null {
     if (!this.columnsEl) return null;
     const rect = this.columnsEl.getBoundingClientRect();
     const index = clamp(Math.floor(((e.clientX - rect.left) / rect.width) * STRIP_DAYS), 0, STRIP_DAYS - 1);
-    const minutes = clamp(snapMinutes(((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY), 0, MINUTES_PER_DAY);
-    return { day: addDays(this.stripStart, index), minutes };
+    const rawMinutes = clamp(
+      ((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY + this.#grabOffsetMinutes,
+      0,
+      MINUTES_PER_DAY,
+    );
+    const minutes = clamp(snapMinutes(rawMinutes), 0, MINUTES_PER_DAY);
+    return { day: addDays(this.stripStart, index), minutes, rawMinutes };
   }
 
   #instantAt(day: Date, minutes: number): Date {

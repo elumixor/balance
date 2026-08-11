@@ -203,6 +203,27 @@ html.dark {
 }
 
 /*
+ * Event blocks blend their category colour into the page background rather than using real
+ * alpha — a true-transparent fill would let the grid's hour lines show through the block.
+ */
+.event-fill {
+  --mix: 30%;
+  background: color-mix(in srgb, var(--bg) calc(100% - var(--mix)), var(--c) var(--mix));
+  transition: background-color 110ms ease;
+}
+.event-fill.is-past {
+  filter: brightness(0.88);
+}
+@media (hover: hover) {
+  .event-fill:hover {
+    --mix: 35%;
+  }
+}
+.event-fill.is-selected {
+  --mix: 50%;
+}
+
+/*
  * These resets must stay inside `@layer base`. Unlayered CSS outranks every layer, so a bare
  * `button { background: none }` beats `bg-ink` and leaves the app's primary buttons unfilled —
  * which is exactly what it did before this layer existed.
