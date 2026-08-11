@@ -128,6 +128,9 @@
     };
   });
 
+  /** The card stays hidden — and unanimated — until it knows where it belongs. */
+  const placed = $derived(Boolean(position) || !rect);
+
   /** A pending edit still belongs to the user, so it's written before the card goes away. */
   $effect(() => () => flush());
 
@@ -237,15 +240,13 @@
 
 <!-- The backdrop closes on any tap outside. On a phone the card is a sheet: there's no "beside". -->
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-<div class="fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:block" onclick={close}>
+<div class="fade-in fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:block" onclick={close}>
   <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
   <div
     bind:this={card}
     class="max-h-[85dvh] w-full overflow-y-auto rounded-t-lg border border-line bg-surface
-      sm:absolute sm:w-[380px] sm:rounded-lg"
-    style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{position || !rect
-      ? 'visible'
-      : 'hidden'}"
+      shadow-(--shadow-float) sm:absolute sm:w-[380px] sm:rounded-lg {placed ? 'float-in' : ''}"
+    style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{placed ? 'visible' : 'hidden'}"
     onclick={(e) => e.stopPropagation()}
   >
     <!-- Header: what this is on the left, the two things you can do to it on the right. -->
