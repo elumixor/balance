@@ -39,8 +39,10 @@
   const plannable = $derived(categories.filter((c) => !c.isBuffer));
   const editable = $derived(!event.readOnly && !event.allDay);
 
+  // A repeating event always counts as the same thing on every occurrence — only a one-off event
+  // gets an instance-scoped mapping.
+  const scope: MappingScope = $derived(event.seriesId ? "series" : "instance");
   // Every field below is filled in by the effect that loads the event, including the first one.
-  let scope = $state<MappingScope>("instance");
   let mode = $state<"activity" | "categories">("activity");
   let mapping = $state(false);
   let search = $state("");
@@ -64,7 +66,6 @@
   $effect(() => {
     if (loaded === event.id) return;
     loaded = event.id;
-    scope = event.mappingScope ?? "instance";
     mode = event.activityId || !event.weights.length ? "activity" : "categories";
     mapping = false;
     search = "";
@@ -328,14 +329,7 @@
 
       {#if mapping}
         {#if event.seriesId}
-          <Segmented
-            options={[
-              { value: "instance", label: "This event" },
-              { value: "series", label: "Every repeat" },
-            ]}
-            value={scope}
-            onchange={(next) => (scope = next)}
-          />
+          <p class="t-micro text-fg-faint">Applies to every occurrence of this repeating event.</p>
         {/if}
 
         <Segmented

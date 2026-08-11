@@ -146,14 +146,15 @@ export class CalendarEventsService {
     return chosen.length > 0 ? chosen : [PRIMARY_CALENDAR_ID];
   }
 
-  /** An instance mapping always wins over the series mapping it sits inside. */
+  /** A series mapping always wins over an instance mapping on one of its occurrences — category
+   *  changes on a repeating event are meant to apply to every occurrence, not just one. */
   private attachMappings(events: ExternalEvent[], mappings: readonly ResolvedMapping[]): ResolvedEvent[] {
     const byKey = new Map(mappings.map((m) => [`${m.calendarId}|${m.scope}|${m.externalEventId}`, m]));
 
     return events.map((event) => {
       const mapping =
-        byKey.get(`${event.calendarId}|instance|${event.id}`) ??
-        (event.seriesId ? byKey.get(`${event.calendarId}|series|${event.seriesId}`) : undefined);
+        (event.seriesId ? byKey.get(`${event.calendarId}|series|${event.seriesId}`) : undefined) ??
+        byKey.get(`${event.calendarId}|instance|${event.id}`);
 
       return {
         ...event,
