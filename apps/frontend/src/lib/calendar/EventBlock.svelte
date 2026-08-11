@@ -61,12 +61,42 @@
   }
 </script>
 
+{#snippet badge()}
+  {#if ghost}
+    <span class="mr-1 rounded-sm px-1 text-[10px] font-bold leading-none text-fg">{letter}</span>
+  {:else}
+    <Popover width={200}>
+      {#snippet trigger(open: () => void)}
+        <button
+          type="button"
+          onclick={(e) => {
+            e.stopPropagation();
+            open();
+          }}
+          aria-label="Change category"
+          class="z-10 mr-1 rounded-sm border border-transparent px-1 text-[10px] font-bold leading-none text-fg hover:border-fg/20 hover:bg-fg/10"
+          >{letter}</button
+        >
+      {/snippet}
+      {#snippet content(close: () => void)}
+        {#each plannable as c (c.id)}
+          <PopoverItem label={c.name} selected={category?.id === c.id} onclick={() => chooseCategory(c, close)}>
+            {#snippet icon()}
+              <span class="size-2.5 shrink-0 rounded-full" style="background:{c.color}"></span>
+            {/snippet}
+          </PopoverItem>
+        {/each}
+      {/snippet}
+    </Popover>
+  {/if}
+{/snippet}
+
 <div
   role="button"
   tabindex={ghost ? -1 : 0}
   aria-label="{event.title}, {formatClock(new Date(event.start))}"
-  class="absolute inset-0 flex min-w-0 flex-col overflow-hidden px-1.5 text-left leading-tight
-    {oneLine ? 'justify-center py-0' : 'justify-start py-0.5'}
+  class="absolute inset-0 flex min-w-0 overflow-hidden px-1.5 text-left leading-tight
+    {oneLine ? 'flex-row items-center gap-1 py-0' : 'flex-col justify-start py-0.5'}
     {ghost ? 'pointer-events-none opacity-70' : 'press-fade'}"
 >
   <span
@@ -78,55 +108,24 @@
     style="--c:{color};border-color:{color}"
   ></span>
 
-  <div class="relative flex w-full min-w-0 gap-1 {oneLine ? 'items-center' : 'items-start'}">
-    {#if ghost}
-      <span class="shrink-0 rounded-sm px-1 text-[10px] font-bold leading-none text-fg">{letter}</span>
-    {:else}
-      <Popover width={200}>
-        {#snippet trigger(open: () => void)}
-          <button
-            type="button"
-            onclick={(e) => {
-              e.stopPropagation();
-              open();
-            }}
-            aria-label="Change category"
-            class="z-10 shrink-0 rounded-sm border border-transparent px-1 text-[10px] font-bold leading-none text-fg hover:border-fg/20 hover:bg-fg/10"
-            >{letter}</button
-          >
-        {/snippet}
-        {#snippet content(close: () => void)}
-          {#each plannable as c (c.id)}
-            <PopoverItem label={c.name} selected={category?.id === c.id} onclick={() => chooseCategory(c, close)}>
-              {#snippet icon()}
-                <span class="size-2.5 shrink-0 rounded-full" style="background:{c.color}"></span>
-              {/snippet}
-            </PopoverItem>
-          {/each}
-        {/snippet}
-      </Popover>
+  {#if oneLine}
+    <span class="t-micro min-w-0 flex-1 overflow-hidden whitespace-nowrap text-fg {event.declined ? 'line-through' : ''}">
+      {@render badge()}{event.title}</span
+    >
+    {#if !narrow}
+      <span class="shrink-0 font-sans text-[10px] leading-none text-fg-muted/60"
+        >{formatClock(new Date(event.start))}</span
+      >
     {/if}
-
-    <div class="flex min-w-0 flex-1 {oneLine ? 'flex-row items-center gap-1' : 'flex-col'}">
-      {#if oneLine}
-        <span class="t-micro min-w-0 flex-1 overflow-hidden whitespace-nowrap text-fg {event.declined ? 'line-through' : ''}"
-          >{event.title}</span
-        >
-        {#if !narrow}
-          <span class="shrink-0 font-sans text-[10px] leading-none text-fg-muted/60"
-            >{formatClock(new Date(event.start))}</span
-          >
-        {/if}
-      {:else}
-        <span
-          class="t-micro w-full text-fg {event.declined ? 'line-through' : ''}"
-          style="display:-webkit-box;-webkit-line-clamp:{titleLines};-webkit-box-orient:vertical;overflow:hidden"
-          >{event.title}</span
-        >
-        <span class="w-full shrink-0 font-sans text-[10px] leading-none text-fg-muted/60">
-          {formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}
-        </span>
-      {/if}
-    </div>
-  </div>
+  {:else}
+    <span
+      class="t-micro w-full text-fg {event.declined ? 'line-through' : ''}"
+      style="display:-webkit-box;-webkit-line-clamp:{titleLines};-webkit-box-orient:vertical;overflow:hidden"
+    >
+      {@render badge()}{event.title}</span
+    >
+    <span class="w-full shrink-0 font-sans text-[10px] leading-none text-fg-muted/60">
+      {formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}
+    </span>
+  {/if}
 </div>
