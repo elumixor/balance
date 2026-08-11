@@ -44,8 +44,7 @@ export function hexToHsl(hex: string): Hsl {
 
   const d = max - min;
   const s = d / (1 - Math.abs(2 * l - 1));
-  const h =
-    max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
 
   return { h: (h * 60 + 360) % 360, s: s * 100, l: l * 100 };
 }

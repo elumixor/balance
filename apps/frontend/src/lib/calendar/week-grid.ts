@@ -3,7 +3,7 @@ import type { CalendarEvent } from "$lib/types";
 
 export const HOUR_PX = 48;
 export const SNAP_MINUTES = 15;
-export const MIN_BLOCK_PX = 18;
+export const MIN_BLOCK_PX = (SNAP_MINUTES / 60) * HOUR_PX;
 export const DEFAULT_EVENT_MINUTES = 60;
 /** Where the scroller opens, and where a block stops being wide enough to say anything. */
 export const OPENING_HOUR = 7;

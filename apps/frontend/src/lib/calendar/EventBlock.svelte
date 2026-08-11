@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { restColor, withAlpha } from "$lib/colors";
+  import { restColor } from "$lib/colors";
   import { formatClock } from "$lib/format";
   import type { CalendarEvent, Category } from "$lib/types";
 
@@ -43,7 +43,8 @@
   type="button"
   aria-label="{event.title}, {formatClock(new Date(event.start))}"
   disabled={ghost}
-  class="absolute inset-0 flex min-w-0 flex-col items-start overflow-hidden px-1.5 py-0.5 text-left
+  class="absolute inset-0 flex min-w-0 flex-col items-start overflow-hidden px-1.5 text-left leading-tight
+    {narrow ? 'justify-center py-0' : 'justify-start py-0.5'}
     {ghost ? 'pointer-events-none opacity-70' : 'press-sm'}"
 >
   <span
@@ -51,10 +52,10 @@
       {flatTop ? '' : 'rounded-t-sm'} {flatBottom ? '' : 'rounded-b-sm'}
       {event.declined ? 'border-dashed opacity-50' : ''}
       {event.tentative ? 'border-dotted' : ''}"
-    style="background:{withAlpha(color, 0.16)};border-color:{color}"
+    style="background:{color};border-color:{color}"
   ></span>
-  <span class="t-micro relative w-full truncate {event.declined ? 'line-through' : ''}">{event.title}</span>
+  <span class="t-micro relative w-full truncate text-white {event.declined ? 'line-through' : ''}">{event.title}</span>
   {#if !narrow}
-    <span class="t-data-micro relative w-full truncate text-fg-faint">{caption}</span>
+    <span class="t-data-micro relative w-full truncate text-white/70">{caption}</span>
   {/if}
 </button>
