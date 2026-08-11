@@ -3,6 +3,7 @@
   import CalendarPanel from "$lib/calendar/CalendarPanel.svelte";
   import ConnectGoogle from "$lib/calendar/ConnectGoogle.svelte";
   import EventEditor from "$lib/calendar/EventEditor.svelte";
+  import SelectionBar from "$lib/calendar/SelectionBar.svelte";
   import WeekGrid from "$lib/calendar/WeekGrid.svelte";
   import WeekMeters from "$lib/calendar/WeekMeters.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
@@ -47,6 +48,8 @@
    * there works its way back out to the calendar on its own.
    */
   function onkeydown(e: KeyboardEvent) {
+    // Escape lets go of a gathered batch — the editor's own popup handles its own Escape.
+    if (e.key === "Escape" && data.picked.size > 0) return data.clearPicked();
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     const key = e.key.toLowerCase();
     const redo = key === "y" || (key === "z" && e.shiftKey);
@@ -119,6 +122,8 @@
     </div>
   {/if}
 </div>
+
+<SelectionBar {categories} />
 
 {#if data.selected}
   <!-- Keyed so opening a second event starts from that event's mapping, not the last one's. -->

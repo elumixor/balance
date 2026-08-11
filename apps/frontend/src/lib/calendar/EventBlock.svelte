@@ -1,10 +1,9 @@
 <script lang="ts">
   import { restColor } from "$lib/colors";
-  import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
   import { formatClock } from "$lib/format";
   import type { CalendarEvent, Category } from "$lib/types";
-  import { Combobox } from "bits-ui";
   import { calendarData } from "./calendar-data.svelte";
+  import CategoryPicker from "./CategoryPicker.svelte";
 
   /**
    * A block is coloured by whichever category it mostly counts toward, so a week reads as bands
@@ -45,6 +44,8 @@
   const plannable = $derived([...categories.values()].filter((c) => !c.isBuffer && !c.archived));
 
   const selected = $derived(data.selected?.id === event.id);
+  /** One of the blocks a box or a ⌘-click gathered, and so one a batch write is about. */
+  const picked = $derived(!ghost && data.picked.has(event.id));
   const isPast = $derived(new Date(event.end) < new Date());
 
   const durationMinutes = $derived((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60_000);
@@ -55,17 +56,11 @@
 
   /** Set to the badge's rect while the quick category pick is open, null otherwise. */
   let categoryRect = $state<DOMRect | null>(null);
-  let categorySearch = $state("");
-  const categoryMatches = $derived(
-    plannable.filter((c) => c.name.toLowerCase().includes(categorySearch.trim().toLowerCase())),
-  );
 
   function chooseCategory(id: string) {
-    const target = plannable.find((c) => c.id === id);
     categoryRect = null;
-    if (!target) return;
     void data.mapEvent(event, event.mappingScope ?? "instance", {
-      weights: [{ categoryId: target.id, weightPercent: 100 }],
+      weights: [{ categoryId: id, weightPercent: 100 }],
     });
   }
 </script>
@@ -76,9 +71,10 @@
   {:else}
     <button
       type="button"
+      data-category-badge
+      onpointerdown={(e) => e.stopPropagation()}
       onclick={(e) => {
         e.stopPropagation();
-        categorySearch = "";
         categoryRect = e.currentTarget.getBoundingClientRect();
       }}
       aria-label="Change category"
@@ -101,7 +97,7 @@
       {flatTop ? '' : 'rounded-t-sm'} {flatBottom ? '' : 'rounded-b-sm'}
       {event.declined ? 'border-dashed opacity-50' : ''}
       {event.tentative ? 'border-dotted' : ''}
-      {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''}"
+      {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''} {picked ? 'is-picked' : ''}"
     style="--c:{color};border-color:{color}"
   ></span>
 
@@ -128,39 +124,11 @@
 </div>
 
 {#if categoryRect}
-  <AnchoredPopup rect={categoryRect} width={220} onclose={() => (categoryRect = null)}>
-    <div class="p-1.5">
-      <Combobox.Root type="single" value={category?.id ?? ""} onValueChange={chooseCategory} open={true}>
-        <Combobox.Input
-          oninput={(e) => (categorySearch = e.currentTarget.value)}
-          placeholder="Category"
-          aria-label="Search categories"
-          class="t-body h-9 w-full rounded-md border border-transparent bg-transparent px-2 transition-colors
-            hover:border-line focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
-        />
-        <Combobox.ContentStatic
-          onInteractOutside={() => {}}
-          onEscapeKeydown={() => {}}
-          class="mt-1 max-h-60 overflow-y-auto"
-        >
-          {#each categoryMatches as c (c.id)}
-            <Combobox.Item value={c.id} label={c.name}>
-              {#snippet children({ selected })}
-                <div
-                  class="flex items-center gap-2 rounded-md px-2 py-2 t-body hover:bg-surface-alt
-                    {selected ? 'bg-surface-alt' : ''}"
-                >
-                  <span class="size-2.5 shrink-0 rounded-full" style="background:{c.color}"></span>
-                  <span class="flex-1 truncate">{c.name}</span>
-                </div>
-              {/snippet}
-            </Combobox.Item>
-          {/each}
-          {#if !categoryMatches.length}
-            <p class="t-micro px-2 py-2 text-fg-faint">No matches</p>
-          {/if}
-        </Combobox.ContentStatic>
-      </Combobox.Root>
-    </div>
-  </AnchoredPopup>
+  <CategoryPicker
+    rect={categoryRect}
+    categories={plannable}
+    value={category?.id ?? ""}
+    onchoose={chooseCategory}
+    onclose={() => (categoryRect = null)}
+  />
 {/if}

@@ -68,6 +68,47 @@
   const todayStart = $derived(startOfDay(new Date()).getTime());
   const nowTop = $derived((minutesIntoDay(new Date()) / 60) * HOUR_PX);
 
+  /** The gathering box, in pixels down the grid rather than the grid's own day-and-minute units. */
+  const marqueeBox = $derived.by(() => {
+    const box = data.marquee;
+    if (!box) return null;
+    const left = Math.min(box.fromDay, box.toDay) * dayWidth;
+    const top = (Math.min(box.fromMinutes, box.toMinutes) / 60) * HOUR_PX;
+    return {
+      left,
+      top,
+      width: Math.abs(box.toDay - box.fromDay) * dayWidth,
+      height: (Math.abs(box.toMinutes - box.fromMinutes) / 60) * HOUR_PX,
+    };
+  });
+
+  /**
+   * Where the rest of a dragged batch will land: the same distance the held block has travelled,
+   * as an outline each, so a batch move shows what it's about to do to every block in it.
+   */
+  const batchTargets = $derived.by(() => {
+    const drag = data.drag;
+    if (!drag?.event || drag.others.length === 0) return [];
+    const target = new Date(drag.day);
+    target.setMinutes(drag.startMinutes);
+    const shiftStart = drag.kind === "resize" ? 0 : target.getTime() - new Date(drag.event.start).getTime();
+    const shiftEnd =
+      new Date(drag.day).setMinutes(drag.endMinutes) - new Date(drag.event.end).getTime();
+
+    return drag.others.map((event) => {
+      const start = new Date(new Date(event.start).getTime() + shiftStart);
+      const end = new Date(new Date(event.end).getTime() + shiftEnd);
+      const dayIndex = Math.round((startOfDay(start).getTime() - data.stripStart.getTime()) / MS_PER_DAY);
+      const startMinutes = minutesIntoDay(start);
+      return {
+        id: event.id,
+        left: dayIndex * dayWidth,
+        top: (startMinutes / 60) * HOUR_PX,
+        height: Math.max(2, ((end.getTime() - start.getTime()) / 60_000 / 60) * HOUR_PX),
+      };
+    });
+  });
+
   const pad = (n: number) => n.toString().padStart(2, "0");
 
   /** The drag ghost borrows the block's own look, so what you're dropping is what you'll get. */
@@ -183,7 +224,8 @@
               <div
                 class="relative py-0.5"
                 style="grid-column:{span.dayIndex + 1} / span {span.days}"
-                onclick={(e) => data.tap(span.event, e.currentTarget.getBoundingClientRect())}
+                onclick={(e) =>
+                  data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
               >
                 <EventBlock event={span.event} {categories} narrow />
               </div>
@@ -193,8 +235,13 @@
       </div>
 
       <!-- One background gradient rather than an hour line per row per day. -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         bind:this={data.columnsEl}
+        onpointerdown={(e) => data.beginMarquee(e)}
+        onpointermove={(e) => data.moveMarquee(e)}
+        onpointerup={() => data.endMarquee()}
+        onpointercancel={() => data.endMarquee()}
         class="relative grid"
         style="grid-template-columns:{columns};height:{24 *
           HOUR_PX}px;background-image:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px {HOUR_PX}px)"
@@ -203,16 +250,20 @@
           <div class="relative snap-start border-line border-l">
             {#each placedByDay[index] as segment (segment.event.id)}
               {@const dragging = data.drag?.event?.id === segment.event.id}
+              <!-- The rest of a dragged batch stays where it is, faded, with its target outlined. -->
+              {@const trailing = data.drag?.others.some((other) => other.id === segment.event.id) ?? false}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
-                class="absolute touch-none select-none {dragging ? 'opacity-0' : ''}"
+                data-event
+                class="absolute touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
                 style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - 10px)"
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
                 onpointerup={() => data.endDrag()}
                 onpointercancel={() => data.endDrag()}
-                onclick={(e) => data.tap(segment.event, e.currentTarget.getBoundingClientRect())}
+                onclick={(e) =>
+                  data.tap(segment.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
               >
                 <EventBlock
                   event={segment.event}
@@ -240,6 +291,21 @@
             {/if}
           </div>
         {/each}
+
+        {#each batchTargets as target (target.id)}
+          <!-- The rest of the batch, outlined where the same distance takes them. -->
+          <div
+            class="pointer-events-none absolute rounded-sm border-2 border-fg/40 border-dashed"
+            style="left:{target.left}px;width:{dayWidth - 10}px;top:{target.top}px;height:{target.height}px"
+          ></div>
+        {/each}
+
+        {#if marqueeBox}
+          <div
+            class="pointer-events-none absolute rounded-sm border border-fg/40 bg-fg/5"
+            style="left:{marqueeBox.left}px;top:{marqueeBox.top}px;width:{marqueeBox.width}px;height:{marqueeBox.height}px"
+          ></div>
+        {/if}
 
         {#if data.drag}
           {@const snappedIndex = Math.round((data.drag.day.getTime() - data.stripStart.getTime()) / MS_PER_DAY)}

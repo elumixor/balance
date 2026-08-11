@@ -222,6 +222,11 @@ html.dark {
 .event-fill.is-past {
   --mix: 15%;
 }
+/* Gathered for a batch: an outline drawn inside the fill, so nothing on the grid shifts. */
+.event-fill.is-picked {
+  --mix: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--fg);
+}
 
 /*
  * These resets must stay inside `@layer base`. Unlayered CSS outranks every layer, so a bare

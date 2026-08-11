@@ -1,5 +1,5 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { SvelteMap } from "svelte/reactivity";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "$lib/dates";
 import {
   createCalendarEvent,
@@ -10,8 +10,9 @@ import {
 } from "$lib/queries";
 import { calendarWeek, invalidate, store } from "$lib/store.svelte";
 import type { Activity, ActivityWeight, CalendarEvent, MappingScope } from "$lib/types";
+import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
-import { DEFAULT_EVENT_MINUTES, snapMinutes } from "./week-grid";
+import { DEFAULT_EVENT_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
 
 /** Three weeks of columns, so there's a week to scroll into on either side of the seven shown. */
 export const STRIP_DAYS = 3 * DAYS_PER_WEEK;
@@ -68,6 +69,11 @@ export interface DragState {
   readonly weights: ActivityWeight[];
   readonly activityId: string | null;
   readonly event: CalendarEvent | null;
+  /**
+   * The rest of the gathered blocks, dragged along by the same distance as the one under the
+   * finger — empty for an ordinary drag.
+   */
+  readonly others: readonly CalendarEvent[];
   /** The day the block is over, as a date: the strip runs across weeks, so an index won't do. */
   day: Date;
   startMinutes: number;
@@ -80,6 +86,17 @@ export interface DragState {
   freeEndMinutes: number;
   /** The block's horizontal position, continuous in day units from `stripStart` — see `freeStartMinutes`. */
   freeDayIndex: number;
+}
+
+/**
+ * A rectangle being drawn over empty grid, in the grid's own units: a continuous day index across
+ * the strip, and minutes into the day. Both corners are where the pointer was, unsnapped.
+ */
+export interface MarqueeState {
+  readonly fromDay: number;
+  readonly fromMinutes: number;
+  toDay: number;
+  toMinutes: number;
 }
 
 interface PendingDrag {
@@ -110,6 +127,14 @@ class CalendarData {
   selectedRect = $state<DOMRect | null>(null);
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
+  /**
+   * The blocks gathered for a write that applies to all of them — by dragging a box over empty
+   * grid, or by ⌘-clicking them one at a time. Ids rather than events: a refetch replaces every
+   * event object, and a selection has to survive that.
+   */
+  readonly picked = new SvelteSet<string>();
+  /** The box being dragged over empty grid right now, if any. */
+  marquee = $state<MarqueeState | null>(null);
   /** The writes ⌘Z can take back — every editing method records one. */
   readonly history = new CalendarHistory();
 
@@ -141,6 +166,8 @@ class CalendarData {
   readonly #drawnBy = new Map<string, symbol>();
 
   #pendingDrag: PendingDrag | null = null;
+  /** What was gathered before the current box started, so shrinking it back doesn't drop them. */
+  #pickedBeforeMarquee = new Set<string>();
   /** Minutes between the pointer and the moved block's top at grab time — see `#start`. */
   #grabOffsetMinutes = 0;
   /** Same as `#grabOffsetMinutes`, but for the block's day column, in day units. */
@@ -189,6 +216,9 @@ class CalendarData {
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(new Date()));
 
+  /** The gathered blocks themselves, as the week currently holds them. */
+  readonly pickedEvents = $derived(this.events.filter((event) => this.picked.has(event.id)));
+
   select(event: CalendarEvent, rect: DOMRect) {
     this.selected = event;
     this.selectedRect = rect;
@@ -198,15 +228,82 @@ class CalendarData {
    * A block's own click, which arrives on whatever captured the pointer rather than on the button
    * inside it — hence a tap being answered here and not by the block. A press that turned into a
    * real drag still ends in a click, and that one isn't a tap.
+   *
+   * ⌘-click adds the block to the gathered ones instead of opening it: a batch is built by
+   * clicking, so a click can't also be what takes the batch apart.
    */
-  tap(event: CalendarEvent, rect: DOMRect) {
+  tap(event: CalendarEvent, rect: DOMRect, additive = false) {
     if (this.#dragged) return;
+    if (additive) return this.togglePicked(event);
+    this.clearPicked();
     this.select(event, rect);
   }
 
   deselect() {
     this.selected = null;
     this.selectedRect = null;
+  }
+
+  // --- gathering many blocks -------------------------------------------------
+
+  togglePicked(event: CalendarEvent) {
+    this.deselect();
+    if (!this.picked.delete(event.id)) this.picked.add(event.id);
+  }
+
+  clearPicked() {
+    this.picked.clear();
+  }
+
+  /**
+   * A box dragged over empty grid gathers what it touches. Only where there's nothing already —
+   * over a block the same press moves it — and only with a mouse: a finger dragging the grid is
+   * scrolling it, which is how the week changes.
+   */
+  beginMarquee(e: PointerEvent) {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    if ((e.target as Element | null)?.closest("[data-event]")) return;
+    const at = this.#pointerToPoint(e);
+    if (!at) return;
+
+    e.preventDefault();
+    this.deselect();
+    if (!e.shiftKey) this.clearPicked();
+    this.#pickedBeforeMarquee = new Set(this.picked);
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    this.marquee = { fromDay: at.dayIndex, fromMinutes: at.minutes, toDay: at.dayIndex, toMinutes: at.minutes };
+  }
+
+  moveMarquee(e: PointerEvent) {
+    const marquee = this.marquee;
+    if (!marquee) return;
+    const at = this.#pointerToPoint(e);
+    if (!at) return;
+    marquee.toDay = at.dayIndex;
+    marquee.toMinutes = at.minutes;
+    this.#gather(marquee);
+  }
+
+  endMarquee() {
+    this.marquee = null;
+  }
+
+  /** Every block the box overlaps, in the grid's own coordinates rather than the screen's. */
+  #gather(marquee: MarqueeState) {
+    const fromDay = Math.min(marquee.fromDay, marquee.toDay);
+    const toDay = Math.max(marquee.fromDay, marquee.toDay);
+    const fromMinutes = Math.min(marquee.fromMinutes, marquee.toMinutes);
+    const toMinutes = Math.max(marquee.fromMinutes, marquee.toMinutes);
+
+    const hit = new Set<string>();
+    for (const segment of segmentsForRange(this.events, this.stripStart, STRIP_DAYS)) {
+      const overlapsDay = segment.dayIndex + 1 > fromDay && segment.dayIndex < toDay;
+      const overlapsTime = segment.endMinutes > fromMinutes && segment.startMinutes < toMinutes;
+      if (overlapsDay && overlapsTime) hit.add(segment.event.id);
+    }
+    // Shift-dragging adds to what was already gathered; a plain drag cleared it on the way in.
+    for (const id of hit) this.picked.add(id);
+    for (const id of [...this.picked]) if (!hit.has(id) && !this.#pickedBeforeMarquee.has(id)) this.picked.delete(id);
   }
 
   enter() {
@@ -246,6 +343,11 @@ class CalendarData {
 
   /** A block: a tap opens its editor, so moving it takes a hold rather than a nudge. */
   beginMove(event: CalendarEvent, e: PointerEvent) {
+    // A ⌘-click is gathering blocks, not moving one — the click that follows does the gathering.
+    if (e.metaKey || e.ctrlKey) {
+      this.#dragged = false;
+      return;
+    }
     this.#arm({
       kind: "move",
       activity: null,
@@ -301,7 +403,30 @@ class CalendarData {
     const end = this.#instantAt(drag.day, drag.endMinutes);
 
     if (drag.kind === "create" && drag.activityId) void this.#create(drag.activityId, drag.title, start, end);
+    else if (drag.event && drag.others.length > 0) void this.#retimeBatch(drag, start, end);
     else if (drag.event) void this.retimeEvent(drag.event, start, end);
+  }
+
+  /**
+   * The dragged block goes where it was dropped and every other gathered one moves by the same
+   * distance — the whole batch as one step, so ⌘Z takes it back in one press.
+   */
+  #retimeBatch(drag: DragState, start: Date, end: Date) {
+    const was = drag.event;
+    if (!was) return;
+    const shiftStart = start.getTime() - new Date(was.start).getTime();
+    const shiftEnd = end.getTime() - new Date(was.end).getTime();
+    // A resize drags one edge, so the others' starts stay put and only their ends follow.
+    const moving = drag.kind === "resize" ? 0 : shiftStart;
+
+    return this.#batch([
+      { event: was, start, end },
+      ...drag.others.map((event) => ({
+        event,
+        start: new Date(new Date(event.start).getTime() + moving),
+        end: new Date(new Date(event.end).getTime() + shiftEnd),
+      })),
+    ].map(({ event, start: at, end: until }) => this.#retimeStep(event, at, until)));
   }
 
   // --- writes ---------------------------------------------------------------
@@ -384,6 +509,54 @@ class CalendarData {
     if (!(await this.#remove(ref))) return;
 
     this.history.push({ undo: () => this.#restore(ref, event), redo: () => this.#remove(ref) });
+  }
+
+  /** What a whole gathered batch counts as — one category over all of them, in one step. */
+  mapEvents(events: readonly CalendarEvent[], weights: ActivityWeight[]) {
+    return this.#batch(events.map((event) => this.#mapStep(event, weights)));
+  }
+
+  // --- batches: many writes, one step in history ------------------------------
+
+  /**
+   * Every write is drawn on the grid the moment it's asked for — `#run` draws before it queues —
+   * so a batch of ten lands on screen at once and catches up with the server one write at a time.
+   * The step recorded is the whole batch, which is what ⌘Z is expected to take back.
+   */
+  async #batch(steps: readonly HistoryStep[]) {
+    const attempts = await Promise.all(steps.map((step) => step.redo().then((done) => (done ? step : null))));
+    const done = attempts.filter((step): step is HistoryStep => step !== null);
+    if (done.length === 0) return;
+
+    this.history.push({ undo: () => runAll(done, "undo"), redo: () => runAll(done, "redo") });
+  }
+
+  /** One event's move, as a step that runs either way — what a batch is built out of. */
+  #retimeStep(event: CalendarEvent, start: Date, end: Date): HistoryStep {
+    const ref = this.#ref(event);
+    const before: EventFields = {
+      title: event.title,
+      description: event.description,
+      start: new Date(event.start),
+      end: new Date(event.end),
+    };
+    const after: EventFields = { ...before, start, end };
+    return {
+      undo: () => this.#writeFields(ref, event, before),
+      redo: () => this.#writeFields(ref, event, after),
+    };
+  }
+
+  /** One event's mapping, as a step that runs either way — see `mapEvent` for the single case. */
+  #mapStep(event: CalendarEvent, weights: ActivityWeight[]): HistoryStep {
+    const ref = this.#ref(event);
+    const before = mappingOf(event);
+    return {
+      undo: async () =>
+        (await this.#writeMapping(ref, event, "instance", null)) &&
+        (before ? this.#writeMapping(ref, event, before.scope, before.choice) : true),
+      redo: () => this.#writeMapping(ref, event, "instance", { weights }),
+    };
   }
 
   // --- one write each, so an undo can run the same one backwards -------------
@@ -690,6 +863,7 @@ class CalendarData {
         weights: pending.activity.weights,
         activityId: pending.activity.id,
         event: null,
+        others: [],
         day: this.windowStart,
         startMinutes: 0,
         endMinutes: DEFAULT_EVENT_MINUTES,
@@ -718,12 +892,19 @@ class CalendarData {
       }
     }
 
+    // Dragging one of the gathered blocks drags the lot: the others keep their distance from it,
+    // so a batch moves as the shape it already was. Anything read-only can't come along.
+    const others = this.picked.has(pending.event.id)
+      ? this.pickedEvents.filter((event) => event.id !== pending.event?.id && !event.readOnly && !event.allDay)
+      : [];
+
     this.drag = {
       kind: pending.kind,
       title: pending.event.title,
       weights: pending.event.weights,
       activityId: pending.event.activityId,
       event: pending.event,
+      others,
       day: startOfDay(start),
       startMinutes,
       endMinutes,
@@ -738,22 +919,24 @@ class CalendarData {
     this.#pendingDrag = null;
   }
 
+  /** Where the pointer is in the grid's own units, with nothing added or rounded off. */
+  #pointerToPoint(e: { clientX: number; clientY: number }): { dayIndex: number; minutes: number } | null {
+    if (!this.columnsEl) return null;
+    const rect = this.columnsEl.getBoundingClientRect();
+    return {
+      dayIndex: clamp(((e.clientX - rect.left) / rect.width) * STRIP_DAYS, 0, STRIP_DAYS),
+      minutes: clamp(((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY, 0, MINUTES_PER_DAY),
+    };
+  }
+
   #pointerToSlot(
     e: PointerEvent,
   ): { day: Date; minutes: number; rawMinutes: number; rawIndex: number } | null {
-    if (!this.columnsEl) return null;
-    const rect = this.columnsEl.getBoundingClientRect();
-    const rawIndex = clamp(
-      ((e.clientX - rect.left) / rect.width) * STRIP_DAYS + this.#grabOffsetDays,
-      0,
-      STRIP_DAYS - 1,
-    );
+    const at = this.#pointerToPoint(e);
+    if (!at) return null;
+    const rawIndex = clamp(at.dayIndex + this.#grabOffsetDays, 0, STRIP_DAYS - 1);
     const index = Math.round(rawIndex);
-    const rawMinutes = clamp(
-      ((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY + this.#grabOffsetMinutes,
-      0,
-      MINUTES_PER_DAY,
-    );
+    const rawMinutes = clamp(at.minutes + this.#grabOffsetMinutes, 0, MINUTES_PER_DAY);
     const minutes = clamp(snapMinutes(rawMinutes), 0, MINUTES_PER_DAY);
     return { day: addDays(this.stripStart, index), minutes, rawMinutes, rawIndex };
   }
@@ -784,6 +967,12 @@ class CalendarData {
     cancelAnimationFrame(this.#autoscroll);
     this.#autoscroll = null;
   }
+}
+
+/** Every write of a batch at once; the answer is whether all of them landed. */
+async function runAll(steps: readonly HistoryStep[], which: "undo" | "redo") {
+  const results = await Promise.all(steps.map((step) => step[which]()));
+  return results.every(Boolean);
 }
 
 /** What the event counts as right now, in the shape a write takes — so an undo can put it back. */
