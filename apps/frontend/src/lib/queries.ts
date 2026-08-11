@@ -40,11 +40,13 @@ export const updateCalendarPrefs = (input: { visibleCalendarIds?: string[]; writ
 /** Query params, so the raw helper — the generated client still doesn't wire them. */
 export const getCalendarWeek = (from: string, to: string) => apiGet<CalendarWeek>("/calendar/events", { from, to });
 export const createCalendarEvent = (input: {
-  activityId: string;
+  /** Absent for an event that counts as nothing — putting back a deleted one, say. */
+  activityId?: string;
   start: string;
   end: string;
   calendarId?: string;
   title?: string;
+  description?: string;
 }) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
 export const updateCalendarEvent = (
   id: string,

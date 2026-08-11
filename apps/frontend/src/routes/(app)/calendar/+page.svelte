@@ -39,7 +39,28 @@
     const to = end.toLocaleDateString(undefined, { month: "short" });
     return `${from} – ${to} ${year}`;
   });
+
+  /**
+   * ⌘Z takes back the last write to the week — a move, an edit, a delete, what a block counts as.
+   * Inside a text field it's the field's own undo that's being asked for, and that one is the
+   * browser's; the editor writes what it holds a moment after the typing stops anyway, so an undo
+   * there works its way back out to the calendar on its own.
+   */
+  function onkeydown(e: KeyboardEvent) {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    const key = e.key.toLowerCase();
+    const redo = key === "y" || (key === "z" && e.shiftKey);
+    if (key !== "z" && !redo) return;
+
+    const target = e.target as HTMLElement | null;
+    if (target?.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+
+    e.preventDefault();
+    void (redo ? data.redo() : data.undo());
+  }
 </script>
+
+<svelte:window {onkeydown} />
 
 <!-- The rail carries this screen's own controls; on a phone they're behind the strip's one button. -->
 <SidePanelSection>

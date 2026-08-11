@@ -75,29 +75,41 @@ export class CalendarEventsService {
    * Dropping an activity onto the grid makes a real event in the user's calendar, and maps it in
    * the same breath. Google first: a mapping that fails leaves a visible uncategorised event,
    * where the other order would leave a mapping pointing at nothing.
+   *
+   * The activity is optional because undoing a delete has to put back events that counted as
+   * nothing, or as a split of categories the caller re-applies itself; those come with a title.
    */
-  async createFromActivity(input: {
-    activityId: string;
+  async create(input: {
+    activityId?: string;
     start: Date;
     end: Date;
     calendarId?: string;
     title?: string;
+    description?: string;
   }): Promise<ResolvedEvent> {
     const connection = await this.connected();
-    const activity = await db.query.activities.findFirst({
-      where: and(eq(activities.id, input.activityId), eq(activities.userId, this.userId)),
-      with: { weights: true },
-    });
-    if (!activity) throw new ApiError("That activity no longer exists", 404);
+    const activity = input.activityId
+      ? await db.query.activities.findFirst({
+          where: and(eq(activities.id, input.activityId), eq(activities.userId, this.userId)),
+          with: { weights: true },
+        })
+      : undefined;
+    if (input.activityId && !activity) throw new ApiError("That activity no longer exists", 404);
+
+    const title = input.title ?? activity?.name;
+    if (!title) throw new ApiError("An event needs an activity or a title");
 
     const calendarId = input.calendarId ?? connection.account.writeCalendarId ?? PRIMARY_CALENDAR_ID;
     const created = await connection.provider.createEvent({
       calendarId,
-      title: input.title ?? activity.name,
+      title,
+      description: input.description,
       start: input.start,
       end: input.end,
     });
     eventCache.invalidate(this.userId);
+
+    if (!activity) return this.attachMappings([{ ...created, calendarId }], [])[0];
 
     const mapping = await new EventMappingService(this.userId).upsert({
       calendarId,

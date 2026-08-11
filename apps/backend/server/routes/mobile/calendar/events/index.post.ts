@@ -9,11 +9,12 @@ import { CalendarEventDTO } from "../../../../lib/dto";
 export default handler(
   {
     body: {
-      activityId: z.string().min(1),
+      activityId: z.string().min(1).optional(),
       start: z.string(),
       end: z.string(),
       calendarId: z.string().optional(),
       title: z.string().trim().min(1).optional(),
+      description: z.string().optional(),
     },
   },
   async ({ body, event }) => {
@@ -26,7 +27,7 @@ export default handler(
       }
       if (end <= start) throw new ApiError("An event has to end after it starts");
 
-      const created = await new CalendarEventsService(user.id).createFromActivity({ ...body, start, end });
+      const created = await new CalendarEventsService(user.id).create({ ...body, start, end });
       setResponseStatus(event, 201);
       return { event: new CalendarEventDTO(created) };
     } catch (e) {

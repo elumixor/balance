@@ -22,6 +22,9 @@ const LONG_PRESS_MS = 350;
 const AUTOSCROLL_EDGE_PX = 48;
 const AUTOSCROLL_STEP_PX = 12;
 
+/** How many events keep a handle before the lot is dropped — see `#ref`. */
+const REF_LIMIT = 200;
+
 /** How many times a write asks the calendar to agree with it before taking no for an answer. */
 const SETTLE_ATTEMPTS = 3;
 const SETTLE_DELAY_MS = 600;
@@ -118,6 +121,8 @@ class CalendarData {
   readonly #pending = new SvelteMap<string, CalendarEvent | null>();
   /** Ids for events that don't have one yet — see `#create`. */
   #nextTempId = 0;
+  /** One handle per event the history still has a step for — see `#ref`. */
+  readonly #refs = new Map<string, EventRef>();
 
   #pendingDrag: PendingDrag | null = null;
   /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
@@ -278,75 +283,71 @@ class CalendarData {
   // --- writes ---------------------------------------------------------------
 
   /**
-   * A whole series recolours every instance of it, which is more than this screen can work out
-   * on its own — so only the single-instance case gets to show its answer early.
+   * The editor holds its own copy of the fields it's showing and writes them back when it closes,
+   * which is an argument an undo would lose — so an undo closes it first.
    */
+  undo() {
+    this.deselect();
+    return this.history.undo();
+  }
+
+  redo() {
+    this.deselect();
+    return this.history.redo();
+  }
+
   async mapEvent(
     event: CalendarEvent,
     scope: MappingScope,
     choice: { activityId?: string; weights?: ActivityWeight[] },
   ) {
-    const activity = store.activities.value?.find((a) => a.id === choice.activityId) ?? null;
-    await this.#run(
-      () =>
-        saveEventMapping({
-          calendarId: event.calendarId,
-          externalEventId: scope === "series" && event.seriesId ? event.seriesId : event.id,
-          scope,
-          ...choice,
-        }),
-      scope === "instance"
-        ? {
-            id: event.id,
-            event: {
-              ...event,
-              mappingScope: "instance",
-              activityId: choice.activityId ?? null,
-              activityName: activity?.name ?? null,
-              weights: choice.weights ?? activity?.weights ?? [],
-            },
-          }
-        : undefined,
-    );
+    const ref = this.#ref(event);
+    const before = mappingOf(event);
+    if (!(await this.#writeMapping(ref, event, scope, choice))) return;
+
+    this.history.push({
+      // The write may have been a series mapping over an instance one: clearing what it wrote is
+      // what lets the older, narrower mapping underneath count again.
+      undo: async () =>
+        (await this.#writeMapping(ref, event, scope, null)) &&
+        (before ? this.#writeMapping(ref, event, before.scope, before.choice) : true),
+      redo: () => this.#writeMapping(ref, event, scope, choice),
+    });
   }
 
   async unmapEvent(event: CalendarEvent) {
+    const ref = this.#ref(event);
+    const before = mappingOf(event);
     const scope = event.mappingScope ?? "instance";
-    await this.#run(
-      () =>
-        removeEventMapping({
-          calendarId: event.calendarId,
-          externalEventId: scope === "series" && event.seriesId ? event.seriesId : event.id,
-          scope,
-        }),
-      scope === "instance"
-        ? { id: event.id, event: { ...event, mappingScope: null, activityId: null, activityName: null, weights: [] } }
-        : undefined,
-    );
+    if (!(await this.#writeMapping(ref, event, scope, null)) || !before) return;
+
+    this.history.push({
+      undo: () => this.#writeMapping(ref, event, before.scope, before.choice),
+      redo: () => this.#writeMapping(ref, event, scope, null),
+    });
   }
 
   /** The editor saves title, notes and times together — one write, so one refetch and one undo. */
   async editEvent(event: CalendarEvent, patch: { title?: string; description?: string; start?: Date; end?: Date }) {
-    await this.#run(
-      () =>
-        updateCalendarEvent(event.id, {
-          calendarId: event.calendarId,
-          title: patch.title,
-          description: patch.description,
-          start: patch.start?.toISOString(),
-          end: patch.end?.toISOString(),
-        }),
-      {
-        id: event.id,
-        event: {
-          ...event,
-          title: patch.title ?? event.title,
-          description: patch.description ?? event.description,
-          start: (patch.start ?? new Date(event.start)).toISOString(),
-          end: (patch.end ?? new Date(event.end)).toISOString(),
-        },
-      },
-    );
+    const ref = this.#ref(event);
+    const before: EventFields = {
+      title: event.title,
+      description: event.description,
+      start: new Date(event.start),
+      end: new Date(event.end),
+    };
+    const after: EventFields = {
+      title: patch.title ?? before.title,
+      description: patch.description ?? before.description,
+      start: patch.start ?? before.start,
+      end: patch.end ?? before.end,
+    };
+    if (!(await this.#writeFields(ref, event, after))) return;
+
+    this.history.push({
+      undo: () => this.#writeFields(ref, event, before),
+      redo: () => this.#writeFields(ref, event, after),
+    });
   }
 
   retimeEvent(event: CalendarEvent, start: Date, end: Date) {
@@ -355,7 +356,136 @@ class CalendarData {
 
   async deleteEvent(event: CalendarEvent) {
     this.deselect();
-    await this.#run(() => deleteCalendarEvent(event.id, event.calendarId), { id: event.id, event: null });
+    const ref = this.#ref(event);
+    if (!(await this.#remove(ref))) return;
+
+    this.history.push({ undo: () => this.#restore(ref, event), redo: () => this.#remove(ref) });
+  }
+
+  // --- one write each, so an undo can run the same one backwards -------------
+
+  async #writeFields(ref: EventRef, was: CalendarEvent, fields: EventFields): Promise<boolean> {
+    const done = await this.#run(
+      () =>
+        updateCalendarEvent(ref.id, {
+          calendarId: ref.calendarId,
+          title: fields.title,
+          // An empty string is how the calendar is told the notes are gone; leaving it out keeps them.
+          description: fields.description ?? "",
+          start: fields.start.toISOString(),
+          end: fields.end.toISOString(),
+        }),
+      {
+        id: ref.id,
+        event: {
+          ...was,
+          id: ref.id,
+          calendarId: ref.calendarId,
+          title: fields.title,
+          description: fields.description,
+          start: fields.start.toISOString(),
+          end: fields.end.toISOString(),
+        },
+      },
+    );
+    return done !== null;
+  }
+
+  /**
+   * Set or clear what an event counts as. A whole series recolours every instance of it, which is
+   * more than this screen can work out on its own — so only the single-instance case gets to show
+   * its answer early.
+   */
+  async #writeMapping(
+    ref: EventRef,
+    was: CalendarEvent,
+    scope: MappingScope,
+    choice: Mapping["choice"] | null,
+  ): Promise<boolean> {
+    const target = {
+      calendarId: ref.calendarId,
+      externalEventId: scope === "series" && was.seriesId ? was.seriesId : ref.id,
+      scope,
+    };
+    const activity = store.activities.value?.find((a) => a.id === choice?.activityId) ?? null;
+    const drawn: Drawn | undefined =
+      scope === "instance"
+        ? {
+            id: ref.id,
+            event: {
+              ...was,
+              id: ref.id,
+              calendarId: ref.calendarId,
+              mappingScope: choice ? "instance" : null,
+              activityId: choice?.activityId ?? null,
+              activityName: choice ? (activity?.name ?? null) : null,
+              weights: choice ? (choice.weights ?? activity?.weights ?? []) : [],
+            },
+          }
+        : undefined;
+
+    const done = await this.#run<unknown>(
+      () => (choice ? saveEventMapping({ ...target, ...choice }) : removeEventMapping(target)),
+      drawn,
+    );
+    return done !== null;
+  }
+
+  async #remove(ref: EventRef): Promise<boolean> {
+    const done = await this.#run(() => deleteCalendarEvent(ref.id, ref.calendarId), { id: ref.id, event: null });
+    return done !== null;
+  }
+
+  /**
+   * Puts a deleted event back. The calendar gives it a new id, so the handle every step of this
+   * event's history holds is moved onto it — and the mapping, which the delete took with it, is
+   * written again over the new event.
+   */
+  async #restore(ref: EventRef, was: CalendarEvent): Promise<boolean> {
+    const created = await this.#run(
+      async () => {
+        const event = await createCalendarEvent({
+          activityId: was.activityId ?? undefined,
+          calendarId: was.calendarId,
+          title: was.title,
+          description: was.description ?? undefined,
+          start: was.start,
+          end: was.end,
+        });
+        // An activity maps itself on the way in; a split of categories has to be written after.
+        if (!was.activityId && was.mappingScope === "instance" && was.weights.length > 0) {
+          await saveEventMapping({
+            calendarId: event.calendarId,
+            externalEventId: event.id,
+            scope: "instance",
+            weights: was.weights,
+          });
+        }
+        return event;
+      },
+      { id: ref.id, event: { ...was, id: ref.id, calendarId: ref.calendarId } },
+    );
+    if (!created) return false;
+
+    this.#refs.delete(ref.id);
+    ref.id = created.id;
+    ref.calendarId = created.calendarId;
+    this.#refs.set(ref.id, ref);
+    return true;
+  }
+
+  /**
+   * The one handle for an event, shared by every step that touches it. Old entries are worth no
+   * more than the events they point at, so the map is emptied rather than grown without end —
+   * the steps holding a handle keep working, they just stop being found by id.
+   */
+  #ref(event: CalendarEvent): EventRef {
+    const known = this.#refs.get(event.id);
+    if (known) return known;
+    if (this.#refs.size > REF_LIMIT) this.#refs.clear();
+    const ref = { id: event.id, calendarId: event.calendarId };
+    this.#refs.set(event.id, ref);
+    return ref;
   }
 
   /**
@@ -383,13 +513,23 @@ class CalendarData {
       activityName: activity?.name ?? title,
       weights: activity?.weights ?? [],
     };
-    await this.#run(
+    const created = await this.#run(
       async () => {
-        await createCalendarEvent({ activityId, title, start: start.toISOString(), end: end.toISOString() });
+        const event = await createCalendarEvent({
+          activityId,
+          title,
+          start: start.toISOString(),
+          end: end.toISOString(),
+        });
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
+        return event;
       },
       { id: draft.id, event: draft },
     );
+    if (!created) return;
+
+    const ref = this.#ref(created);
+    this.history.push({ undo: () => this.#remove(ref), redo: () => this.#restore(ref, created) });
   }
 
   /**
@@ -398,13 +538,15 @@ class CalendarData {
    * that refetch has landed — so a write that failed rolls back to what the server actually holds
    * without a frame of the old value showing in between.
    */
-  async #run(action: () => Promise<unknown>, drawn?: Drawn) {
+  async #run<T>(action: () => Promise<T>, drawn?: Drawn): Promise<T | null> {
     const id = drawn?.id;
     if (id !== undefined) this.#pending.set(id, drawn?.event ?? null);
     this.actionError = null;
+    // What the write answered, kept so the step that recorded it can be run backwards later.
+    let answer: T | null = null;
     let saved = false;
     try {
-      await action();
+      answer = await action();
       invalidate.calendar();
       saved = true;
     } catch (e) {
@@ -416,6 +558,7 @@ class CalendarData {
     } finally {
       if (id !== undefined) this.#pending.delete(id);
     }
+    return saved ? answer : null;
   }
 
   /**
@@ -552,6 +695,15 @@ class CalendarData {
     cancelAnimationFrame(this.#autoscroll);
     this.#autoscroll = null;
   }
+}
+
+/** What the event counts as right now, in the shape a write takes — so an undo can put it back. */
+function mappingOf(event: CalendarEvent): Mapping | null {
+  if (!event.mappingScope) return null;
+  return {
+    scope: event.mappingScope,
+    choice: event.activityId ? { activityId: event.activityId } : { weights: event.weights },
+  };
 }
 
 /** Times come back RFC 3339 with a zone offset, which the same instant can spell more than one way. */
