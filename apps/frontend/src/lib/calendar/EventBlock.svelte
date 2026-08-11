@@ -63,7 +63,7 @@
 
 {#snippet badge()}
   {#if ghost}
-    <span class="rounded-sm px-1 text-[10px] font-bold leading-none text-fg">{letter}</span>
+    <span class="-my-0.5 rounded-sm px-1 py-0.5 text-[10px] font-bold leading-none text-fg">{letter}</span>
   {:else}
     <Popover width={200}>
       {#snippet trigger(open: () => void)}
@@ -74,7 +74,7 @@
             open();
           }}
           aria-label="Change category"
-          class="z-10 rounded-sm px-1 text-[10px] font-bold leading-none text-fg transition-colors hover:bg-fg/10"
+          class="-my-0.5 z-10 rounded-sm px-1 py-0.5 text-[10px] font-bold leading-none text-fg transition-colors hover:bg-fg/10"
           >{letter}</button
         >
       {/snippet}
