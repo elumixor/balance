@@ -220,6 +220,17 @@
     data.deselect();
   }
 
+  /**
+   * On a wide screen the card floats over a live calendar: a press outside closes it and still
+   * reaches whatever it landed on, so pressing the next block opens that block rather than spending
+   * a click dismissing this one. Closing on pointerdown — ahead of the grid's own click — keeps
+   * that order, and a drag begun on another block runs untouched.
+   */
+  function onpointerdown(e: PointerEvent) {
+    if (!card || card.contains(e.target as Node)) return;
+    close();
+  }
+
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Escape") close();
     // Enter commits from any single-line field; the notes get their own newlines.
@@ -227,7 +238,7 @@
   }
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onpointerdown} />
 
 {#snippet row(label: string, icon: typeof MapPin)}
   {@const Icon = icon}
@@ -238,14 +249,23 @@
   </button>
 {/snippet}
 
-<!-- The backdrop closes on any tap outside. On a phone the card is a sheet: there's no "beside". -->
+<!--
+  On a phone the card is a sheet, and the backdrop behind it dims the week and takes the tap that
+  closes it. On a wide screen there is no backdrop to speak of — the calendar underneath stays live,
+  so the next block you press opens straight away instead of costing a click on this one.
+-->
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-<div class="fade-in fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:block" onclick={close}>
+<div
+  class="fade-in fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:pointer-events-none sm:block
+    sm:bg-transparent"
+  onclick={close}
+>
   <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
   <div
     bind:this={card}
     class="max-h-[85dvh] w-full overflow-y-auto rounded-t-lg border border-line bg-surface
-      shadow-(--shadow-float) sm:absolute sm:w-[380px] sm:rounded-lg {placed ? 'float-in' : ''}"
+      shadow-(--shadow-float) sm:pointer-events-auto sm:absolute sm:w-[380px] sm:rounded-lg
+      {placed ? 'float-in' : ''}"
     style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{placed ? 'visible' : 'hidden'}"
     onclick={(e) => e.stopPropagation()}
   >
