@@ -43,15 +43,18 @@
   type="button"
   aria-label="{event.title}, {formatClock(new Date(event.start))}"
   disabled={ghost}
-  class="absolute inset-0 flex min-w-0 flex-col items-start overflow-hidden border-l-2 px-1.5 py-0.5 text-left
-    {ghost ? 'pointer-events-none opacity-70' : 'press-sm'}
-    {flatTop ? '' : 'rounded-t-sm'} {flatBottom ? '' : 'rounded-b-sm'}
-    {event.declined ? 'border-dashed opacity-50' : ''}
-    {event.tentative ? 'border-dotted' : ''}"
-  style="background:{withAlpha(color, 0.16)};border-color:{color}"
+  class="absolute inset-0 flex min-w-0 flex-col items-start overflow-hidden px-1.5 py-0.5 text-left
+    {ghost ? 'pointer-events-none opacity-70' : 'press-sm'}"
 >
-  <span class="t-micro w-full truncate {event.declined ? 'line-through' : ''}">{event.title}</span>
+  <span
+    class="pointer-events-none absolute inset-x-0 top-px bottom-px border-l-2
+      {flatTop ? '' : 'rounded-t-sm'} {flatBottom ? '' : 'rounded-b-sm'}
+      {event.declined ? 'border-dashed opacity-50' : ''}
+      {event.tentative ? 'border-dotted' : ''}"
+    style="background:{withAlpha(color, 0.16)};border-color:{color}"
+  ></span>
+  <span class="t-micro relative w-full truncate {event.declined ? 'line-through' : ''}">{event.title}</span>
   {#if !narrow}
-    <span class="t-data-micro w-full truncate text-fg-faint">{caption}</span>
+    <span class="t-data-micro relative w-full truncate text-fg-faint">{caption}</span>
   {/if}
 </button>
