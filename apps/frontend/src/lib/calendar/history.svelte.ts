@@ -3,11 +3,11 @@
  *
  * There is no local copy of the calendar to rewind — Google holds the events — so an undo is a
  * write of its own: the entry that recorded a move remembers where the block came from and puts
- * it back. That also means an undo can fail the way any write can, which is why every step
- * answers with whether it worked, and a step that didn't leaves the stacks where they were.
+ * it back. The block moves the moment ⌘Z is pressed — the write behind it is drawn ahead like
+ * every other — so the only thing a step's answer is needed for is the write that fails.
  */
 export interface HistoryStep {
-  /** Puts the world back the way it was. `false` when the write failed and nothing moved. */
+  /** Puts the world back the way it was. `false` when the write failed and the week didn't. */
   undo(): Promise<boolean>;
   redo(): Promise<boolean>;
 }
@@ -18,8 +18,6 @@ const LIMIT = 50;
 export class CalendarHistory {
   #past = $state<HistoryStep[]>([]);
   #future = $state<HistoryStep[]>([]);
-  /** One undo at a time: two writes racing to the same event would land in either order. */
-  #running = false;
 
   readonly canUndo = $derived(this.#past.length > 0);
   readonly canRedo = $derived(this.#future.length > 0);
@@ -43,26 +41,28 @@ export class CalendarHistory {
     return this.#step(false);
   }
 
-  async #step(undoing: boolean) {
-    if (this.#running) return;
+  /**
+   * The step moves stacks at once and its write runs behind it, so holding ⌘Z walks back through
+   * the week as fast as it's pressed rather than a round trip at a time. The writes themselves are
+   * queued in order by the caller, so they land the way they were pressed.
+   */
+  #step(undoing: boolean) {
     const from = undoing ? this.#past : this.#future;
     const step = from.at(-1);
     if (!step) return;
 
-    this.#running = true;
-    try {
-      // Popped first: the write it runs must not see itself as the next thing to undo.
-      if (undoing) this.#past = from.slice(0, -1);
-      else this.#future = from.slice(0, -1);
-
-      const moved = await (undoing ? step.undo() : step.redo());
-      // A write that failed changed nothing, so the step stays on the side it came from.
-      if (undoing && moved) this.#future = [...this.#future, step];
-      else if (undoing) this.#past = [...this.#past, step];
-      else if (moved) this.#past = [...this.#past, step];
-      else this.#future = [...this.#future, step];
-    } finally {
-      this.#running = false;
+    if (undoing) {
+      this.#past = from.slice(0, -1);
+      this.#future = [...this.#future, step];
+    } else {
+      this.#future = from.slice(0, -1);
+      this.#past = [...this.#past, step];
     }
+
+    // A write that failed leaves the calendar somewhere neither stack describes any more, and the
+    // refetch it ends with is what the week really holds. Nothing left to undo from here.
+    void (undoing ? step.undo() : step.redo()).then((moved) => {
+      if (!moved) this.clear();
+    });
   }
 }

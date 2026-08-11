@@ -123,6 +123,14 @@ class CalendarData {
   #nextTempId = 0;
   /** One handle per event the history still has a step for — see `#ref`. */
   readonly #refs = new Map<string, EventRef>();
+  /** The writes waiting their turn at the server — see `#run`. */
+  #queue: Promise<unknown> = Promise.resolve();
+  /**
+   * Which write each drawn-ahead block belongs to. Editing the same event twice in a row leaves
+   * the first write holding a version of it nobody wants any more: without this, that write's
+   * refetch would take the second one's block off the grid and put its own back for a second.
+   */
+  readonly #drawnBy = new Map<string, symbol>();
 
   #pendingDrag: PendingDrag | null = null;
   /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
@@ -402,11 +410,12 @@ class CalendarData {
     scope: MappingScope,
     choice: Mapping["choice"] | null,
   ): Promise<boolean> {
-    const target = {
+    // Read when the write is actually sent: an event put back by an undo is a new event by then.
+    const target = () => ({
       calendarId: ref.calendarId,
       externalEventId: scope === "series" && was.seriesId ? was.seriesId : ref.id,
       scope,
-    };
+    });
     const activity = store.activities.value?.find((a) => a.id === choice?.activityId) ?? null;
     const drawn: Drawn | undefined =
       scope === "instance"
@@ -425,7 +434,7 @@ class CalendarData {
         : undefined;
 
     const done = await this.#run<unknown>(
-      () => (choice ? saveEventMapping({ ...target, ...choice }) : removeEventMapping(target)),
+      () => (choice ? saveEventMapping({ ...target(), ...choice }) : removeEventMapping(target())),
       drawn,
     );
     return done !== null;
@@ -537,28 +546,53 @@ class CalendarData {
    * the truth: the week is refetched either way, and the drawn-ahead version is only dropped once
    * that refetch has landed — so a write that failed rolls back to what the server actually holds
    * without a frame of the old value showing in between.
+   *
+   * The asking is one at a time. Two writes to the same event in flight together land in whichever
+   * order Google gets to them, and undoing three edits in a second is exactly that case.
    */
-  async #run<T>(action: () => Promise<T>, drawn?: Drawn): Promise<T | null> {
+  #run<T>(action: () => Promise<T>, drawn?: Drawn): Promise<T | null> {
     const id = drawn?.id;
-    if (id !== undefined) this.#pending.set(id, drawn?.event ?? null);
+    // Drawn now, before anything is queued: this is the whole point of drawing ahead. Holding
+    // ⌘Z stacks its answers up on the grid at once and lets the writes catch up behind them.
+    const token = Symbol("write");
+    if (id !== undefined) {
+      this.#pending.set(id, drawn?.event ?? null);
+      this.#drawnBy.set(id, token);
+    }
     this.actionError = null;
-    // What the write answered, kept so the step that recorded it can be run backwards later.
-    let answer: T | null = null;
-    let saved = false;
-    try {
-      answer = await action();
-      invalidate.calendar();
-      saved = true;
-    } catch (e) {
-      this.actionError = e instanceof Error ? e.message : "That didn't save.";
-    }
-    try {
-      if (saved && drawn) await this.#settle(drawn);
-      else await this.refreshWeeks();
-    } finally {
-      if (id !== undefined) this.#pending.delete(id);
-    }
-    return saved ? answer : null;
+    /** Whether this write's version of the block is still the one on screen — see `#drawnBy`. */
+    const current = () => id !== undefined && this.#drawnBy.get(id) === token;
+
+    const run = this.#queue.then(async () => {
+      // What the write answered, kept so the step that recorded it can be run backwards later.
+      let answer: T | null = null;
+      let saved = false;
+      try {
+        answer = await action();
+        invalidate.calendar();
+        saved = true;
+      } catch (e) {
+        this.actionError = e instanceof Error ? e.message : "That didn't save.";
+      }
+      try {
+        // Nothing to wait for once a later write has drawn over this one: the block on screen is
+        // that write's now, and it does its own settling. Waiting here would only put this
+        // write's older version back for as long as the waiting took.
+        if (saved && drawn && current()) await this.#settle(drawn);
+        else await this.refreshWeeks();
+      } finally {
+        if (id !== undefined && current()) {
+          this.#pending.delete(id);
+          this.#drawnBy.delete(id);
+        }
+      }
+      return saved ? answer : null;
+    });
+    this.#queue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 
   /**
