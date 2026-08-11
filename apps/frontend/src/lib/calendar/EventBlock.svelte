@@ -40,7 +40,7 @@
     return ranked[0]?.category ?? null;
   });
   const color = $derived(category?.color ?? restColor);
-  const letter = $derived((category?.name ?? "?").charAt(0).toUpperCase());
+  const letter = $derived((category?.name ?? "Rest").charAt(0).toUpperCase());
 
   const plannable = $derived([...categories.values()].filter((c) => !c.isBuffer && !c.archived));
 
@@ -80,10 +80,7 @@
 
   <div class="relative flex w-full min-w-0 gap-1 {oneLine ? 'items-center' : 'items-start'}">
     {#if ghost}
-      <span
-        class="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-fg/10 text-[9px] font-bold leading-none text-fg"
-        >{letter}</span
-      >
+      <span class="shrink-0 rounded-sm px-1 text-[10px] font-bold leading-none text-fg">{letter}</span>
     {:else}
       <Popover width={200}>
         {#snippet trigger(open: () => void)}
@@ -94,7 +91,7 @@
               open();
             }}
             aria-label="Change category"
-            class="z-10 flex size-3.5 shrink-0 items-center justify-center rounded-full bg-fg/10 text-[9px] font-bold leading-none text-fg"
+            class="z-10 shrink-0 rounded-sm border border-transparent px-1 text-[10px] font-bold leading-none text-fg hover:border-fg/20 hover:bg-fg/10"
             >{letter}</button
           >
         {/snippet}
