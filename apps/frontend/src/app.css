@@ -192,6 +192,15 @@ html.dark {
     opacity: 0.45;
   }
 }
+@utility press-fade {
+  transition: opacity 110ms ease;
+  &:active:not(:disabled) {
+    opacity: 0.85;
+  }
+  &:disabled {
+    opacity: 0.45;
+  }
+}
 
 /*
  * These resets must stay inside `@layer base`. Unlayered CSS outranks every layer, so a bare
@@ -310,7 +319,8 @@ html.dark {
     animation: none;
   }
   .press,
-  .press-sm {
+  .press-sm,
+  .press-fade {
     transition: none;
   }
 }
