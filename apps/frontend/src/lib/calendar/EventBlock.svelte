@@ -109,22 +109,22 @@
   ></span>
 
   {#if oneLine}
-    <span class="t-micro min-w-0 flex-1 overflow-hidden whitespace-nowrap text-fg {event.declined ? 'line-through' : ''}">
+    <span class="relative z-10 min-w-0 flex-1 overflow-hidden whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}">
       {@render badge()}{event.title}</span
     >
     {#if !narrow}
-      <span class="shrink-0 font-sans text-[10px] leading-none text-fg-muted/60"
+      <span class="relative z-10 shrink-0 font-sans text-[10px] leading-none text-fg-muted/60"
         >{formatClock(new Date(event.start))}</span
       >
     {/if}
   {:else}
     <span
-      class="t-micro w-full text-fg {event.declined ? 'line-through' : ''}"
+      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}"
       style="display:-webkit-box;-webkit-line-clamp:{titleLines};-webkit-box-orient:vertical;overflow:hidden"
     >
       {@render badge()}{event.title}</span
     >
-    <span class="w-full shrink-0 font-sans text-[10px] leading-none text-fg-muted/60">
+    <span class="relative z-10 w-full shrink-0 font-sans text-[10px] leading-none text-fg-muted/60">
       {formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}
     </span>
   {/if}

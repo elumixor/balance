@@ -211,9 +211,6 @@ html.dark {
   background: color-mix(in srgb, var(--bg) calc(100% - var(--mix)), var(--c) var(--mix));
   transition: background-color 110ms ease;
 }
-.event-fill.is-past {
-  filter: brightness(0.88);
-}
 @media (hover: hover) {
   .event-fill:hover {
     --mix: 35%;
@@ -221,6 +218,9 @@ html.dark {
 }
 .event-fill.is-selected {
   --mix: 50%;
+}
+.event-fill.is-past {
+  --mix: 15%;
 }
 
 /*

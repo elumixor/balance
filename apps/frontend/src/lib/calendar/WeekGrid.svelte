@@ -49,6 +49,19 @@
     const segments = segmentsForRange(data.events, data.stripStart, STRIP_DAYS);
     return days.map((_, index) => placeDay(segments.filter((s) => s.dayIndex === index)));
   });
+
+  /** The dragged block's own slot, so the free-floating preview keeps its real width. */
+  const draggedSegment = $derived.by(() => {
+    const id = data.drag?.event?.id;
+    if (!id) return null;
+    for (const dayEntries of placedByDay) {
+      const found = dayEntries.find((s) => s.event.id === id);
+      if (found) return found;
+    }
+    return null;
+  });
+  const ghostWidthPercent = $derived(draggedSegment?.widthPercent ?? 100);
+  const ghostLeftPercent = $derived(draggedSegment?.leftPercent ?? 0);
   const allDay = $derived(allDaySpansForRange(data.events, data.stripStart, STRIP_DAYS));
   const headerPx = $derived(DAY_HEAD_PX + (allDay.length > 0 ? ALL_DAY_PX : 0));
 
@@ -222,35 +235,40 @@
               </div>
             {/each}
 
-            {#if data.drag && data.drag.day.getTime() === day.getTime()}
-              <!-- Where the block will land once let go — snapped, not where it's held. -->
-              <div
-                class="pointer-events-none absolute inset-x-0 rounded-sm border-2 border-fg/50 border-dashed"
-                style="top:{(data.drag.startMinutes / 60) * HOUR_PX}px;height:{((data.drag.endMinutes -
-                  data.drag.startMinutes) /
-                  60) *
-                  HOUR_PX}px"
-              ></div>
-            {/if}
-
-            {#if ghostEvent && data.drag && data.drag.day.getTime() === day.getTime()}
-              <!-- The block itself, following the pointer unsnapped. -->
-              <div
-                class="pointer-events-none absolute inset-x-0 px-px"
-                style="top:{(data.drag.freeStartMinutes / 60) * HOUR_PX}px;height:{((data.drag.freeEndMinutes -
-                  data.drag.freeStartMinutes) /
-                  60) *
-                  HOUR_PX}px"
-              >
-                <EventBlock event={ghostEvent} {categories} ghost narrow />
-              </div>
-            {/if}
-
             {#if day.getTime() === todayStart}
               <div class="pointer-events-none absolute inset-x-0 h-px bg-danger" style="top:{nowTop}px"></div>
             {/if}
           </div>
         {/each}
+
+        {#if data.drag}
+          {@const snappedIndex = Math.round((data.drag.day.getTime() - data.stripStart.getTime()) / MS_PER_DAY)}
+          {@const targetLeft = snappedIndex * dayWidth + (ghostLeftPercent / 100) * dayWidth}
+          <!-- Where the block will land once let go — snapped, not where it's held. -->
+          <div
+            class="pointer-events-none absolute rounded-sm border-2 border-fg/50 border-dashed"
+            style="left:{targetLeft}px;width:{(ghostWidthPercent / 100) * dayWidth -
+              10}px;top:{(data.drag.startMinutes / 60) * HOUR_PX}px;height:{((data.drag.endMinutes -
+              data.drag.startMinutes) /
+              60) *
+              HOUR_PX}px"
+          ></div>
+        {/if}
+
+        {#if ghostEvent && data.drag}
+          {@const freeLeft = data.drag.freeDayIndex * dayWidth + (ghostLeftPercent / 100) * dayWidth}
+          <!-- The block itself, following the pointer unsnapped on both axes. -->
+          <div
+            class="pointer-events-none absolute"
+            style="left:{freeLeft}px;width:{(ghostWidthPercent / 100) * dayWidth -
+              10}px;top:{(data.drag.freeStartMinutes / 60) * HOUR_PX}px;height:{((data.drag.freeEndMinutes -
+              data.drag.freeStartMinutes) /
+              60) *
+              HOUR_PX}px"
+          >
+            <EventBlock event={ghostEvent} {categories} ghost narrow />
+          </div>
+        {/if}
       </div>
     </div>
   </div>

@@ -78,6 +78,8 @@ export interface DragState {
    */
   freeStartMinutes: number;
   freeEndMinutes: number;
+  /** The block's horizontal position, continuous in day units from `stripStart` — see `freeStartMinutes`. */
+  freeDayIndex: number;
 }
 
 interface PendingDrag {
@@ -141,6 +143,8 @@ class CalendarData {
   #pendingDrag: PendingDrag | null = null;
   /** Minutes between the pointer and the moved block's top at grab time — see `#start`. */
   #grabOffsetMinutes = 0;
+  /** Same as `#grabOffsetMinutes`, but for the block's day column, in day units. */
+  #grabOffsetDays = 0;
   /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
   #dragged = false;
   #autoscroll: number | null = null;
@@ -283,6 +287,7 @@ class CalendarData {
     this.drag.endMinutes = this.drag.startMinutes + length;
     this.drag.freeStartMinutes = Math.min(at.rawMinutes, MINUTES_PER_DAY - length);
     this.drag.freeEndMinutes = this.drag.freeStartMinutes + length;
+    this.drag.freeDayIndex = at.rawIndex;
   }
 
   endDrag() {
@@ -675,8 +680,10 @@ class CalendarData {
     if (pending.timer) clearTimeout(pending.timer);
 
     this.#grabOffsetMinutes = 0;
+    this.#grabOffsetDays = 0;
 
     if (pending.kind === "create" && pending.activity) {
+      const dayIndex = daysBetween(this.stripStart, this.windowStart);
       this.drag = {
         kind: "create",
         title: pending.activity.name,
@@ -688,6 +695,7 @@ class CalendarData {
         endMinutes: DEFAULT_EVENT_MINUTES,
         freeStartMinutes: 0,
         freeEndMinutes: DEFAULT_EVENT_MINUTES,
+        freeDayIndex: dayIndex,
       };
       return;
     }
@@ -697,12 +705,17 @@ class CalendarData {
     const end = new Date(pending.event.end);
     const startMinutes = start.getHours() * 60 + start.getMinutes();
     const endMinutes = end.getHours() * 60 + end.getMinutes();
+    const dayIndex = daysBetween(this.stripStart, startOfDay(start));
 
-    // A move grabs the block wherever the pointer landed on it, not its top edge — remember the
-    // gap so the block doesn't jump to put its top under the pointer once dragging starts.
+    // A move grabs the block wherever the pointer landed on it, not its top-left corner —
+    // remember the gap so the block doesn't jump to put that corner under the pointer once
+    // dragging starts.
     if (pending.kind === "move") {
       const origin = this.#pointerToSlot({ clientX: pending.originX, clientY: pending.originY } as PointerEvent);
-      if (origin) this.#grabOffsetMinutes = startMinutes - origin.rawMinutes;
+      if (origin) {
+        this.#grabOffsetMinutes = startMinutes - origin.rawMinutes;
+        this.#grabOffsetDays = dayIndex - origin.rawIndex;
+      }
     }
 
     this.drag = {
@@ -716,6 +729,7 @@ class CalendarData {
       endMinutes,
       freeStartMinutes: startMinutes,
       freeEndMinutes: endMinutes,
+      freeDayIndex: dayIndex,
     };
   }
 
@@ -724,17 +738,24 @@ class CalendarData {
     this.#pendingDrag = null;
   }
 
-  #pointerToSlot(e: PointerEvent): { day: Date; minutes: number; rawMinutes: number } | null {
+  #pointerToSlot(
+    e: PointerEvent,
+  ): { day: Date; minutes: number; rawMinutes: number; rawIndex: number } | null {
     if (!this.columnsEl) return null;
     const rect = this.columnsEl.getBoundingClientRect();
-    const index = clamp(Math.floor(((e.clientX - rect.left) / rect.width) * STRIP_DAYS), 0, STRIP_DAYS - 1);
+    const rawIndex = clamp(
+      ((e.clientX - rect.left) / rect.width) * STRIP_DAYS + this.#grabOffsetDays,
+      0,
+      STRIP_DAYS - 1,
+    );
+    const index = Math.round(rawIndex);
     const rawMinutes = clamp(
       ((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY + this.#grabOffsetMinutes,
       0,
       MINUTES_PER_DAY,
     );
     const minutes = clamp(snapMinutes(rawMinutes), 0, MINUTES_PER_DAY);
-    return { day: addDays(this.stripStart, index), minutes, rawMinutes };
+    return { day: addDays(this.stripStart, index), minutes, rawMinutes, rawIndex };
   }
 
   #instantAt(day: Date, minutes: number): Date {
