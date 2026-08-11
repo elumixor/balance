@@ -101,15 +101,30 @@ export function placeDay(segments: readonly Segment[]): PlacedSegment[] {
   let clusterEnd = -1;
 
   const closeCluster = () => {
-    for (const { segment, column } of cluster) {
-      const widthPercent = 100 / columnEnds.length;
-      placed.push({
-        ...segment,
-        top: (segment.startMinutes / 60) * HOUR_PX,
-        height: Math.max(MIN_BLOCK_PX, ((segment.endMinutes - segment.startMinutes) / 60) * HOUR_PX),
-        leftPercent: column * widthPercent,
-        widthPercent,
-      });
+    const widthPercent = 100 / columnEnds.length;
+    // Segments arrive in start order, so grouping by column keeps each column's own start order.
+    const byColumn = new Map<number, { segment: Segment; column: number }[]>();
+    for (const entry of cluster) {
+      const list = byColumn.get(entry.column) ?? [];
+      list.push(entry);
+      byColumn.set(entry.column, list);
+    }
+
+    for (const list of byColumn.values()) {
+      for (let i = 0; i < list.length; i++) {
+        const { segment, column } = list[i];
+        const top = (segment.startMinutes / 60) * HOUR_PX;
+        const desired = Math.max(MIN_BLOCK_PX, ((segment.endMinutes - segment.startMinutes) / 60) * HOUR_PX);
+        const next = list[i + 1];
+        const available = next ? (next.segment.startMinutes / 60) * HOUR_PX - top : Infinity;
+        placed.push({
+          ...segment,
+          top,
+          height: Math.max(1, Math.min(desired, available)),
+          leftPercent: column * widthPercent,
+          widthPercent,
+        });
+      }
     }
     cluster = [];
     columnEnds = [];
