@@ -3,6 +3,7 @@
   import { auth } from "$lib/auth.svelte";
   import AccountMenu from "$lib/components/AccountMenu.svelte";
   import BrandMark from "$lib/components/BrandMark.svelte";
+  import Spinner from "$lib/components/Spinner.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { sidePanel } from "./side-panel.svelte";
 
@@ -25,13 +26,20 @@
       <a
         href={tab.href}
         aria-current={active ? "page" : undefined}
+        aria-busy={tab.syncing()}
         class="flex items-center gap-3 rounded-md px-3 py-2.5 {active
           ? 'bg-surface-alt text-fg'
           : 'hoverable text-fg-muted'}"
       >
         <tab.icon size={18} />
         <span class="t-label flex-1">{tab.label}</span>
-        {#if active}<span class="size-1.5 rounded-full bg-ink"></span>{/if}
+        <!-- The row's one trailing mark: a spinner while the screen's data is being checked,
+             the you-are-here dot the rest of the time. -->
+        {#if tab.syncing()}
+          <Spinner size={12} />
+        {:else if active}
+          <span class="size-1.5 rounded-full bg-ink"></span>
+        {/if}
       </a>
     {/each}
   </div>

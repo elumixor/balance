@@ -6,11 +6,23 @@ import { API_BASE_URL } from "./api";
 const PUBLISHABLE_KEY =
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_Y2VudHJhbC1jb25kb3ItMzguY2xlcmsuYWNjb3VudHMuZGV2JA";
 
+/** Written the moment there's a session, read before Clerk has had a chance to confirm one. */
+const SIGNED_IN_KEY = "balance:signed-in";
+
 class Auth {
   /** False until Clerk has replayed any stored session, so screens can hold their first frame. */
   loaded = $state(false);
+  /**
+   * Whether this device ended its last visit signed in. Clerk takes a round trip to say so
+   * for certain, and holding the splash for it means a launch that stares back — so the app
+   * opens on the shell and its stored rows, and the confirmation lands behind them. A session
+   * that turns out to have expired redirects to sign-in the moment Clerk says so.
+   */
+  readonly wasSignedIn = readSignedIn();
   signedIn = $state(false);
   email = $state("");
+  /** Which account's data the device is holding — see `adoptUser`. */
+  userId = $state("");
   /** Set when Clerk itself couldn't start. Without this the app sits on its splash forever. */
   startupError = $state<string | null>(null);
 
@@ -47,6 +59,8 @@ class Auth {
     const clerk = this.#clerk;
     this.signedIn = Boolean(clerk?.session);
     this.email = clerk?.user?.primaryEmailAddress?.emailAddress ?? "";
+    this.userId = clerk?.user?.id ?? "";
+    writeSignedIn(this.signedIn);
   }
 
   /** The session token every API request carries, or null when nobody is signed in. */
@@ -141,6 +155,24 @@ class Auth {
 }
 
 export const auth = new Auth();
+
+function readSignedIn() {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(SIGNED_IN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSignedIn(signedIn: boolean) {
+  try {
+    if (typeof localStorage === "undefined") return;
+    if (signedIn) localStorage.setItem(SIGNED_IN_KEY, "1");
+    else localStorage.removeItem(SIGNED_IN_KEY);
+  } catch {
+    // Storage being unavailable only costs the splash-free launch, not the session itself.
+  }
+}
 
 /** Clerk error bodies are structured; the long message is the one worth showing. */
 export function authErrorMessage(error: unknown, fallback: string) {

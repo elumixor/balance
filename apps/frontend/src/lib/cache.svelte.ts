@@ -1,11 +1,17 @@
+import * as persist from "./persist";
+
 /**
- * One fetch per thing per app session.
+ * One fetch per thing per app session, and one copy of it kept on the device.
  *
  * Every screen mounts fresh on navigation, so screens that fetch on mount refetch the same
  * rows every time a tab is tapped — half a second of skeleton for data the app already had.
  * A `Cached` lives at module scope instead: the first screen to want it pays for the request,
- * every later screen reads the value it already holds, and a page reload starts over from
- * scratch. Writes push their result straight in, so the list is right without a round trip.
+ * every later screen reads the value it already holds. Writes push their result straight in,
+ * so the list is right without a round trip.
+ *
+ * Given a `key`, the value survives the app closing too. It's read back in the constructor —
+ * synchronously, before the first frame — and marked stale, so the screen opens on the rows
+ * from last time and the request that checks them runs behind what's already on screen.
  */
 export class Cached<T> {
   value = $state<T | undefined>(undefined);
@@ -14,14 +20,32 @@ export class Cached<T> {
   loading = $state(false);
   error = $state<string | null>(null);
 
+  /**
+   * A request out behind rows that are already on screen — what the tab's spinner is about.
+   * A first load isn't this: the screen is showing a skeleton, which says the same thing louder.
+   */
+  readonly syncing = $derived(this.loading && this.hasValue);
+
   /** Set by a write that invalidated this; the next `ensure()` refetches behind the old value. */
   #stale = $state(false);
   #inflight: Promise<void> | null = null;
+  readonly #key: string | undefined;
 
   constructor(
     private readonly fetcher: () => Promise<T>,
     private readonly fallbackError: string,
-  ) {}
+    key?: string,
+  ) {
+    this.#key = key;
+    if (key === undefined) return;
+    const stored = persist.read<T>(key);
+    if (stored === undefined) return;
+    this.value = stored;
+    this.hasValue = true;
+    // What's on disk is what the server said last time the app was open, which is exactly the
+    // thing that might have changed since. Show it, then check it.
+    this.#stale = true;
+  }
 
   /** Fetches only what's missing or stale. Safe to call on every mount — that's the point. */
   ensure() {
@@ -51,6 +75,7 @@ export class Cached<T> {
     this.hasValue = true;
     this.#stale = false;
     this.error = null;
+    if (this.#key !== undefined) persist.write(this.#key, value, Date.now());
   }
 
   /** Marks the value worth refetching without blanking the screen that's showing it. */
@@ -64,5 +89,6 @@ export class Cached<T> {
     this.hasValue = false;
     this.error = null;
     this.#stale = false;
+    if (this.#key !== undefined) persist.drop(this.#key);
   }
 }
