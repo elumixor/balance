@@ -1,9 +1,9 @@
 <script lang="ts">
   import { restColor } from "$lib/colors";
-  import Popover from "$lib/components/Popover.svelte";
-  import PopoverItem from "$lib/components/PopoverItem.svelte";
+  import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
   import { formatClock } from "$lib/format";
   import type { CalendarEvent, Category } from "$lib/types";
+  import { Combobox } from "bits-ui";
   import { calendarData } from "./calendar-data.svelte";
 
   /**
@@ -53,8 +53,17 @@
   /** 45m gets 1 title line, 1h gets 2, 1:15+ caps at 3 — the last line always goes to the time. */
   const titleLines = $derived(durationMinutes < 60 ? 1 : durationMinutes < 75 ? 2 : 3);
 
-  function chooseCategory(target: Category, close: () => void) {
-    close();
+  /** Set to the badge's rect while the quick category pick is open, null otherwise. */
+  let categoryRect = $state<DOMRect | null>(null);
+  let categorySearch = $state("");
+  const categoryMatches = $derived(
+    plannable.filter((c) => c.name.toLowerCase().includes(categorySearch.trim().toLowerCase())),
+  );
+
+  function chooseCategory(id: string) {
+    const target = plannable.find((c) => c.id === id);
+    categoryRect = null;
+    if (!target) return;
     void data.mapEvent(event, event.mappingScope ?? "instance", {
       weights: [{ categoryId: target.id, weightPercent: 100 }],
     });
@@ -65,29 +74,17 @@
   {#if ghost}
     <span class="-my-0.5 rounded-sm px-1 py-0.5 text-[10px] font-bold leading-none text-fg">{letter}</span>
   {:else}
-    <Popover width={200}>
-      {#snippet trigger(open: () => void)}
-        <button
-          type="button"
-          onclick={(e) => {
-            e.stopPropagation();
-            open();
-          }}
-          aria-label="Change category"
-          class="-my-0.5 z-10 rounded-sm px-1 py-0.5 text-[10px] font-bold leading-none text-fg transition-colors hover:bg-fg/10"
-          >{letter}</button
-        >
-      {/snippet}
-      {#snippet content(close: () => void)}
-        {#each plannable as c (c.id)}
-          <PopoverItem label={c.name} selected={category?.id === c.id} onclick={() => chooseCategory(c, close)}>
-            {#snippet icon()}
-              <span class="size-2.5 shrink-0 rounded-full" style="background:{c.color}"></span>
-            {/snippet}
-          </PopoverItem>
-        {/each}
-      {/snippet}
-    </Popover>
+    <button
+      type="button"
+      onclick={(e) => {
+        e.stopPropagation();
+        categorySearch = "";
+        categoryRect = e.currentTarget.getBoundingClientRect();
+      }}
+      aria-label="Change category"
+      class="-my-0.5 z-10 rounded-sm px-1 py-0.5 text-[10px] font-bold leading-none text-fg transition-colors hover:bg-fg/10"
+      >{letter}</button
+    >
   {/if}
 {/snippet}
 
@@ -129,3 +126,41 @@
     </span>
   {/if}
 </div>
+
+{#if categoryRect}
+  <AnchoredPopup rect={categoryRect} width={220} onclose={() => (categoryRect = null)}>
+    <div class="p-1.5">
+      <Combobox.Root type="single" value={category?.id ?? ""} onValueChange={chooseCategory} open={true}>
+        <Combobox.Input
+          oninput={(e) => (categorySearch = e.currentTarget.value)}
+          placeholder="Category"
+          aria-label="Search categories"
+          class="t-body h-9 w-full rounded-md border border-transparent bg-transparent px-2 transition-colors
+            hover:border-line focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
+        />
+        <Combobox.ContentStatic
+          onInteractOutside={() => {}}
+          onEscapeKeydown={() => {}}
+          class="mt-1 max-h-60 overflow-y-auto"
+        >
+          {#each categoryMatches as c (c.id)}
+            <Combobox.Item value={c.id} label={c.name}>
+              {#snippet children({ selected })}
+                <div
+                  class="flex items-center gap-2 rounded-md px-2 py-2 t-body hover:bg-surface-alt
+                    {selected ? 'bg-surface-alt' : ''}"
+                >
+                  <span class="size-2.5 shrink-0 rounded-full" style="background:{c.color}"></span>
+                  <span class="flex-1 truncate">{c.name}</span>
+                </div>
+              {/snippet}
+            </Combobox.Item>
+          {/each}
+          {#if !categoryMatches.length}
+            <p class="t-micro px-2 py-2 text-fg-faint">No matches</p>
+          {/if}
+        </Combobox.ContentStatic>
+      </Combobox.Root>
+    </div>
+  </AnchoredPopup>
+{/if}

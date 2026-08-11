@@ -1,5 +1,6 @@
 <script lang="ts">
   import { restColor } from "$lib/colors";
+  import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
   import Button from "$lib/components/Button.svelte";
   import Chip from "$lib/components/Chip.svelte";
   import Field from "$lib/components/Field.svelte";
@@ -31,8 +32,6 @@
   } = $props();
 
   const WIDTH = 380;
-  const MARGIN = 12;
-  const GAP = 8;
   /** How long after the last keystroke the edit goes to the calendar. */
   const SAVE_DELAY_MS = 700;
 
@@ -54,7 +53,6 @@
   let saving = $state(false);
   let error = $state<string | null>(null);
 
-  let card = $state<HTMLElement>();
   let timer: ReturnType<typeof setTimeout> | null = null;
   /** What the calendar last agreed to, so an unchanged field never costs a write. */
   let saved = { title: "", notes: "", start: 0, end: 0 };
@@ -106,30 +104,6 @@
   const longDate = $derived(
     new Date(event.start).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
   );
-
-  /**
-   * Beside the block if there's room on either side of it, otherwise clamped into the viewport.
-   * Measured only once the card exists, so it never flashes in the corner first.
-   */
-  let position = $state<{ left: number; top: number } | null>(null);
-  $effect(() => {
-    // Re-measured whenever the card can have grown: unfolding the mapping doubles its height.
-    void mapping;
-    void mode;
-    void error;
-    if (!card || !rect) return;
-    const height = card.offsetHeight;
-    const right = rect.right + GAP;
-    const left = right + WIDTH <= window.innerWidth - MARGIN ? right : rect.left - GAP - WIDTH;
-
-    position = {
-      left: Math.min(Math.max(MARGIN, left), window.innerWidth - WIDTH - MARGIN),
-      top: Math.min(Math.max(MARGIN, rect.top), Math.max(MARGIN, window.innerHeight - MARGIN - height)),
-    };
-  });
-
-  /** The card stays hidden — and unanimated — until it knows where it belongs. */
-  const placed = $derived(Boolean(position) || !rect);
 
   /** A pending edit still belongs to the user, so it's written before the card goes away. */
   $effect(() => () => flush());
@@ -220,25 +194,13 @@
     data.deselect();
   }
 
-  /**
-   * On a wide screen the card floats over a live calendar: a press outside closes it and still
-   * reaches whatever it landed on, so pressing the next block opens that block rather than spending
-   * a click dismissing this one. Closing on pointerdown — ahead of the grid's own click — keeps
-   * that order, and a drag begun on another block runs untouched.
-   */
-  function onpointerdown(e: PointerEvent) {
-    if (!card || card.contains(e.target as Node)) return;
-    close();
-  }
-
+  // Enter commits from any single-line field; the notes get their own newlines.
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") close();
-    // Enter commits from any single-line field; the notes get their own newlines.
     if (e.key === "Enter" && !e.shiftKey && editable && !(e.target instanceof HTMLTextAreaElement)) flush();
   }
 </script>
 
-<svelte:window {onkeydown} {onpointerdown} />
+<svelte:window {onkeydown} />
 
 {#snippet row(label: string, icon: typeof MapPin)}
   {@const Icon = icon}
@@ -249,26 +211,7 @@
   </button>
 {/snippet}
 
-<!--
-  On a phone the card is a sheet, and the backdrop behind it dims the week and takes the tap that
-  closes it. On a wide screen there is no backdrop to speak of — the calendar underneath stays live,
-  so the next block you press opens straight away instead of costing a click on this one.
--->
-<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-<div
-  class="fade-in fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:pointer-events-none sm:block
-    sm:bg-transparent"
-  onclick={close}
->
-  <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-  <div
-    bind:this={card}
-    class="max-h-[85dvh] w-full overflow-y-auto rounded-t-lg border border-line bg-surface
-      shadow-(--shadow-float) sm:pointer-events-auto sm:absolute sm:w-[380px] sm:rounded-lg
-      {placed ? 'float-in' : ''}"
-    style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{placed ? 'visible' : 'hidden'}"
-    onclick={(e) => e.stopPropagation()}
-  >
+<AnchoredPopup {rect} width={WIDTH} onclose={close}>
     <!-- Header: what this is on the left, the two things you can do to it on the right. -->
     <div class="flex items-center gap-2 px-3 pt-3">
       <span class="t-label flex-1 text-fg-muted">Event</span>
@@ -458,5 +401,4 @@
         <span class="t-body text-fg-faint">Reminders</span>
       </div>
     </div>
-  </div>
-</div>
+</AnchoredPopup>
