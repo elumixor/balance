@@ -37,6 +37,7 @@
   let barWidth = $state(0);
   let menu = $state<{ key: string | null; at: DOMRect } | null>(null);
   let picking = $state<{ key: string; at: DOMRect } | null>(null);
+  let pressedKey = $state<string | null>(null);
 
   function colorOf(categoryId: string) {
     const category = categoryById.get(categoryId);
@@ -128,17 +129,21 @@
       role="button"
       tabindex="0"
       aria-label="Change category for {category?.name ?? 'this piece'}"
-      class="relative flex min-w-0 cursor-pointer items-center gap-1.5 px-2"
-      style="flex:{piece.percent} 0 0%;background:{withAlpha(color, 0.14)}"
+      class="relative flex min-w-0 cursor-pointer items-center gap-1.5 px-2 transition-colors duration-100"
+      style="flex:{piece.percent} 0 0%;background:{withAlpha(color, pressedKey === piece.key ? 0.28 : 0.14)}"
       onclick={(e) => {
         // The percent field is for typing, not picking — a click that lands there is its own thing.
         if ((e.target as Element).closest("input")) return;
-        picking = { key: piece.key, at: e.currentTarget.getBoundingClientRect() };
+        picking = { key: piece.key, at: new DOMRect(e.clientX, e.clientY, 0, 0) };
       }}
       oncontextmenu={(e) => {
         e.preventDefault();
         menu = { key: piece.key, at: new DOMRect(e.clientX, e.clientY, 0, 0) };
       }}
+      onpointerdown={() => (pressedKey = piece.key)}
+      onpointerup={() => (pressedKey = null)}
+      onpointercancel={() => (pressedKey = null)}
+      onpointerleave={() => (pressedKey = null)}
     >
       <span class="shrink-0">
         <CategoryIcon icon={category?.icon ?? "circle"} {color} size={26} />
