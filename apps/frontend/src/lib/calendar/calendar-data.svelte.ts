@@ -204,6 +204,9 @@ class CalendarData {
   /**
    * One copy of each event — the ones that straddle Sunday night come back in two weeks'
    * answers — with anything the finger has already done laid over the top.
+   *
+   * Filtered by which calendars are shown, client-side: the server filters the same way, but
+   * that answer is a round trip behind, and the sidebar toggle has to feel instant.
    */
   readonly events = $derived.by(() => {
     const byId = new Map(this.weeks.flatMap((week) => week.value?.events ?? []).map((event) => [event.id, event]));
@@ -211,7 +214,11 @@ class CalendarData {
       if (event) byId.set(id, event);
       else byId.delete(id);
     }
-    return [...byId.values()];
+    const prefs = store.calendars.value;
+    if (!prefs) return [...byId.values()];
+    const primaryIds = new Set(prefs.calendars.filter((c) => c.primary).map((c) => c.id));
+    const shownIds = prefs.visibleCalendarIds.length === 0 ? primaryIds : new Set(prefs.visibleCalendarIds);
+    return [...byId.values()].filter((event) => shownIds.has(event.calendarId));
   });
 
   /**
