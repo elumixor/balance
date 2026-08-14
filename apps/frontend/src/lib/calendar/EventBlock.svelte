@@ -66,9 +66,12 @@
 
   function chooseCategory(id: string) {
     categoryRect = null;
-    void data.mapEvent(event, event.seriesId ? "series" : "instance", {
-      weights: [{ categoryId: id, weightPercent: 100 }],
-    });
+    const targets = data.picked.has(event.id) && data.picked.size > 1 ? data.pickedEvents : [event];
+    if (targets.length > 1) void data.mapEvents(targets, [{ categoryId: id, weightPercent: 100 }]);
+    else
+      void data.mapEvent(event, event.seriesId ? "series" : "instance", {
+        weights: [{ categoryId: id, weightPercent: 100 }],
+      });
   }
 </script>
 
