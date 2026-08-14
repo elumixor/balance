@@ -161,16 +161,34 @@ export function placeDay(segments: readonly Segment[]): PlacedSegment[] {
 /** How thick a resize band gets on a tall block, and how thin one may get before it's dropped. */
 export const RESIZE_BAND_MAX_PX = 12;
 export const RESIZE_BAND_MIN_PX = 5;
+/** What a selected block's bands grow to, since a raised block can spend room it doesn't have. */
+export const RESIZE_BAND_SELECTED_PX = 9;
+
+export interface ResizeBands {
+  /** Height of each band in pixels, or 0 when the block is too short to carry them. */
+  readonly band: number;
+  /** How far each band hangs outside the block, so a short selected block still has handles. */
+  readonly overhang: number;
+}
 
 /**
- * The resize band for a block of this drawn height. Capped at a third of the block, so the two
- * bands can never meet and the middle third stays free to answer a tap. A block too short to give
- * each band an aimable strip gets none at all — opening it and moving it beats a target you can't
- * hit, and its times are still editable in the editor.
+ * The resize bands for a block of this drawn height.
+ *
+ * Each band is capped at a third of the block, so the two can never meet and the middle third
+ * stays free to answer the tap that opens the event. That leaves a quarter-hour block with nothing
+ * aimable, so unselected it carries no bands at all — a target you can't hit is worse than none.
+ *
+ * Selecting the block is what buys the handles back: a selected block is raised above its
+ * neighbours, so its bands can hang outside it and still be the thing the pointer finds. The
+ * inside third-and-third split holds either way, so the bands stay in the order they mean.
  */
-export function resizeBandPx(height: number): number {
-  const band = Math.min(RESIZE_BAND_MAX_PX, height / 3);
-  return band < RESIZE_BAND_MIN_PX ? 0 : band;
+export function resizeBands(height: number, selected: boolean): ResizeBands {
+  const third = height / 3;
+  const band = Math.min(RESIZE_BAND_MAX_PX, third);
+  if (band >= RESIZE_BAND_MIN_PX) return { band, overhang: 0 };
+  if (!selected) return { band: 0, overhang: 0 };
+  const grown = Math.min(RESIZE_BAND_MAX_PX, Math.max(RESIZE_BAND_SELECTED_PX, third));
+  return { band: grown, overhang: grown - third };
 }
 
 /** Rounds a pointer position to the nearest quarter hour, the finest the grid commits to. */

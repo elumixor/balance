@@ -12,7 +12,7 @@
     NARROW_BLOCK_PERCENT,
     OPENING_HOUR,
     placeDay,
-    resizeBandPx,
+    resizeBands,
     segmentsForRange,
   } from "./week-grid";
 
@@ -352,14 +352,19 @@
               <!-- The rest of a dragged batch stays where it is, faded, with its target outlined. -->
               {@const trailing =
                 !data.drag?.copy && (data.drag?.others.some((other) => other.id === segment.event.id) ?? false)}
+              <!-- The open block sits above its neighbours, so what you're working on is what the
+                   pointer finds — including its handles, which may hang outside a short block. -->
+              {@const isSelected = data.selected?.id === segment.event.id}
               <!-- Resize bands sized off the drawn height, so the two can never meet and never eat
-                   the middle, which is what opens the event. Zero on a block too short to aim at. -->
-              {@const band = resizeBandPx(segment.height)}
+                   the middle, which is what opens the event. -->
+              {@const bands = resizeBands(segment.height, isSelected)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 data-event
-                class="absolute touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
+                class="absolute touch-none select-none {isSelected
+                  ? 'z-30'
+                  : ''} {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
                 style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - 10px)"
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
@@ -379,24 +384,24 @@
                   flatTop={segment.continuesBefore}
                   flatBottom={segment.continuesAfter}
                 />
-                {#if band > 0 && !segment.event.readOnly && !segment.continuesAfter}
+                {#if bands.band > 0 && !segment.event.readOnly && !segment.continuesAfter}
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <span
-                    class="absolute right-0 bottom-0 left-5 z-20 cursor-ns-resize touch-none"
-                    style="height:{band}px"
+                    class="absolute right-0 left-5 z-20 cursor-ns-resize touch-none"
+                    style="height:{bands.band}px;bottom:{-bands.overhang}px"
                     onpointerdown={(e) => data.beginResize(segment.event, e)}
                     onpointermove={(e) => data.moveDrag(e)}
                     onpointerup={() => data.endDrag()}
                     onpointercancel={() => data.endDrag()}
                   ></span>
                 {/if}
-                {#if band > 0 && !segment.event.readOnly && !segment.continuesBefore}
+                {#if bands.band > 0 && !segment.event.readOnly && !segment.continuesBefore}
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <span
-                    class="absolute top-0 right-0 left-5 z-20 cursor-ns-resize touch-none"
-                    style="height:{band}px"
+                    class="absolute right-0 left-5 z-20 cursor-ns-resize touch-none"
+                    style="height:{bands.band}px;top:{-bands.overhang}px"
                     onpointerdown={(e) => data.beginResizeStart(segment.event, e)}
                     onpointermove={(e) => data.moveDrag(e)}
                     onpointerup={() => data.endDrag()}
@@ -415,14 +420,14 @@
         {#each batchTargets as target (target.id)}
           <!-- The rest of the batch, outlined where the same distance takes them. -->
           <div
-            class="pointer-events-none absolute rounded-sm border-2 border-fg/40 border-dashed"
+            class="pointer-events-none absolute z-40 rounded-sm border-2 border-fg/40 border-dashed"
             style="left:{target.left}px;width:{dayWidth - 10}px;top:{target.top}px;height:{target.height}px"
           ></div>
         {/each}
 
         {#if marqueeBox}
           <div
-            class="pointer-events-none absolute rounded-sm border border-fg/40 bg-fg/5"
+            class="pointer-events-none absolute z-40 rounded-sm border border-fg/40 bg-fg/5"
             style="left:{marqueeBox.left}px;top:{marqueeBox.top}px;width:{marqueeBox.width}px;height:{marqueeBox.height}px"
           ></div>
         {/if}
@@ -432,7 +437,7 @@
           {@const targetLeft = snappedIndex * dayWidth + (ghostLeftPercent / 100) * dayWidth}
           <!-- Where the block will land once let go — snapped, not where it's held. -->
           <div
-            class="pointer-events-none absolute rounded-sm border-2 border-fg/50 border-dashed"
+            class="pointer-events-none absolute z-40 rounded-sm border-2 border-fg/50 border-dashed"
             style="left:{targetLeft}px;width:{(ghostWidthPercent / 100) * dayWidth -
               10}px;top:{(data.drag.startMinutes / 60) * HOUR_PX}px;height:{((data.drag.endMinutes -
               data.drag.startMinutes) /
@@ -445,7 +450,7 @@
           {@const freeLeft = data.drag.freeDayIndex * dayWidth + (ghostLeftPercent / 100) * dayWidth}
           <!-- The block itself, following the pointer unsnapped on both axes. -->
           <div
-            class="pointer-events-none absolute"
+            class="pointer-events-none absolute z-40"
             style="left:{freeLeft}px;width:{(ghostWidthPercent / 100) * dayWidth -
               10}px;top:{(data.drag.freeStartMinutes / 60) * HOUR_PX}px;height:{((data.drag.freeEndMinutes -
               data.drag.freeStartMinutes) /
