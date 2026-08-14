@@ -1,5 +1,4 @@
 <script lang="ts">
-  import CategoryPicker from "$lib/calendar/CategoryPicker.svelte";
   import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import NumberField from "$lib/components/NumberField.svelte";
@@ -16,8 +15,7 @@
    *
    * A piece's own edge is a drag handle; the seam before the unclaimed remainder is one too, so
    * claiming more of it is the same gesture as trading share with a neighbour. Right-click a piece
-   * to split it in two or collapse it away; click its icon or name to point it at a different
-   * category.
+   * to split it in two or collapse it away.
    */
   let {
     pieces,
@@ -37,7 +35,6 @@
 
   let barWidth = $state(0);
   let menu = $state<{ key: string | null; at: DOMRect } | null>(null);
-  let picking = $state<{ key: string; at: DOMRect } | null>(null);
 
   function colorOf(categoryId: string) {
     const category = categoryById.get(categoryId);
@@ -49,11 +46,6 @@
     if (!piece) return;
     const clamped = Math.max(0, Math.min(piece.percent + free, Math.round(value)));
     onchange(pieces.map((p) => (p.key === key ? { ...p, percent: clamped } : p)));
-  }
-
-  function pick(key: string, categoryId: string) {
-    onchange(pieces.map((p) => (p.key === key ? { ...p, categoryId } : p)));
-    picking = null;
   }
 
   /** `null` splits the unclaimed remainder into a new piece; otherwise a piece is cut in two. */
@@ -125,18 +117,10 @@
   {#each pieces as piece, i (piece.key)}
     {@const color = colorOf(piece.categoryId)}
     {@const category = categoryById.get(piece.categoryId)}
-    <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      role="button"
-      tabindex="0"
-      aria-label="Change category for {category?.name ?? 'this piece'}"
-      class="press-sm relative flex min-w-0 cursor-pointer items-center gap-1.5 px-2"
+      class="relative flex min-w-0 items-center gap-1.5 px-2"
       style="flex:{piece.percent} 0 0%;background:{withAlpha(color, 0.14)}"
-      onclick={(e) => {
-        // The percent field is for typing, not picking — a click that lands there is its own thing.
-        if ((e.target as Element).closest("input")) return;
-        picking = { key: piece.key, at: e.currentTarget.getBoundingClientRect() };
-      }}
       oncontextmenu={(e) => {
         e.preventDefault();
         menu = { key: piece.key, at: new DOMRect(e.clientX, e.clientY, 0, 0) };
@@ -214,15 +198,4 @@
       {/if}
     </div>
   </AnchoredPopup>
-{/if}
-
-{#if picking}
-  {@const p = picking}
-  <CategoryPicker
-    rect={p.at}
-    {categories}
-    value={pieces.find((piece) => piece.key === p.key)?.categoryId ?? ""}
-    onchoose={(categoryId) => pick(p.key, categoryId)}
-    onclose={() => (picking = null)}
-  />
 {/if}
