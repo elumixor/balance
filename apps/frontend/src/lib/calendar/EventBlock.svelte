@@ -44,7 +44,7 @@
   const fillColor = $derived(category?.color ?? restColor);
   const borderColor = $derived(calendars.find((c) => c.id === event.calendarId)?.color ?? restColor);
 
-  const plannable = $derived([...categories.values()].filter((c) => !c.isBuffer && !c.archived));
+  const plannable = $derived([...categories.values()].filter((c) => !c.archived));
 
   const selected = $derived(data.selected?.id === event.id);
   /** One of the blocks a box or a ⌘-click gathered, and so one a batch write is about. */
@@ -91,7 +91,7 @@
   role="button"
   tabindex={ghost ? -1 : 0}
   aria-label="{event.title}, {formatClock(new Date(event.start))}"
-  class="absolute inset-0 flex min-w-0 overflow-hidden px-1.5 text-left leading-tight
+  class="absolute inset-0 flex min-w-0 overflow-hidden px-1.5 text-left leading-tight @container/evt
     {oneLine ? 'flex-row items-center gap-1 py-0' : 'flex-col justify-start py-0.5'}
     {ghost ? 'pointer-events-none opacity-70' : 'press-fade'}"
 >
@@ -120,8 +120,11 @@
     >
       {@render badge()}{event.title}</span
     >
-    <span class="relative z-10 w-full shrink-0 font-sans text-[10px] leading-none text-fg-muted/60">
-      {formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}
+    <span
+      class="relative z-10 flex w-full shrink-0 overflow-hidden whitespace-nowrap font-sans text-[10px] leading-none text-fg-muted/60"
+    >
+      <span>{formatClock(new Date(event.start))}</span
+      ><span class="hidden @min-[90px]/evt:inline">–{formatClock(new Date(event.end))}</span>
     </span>
   {/if}
 </div>

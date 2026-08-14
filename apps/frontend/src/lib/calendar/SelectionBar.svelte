@@ -13,7 +13,7 @@
   let { categories }: { categories: readonly Category[] } = $props();
 
   const data = calendarData;
-  const plannable = $derived(categories.filter((c) => !c.isBuffer && !c.archived));
+  const plannable = $derived(categories.filter((c) => !c.archived));
   const count = $derived(data.picked.size);
 
   let pickerRect = $state<DOMRect | null>(null);

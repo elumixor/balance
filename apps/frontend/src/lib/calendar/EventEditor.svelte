@@ -30,7 +30,7 @@
   const SAVE_DELAY_MS = 700;
 
   const data = calendarData;
-  const plannable = $derived(categories.filter((c) => !c.isBuffer && !c.archived));
+  const plannable = $derived(categories.filter((c) => !c.archived));
   const editable = $derived(!event.readOnly && !event.allDay);
 
   // A repeating event always counts as the same thing on every occurrence — only a one-off event
