@@ -71,13 +71,19 @@
     while (value - reference > total / 2) value -= total;
     while (value - reference < -total / 2) value += total;
 
+    // Dragging a seam grows or shrinks the slice before it. Everything between it and the
+    // buffer keeps its own size — only the buffer, last in `segments`, takes up the slack.
+    const bufferIndex = segments.length - 1;
     const lower = index === 0 ? 0 : bounds[index - 1];
-    const upper = bounds[index + 1];
+    const oldValue = segments[index].value;
+    const bufferValue = segments[bufferIndex].value;
+    const upper = lower + oldValue + bufferValue;
     const clamped = Math.min(Math.max(value, lower), upper);
 
+    const newValue = round(clamped - lower);
     const next = segments.map((s) => s.value);
-    next[index] = round(clamped - lower);
-    next[index + 1] = round(upper - clamped);
+    next[index] = newValue;
+    next[bufferIndex] = round(bufferValue - (newValue - oldValue));
     onchange(next);
   }
 
