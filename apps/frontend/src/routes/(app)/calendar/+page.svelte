@@ -93,7 +93,7 @@
       type="button"
       onclick={() => data.goToToday()}
       class="t-heading press-sm shrink-0 rounded-md px-1.5 py-1 whitespace-nowrap {data.isThisWeek
-        ? ''
+        ? 'text-danger'
         : 'text-fg-muted'}"
     >
       {monthLabel}

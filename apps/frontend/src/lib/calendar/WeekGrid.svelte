@@ -43,6 +43,8 @@
   /** Which strip the current scroll offset was measured against, and whether it's been placed yet. */
   let stripAt: number | null = null;
   let opened = false;
+  /** Raw scroll offset, updated on every scroll tick — unlike `data.dayOffset`, live mid-drag. */
+  let liveScrollLeft = $state(0);
 
   const dayWidth = $derived(Math.max(0, viewWidth - GUTTER_PX) / VISIBLE_DAYS);
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
@@ -71,10 +73,13 @@
 
   const todayStart = $derived(startOfDay(new Date()).getTime());
   const nowTop = $derived((minutesIntoDay(new Date()) / 60) * HOUR_PX);
-  /** Whether today's column sits outside the seven days currently on screen. */
-  const todayOutOfView = $derived(
-    todayStart < data.windowStart.getTime() || todayStart >= addDays(data.windowStart, VISIBLE_DAYS).getTime(),
-  );
+  /** Whether today's column sits outside the seven days currently on screen — tracks the live
+   *  scroll position, so it updates mid-drag rather than only once the scroll settles. */
+  const todayOutOfView = $derived.by(() => {
+    const todayDayIndex = Math.round((todayStart - data.stripStart.getTime()) / MS_PER_DAY);
+    const offset = dayWidth > 0 ? liveScrollLeft / dayWidth : data.dayOffset;
+    return todayDayIndex + 1 <= offset || todayDayIndex >= offset + VISIBLE_DAYS;
+  });
 
   /** The gathering box, in pixels down the grid rather than the grid's own day-and-minute units. */
   const marqueeBox = $derived.by(() => {
@@ -163,6 +168,7 @@
       if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
       opened = true;
       scroller.scrollLeft = offset * width;
+      liveScrollLeft = scroller.scrollLeft;
       stripAt = start;
     });
     return () => cancelAnimationFrame(frame);
@@ -177,10 +183,12 @@
     const scroller = data.scrollerEl;
     if (!scroller || stripAt === null || start === stripAt) return;
     scroller.scrollLeft -= Math.round((start - stripAt) / MS_PER_DAY) * dayWidth;
+    liveScrollLeft = scroller.scrollLeft;
     stripAt = start;
   });
 
   function onscroll() {
+    if (data.scrollerEl) liveScrollLeft = data.scrollerEl.scrollLeft;
     if (settle) clearTimeout(settle);
     settle = setTimeout(land, SETTLE_MS);
   }
@@ -205,9 +213,9 @@
         <Button
           label="Today"
           size="sm"
-          variant="outline"
+          variant="danger"
           onclick={() => data.goToToday()}
-          class="bg-surface shadow-(--shadow-float)"
+          class="shadow-(--shadow-float)"
         />
       </div>
     </div>
