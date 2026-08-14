@@ -14,6 +14,7 @@
     onchange,
     width = "w-11",
     inputmode = "decimal",
+    size = "md",
   }: {
     value: number;
     unit: string;
@@ -22,7 +23,11 @@
     /** Percentages need one more digit than hours. */
     width?: string;
     inputmode?: "numeric" | "decimal";
+    /** "sm" is the readout as it sits in a ring callout, where a row of controls has no room. */
+    size?: "md" | "sm";
   } = $props();
+
+  const type = $derived(size === "sm" ? "t-data-micro" : "t-data");
 
   let typed = $state<string | null>(null);
   const shown = $derived(typed ?? String(value));
@@ -35,8 +40,9 @@
 </script>
 
 <span
-  class="flex h-9 items-center rounded-md border border-transparent pr-1.5 pl-1 transition-[border-color,box-shadow]
-    duration-150 hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
+  class="flex items-center rounded-md border border-transparent transition-[border-color,box-shadow]
+    duration-150 hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10
+    {size === 'sm' ? 'h-6 pr-1 pl-0.5' : 'h-9 pr-1.5 pl-1'}"
 >
   <input
     {inputmode}
@@ -45,7 +51,7 @@
     value={shown}
     oninput={(e) => edit(e.currentTarget.value)}
     onblur={() => (typed = null)}
-    class="t-data {width} bg-transparent text-right text-fg focus:outline-none"
+    class="{type} {width} bg-transparent text-right text-fg focus:outline-none"
   />
-  <span class="t-data pl-0.5 text-fg-faint">{unit}</span>
+  <span class="{type} pl-0.5 text-fg-faint">{unit}</span>
 </span>

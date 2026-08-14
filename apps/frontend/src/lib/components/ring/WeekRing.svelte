@@ -1,12 +1,22 @@
+<script lang="ts" module>
+  /** The room the cut buttons need outside the band, and where that leaves the band itself. */
+  export const SPLIT_PAD = 13;
+
+  /** Below this a slice is a sliver: an icon in it would touch both seams. */
+  export const MIN_ICON_FRACTION = 0.045;
+
+  export const ringRadius = (size: number, thickness: number, splittable: boolean) =>
+    size / 2 - thickness / 2 - (splittable ? SPLIT_PAD : 0);
+</script>
+
 <script lang="ts">
   import { iconFor } from "$lib/icons";
   import type { RingSegment } from "$lib/types";
+  import type { Snippet } from "svelte";
   import Arc, { pointOnRing, RING_START } from "./Arc.svelte";
 
   const GAP_FRACTION = 0.004;
   const MIN_SPLIT_FRACTION = 0.055;
-  /** Below this a slice is a sliver: an icon in it would touch both seams. */
-  const MIN_ICON_FRACTION = 0.045;
 
   /**
    * The week as a dial: one ring holding every hour you have, cut into the slices
@@ -22,6 +32,7 @@
     unit = "h",
     centerLabel,
     centerValue,
+    iconAt,
   }: {
     segments: RingSegment[];
     onchange: (values: number[]) => void;
@@ -31,6 +42,8 @@
     unit?: string;
     centerLabel?: string;
     centerValue?: string;
+    /** Takes over the icon a slice wears, so the slice itself can be the thing you tap. */
+    iconAt?: Snippet<[RingSegment, number, number]>;
   } = $props();
 
   let container = $state<HTMLElement>();
@@ -41,8 +54,8 @@
    * The cut buttons live just outside the band now — the icons have the middle of each slice —
    * so a ring that offers cutting draws itself a little smaller to keep them inside its box.
    */
-  const outerPad = $derived(onsplit ? 13 : 0);
-  const r = $derived(size / 2 - thickness / 2 - outerPad);
+  const outerPad = $derived(onsplit ? SPLIT_PAD : 0);
+  const r = $derived(ringRadius(size, thickness, Boolean(onsplit)));
   const total = $derived(segments.reduce((sum, s) => sum + s.value, 0) || 1);
 
   /** Running sums: `bounds[i]` is where segment `i` ends, in segment units. */
@@ -122,19 +135,24 @@
   -->
   {#each segments as segment, i (`icon-${segment.id}`)}
     {#if segment.icon && segment.value / total >= MIN_ICON_FRACTION}
-      {@const Icon = iconFor(segment.icon)}
       {@const pos = pointOnRing(c, c, r, (bounds[i] - segment.value / 2) / total)}
       {@const iconSize = Math.min(18, Math.round(thickness * 0.62))}
       <span
-        class="pointer-events-none absolute text-white transition-opacity duration-150"
-        style="left:{pos.x - iconSize / 2}px;top:{pos.y - iconSize / 2}px;opacity:{dragging === null ||
-        dragging === i ||
-        dragging + 1 === i
+        class="absolute flex items-center justify-center text-white transition-opacity duration-150 {iconAt
+          ? ''
+          : 'pointer-events-none'}"
+        aria-hidden={iconAt ? undefined : "true"}
+        style="left:{pos.x - (iconSize + 10) / 2}px;top:{pos.y - (iconSize + 10) / 2}px;width:{iconSize +
+          10}px;height:{iconSize + 10}px;opacity:{dragging === null || dragging === i || dragging + 1 === i
           ? 0.95
           : 0.4}"
-        aria-hidden="true"
       >
-        <Icon size={iconSize} strokeWidth={2.25} />
+        {#if iconAt}
+          {@render iconAt(segment, i, iconSize)}
+        {:else}
+          {@const Icon = iconFor(segment.icon)}
+          <Icon size={iconSize} strokeWidth={2.25} />
+        {/if}
       </span>
     {/if}
   {/each}

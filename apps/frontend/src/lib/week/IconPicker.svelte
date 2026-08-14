@@ -15,15 +15,23 @@
     color,
     taken,
     onchange,
+    variant = "chip",
+    size,
   }: {
     icon: string;
     color: string;
     /** Icons already spoken for by another category — faded, but still pickable. */
     taken: string[];
     onchange: (patch: { icon?: string; color?: string }) => void;
+    /** "bare" is the icon as it's already drawn on the ring — the slice is its own trigger. */
+    variant?: "chip" | "bare";
+    size?: number;
   } = $props();
 
   const hue = $derived(hueOf(color));
+  const Trigger = $derived(iconFor(icon));
+  /** A chip is a tile around the glyph; bare is the glyph itself, at the size the ring drew it. */
+  const box = $derived(size ?? (variant === "bare" ? 18 : 32));
 
   let query = $state("");
   const results = $derived(searchIcons(query));
@@ -40,14 +48,25 @@
 
 <Popover width={268} align="start">
   {#snippet trigger(open: () => void)}
-    <button
-      type="button"
-      onclick={open}
-      aria-label="Change icon and colour"
-      class="press-sm rounded-md transition-shadow hover:ring-2 hover:ring-fg/10"
-    >
-      <CategoryIcon {icon} {color} />
-    </button>
+    {#if variant === "bare"}
+      <button
+        type="button"
+        onclick={open}
+        aria-label="Change icon and colour"
+        class="press-sm flex size-full items-center justify-center rounded-full text-white"
+      >
+        <Trigger size={box} strokeWidth={2.25} />
+      </button>
+    {:else}
+      <button
+        type="button"
+        onclick={open}
+        aria-label="Change icon and colour"
+        class="press-sm rounded-md transition-shadow hover:ring-2 hover:ring-fg/10"
+      >
+        <CategoryIcon {icon} {color} size={box} />
+      </button>
+    {/if}
   {/snippet}
 
   {#snippet content()}
