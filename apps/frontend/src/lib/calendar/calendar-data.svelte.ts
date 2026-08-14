@@ -110,6 +110,15 @@ export interface MarqueeState {
   toMinutes: number;
 }
 
+/** Where a move drag currently puts a block: its column, snapped and unsnapped — see `#pointerToSlot`. */
+interface DragSlot {
+  readonly day: Date;
+  readonly index: number;
+  readonly minutes: number;
+  readonly rawMinutes: number;
+  readonly rawIndex: number;
+}
+
 interface PendingDrag {
   readonly kind: DragKind;
   readonly pointerId: number;
@@ -553,12 +562,14 @@ class CalendarData {
       }
       return;
     }
-    // A move keeps its length, however many days that is — only the day it starts on changes.
+    // A move keeps its length, however many days that is. The block hangs off the column it's over
+    // rather than being tucked back inside it, so dragging it through midnight — off the foot of
+    // one day and into the head of the next — moves it a day just as dragging sideways does.
     const length = this.drag.endMinutes - this.drag.startMinutes;
     this.drag.day = at.day;
-    this.drag.startMinutes = at.minutes;
+    this.drag.startMinutes = this.#insideStrip(at.index, at.minutes, at.index, length);
     this.drag.endMinutes = this.drag.startMinutes + length;
-    this.drag.freeStartMinutes = at.rawMinutes;
+    this.drag.freeStartMinutes = this.#insideStrip(at.index, at.rawMinutes, at.index, length);
     this.drag.freeEndMinutes = this.drag.freeStartMinutes + length;
     this.drag.freeDayIndex = at.rawIndex;
   }
@@ -1235,49 +1246,68 @@ class CalendarData {
     this.#pendingDrag = null;
   }
 
-  /** Where the pointer is in the grid's own units, with nothing added or rounded off. */
-  #pointerToPoint(e: { clientX: number; clientY: number }): { dayIndex: number; minutes: number } | null {
+  /**
+   * Where the pointer is in the grid's own units, with nothing added or rounded off.
+   *
+   * The grid is exactly one day tall, but a drag doesn't stop at its edges: minutes come back
+   * unheld, so a pointer above the top reads negative and one below the foot reads past 1440.
+   * That's what carries a block or an edge into the day on either side of the one it's over.
+   */
+  #pointerToRaw(e: { clientX: number; clientY: number }): { dayIndex: number; minutes: number } | null {
     if (!this.columnsEl) return null;
     const rect = this.columnsEl.getBoundingClientRect();
     return {
       dayIndex: clamp(((e.clientX - rect.left) / rect.width) * STRIP_DAYS, 0, STRIP_DAYS),
-      minutes: clamp(((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY, 0, MINUTES_PER_DAY),
+      minutes: ((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY,
     };
   }
 
-  #pointerToSlot(e: PointerEvent): { day: Date; minutes: number; rawMinutes: number; rawIndex: number } | null {
-    const at = this.#pointerToPoint(e);
+  /** The same point held inside the day — what a rectangle drawn on the grid can actually show. */
+  #pointerToPoint(e: { clientX: number; clientY: number }): { dayIndex: number; minutes: number } | null {
+    const at = this.#pointerToRaw(e);
+    return at && { dayIndex: at.dayIndex, minutes: clamp(at.minutes, 0, MINUTES_PER_DAY) };
+  }
+
+  /**
+   * Where a dragged block's top-left corner lands: the column it's over, and minutes from that
+   * column's midnight, which may run past either end of it — dragging down through the foot of the
+   * grid carries the block into tomorrow morning, and up through the top into last night.
+   */
+  #pointerToSlot(e: PointerEvent): DragSlot | null {
+    const at = this.#pointerToRaw(e);
     if (!at) return null;
     const rawIndex = clamp(at.dayIndex + this.#grabOffsetDays, 0, STRIP_DAYS - 1);
     const index = Math.round(rawIndex);
-    const rawMinutes = clamp(at.minutes + this.#grabOffsetMinutes, 0, MINUTES_PER_DAY);
-    const minutes = clamp(snapMinutes(rawMinutes), 0, MINUTES_PER_DAY);
-    return { day: addDays(this.stripStart, index), minutes, rawMinutes, rawIndex };
+    const rawMinutes = at.minutes + this.#grabOffsetMinutes;
+    return { day: addDays(this.stripStart, index), index, minutes: snapMinutes(rawMinutes), rawMinutes, rawIndex };
   }
 
   /**
    * Where a dragged edge is, in minutes from the start of `day` — past 1440 when the pointer has
-   * moved into a later column, negative when it's in an earlier one.
+   * moved into a later column or below the grid, negative when it's in an earlier one or above.
    *
    * The column is the one the pointer is inside, floored rather than rounded: an edge is being
    * pointed at, not a block being dropped, so the nearest column boundary isn't what's meant.
-   *
-   * Minutes aren't held to the day either. Dragging an end past the foot of the grid runs the
-   * scroller to the bottom and then keeps going into the small hours of the next day, which is the
-   * gesture a night's sleep asks for — sideways into tomorrow's column does the same thing.
    */
   #pointerToEdge(e: PointerEvent, day: Date): { minutes: number; rawMinutes: number } | null {
-    if (!this.columnsEl) return null;
-    const rect = this.columnsEl.getBoundingClientRect();
-    const dayIndex = clamp(((e.clientX - rect.left) / rect.width) * STRIP_DAYS, 0, STRIP_DAYS);
-    const column = clamp(Math.floor(dayIndex), 0, STRIP_DAYS - 1);
-    const into = ((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY;
-    // Held inside the strip, so a pointer dragged far past the grid can't reach a day that isn't
-    // drawn — the block would go somewhere the drop target can't be seen.
-    const anchor = daysBetween(this.stripStart, day) * MINUTES_PER_DAY;
-    const span = STRIP_DAYS * MINUTES_PER_DAY;
-    const at = (minutes: number) => clamp(column * MINUTES_PER_DAY + minutes, 0, span) - anchor;
-    return { minutes: at(snapMinutes(into)), rawMinutes: at(into) };
+    const at = this.#pointerToRaw(e);
+    if (!at) return null;
+    const column = clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1);
+    const anchor = daysBetween(this.stripStart, day);
+    return {
+      minutes: this.#insideStrip(column, snapMinutes(at.minutes), anchor),
+      rawMinutes: this.#insideStrip(column, at.minutes, anchor),
+    };
+  }
+
+  /**
+   * Minutes counted from column `column`, re-counted from day `anchor`, and held inside the drawn
+   * strip — a drag can't reach a day that isn't there, or the drop target couldn't be seen. A block
+   * being dragged passes its `length` so its far end stops at the edge too.
+   */
+  #insideStrip(column: number, minutes: number, anchor: number, length = 0): number {
+    const room = STRIP_DAYS * MINUTES_PER_DAY - length;
+    return clamp(column * MINUTES_PER_DAY + minutes, 0, room) - anchor * MINUTES_PER_DAY;
   }
 
   #instantAt(day: Date, minutes: number): Date {
