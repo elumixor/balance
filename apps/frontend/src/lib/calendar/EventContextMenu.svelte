@@ -2,14 +2,14 @@
   import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import type { CalendarEvent, Category } from "$lib/types";
-  import { Tag, Trash2, XCircle } from "lucide-svelte";
+  import { Copy, Tag, Trash2 } from "lucide-svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import { calendarData } from "./calendar-data.svelte";
 
   /**
    * The handful of things a right-click is for: set what a block (or a whole gathered batch)
-   * counts as, or take it off the week. Opens at the pointer rather than beside the block, the
-   * way a context menu is expected to.
+   * counts as, duplicate it, or take it off the week. Opens at the pointer rather than beside
+   * the block, the way a context menu is expected to.
    */
   let {
     event,
@@ -41,9 +41,10 @@
     else void data.mapEvent(event, event.seriesId ? "series" : "instance", { weights: [{ categoryId: id, weightPercent: 100 }] });
   }
 
-  function unmap() {
+  function duplicate() {
     close();
-    void data.unmapEvent(event);
+    if (batch) void data.duplicateEvents(targets);
+    else void data.duplicateEvent(event);
   }
 
   function del() {
@@ -62,11 +63,9 @@
       {#snippet icon()}<Tag size={15} class="shrink-0 text-fg-faint" />{/snippet}
     </PopoverItem>
 
-    {#if !batch && event.mappingScope}
-      <PopoverItem label="Doesn't count as anything" onclick={unmap}>
-        {#snippet icon()}<XCircle size={15} class="shrink-0 text-fg-faint" />{/snippet}
-      </PopoverItem>
-    {/if}
+    <PopoverItem label="Duplicate{batch ? ` ${targets.length}` : ''}" onclick={duplicate}>
+      {#snippet icon()}<Copy size={15} class="shrink-0 text-fg-faint" />{/snippet}
+    </PopoverItem>
 
     {#if deletable}
       <PopoverItem label="Delete{batch ? ` ${targets.length}` : ''}" tone="danger" onclick={del}>

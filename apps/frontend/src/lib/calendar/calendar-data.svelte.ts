@@ -515,6 +515,18 @@ class CalendarData {
     });
   }
 
+  /** Context-menu duplicate: a new event with the same fields, placed right after the original. */
+  duplicateEvent(event: CalendarEvent) {
+    const duration = new Date(event.end).getTime() - new Date(event.start).getTime();
+    const start = new Date(event.end);
+    const end = new Date(start.getTime() + duration);
+    return this.#copyEvent(event, start, end);
+  }
+
+  duplicateEvents(events: readonly CalendarEvent[]) {
+    return Promise.all(events.map((event) => this.duplicateEvent(event)));
+  }
+
   async unmapEvent(event: CalendarEvent) {
     const ref = this.#ref(event);
     const before = mappingOf(event);
