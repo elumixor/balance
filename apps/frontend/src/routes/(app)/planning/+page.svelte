@@ -74,8 +74,8 @@
       </div>
 
       <p class="t-micro mx-auto mt-4 max-w-[40ch] text-center text-fg-faint">
-        Tap a slice's icon to change how it looks, drag a seam to move hours between neighbours, or open a
-        label's ⋯ to cut a new category out of that slice.
+        Tap a slice's icon to change how it looks, drag a seam to move hours between neighbours, or
+        right-click a slice to cut a new category out of it.
       </p>
     </div>
 

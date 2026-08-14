@@ -1,7 +1,10 @@
 <script lang="ts">
+  import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
+  import PopoverItem from "$lib/components/PopoverItem.svelte";
   import { pointOnRing, RING_START } from "$lib/components/ring/Arc.svelte";
   import WeekRing, { MIN_ICON_FRACTION, ringRadius } from "$lib/components/ring/WeekRing.svelte";
   import { iconFor } from "$lib/icons";
+  import { Scissors, Trash2 } from "lucide-svelte";
   import type { RingSegment } from "$lib/types";
   import CategoryCallout from "./CategoryCallout.svelte";
   import type { Draft } from "./category-drafts.svelte";
@@ -12,6 +15,9 @@
    * side and keeps a line back to itself. The labels are laid out from the slices — a slice at
    * two o'clock puts its name high on the right — so the page redraws itself as the week is cut,
    * and the ring stays the only place the plan lives.
+   *
+   * What a category can have done to it hangs off the slice: right-click it, long-press it, or
+   * press Enter on it, and the menu opens where the asking happened.
    */
   let {
     segments,
@@ -44,6 +50,10 @@
   const TITLE_H = 28;
 
   let width = $state(0);
+  /** The slice whose menu is open, and the point on screen it was opened from. */
+  let menu = $state<{ index: number; at: DOMRect } | null>(null);
+
+  const menuDraft = $derived(menu ? drafts[menu.index] : undefined);
 
   const total = $derived(segments.reduce((sum, s) => sum + s.value, 0) || 1);
   const icons = $derived(drafts.map((d) => d.icon));
@@ -154,6 +164,7 @@
       <WeekRing
         {segments}
         onchange={onhours}
+        onmenu={(index, at) => (menu = { index, at })}
         size={layout.ringSize}
         thickness={layout.thickness}
         {centerValue}
@@ -188,8 +199,7 @@
           name={draft ? draft.name : label.segment.label}
           hours={label.segment.value}
           onchange={draft ? (patch) => onupdate(draft.key, patch) : undefined}
-          onsplit={() => onsplit(label.index)}
-          onremove={draft ? () => onremove(draft) : undefined}
+          onmenu={(at) => (menu = { index: label.index, at })}
         >
           {#snippet lead()}
             <!-- A sliver wears no icon on the ring, so its label carries the picker instead. -->
@@ -208,3 +218,38 @@
     {/each}
   {/if}
 </div>
+
+{#if menu}
+  {@const index = menu.index}
+  <AnchoredPopup rect={menu.at} width={180} onclose={() => (menu = null)}>
+    <div role="menu" tabindex="-1">
+      <PopoverItem
+        label="Split"
+        onclick={() => {
+          onsplit(index);
+          menu = null;
+        }}
+      >
+        {#snippet icon()}
+          <Scissors size={15} class="text-fg-muted" />
+        {/snippet}
+      </PopoverItem>
+
+      {#if menuDraft}
+        {@const draft = menuDraft}
+        <PopoverItem
+          label="Remove"
+          tone="danger"
+          onclick={() => {
+            onremove(draft);
+            menu = null;
+          }}
+        >
+          {#snippet icon()}
+            <Trash2 size={15} />
+          {/snippet}
+        </PopoverItem>
+      {/if}
+    </div>
+  </AnchoredPopup>
+{/if}

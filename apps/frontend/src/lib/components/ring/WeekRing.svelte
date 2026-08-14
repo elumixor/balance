@@ -15,12 +15,13 @@
 
   /**
    * The week as a dial: one ring holding every hour you have, cut into the slices
-   * you mean to spend. Drag a seam to move hours between neighbours; cutting a new
-   * slice out of one you have belongs to whatever labels the slices.
+   * you mean to spend. Drag a seam to move hours between neighbours; what a slice
+   * itself can be asked to do is a menu on the slice — right-click, or a long press.
    */
   let {
     segments,
     onchange,
+    onmenu,
     size = 232,
     thickness = 26,
     unit = "h",
@@ -30,6 +31,8 @@
   }: {
     segments: RingSegment[];
     onchange: (values: number[]) => void;
+    /** Asked for on a slice, at the point on screen it was asked from. */
+    onmenu?: (index: number, at: DOMRect) => void;
     size?: number;
     thickness?: number;
     unit?: string;
@@ -86,7 +89,8 @@
 </script>
 
 <div bind:this={container} class="relative touch-none" style="width:{size}px;height:{size}px">
-  <svg width={size} height={size} aria-hidden="true">
+  <!-- Paint, unless the slices answer for themselves — then they're controls and have to be read. -->
+  <svg width={size} height={size} aria-hidden={onmenu ? undefined : "true"}>
     <circle cx={c} cy={c} {r} fill="none" stroke="var(--surface-alt)" stroke-width={thickness} />
     {#each segments as segment, i (segment.id)}
       <Arc
@@ -100,6 +104,8 @@
         opacity={dragging === null || dragging === i || dragging + 1 === i ? 1 : 0.45}
         animate={dragging === null}
         delay={i * 55}
+        label="{segment.label || 'Untitled'} slice"
+        onmenu={onmenu ? (at) => onmenu(i, at) : undefined}
       />
     {/each}
   </svg>

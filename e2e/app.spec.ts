@@ -25,7 +25,7 @@ test.describe("Balance app", () => {
 
   test("create a category by splitting the week ring", async () => {
     await page.goto("/planning");
-    await expect(page.getByLabel("Buffer options")).toBeVisible();
+    await expect(page.getByLabel("Buffer slice")).toBeVisible();
 
     // The suite runs against a persistent account, so only create it once.
     const names = () =>
@@ -34,8 +34,9 @@ test.describe("Balance app", () => {
         .evaluateAll((fields) => fields.map((field) => (field as HTMLInputElement).value));
 
     if (!(await names()).includes("Deep Work")) {
-      // Cutting is a label's own menu now: the buffer's, since its hours are the free ones.
-      await page.getByLabel("Buffer options").click();
+      // Cutting belongs to the slice now — the buffer's, since its hours are the free ones.
+      // Enter on the focused slice opens the same menu a right-click or a long press would.
+      await page.getByLabel("Buffer slice").press("Enter");
       await page.getByRole("menuitem", { name: "Split" }).click();
       const nameField = page.getByPlaceholder("Category name").last();
       await expect(nameField).toBeVisible();
