@@ -32,7 +32,7 @@ const SETTLE_DELAY_MS = 600;
 /** The id a block wears between being drawn and the calendar giving it a real one. */
 const DRAFT_PREFIX = "draft:";
 
-export type DragKind = "create" | "move" | "resize";
+export type DragKind = "create" | "move" | "resize" | "resize-start";
 
 /** What a write draws on the grid before the server has confirmed it — `null` being "gone". */
 interface Drawn {
@@ -126,7 +126,12 @@ interface PendingDrag {
 class CalendarData {
   /** Opens on the current week; scrolling moves it off a Monday and that's fine. */
   anchor = $state(startOfWeek(new Date()));
-  selected = $state<CalendarEvent | null>(null);
+  /**
+   * The open event, by id rather than by value: a write replaces every event object, and the
+   * editor has to show what the week now holds — a category set from inside it lands on the row
+   * that set it, not one refetch later.
+   */
+  selectedId = $state<string | null>(null);
   /** Where the tapped block is on screen, so its editor can open beside it rather than over it. */
   selectedRect = $state<DOMRect | null>(null);
   /** The block a right-click landed on, and where — null when no context menu is open. */
@@ -226,8 +231,11 @@ class CalendarData {
   /** The gathered blocks themselves, as the week currently holds them. */
   readonly pickedEvents = $derived(this.events.filter((event) => this.picked.has(event.id)));
 
+  /** The open event as the week currently holds it, or null once it's gone from the week. */
+  readonly selected = $derived(this.events.find((event) => event.id === this.selectedId) ?? null);
+
   select(event: CalendarEvent, rect: DOMRect) {
-    this.selected = event;
+    this.selectedId = event.id;
     this.selectedRect = rect;
   }
 
@@ -247,7 +255,7 @@ class CalendarData {
   }
 
   deselect() {
-    this.selected = null;
+    this.selectedId = null;
     this.selectedRect = null;
   }
 
@@ -391,6 +399,14 @@ class CalendarData {
     this.#arm({ kind: "resize", activity: null, event, e, armed: true });
   }
 
+  /** Same handle as `beginResize`, dragging the top edge — the end stays put, the start follows. */
+  beginResizeStart(event: CalendarEvent, e: PointerEvent) {
+    if (event.readOnly) return;
+    if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
+    e.stopPropagation();
+    this.#arm({ kind: "resize-start", activity: null, event, e, armed: true });
+  }
+
   moveDrag(e: PointerEvent) {
     const pending = this.#pendingDrag;
     if (pending && !pending.armed) {
@@ -408,6 +424,11 @@ class CalendarData {
     if (this.drag.kind === "resize") {
       this.drag.endMinutes = Math.max(this.drag.startMinutes + 15, at.minutes);
       this.drag.freeEndMinutes = Math.max(this.drag.startMinutes + 15, at.rawMinutes);
+      return;
+    }
+    if (this.drag.kind === "resize-start") {
+      this.drag.startMinutes = Math.min(this.drag.endMinutes - 15, at.minutes);
+      this.drag.freeStartMinutes = Math.min(this.drag.endMinutes - 15, at.rawMinutes);
       return;
     }
     const length = this.drag.endMinutes - this.drag.startMinutes;

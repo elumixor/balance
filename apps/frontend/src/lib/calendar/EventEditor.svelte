@@ -198,10 +198,9 @@
 {/snippet}
 
 <AnchoredPopup {rect} width={WIDTH} dismiss={!pickerRect} onclose={close}>
-    <!-- Header: what this is on the left, the two things you can do to it on the right. -->
-    <div class="flex items-center gap-2 px-3 pt-3">
-      <span class="t-label flex-1 text-fg-muted">Event</span>
-      <span class="t-micro text-fg-faint" aria-live="polite">{saving ? "Saving…" : ""}</span>
+    <!-- Header: the two things you can do to the event, and whether it's mid-write. -->
+    <div class="flex items-center justify-end gap-2 px-3 pt-3">
+      <span class="t-micro flex-1 text-fg-faint" aria-live="polite">{saving ? "Saving…" : ""}</span>
       {#if editable}
         <IconButton
           label="Delete event"

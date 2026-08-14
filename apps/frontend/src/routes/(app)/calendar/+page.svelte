@@ -56,10 +56,15 @@
     const target = e.target as HTMLElement | null;
     const typing = target?.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 
-    if ((e.key === "Delete" || e.key === "Backspace") && data.picked.size > 0 && !typing) {
+    // Delete takes the gathered blocks off the week, or — with none gathered — the open one.
+    if ((e.key === "Delete" || e.key === "Backspace") && !typing) {
+      const targets = (data.picked.size > 0 ? data.pickedEvents : data.selected ? [data.selected] : []).filter(
+        (event) => !event.readOnly && !event.allDay,
+      );
+      if (!targets.length) return;
       e.preventDefault();
-      const targets = data.pickedEvents.filter((event) => !event.readOnly && !event.allDay);
       data.clearPicked();
+      data.deselect();
       for (const event of targets) void data.deleteEvent(event);
       return;
     }
