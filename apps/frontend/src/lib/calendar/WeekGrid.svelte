@@ -2,6 +2,7 @@
   import { addDays, minutesIntoDay, startOfDay } from "$lib/dates";
   import type { CalendarEvent, Category } from "$lib/types";
   import { calendarData, STRIP_DAYS } from "./calendar-data.svelte";
+  import Button from "$lib/components/Button.svelte";
   import EventBlock from "./EventBlock.svelte";
   import EventContextMenu from "./EventContextMenu.svelte";
   import {
@@ -188,12 +189,21 @@
   }
 </script>
 
-<div
-  bind:this={data.scrollerEl}
-  bind:clientWidth={viewWidth}
-  {onscroll}
-  class="h-full snap-x snap-mandatory overflow-auto overscroll-contain scroll-pl-14 bg-surface"
->
+<div class="relative h-full">
+  {#if todayOutOfView}
+    <div class="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center">
+      <div class="pointer-events-auto">
+        <Button label="Today" size="sm" variant="outline" onclick={() => data.goToToday()} class="bg-surface shadow" />
+      </div>
+    </div>
+  {/if}
+
+  <div
+    bind:this={data.scrollerEl}
+    bind:clientWidth={viewWidth}
+    {onscroll}
+    class="h-full snap-x snap-mandatory overflow-auto overscroll-contain scroll-pl-14 bg-surface"
+  >
   <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
     <!-- The hours stay put while the days slide past them. -->
     <div class="sticky left-0 z-30 flex shrink-0 flex-col bg-surface" style="width:{GUTTER_PX}px">
@@ -215,12 +225,12 @@
           {#each days as day}
             {@const today = day.getTime() === todayStart}
             <div class="flex flex-col justify-center border-line border-l px-1 text-center">
-              <div class="t-micro {today ? 'text-accent' : 'text-fg-faint'}">
+              <div class="t-micro {today ? 'text-fg' : 'text-fg-faint'}">
                 {day.toLocaleDateString(undefined, { weekday: "short" })}
               </div>
               <div
                 class="t-data-strong mx-auto flex size-5 items-center justify-center rounded-full {today
-                  ? 'bg-accent text-on-accent'
+                  ? 'bg-ink text-ink-fg'
                   : 'text-fg-muted'}"
               >
                 {day.getDate()}
@@ -363,6 +373,7 @@
         {/if}
       </div>
     </div>
+  </div>
   </div>
 </div>
 
