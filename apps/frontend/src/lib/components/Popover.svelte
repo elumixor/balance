@@ -12,7 +12,8 @@
     align = "end",
   }: {
     trigger: Snippet<[() => void, boolean]>;
-    content: Snippet<[() => void]>;
+    /** Second param is true once the panel is placed and starting its drift in — safe to focus. */
+    content: Snippet<[() => void, boolean]>;
     width?: number;
     align?: "start" | "end";
   } = $props();
@@ -117,7 +118,7 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.key === "Escape" && close()}
     >
-      {@render content(close)}
+      {@render content(close, shown)}
     </div>
   </div>
 {/if}
