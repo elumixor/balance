@@ -50,20 +50,36 @@
   function onkeydown(e: KeyboardEvent) {
     // Escape lets go of a gathered batch — the editor's own popup handles its own Escape.
     if (e.key === "Escape" && data.picked.size > 0) return data.clearPicked();
+    // Alt toggles a move into a copy the instant it's pressed, not on the next pointer move.
+    if (e.key === "Alt") return data.setDragCopy(true);
+
+    const target = e.target as HTMLElement | null;
+    const typing = target?.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+
+    if ((e.key === "Delete" || e.key === "Backspace") && data.picked.size > 0 && !typing) {
+      e.preventDefault();
+      const targets = data.pickedEvents.filter((event) => !event.readOnly && !event.allDay);
+      data.clearPicked();
+      for (const event of targets) void data.deleteEvent(event);
+      return;
+    }
+
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     const key = e.key.toLowerCase();
     const redo = key === "y" || (key === "z" && e.shiftKey);
     if (key !== "z" && !redo) return;
-
-    const target = e.target as HTMLElement | null;
-    if (target?.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+    if (typing) return;
 
     e.preventDefault();
     void (redo ? data.redo() : data.undo());
   }
+
+  function onkeyup(e: KeyboardEvent) {
+    if (e.key === "Alt") data.setDragCopy(false);
+  }
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window {onkeydown} {onkeyup} />
 
 <!-- The rail carries this screen's own controls; on a phone they're behind the strip's one button. -->
 <SidePanelSection>

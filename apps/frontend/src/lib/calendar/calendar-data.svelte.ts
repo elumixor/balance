@@ -69,8 +69,8 @@ export interface DragState {
   readonly weights: ActivityWeight[];
   readonly activityId: string | null;
   readonly event: CalendarEvent | null;
-  /** Alt held on the way in: dropping makes a duplicate instead of moving the original. */
-  readonly copy: boolean;
+  /** Alt held right now: dropping makes a duplicate instead of moving the original. Live — toggles mid-drag. */
+  copy: boolean;
   /**
    * The rest of the gathered blocks, dragged along by the same distance as the one under the
    * finger — empty for an ordinary drag.
@@ -403,6 +403,7 @@ class CalendarData {
     const at = this.#pointerToSlot(e);
     if (!at) return;
     this.#autoscrollNear(e.clientY);
+    if (this.drag.kind === "move") this.drag.copy = e.altKey;
 
     if (this.drag.kind === "resize") {
       this.drag.endMinutes = Math.max(this.drag.startMinutes + 15, at.minutes);
@@ -416,6 +417,11 @@ class CalendarData {
     this.drag.freeStartMinutes = Math.min(at.rawMinutes, MINUTES_PER_DAY - length);
     this.drag.freeEndMinutes = this.drag.freeStartMinutes + length;
     this.drag.freeDayIndex = at.rawIndex;
+  }
+
+  /** Alt pressed or released mid-drag, ahead of the next pointer move — see `moveDrag`. */
+  setDragCopy(copy: boolean) {
+    if (this.drag?.kind === "move") this.drag.copy = copy;
   }
 
   endDrag() {

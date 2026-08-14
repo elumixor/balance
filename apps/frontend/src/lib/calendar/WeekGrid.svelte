@@ -68,6 +68,10 @@
 
   const todayStart = $derived(startOfDay(new Date()).getTime());
   const nowTop = $derived((minutesIntoDay(new Date()) / 60) * HOUR_PX);
+  /** Whether today's column sits outside the seven days currently on screen. */
+  const todayOutOfView = $derived(
+    todayStart < data.windowStart.getTime() || todayStart >= addDays(data.windowStart, VISIBLE_DAYS).getTime(),
+  );
 
   /** The gathering box, in pixels down the grid rather than the grid's own day-and-minute units. */
   const marqueeBox = $derived.by(() => {
@@ -211,20 +215,31 @@
           {#each days as day}
             {@const today = day.getTime() === todayStart}
             <div class="flex flex-col justify-center border-line border-l px-1 text-center">
-              <div class="t-micro text-fg-faint">{day.toLocaleDateString(undefined, { weekday: "short" })}</div>
-              <div class="t-data-strong {today ? 'text-fg' : 'text-fg-muted'}">{day.getDate()}</div>
+              <div class="t-micro {today ? 'text-accent' : 'text-fg-faint'}">
+                {day.toLocaleDateString(undefined, { weekday: "short" })}
+              </div>
+              <div
+                class="t-data-strong mx-auto flex size-5 items-center justify-center rounded-full {today
+                  ? 'bg-accent text-on-accent'
+                  : 'text-fg-muted'}"
+              >
+                {day.getDate()}
+              </div>
             </div>
           {/each}
         </div>
 
         {#if allDay.length > 0}
-          <div class="grid gap-px px-px" style="grid-template-columns:{columns};height:{ALL_DAY_PX}px">
+          <div class="grid" style="grid-template-columns:{columns};height:{ALL_DAY_PX}px">
+            {#each days as day, index (day.getTime())}
+              <div class="border-line border-l" style="grid-row:1;grid-column:{index + 1}"></div>
+            {/each}
             {#each allDay as span (span.event.id)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 class="relative py-0.5"
-                style="grid-column:{span.dayIndex + 1} / span {span.days}"
+                style="grid-row:1;grid-column:{span.dayIndex + 1} / span {span.days}"
                 onclick={(e) =>
                   data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
                 oncontextmenu={(e) => {
@@ -254,9 +269,11 @@
         {#each days as day, index}
           <div class="relative snap-start border-line border-l">
             {#each placedByDay[index] as segment (segment.event.id)}
-              {@const dragging = data.drag?.event?.id === segment.event.id}
+              <!-- Alt held: the original stays put in full, since the pointer is dragging a copy. -->
+              {@const dragging = data.drag?.event?.id === segment.event.id && !data.drag?.copy}
               <!-- The rest of a dragged batch stays where it is, faded, with its target outlined. -->
-              {@const trailing = data.drag?.others.some((other) => other.id === segment.event.id) ?? false}
+              {@const trailing =
+                !data.drag?.copy && (data.drag?.others.some((other) => other.id === segment.event.id) ?? false)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
