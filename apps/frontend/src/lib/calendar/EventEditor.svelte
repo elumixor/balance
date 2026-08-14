@@ -9,6 +9,7 @@
   import { ArrowRight, Bell, Clock, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
+  import TimeField from "./TimeField.svelte";
 
   /**
    * One event, opened beside the block you tapped: what it says, when it runs, and what it counts
@@ -245,17 +246,17 @@
       <div class="flex items-center gap-3">
         <Clock size={16} class="shrink-0 text-fg-faint" />
         {#if editable}
-          <Field bind:value={from} oninput={queue} mono variant="inline" ariaLabel="Start time" class="w-16" />
+          <TimeField bind:value={from} counterpart={to} oninput={queue} ariaLabel="Start time" />
           <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-          <Field bind:value={to} oninput={queue} mono variant="inline" ariaLabel="End time" class="w-16" />
+          <TimeField bind:value={to} counterpart={from} end oninput={queue} ariaLabel="End time" />
         {:else}
           <span class="t-data">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
           {#if !event.allDay}
             <ArrowRight size={14} class="shrink-0 text-fg-faint" />
             <span class="t-data">{formatClock(new Date(event.end))}</span>
           {/if}
+          <span class="t-data-micro text-fg-muted">{span}</span>
         {/if}
-        <span class="t-data-micro text-fg-muted">{span}</span>
       </div>
 
       <div class="flex items-center gap-3 pl-7">
