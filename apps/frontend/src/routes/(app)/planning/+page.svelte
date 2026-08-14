@@ -14,7 +14,7 @@
   import SkeletonRows from "$lib/components/SkeletonRows.svelte";
   import { AUTOSAVE_DELAY_MS, categoryDrafts as week, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
   import PlanDial from "$lib/week/PlanDial.svelte";
-  import { Check, Plus } from "lucide-svelte";
+  import { Check } from "lucide-svelte";
 
   /**
    * One screen for the week you mean to have: the ring cuts 168 hours into categories, and the
@@ -73,23 +73,10 @@
         {/if}
       </div>
 
-      <p class="t-micro mx-auto mt-4 max-w-[38ch] text-center text-fg-faint">
-        Tap a slice's icon to change how it looks, drag a seam to move hours between neighbours, or cut a new
-        category out of one you have.
+      <p class="t-micro mx-auto mt-4 max-w-[40ch] text-center text-fg-faint">
+        Tap a slice's icon to change how it looks, drag a seam to move hours between neighbours, or open a
+        label's ⋯ to cut a new category out of that slice.
       </p>
-
-      <!-- The ✛ on a slice is the real way to cut one; this is the way in when every slice is thin. -->
-      <div class="mt-4 flex justify-center">
-        <button
-          type="button"
-          aria-label="Split off a category"
-          onclick={() => week.split(week.drafts.length === 0 ? 0 : week.drafts.length - 1)}
-          class="press hoverable flex items-center gap-1.5 rounded-md border border-line px-3 py-2"
-        >
-          <Plus size={14} class="text-fg-muted" />
-          <span class="t-label text-fg-muted">Split off a category</span>
-        </button>
-      </div>
     </div>
 
     <!-- The rule is wider than the one between rows: this is the next thing, not the next row. -->

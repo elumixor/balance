@@ -1,12 +1,8 @@
 <script lang="ts" module>
-  /** The room the cut buttons need outside the band, and where that leaves the band itself. */
-  export const SPLIT_PAD = 13;
-
   /** Below this a slice is a sliver: an icon in it would touch both seams. */
   export const MIN_ICON_FRACTION = 0.045;
 
-  export const ringRadius = (size: number, thickness: number, splittable: boolean) =>
-    size / 2 - thickness / 2 - (splittable ? SPLIT_PAD : 0);
+  export const ringRadius = (size: number, thickness: number) => size / 2 - thickness / 2;
 </script>
 
 <script lang="ts">
@@ -16,17 +12,15 @@
   import Arc, { pointOnRing, RING_START } from "./Arc.svelte";
 
   const GAP_FRACTION = 0.004;
-  const MIN_SPLIT_FRACTION = 0.055;
 
   /**
    * The week as a dial: one ring holding every hour you have, cut into the slices
-   * you mean to spend. Drag a seam to move hours between neighbours, tap ✛ to cut
-   * a new slice out of one you already have.
+   * you mean to spend. Drag a seam to move hours between neighbours; cutting a new
+   * slice out of one you have belongs to whatever labels the slices.
    */
   let {
     segments,
     onchange,
-    onsplit,
     size = 232,
     thickness = 26,
     unit = "h",
@@ -36,7 +30,6 @@
   }: {
     segments: RingSegment[];
     onchange: (values: number[]) => void;
-    onsplit?: (index: number) => void;
     size?: number;
     thickness?: number;
     unit?: string;
@@ -50,12 +43,7 @@
   let dragging = $state<number | null>(null);
 
   const c = $derived(size / 2);
-  /**
-   * The cut buttons live just outside the band now — the icons have the middle of each slice —
-   * so a ring that offers cutting draws itself a little smaller to keep them inside its box.
-   */
-  const outerPad = $derived(onsplit ? SPLIT_PAD : 0);
-  const r = $derived(ringRadius(size, thickness, Boolean(onsplit)));
+  const r = $derived(ringRadius(size, thickness));
   const total = $derived(segments.reduce((sum, s) => sum + s.value, 0) || 1);
 
   /** Running sums: `bounds[i]` is where segment `i` ends, in segment units. */
@@ -156,26 +144,6 @@
       </span>
     {/if}
   {/each}
-
-  {#if onsplit}
-    {#each segments as segment, i (`split-${segment.id}`)}
-      {#if segment.value / total >= MIN_SPLIT_FRACTION}
-        <!-- Outside the band now: the icon has the middle, and a cut reads better on the edge. -->
-        {@const pos = pointOnRing(c, c, r + thickness / 2 + outerPad, (bounds[i] - segment.value / 2) / total)}
-        <button
-          type="button"
-          aria-label="Split {segment.label || 'slice'}"
-          onclick={() => onsplit?.(i)}
-          class="press-sm absolute flex size-6 items-center justify-center rounded-full border border-line-strong bg-surface"
-          style="left:{pos.x - 12}px;top:{pos.y - 12}px"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <path d="M1.5 6h9M6 1.5v9" stroke="var(--fg)" stroke-width="1.6" stroke-linecap="round" />
-          </svg>
-        </button>
-      {/if}
-    {/each}
-  {/if}
 
   <!-- The draggable divider between two neighbouring ring slices. -->
   {#each segments.slice(0, -1) as _, i (`seam-${i}`)}

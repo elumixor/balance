@@ -1,6 +1,6 @@
 <script lang="ts">
   import { pointOnRing, RING_START } from "$lib/components/ring/Arc.svelte";
-  import WeekRing, { MIN_ICON_FRACTION, ringRadius, SPLIT_PAD } from "$lib/components/ring/WeekRing.svelte";
+  import WeekRing, { MIN_ICON_FRACTION, ringRadius } from "$lib/components/ring/WeekRing.svelte";
   import { iconFor } from "$lib/icons";
   import type { RingSegment } from "$lib/types";
   import CategoryCallout from "./CategoryCallout.svelte";
@@ -37,8 +37,8 @@
   /** The room between the ring's box and the label column, and how far the line runs flat into it. */
   const GUTTER = 12;
   const LEADER_TAIL = 14;
-  /** Where a leader starts: outside the cut button, which sits on the same radius as the label. */
-  const KNOT_GAP = 12;
+  /** How far off the band a leader starts, so the line never touches the colour it points at. */
+  const KNOT_GAP = 10;
   /** The vertical slot one label claims. Fixed, so a stack of them can be resolved by arithmetic. */
   const CALLOUT_H = 60;
   const TITLE_H = 28;
@@ -101,7 +101,7 @@
 
     const cx = width / 2;
     const cy = height / 2;
-    const knot = ringRadius(ringSize, thickness, true) + thickness / 2 + SPLIT_PAD + KNOT_GAP;
+    const knot = ringRadius(ringSize, thickness) + thickness / 2 + KNOT_GAP;
 
     for (const item of labels) item.want = cy + knot * item.sin;
     stack(
@@ -154,7 +154,6 @@
       <WeekRing
         {segments}
         onchange={onhours}
-        {onsplit}
         size={layout.ringSize}
         thickness={layout.thickness}
         {centerValue}
@@ -189,6 +188,7 @@
           name={draft ? draft.name : label.segment.label}
           hours={label.segment.value}
           onchange={draft ? (patch) => onupdate(draft.key, patch) : undefined}
+          onsplit={() => onsplit(label.index)}
           onremove={draft ? () => onremove(draft) : undefined}
         >
           {#snippet lead()}
