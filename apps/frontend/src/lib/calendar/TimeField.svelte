@@ -16,12 +16,18 @@
     /** Which end this field is, which is to say which way the suggestions run from the other one. */
     end = false,
     oninput,
+    /** A time settled on rather than typed toward: it goes to the calendar without waiting. */
+    oncommit,
+    /** The time the field is pointing at, or null when it's shut: what taking it would mean. */
+    onpreview,
     ariaLabel,
   }: {
     value: string;
     counterpart: string;
     end?: boolean;
     oninput?: (value: string) => void;
+    oncommit?: () => void;
+    onpreview?: (value: string | null) => void;
     ariaLabel: string;
   } = $props();
 
@@ -38,6 +44,8 @@
   let open = $state(false);
   let highlighted = $state(0);
   let position = $state<{ left: number; top: number } | null>(null);
+  /** The time the field is currently arguing for: typed, or walked to in the list. */
+  let candidate = $state<string | null>(null);
   /** What the field said when it was last agreed on, and what anything unreadable goes back to. */
   let fallback = "";
 
@@ -117,6 +125,7 @@
 
   function show() {
     fallback = normalize(value) ?? fallback;
+    candidate = fallback;
     highlighted = matchIndex();
     place();
     open = true;
@@ -132,6 +141,7 @@
   function set(clock: string) {
     value = clock;
     fallback = clock;
+    candidate = clock;
     oninput?.(clock);
   }
 
@@ -140,16 +150,19 @@
     if (!option) return;
     set(option.clock);
     open = false;
+    oncommit?.();
   }
 
   /** What's typed either reads as a time, in which case it's tidied up, or it goes back. */
   function settle() {
     const clock = normalize(value);
     if (clock !== value) set(clock ?? fallback);
+    oncommit?.();
   }
 
   function move(delta: number) {
     highlighted = Math.min(options.length - 1, Math.max(0, highlighted + delta));
+    candidate = options[highlighted]?.clock ?? candidate;
   }
 
   function onkeydown(e: KeyboardEvent) {
@@ -187,6 +200,14 @@
     list?.children[highlighted]?.scrollIntoView({ block: "nearest" });
   });
 
+  // Whatever the field is pointing at is drawn on the grid before it's taken, and stops being
+  // drawn the moment the field is done — by then the value itself says what the event is.
+  $effect(() => {
+    onpreview?.(open ? candidate : null);
+  });
+
+  $effect(() => () => onpreview?.(null));
+
   // The field can move under the list — the card re-places itself as its content grows.
   $effect(() => {
     if (!open) return;
@@ -220,8 +241,10 @@
     bind:this={input}
     bind:value
     oninput={(e) => {
-      // Half-typed text is nobody's business but this field's — only a real time is passed on.
+      // Half-typed text is nobody's business but this field's — only a real time is passed on,
+      // and the grid keeps drawing the last readable one until another arrives.
       const clock = normalize(e.currentTarget.value);
+      candidate = clock ?? fallback;
       if (clock) oninput?.(clock);
     }}
     onfocus={() => {

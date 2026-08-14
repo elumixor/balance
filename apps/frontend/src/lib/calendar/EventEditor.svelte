@@ -43,7 +43,6 @@
   let date = $state("");
   let from = $state("");
   let to = $state("");
-  let saving = $state(false);
   let error = $state<string | null>(null);
 
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -105,9 +104,29 @@
   /** A pending edit still belongs to the user, so it's written before the card goes away. */
   $effect(() => () => flush());
 
-  function parseRange() {
-    const start = parseDateAndClock(date, from);
-    let end = parseDateAndClock(date, to);
+  /**
+   * What a time field is currently pointing at, while it's being used — the block on the grid is
+   * drawn at that size before anything is written, so a walked-to suggestion can be seen as well
+   * as read. Null the rest of the time, which leaves the grid to say what the week holds.
+   */
+  let previewFrom = $state<string | null>(null);
+  let previewTo = $state<string | null>(null);
+
+  $effect(() => {
+    const range = previewFrom || previewTo ? parseRange(previewFrom ?? from, previewTo ?? to) : null;
+    const next = range ? { id: event.id, start: range.start.toISOString(), end: range.end.toISOString() } : null;
+    // Written only when it actually says something else: the preview changes the event this card
+    // is showing, which would otherwise hand the effect its own answer back forever.
+    const now = data.preview;
+    if (now?.id !== next?.id || now?.start !== next?.start || now?.end !== next?.end) data.preview = next;
+  });
+
+  /** Nothing is being decided once the card is gone, so nothing is drawn ahead of the week either. */
+  $effect(() => () => (data.preview = null));
+
+  function parseRange(fromClock = from, toClock = to) {
+    const start = parseDateAndClock(date, fromClock);
+    let end = parseDateAndClock(date, toClock);
     if (!start || !end) return null;
     // A block that ends before it starts ran past midnight.
     if (end <= start) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
@@ -145,32 +164,24 @@
       return;
     }
 
-    saving = true;
+    // The write draws itself on the grid before it asks the server, so nothing here waits on the
+    // network to look done — only the error, if one comes back, arrives late.
+    saved = next;
     error = null;
-    try {
-      await data.editEvent(event, {
-        title: next.title,
-        description: next.notes,
-        start: range.start,
-        end: range.end,
-      });
-      error = data.actionError;
-      if (!error) saved = next;
-    } finally {
-      saving = false;
-    }
+    await data.editEvent(event, {
+      title: next.title,
+      description: next.notes,
+      start: range.start,
+      end: range.end,
+    });
+    error = data.actionError;
   }
 
   /** Mapping writes land straight away — there's nothing to type, so there's nothing to wait for. */
   async function run(action: () => Promise<void>) {
-    saving = true;
     error = null;
-    try {
-      await action();
-      error = data.actionError;
-    } finally {
-      saving = false;
-    }
+    await action();
+    error = data.actionError;
   }
 
   /** One category, whole: a split across several is a thing the week screen sets, not this card. */
@@ -220,7 +231,6 @@
       {:else}
         <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
       {/if}
-      <span class="t-micro shrink-0 text-fg-faint" aria-live="polite">{saving ? "Saving…" : ""}</span>
       {#if editable}
         <IconButton
           label="Delete event"
@@ -246,9 +256,24 @@
       <div class="flex items-center gap-3">
         <Clock size={16} class="shrink-0 text-fg-faint" />
         {#if editable}
-          <TimeField bind:value={from} counterpart={to} oninput={queue} ariaLabel="Start time" />
+          <TimeField
+            bind:value={from}
+            counterpart={to}
+            oninput={queue}
+            oncommit={flush}
+            onpreview={(v) => (previewFrom = v)}
+            ariaLabel="Start time"
+          />
           <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-          <TimeField bind:value={to} counterpart={from} end oninput={queue} ariaLabel="End time" />
+          <TimeField
+            bind:value={to}
+            counterpart={from}
+            end
+            oninput={queue}
+            oncommit={flush}
+            onpreview={(v) => (previewTo = v)}
+            ariaLabel="End time"
+          />
         {:else}
           <span class="t-data">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
           {#if !event.allDay}

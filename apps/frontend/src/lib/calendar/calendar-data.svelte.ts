@@ -140,6 +140,11 @@ class CalendarData {
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
   /**
+   * Times the editor is entering right now, drawn on the grid before anything is written: typing a
+   * new end, or walking the suggested ones, moves the block while it's being decided.
+   */
+  preview = $state<{ id: string; start: string; end: string } | null>(null);
+  /**
    * The blocks gathered for a write that applies to all of them — by dragging a box over empty
    * grid, or by ⌘-clicking them one at a time. Ids rather than events: a refetch replaces every
    * event object, and a selection has to survive that.
@@ -214,6 +219,11 @@ class CalendarData {
       if (event) byId.set(id, event);
       else byId.delete(id);
     }
+    // Times the editor is showing but hasn't written yet, so a block on the grid answers the
+    // typing that will move it — the same thing a resize drag does, without the finger.
+    const preview = this.preview;
+    const previewed = preview && byId.get(preview.id);
+    if (preview && previewed) byId.set(preview.id, { ...previewed, start: preview.start, end: preview.end });
     const prefs = store.calendars.value;
     if (!prefs) return [...byId.values()];
     const primaryIds = new Set(prefs.calendars.filter((c) => c.primary).map((c) => c.id));
@@ -498,14 +508,16 @@ class CalendarData {
     // A resize drags one edge, so the others' starts stay put and only their ends follow.
     const moving = drag.kind === "resize" ? 0 : shiftStart;
 
-    return this.#batch([
-      { event: was, start, end },
-      ...drag.others.map((event) => ({
-        event,
-        start: new Date(new Date(event.start).getTime() + moving),
-        end: new Date(new Date(event.end).getTime() + shiftEnd),
-      })),
-    ].map(({ event, start: at, end: until }) => this.#retimeStep(event, at, until)));
+    return this.#batch(
+      [
+        { event: was, start, end },
+        ...drag.others.map((event) => ({
+          event,
+          start: new Date(new Date(event.start).getTime() + moving),
+          end: new Date(new Date(event.end).getTime() + shiftEnd),
+        })),
+      ].map(({ event, start: at, end: until }) => this.#retimeStep(event, at, until)),
+    );
   }
 
   // --- writes ---------------------------------------------------------------
@@ -1064,9 +1076,7 @@ class CalendarData {
     };
   }
 
-  #pointerToSlot(
-    e: PointerEvent,
-  ): { day: Date; minutes: number; rawMinutes: number; rawIndex: number } | null {
+  #pointerToSlot(e: PointerEvent): { day: Date; minutes: number; rawMinutes: number; rawIndex: number } | null {
     const at = this.#pointerToPoint(e);
     if (!at) return null;
     const rawIndex = clamp(at.dayIndex + this.#grabOffsetDays, 0, STRIP_DAYS - 1);
