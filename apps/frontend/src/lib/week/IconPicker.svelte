@@ -40,9 +40,19 @@
     .map((h) => withHue("#c4553b", h))
     .join(", ")})`;
 
-  /** The panel opens to a full grid — the search box is where you'd start typing anyway. */
+  /**
+   * The panel opens to a full grid — the search box is where you'd start typing anyway. It spends
+   * its first frames hidden while it works out where it belongs, though, and a hidden field can't
+   * take focus, so this keeps asking until it lands.
+   */
   function autofocus(node: HTMLInputElement) {
-    node.focus();
+    const focus = () => {
+      // Without this, a plain focus() on a field still hidden at (0,0) scrolls whatever ancestor
+      // is scrollable into "view" of that phantom position.
+      node.focus({ preventScroll: true });
+      if (node.isConnected && document.activeElement !== node) requestAnimationFrame(focus);
+    };
+    focus();
   }
 </script>
 
