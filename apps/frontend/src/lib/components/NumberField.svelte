@@ -36,7 +36,7 @@
 
   const parser = new Parser();
 
-  /** "7*7" evaluates the moment it parses, same as a plain number — no separate submit step. */
+  /** "7*7" resolves to 49 on commit, same path a plain number takes. */
   function evaluate(next: string) {
     try {
       const result = parser.evaluate(next);
