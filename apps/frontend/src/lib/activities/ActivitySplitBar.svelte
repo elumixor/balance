@@ -128,7 +128,7 @@
       role="button"
       tabindex="0"
       aria-label="Change category for {category?.name ?? 'this piece'}"
-      class="press-sm relative flex min-w-0 cursor-pointer items-center gap-1.5 px-2"
+      class="relative flex min-w-0 cursor-pointer items-center gap-1.5 px-2"
       style="flex:{piece.percent} 0 0%;background:{withAlpha(color, 0.14)}"
       onclick={(e) => {
         // The percent field is for typing, not picking — a click that lands there is its own thing.
