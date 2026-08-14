@@ -337,7 +337,10 @@
         bind:this={data.columnsEl}
         onpointerdown={(e) => data.beginMarquee(e)}
         onpointermove={(e) => data.moveMarquee(e)}
-        onpointerup={() => data.endMarquee()}
+        onpointerup={(e) => {
+          data.endMarquee();
+          data.tapEmpty(e);
+        }}
         onpointercancel={() => data.endMarquee()}
         class="relative grid"
         style="grid-template-columns:{columns};height:{24 *

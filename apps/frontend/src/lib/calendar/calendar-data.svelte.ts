@@ -32,6 +32,12 @@ const SETTLE_DELAY_MS = 600;
 /** The id a block wears between being drawn and the calendar giving it a real one. */
 const DRAFT_PREFIX = "draft:";
 
+/** How close together, in time and on screen, two taps on empty grid have to be to count as one. */
+const DOUBLE_TAP_MS = 320;
+const DOUBLE_TAP_PX = 24;
+/** What a block made by tapping the grid is called until the editor is told otherwise. */
+const NEW_EVENT_TITLE = "New event";
+
 export type DragKind = "create" | "move" | "resize" | "resize-start";
 
 /** What a write draws on the grid before the server has confirmed it — `null` being "gone". */
@@ -192,6 +198,10 @@ class CalendarData {
   /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
   #dragged = false;
   #autoscroll: number | null = null;
+  /** Where the press on empty grid landed, so a release that travelled isn't read as a tap. */
+  #pressAt: { x: number; y: number } | null = null;
+  /** The last tap on empty grid, which the next one is measured against — see `tapEmpty`. */
+  #lastTap: { x: number; y: number; at: number } | null = null;
 
   /** The first of the seven days on screen — any day, not just a Monday. */
   readonly windowStart = $derived(startOfDay(this.anchor));
@@ -313,6 +323,8 @@ class CalendarData {
    * scrolling it, which is how the week changes.
    */
   beginMarquee(e: PointerEvent) {
+    // Every press on the grid is measured, mouse or finger: it's what tells a tap from a drag.
+    this.#pressAt = { x: e.clientX, y: e.clientY };
     if (e.pointerType !== "mouse" || e.button !== 0) return;
     if ((e.target as Element | null)?.closest("[data-event]")) return;
     const at = this.#pointerToPoint(e);
@@ -338,6 +350,46 @@ class CalendarData {
 
   endMarquee() {
     this.marquee = null;
+  }
+
+  /**
+   * Two quick taps on empty grid make an hour there and open it — the way onto the week that
+   * doesn't start at the palette. A press that travelled was a drag or a scroll of the week, and
+   * one that landed on a block belongs to that block.
+   */
+  tapEmpty(e: PointerEvent) {
+    const press = this.#pressAt;
+    this.#pressAt = null;
+    if (!press || this.drag || !this.connected) return;
+    if ((e.target as Element | null)?.closest("[data-event]")) return;
+    if (Math.hypot(e.clientX - press.x, e.clientY - press.y) >= DRAG_THRESHOLD_PX) return;
+
+    const last = this.#lastTap;
+    const at = Date.now();
+    this.#lastTap = { x: e.clientX, y: e.clientY, at };
+    if (!last || at - last.at > DOUBLE_TAP_MS) return;
+    if (Math.hypot(e.clientX - last.x, e.clientY - last.y) >= DOUBLE_TAP_PX) return;
+
+    this.#lastTap = null;
+    void this.#createAt(e);
+  }
+
+  /** An hour at the tapped slot, opened beside the pointer as soon as it has an id to be named by. */
+  #createAt(e: PointerEvent) {
+    const at = this.#pointerToPoint(e);
+    if (!at) return;
+    const day = addDays(this.stripStart, clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1));
+    const minutes = clamp(snapMinutes(at.minutes), 0, MINUTES_PER_DAY - DEFAULT_EVENT_MINUTES);
+
+    this.deselect();
+    this.clearPicked();
+    return this.#create(
+      null,
+      NEW_EVENT_TITLE,
+      this.#instantAt(day, minutes),
+      this.#instantAt(day, minutes + DEFAULT_EVENT_MINUTES),
+      new DOMRect(e.clientX, e.clientY, 0, 0),
+    );
   }
 
   /** Every block the box overlaps, in the grid's own coordinates rather than the screen's. */
@@ -799,7 +851,7 @@ class CalendarData {
    * A new block has no id until the calendar gives it one, so it's drawn under a made-up one and
    * the real event takes its place when the refetch lands.
    */
-  async #create(activityId: string, title: string, start: Date, end: Date) {
+  async #create(activityId: string | null, title: string, start: Date, end: Date, openAt: DOMRect | null = null) {
     const activity = store.activities.value?.find((a) => a.id === activityId) ?? null;
     const draft: CalendarEvent = {
       id: `${DRAFT_PREFIX}${this.#nextTempId++}`,
@@ -815,19 +867,22 @@ class CalendarData {
       readOnly: false,
       countsTowardHours: true,
       url: null,
-      mappingScope: "instance",
+      mappingScope: activityId ? "instance" : null,
       activityId,
-      activityName: activity?.name ?? title,
+      activityName: activity?.name ?? null,
       weights: activity?.weights ?? [],
     };
     const created = await this.#run(
       async () => {
         const event = await createCalendarEvent({
-          activityId,
+          activityId: activityId ?? undefined,
           title,
           start: start.toISOString(),
           end: end.toISOString(),
         });
+        // Opened on the real event rather than the drawn-ahead one: the editor writes what it's
+        // shown, and the draft's made-up id is nothing the calendar would take a write against.
+        if (openAt) this.select(event, openAt);
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },
