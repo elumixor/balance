@@ -12,10 +12,12 @@ import type {
 
 // Categories
 export const getCategories = () => callApi(api.categories.$get()).then((r) => r.categories as Category[]);
-export const createCategory = (input: { name: string; color: string; targetHoursPerWeek: number }) =>
+export const createCategory = (input: { name: string; color: string; icon: string; targetHoursPerWeek: number }) =>
   callApi(api.categories.$post(input)).then((r) => unwrapOk(r).category as Category);
-export const updateCategory = (id: string, input: { name: string; color: string; targetHoursPerWeek: number }) =>
-  callApi(api.categories(id).$patch(input)).then((r) => unwrapOk(r).category as Category);
+export const updateCategory = (
+  id: string,
+  input: { name: string; color: string; icon: string; targetHoursPerWeek: number },
+) => callApi(api.categories(id).$patch(input)).then((r) => unwrapOk(r).category as Category);
 export const archiveCategory = (id: string) => callApi(api.categories(id).archive.$post()).then(unwrapOk);
 
 // Activities

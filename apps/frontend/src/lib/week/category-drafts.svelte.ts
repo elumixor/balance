@@ -1,4 +1,5 @@
 import { restColor, swatchPalette } from "$lib/colors";
+import { DEFAULT_ICON, randomIcon } from "$lib/icons";
 import { archiveCategory, createCategory, updateCategory } from "$lib/queries";
 import { invalidate, store } from "$lib/store.svelte";
 import type { Category, RingSegment } from "$lib/types";
@@ -11,8 +12,9 @@ export type Draft = {
   id: string | null;
   name: string;
   color: string;
+  icon: string;
   hours: number;
-  saved?: { name: string; color: string; hours: number };
+  saved?: { name: string; color: string; icon: string; hours: number };
 };
 
 function nextColor(used: string[]) {
@@ -24,6 +26,7 @@ function isDirty(draft: Draft) {
     !draft.saved ||
     draft.saved.name !== draft.name ||
     draft.saved.color !== draft.color ||
+    draft.saved.icon !== draft.icon ||
     draft.saved.hours !== draft.hours
   );
 }
@@ -34,8 +37,14 @@ function toDraft(category: Category): Draft {
     id: category.id,
     name: category.name,
     color: category.color,
+    icon: category.icon || DEFAULT_ICON,
     hours: category.targetHoursPerWeek,
-    saved: { name: category.name, color: category.color, hours: category.targetHoursPerWeek },
+    saved: {
+      name: category.name,
+      color: category.color,
+      icon: category.icon || DEFAULT_ICON,
+      hours: category.targetHoursPerWeek,
+    },
   };
 }
 
@@ -102,7 +111,7 @@ class CategoryDrafts {
     this.error = null;
     try {
       for (const draft of changed) {
-        const payload = { name: draft.name, color: draft.color, targetHoursPerWeek: draft.hours };
+        const payload = { name: draft.name, color: draft.color, icon: draft.icon, targetHoursPerWeek: draft.hours };
         if (draft.id) await updateCategory(draft.id, payload);
         else await createCategory(payload);
       }
@@ -125,6 +134,7 @@ class CategoryDrafts {
 
   split = (index: number) => {
     const used = this.drafts.map((d) => d.color);
+    const wearing = this.drafts.map((d) => d.icon);
     if (index >= this.drafts.length) {
       this.drafts = [
         {
@@ -132,6 +142,7 @@ class CategoryDrafts {
           id: null,
           name: "",
           color: nextColor(used),
+          icon: randomIcon(wearing),
           hours: this.restHours / 2,
         },
       ];
@@ -147,6 +158,7 @@ class CategoryDrafts {
         id: null,
         name: "",
         color: nextColor([...used, target.color]),
+        icon: randomIcon([...wearing, target.icon]),
         hours: Math.round((target.hours - half) * 10) / 10,
       },
       ...this.drafts.slice(index + 1),

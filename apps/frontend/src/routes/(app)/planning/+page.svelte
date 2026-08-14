@@ -87,7 +87,7 @@
           {#snippet children(draft)}
             <CategoryDraftRow
               {draft}
-              taken={week.drafts.map((d) => d.color)}
+              taken={week.drafts.map((d) => d.icon)}
               onchange={(patch) => week.update(draft.key, patch)}
               onremove={() => week.remove(draft)}
             />

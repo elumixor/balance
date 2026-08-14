@@ -18,6 +18,13 @@ export const swatchPalette = [
 /** Unallocated hours and untracked activity share this neutral. */
 export const restColor = "#8A9097";
 
+/**
+ * The saturation and lightness the palette is built on. A hue picked by hand borrows them, so a
+ * hand-tuned category still sits at the same weight as the swatches next to it in the ring.
+ */
+export const INK_SATURATION = 52;
+export const INK_LIGHTNESS = 50;
+
 export function withAlpha(hex: string, alpha: number) {
   const value = Math.round(Math.max(0, Math.min(1, alpha)) * 255)
     .toString(16)
@@ -29,6 +36,23 @@ export interface Hsl {
   h: number;
   s: number;
   l: number;
+}
+
+/** The hue of a colour, 0–360. A grey has no hue of its own, so it reads as red's zero. */
+export const hueOf = (hex: string) => Math.round(hexToHsl(hex).h);
+
+/**
+ * Turns the hue dial without touching how strong or how light the colour is — unless the colour
+ * is a near-grey, which has nothing to preserve, and takes the palette's own weight instead.
+ */
+export function withHue(hex: string, hue: number): string {
+  const { s, l } = hexToHsl(hex);
+  const flat = s < 12;
+  return hslToHex({
+    h: hue,
+    s: flat ? INK_SATURATION : s,
+    l: flat ? INK_LIGHTNESS : l,
+  });
 }
 
 export function hexToHsl(hex: string): Hsl {

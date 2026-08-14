@@ -25,6 +25,7 @@ export class BufferCategoryService {
         userId,
         name: BufferCategoryService.NAME,
         color: "#71717a",
+        icon: "circle-dashed",
         targetHoursPerWeek: BufferCategoryService.WEEK_HOURS.toString(),
         isBuffer: true,
       })

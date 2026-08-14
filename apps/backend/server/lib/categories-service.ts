@@ -6,6 +6,7 @@ import { bufferCategoryService } from "./buffer-category";
 export type CategoryInput = {
   name: string;
   color: string;
+  icon?: string;
   targetHoursPerWeek: number;
 };
 
@@ -30,6 +31,7 @@ export class CategoryService {
         userId: this.userId,
         name: input.name,
         color: input.color,
+        icon: input.icon ?? "circle",
         targetHoursPerWeek: input.targetHoursPerWeek.toString(),
       })
       .returning();
@@ -44,6 +46,7 @@ export class CategoryService {
       .set({
         name: input.name,
         color: input.color,
+        ...(input.icon ? { icon: input.icon } : {}),
         targetHoursPerWeek: input.targetHoursPerWeek.toString(),
       })
       .where(and(eq(categories.id, id), eq(categories.userId, this.userId)))

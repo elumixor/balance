@@ -16,6 +16,8 @@ export const categories = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     color: text("color").notNull().default("#6366f1"),
+    /** Lucide icon name the category is drawn with; the frontend falls back if it doesn't know one. */
+    icon: text("icon").notNull().default("circle"),
     targetHoursPerWeek: numeric("target_hours_per_week", { precision: 5, scale: 2 }).notNull(),
     /** The single system-managed category that absorbs all time unallocated by the user's other categories. */
     isBuffer: boolean("is_buffer").notNull().default(false),

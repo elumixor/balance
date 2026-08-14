@@ -4,10 +4,10 @@
   import NumberField from "$lib/components/NumberField.svelte";
   import { X } from "lucide-svelte";
   import { fromUnit, toUnit, type Draft } from "./category-drafts.svelte";
-  import ColorPicker from "./ColorPicker.svelte";
+  import IconPicker from "./IconPicker.svelte";
 
   /**
-   * One editable row in the plan: colour, name, and the same share written both ways — hours a
+   * One editable row in the plan: icon, name, and the same share written both ways — hours a
    * week and percent of the week. Either field takes an edit and the other follows, so a plan
    * thought of as "ten hours" and one thought of as "a fifteenth of my life" are the same plan.
    */
@@ -18,6 +18,7 @@
     onremove,
   }: {
     draft: Draft;
+    /** Icons the other rows already wear, so the picker can fade them. */
     taken: string[];
     onchange: (patch: Partial<Draft>) => void;
     onremove: () => void;
@@ -26,15 +27,16 @@
   const name = $derived(draft.name || "New category");
 </script>
 
-<div class="flex items-center gap-2 py-2">
-  <ColorPicker color={draft.color} {taken} onchange={(color) => onchange({ color })} />
+<!-- Selection is never what a tap on a row means here, and a dragged tap used to grey the lot. -->
+<div class="flex items-center gap-2 py-2 select-none">
+  <IconPicker icon={draft.icon} color={draft.color} {taken} {onchange} />
   <Field
     variant="inline"
     value={draft.name}
     oninput={(value) => onchange({ name: value })}
     placeholder="Category name"
     autocapitalize="sentences"
-    class="min-w-0 flex-1"
+    class="min-w-0 flex-1 select-text"
   />
   <NumberField
     value={toUnit(draft.hours, "h")}

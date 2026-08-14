@@ -7,6 +7,7 @@ export class CategoryDTO {
   readonly id: string;
   readonly name: string;
   readonly color: string;
+  readonly icon: string;
   readonly targetHoursPerWeek: number;
   readonly isBuffer: boolean;
   readonly archived: boolean;
@@ -15,6 +16,7 @@ export class CategoryDTO {
     this.id = c.id;
     this.name = c.name;
     this.color = c.color;
+    this.icon = c.icon;
     this.targetHoursPerWeek = Number(c.targetHoursPerWeek);
     this.isBuffer = c.isBuffer;
     this.archived = c.archived;

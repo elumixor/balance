@@ -13,6 +13,7 @@ export default handler(
     body: {
       name: z.string().trim().min(1),
       color: z.string().trim().min(1),
+      icon: z.string().trim().min(1).optional(),
       targetHoursPerWeek: z.number(),
     },
   },

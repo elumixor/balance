@@ -2,6 +2,7 @@ export interface Category {
   id: string;
   name: string;
   color: string;
+  icon: string;
   targetHoursPerWeek: number;
   isBuffer: boolean;
   archived: boolean;
