@@ -4,6 +4,7 @@
   import { calendarData, STRIP_DAYS } from "./calendar-data.svelte";
   import Button from "$lib/components/Button.svelte";
   import EventBlock from "./EventBlock.svelte";
+  import { fade, fly } from "svelte/transition";
   import EventContextMenu from "./EventContextMenu.svelte";
   import {
     allDaySpansForRange,
@@ -65,7 +66,8 @@
   const ghostWidthPercent = $derived(draggedSegment?.widthPercent ?? 100);
   const ghostLeftPercent = $derived(draggedSegment?.leftPercent ?? 0);
   const allDay = $derived(allDaySpansForRange(data.events, data.stripStart, STRIP_DAYS));
-  const headerPx = $derived(DAY_HEAD_PX + (allDay.length > 0 ? ALL_DAY_PX : 0));
+  const allDayRows = $derived(allDay.reduce((max, span) => Math.max(max, span.row + 1), 0));
+  const headerPx = $derived(DAY_HEAD_PX + allDayRows * ALL_DAY_PX);
 
   const todayStart = $derived(startOfDay(new Date()).getTime());
   const nowTop = $derived((minutesIntoDay(new Date()) / 60) * HOUR_PX);
@@ -146,19 +148,22 @@
     };
   });
 
-  // Opens on the working day, with the window's first day against the hours. Re-runs on a resize,
-  // where the columns are a different width and the same offset means a different day.
+  // Opens on the working day, with the window's first day against the hours. Re-runs on a resize
+  // (a different column width means the same offset points at a different day) and whenever the
+  // window jumps programmatically (goToToday, goToDay from outside a swipe).
   $effect(() => {
     const scroller = data.scrollerEl;
     const width = dayWidth;
+    const offset = data.dayOffset;
+    const start = data.stripStart.getTime();
     if (!scroller || width === 0) return;
     // Next frame: the columns have to be laid out at their new width before an offset into them
     // means anything — set it too early and the browser clamps it to a scroll range of zero.
     const frame = requestAnimationFrame(() => {
       if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
       opened = true;
-      scroller.scrollLeft = data.dayOffset * width;
-      stripAt = data.stripStart.getTime();
+      scroller.scrollLeft = offset * width;
+      stripAt = start;
     });
     return () => cancelAnimationFrame(frame);
   });
@@ -191,9 +196,19 @@
 
 <div class="relative h-full">
   {#if todayOutOfView}
-    <div class="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center">
-      <div class="pointer-events-auto">
-        <Button label="Today" size="sm" variant="outline" onclick={() => data.goToToday()} class="bg-surface shadow" />
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center"
+      in:fly={{ y: 16, duration: 200 }}
+      out:fly={{ y: 16, duration: 200 }}
+    >
+      <div class="pointer-events-auto" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
+        <Button
+          label="Today"
+          size="sm"
+          variant="outline"
+          onclick={() => data.goToToday()}
+          class="bg-surface shadow-(--shadow-float)"
+        />
       </div>
     </div>
   {/if}
@@ -225,12 +240,12 @@
           {#each days as day}
             {@const today = day.getTime() === todayStart}
             <div class="flex flex-col justify-center border-line border-l px-1 text-center">
-              <div class="t-micro {today ? 'text-fg' : 'text-fg-faint'}">
+              <div class="t-micro {today ? 'text-danger' : 'text-fg-faint'}">
                 {day.toLocaleDateString(undefined, { weekday: "short" })}
               </div>
               <div
-                class="t-data-strong mx-auto flex size-5 items-center justify-center rounded-full {today
-                  ? 'bg-ink text-ink-fg'
+                class="t-data-strong mx-auto flex h-6 min-w-7 items-center justify-center rounded-md px-1 {today
+                  ? 'bg-danger text-ink-fg'
                   : 'text-fg-muted'}"
               >
                 {day.getDate()}
@@ -239,17 +254,17 @@
           {/each}
         </div>
 
-        {#if allDay.length > 0}
-          <div class="grid" style="grid-template-columns:{columns};height:{ALL_DAY_PX}px">
+        {#if allDayRows > 0}
+          <div class="grid" style="grid-template-columns:{columns};height:{allDayRows * ALL_DAY_PX}px">
             {#each days as day, index (day.getTime())}
-              <div class="border-line border-l" style="grid-row:1;grid-column:{index + 1}"></div>
+              <div class="border-line border-l" style="grid-row:1 / span {allDayRows};grid-column:{index + 1}"></div>
             {/each}
             {#each allDay as span (span.event.id)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 class="relative py-0.5"
-                style="grid-row:1;grid-column:{span.dayIndex + 1} / span {span.days}"
+                style="grid-row:{span.row + 1};grid-column:{span.dayIndex + 1} / span {span.days}"
                 onclick={(e) =>
                   data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
                 oncontextmenu={(e) => {
