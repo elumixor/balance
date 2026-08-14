@@ -1,132 +1,55 @@
 <script lang="ts">
-  import { restColor } from "$lib/colors";
-  import Dot from "$lib/components/Dot.svelte";
   import Field from "$lib/components/Field.svelte";
-  import FormActions from "$lib/components/FormActions.svelte";
   import LabelledField from "$lib/components/LabelledField.svelte";
-  import NumberField from "$lib/components/NumberField.svelte";
-  import WeekRing from "$lib/components/ring/WeekRing.svelte";
-  import type { Activity, Category, RingSegment } from "$lib/types";
-  import type { ActivityDraft } from "./activities-data.svelte";
+  import type { Category } from "$lib/types";
+  import ActivitySplitBar from "./ActivitySplitBar.svelte";
+  import type { ActivityDraft, Piece } from "./activities-data.svelte";
 
   /**
-   * An activity is a recipe: one hour of it feeds several categories. The ring is
-   * that hour, and the leftover is time the activity doesn't claim for anything.
+   * Name and split, open on a row. Nothing here saves — every change lands on the draft the
+   * moment it's made, and the screen's own autosave decides when that's worth a write.
    */
   let {
-    activity,
+    draft,
     categories,
-    oncancel,
-    onsave,
+    categoryById,
+    focus = false,
+    onupdate,
+    onfocused,
   }: {
-    activity: Activity | null;
-    categories: Category[];
-    oncancel: () => void;
-    onsave: (draft: ActivityDraft) => Promise<void>;
+    draft: ActivityDraft;
+    categories: readonly Category[];
+    categoryById: Map<string, Category>;
+    /** True for the one row that should grab the name field and select it, once. */
+    focus?: boolean;
+    onupdate: (patch: { name?: string; pieces?: Piece[] }) => void;
+    onfocused: () => void;
   } = $props();
 
-  let name = $state(activity?.name ?? "");
-  let weights = $state<Record<string, number>>(
-    (() => {
-      const initial: Record<string, number> = {};
-      for (const category of categories) initial[category.id] = 0;
-      for (const weight of activity?.weights ?? []) {
-        if (weight.categoryId in initial) initial[weight.categoryId] = weight.weightPercent;
-      }
-      return initial;
-    })(),
-  );
-  let error = $state<string | null>(null);
-  let saving = $state(false);
+  let nameInput = $state<HTMLInputElement | null>(null);
 
-  const claimed = $derived(categories.reduce((sum, c) => sum + (weights[c.id] ?? 0), 0));
-  const free = $derived(Math.max(0, 100 - claimed));
-
-  const segments = $derived<RingSegment[]>([
-    ...categories.map((c) => ({
-      id: c.id,
-      label: c.name,
-      color: c.color,
-      icon: c.icon,
-      value: weights[c.id] ?? 0,
-    })),
-    { id: "__free__", label: "Unclaimed", color: restColor, icon: "circle-dashed", value: free },
-  ]);
-
-  function setWeightsFromRing(values: number[]) {
-    const next: Record<string, number> = {};
-    categories.forEach((c, i) => {
-      next[c.id] = Math.round(values[i] ?? weights[c.id] ?? 0);
-    });
-    weights = next;
-  }
-
-  function setWeight(categoryId: string, value: number) {
-    weights = { ...weights, [categoryId]: Math.max(0, Math.round(value)) };
-  }
-
-  async function submit() {
-    if (!name.trim()) return (error = "Give it a name");
-    if (claimed > 100) return (error = "Shares add up to more than one hour");
-    saving = true;
-    error = null;
-    try {
-      await onsave({
-        name: name.trim(),
-        weights: categories
-          .map((c) => ({ categoryId: c.id, weightPercent: Math.round(weights[c.id] ?? 0) }))
-          .filter((w) => w.weightPercent > 0),
-      });
-    } catch (e) {
-      error = e instanceof Error ? e.message : "Couldn't save this activity";
-      saving = false;
-    }
-  }
+  $effect(() => {
+    if (!focus || !nameInput) return;
+    nameInput.focus();
+    nameInput.select();
+    onfocused();
+  });
 </script>
 
 <div class="space-y-4 py-3">
   <LabelledField label="Name">
-    <Field bind:value={name} placeholder="Activity name" autocapitalize="sentences" />
+    <Field
+      value={draft.name}
+      oninput={(name) => onupdate({ name })}
+      bind:element={nameInput}
+      placeholder="Activity name"
+      autocapitalize="sentences"
+    />
   </LabelledField>
 
   {#if categories.length === 0}
     <p class="t-label text-fg-muted">Plan at least one category on the Week tab first.</p>
   {:else}
-    <div class="flex justify-center">
-      <WeekRing
-        {segments}
-        onchange={setWeightsFromRing}
-        size={188}
-        thickness={22}
-        unit="%"
-        centerValue="{Math.round(claimed)}%"
-        centerLabel="of an hour claimed"
-      />
-    </div>
-
-    <div class="space-y-2">
-      {#each categories as category (category.id)}
-        <div class="flex items-center gap-2">
-          <Dot color={category.color} size={9} />
-          <span class="t-body flex-1 truncate">{category.name}</span>
-          <NumberField
-            value={weights[category.id] ?? 0}
-            unit="%"
-            inputmode="numeric"
-            ariaLabel="{category.name} share"
-            onchange={(share) => setWeight(category.id, share)}
-          />
-        </div>
-      {/each}
-      {#if free > 0}
-        <p class="t-micro text-fg-faint">{free}% stays unclaimed — time that counts as your own.</p>
-      {/if}
-    </div>
+    <ActivitySplitBar pieces={draft.pieces} {categories} {categoryById} onchange={(pieces) => onupdate({ pieces })} />
   {/if}
-
-  {#if error}
-    <p class="t-label text-danger">{error}</p>
-  {/if}
-
-  <FormActions {oncancel} onsave={submit} {saving} disabled={categories.length === 0} />
 </div>

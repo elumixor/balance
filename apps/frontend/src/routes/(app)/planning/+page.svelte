@@ -1,20 +1,16 @@
 <script lang="ts">
   import { activitiesData } from "$lib/activities/activities-data.svelte";
-  import ActivityEditor from "$lib/activities/ActivityEditor.svelte";
   import ActivityRow from "$lib/activities/ActivityRow.svelte";
   import AddRow from "$lib/components/AddRow.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
-  import Panel from "$lib/components/Panel.svelte";
   import Rows from "$lib/components/Rows.svelte";
   import Screen from "$lib/components/Screen.svelte";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
-  import SkeletonRows from "$lib/components/SkeletonRows.svelte";
   import { AUTOSAVE_DELAY_MS, categoryDrafts as week, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
   import PlanDial from "$lib/week/PlanDial.svelte";
-  import { Check } from "lucide-svelte";
 
   /**
    * One screen for the week you mean to have: the ring cuts 168 hours into categories, and the
@@ -39,9 +35,15 @@
     const timeout = setTimeout(() => void week.flush(), AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timeout);
   });
+
+  $effect(() => {
+    if (!activities.savable) return;
+    const timeout = setTimeout(() => void activities.flush(), AUTOSAVE_DELAY_MS);
+    return () => clearTimeout(timeout);
+  });
 </script>
 
-<Screen title="Planning" subtitle="168 hours. Decide where they go before they go." wide>
+<Screen title="Planning" wide>
   {#if week.loadError && !week.categories}
     <LoadError message={week.loadError} onretry={week.load} />
   {:else if !week.categories}
@@ -62,16 +64,11 @@
         centerLabel="{claimedPercent}% of 168h claimed"
       />
 
-      <div class="mt-4 flex min-h-5 items-center justify-center gap-1.5">
-        {#if week.error}
+      {#if week.error}
+        <div class="mt-4 flex min-h-5 items-center justify-center">
           <span class="t-micro text-danger">{week.error}</span>
-        {:else if week.saving || week.dirty}
-          <span class="t-micro text-fg-faint">Saving…</span>
-        {:else}
-          <Check size={12} class="text-fg-faint" />
-          <span class="t-micro text-fg-faint">Saved</span>
-        {/if}
-      </div>
+        </div>
+      {/if}
 
       <p class="t-micro mx-auto mt-4 max-w-[40ch] text-center text-fg-faint">
         Tap a slice's icon to change how it looks, drag a seam to move hours between neighbours, or
@@ -83,50 +80,38 @@
     <section class="mt-12 border-t border-line pt-8">
       <SectionHeader title="Activities" />
 
-      <InlineError message={activities.actionError} />
+      <InlineError message={activities.error} />
 
-      {#if activities.loadError && !activities.activities}
+      {#if activities.loadError && activities.drafts.length === 0}
         <LoadError message={activities.loadError} onretry={activities.load} />
-      {:else if !activities.activities}
-        <SkeletonRows count={3} />
       {:else if week.drafts.length === 0}
         <!-- An activity is a split across categories, so there is nothing to split yet. -->
         <EmptyState title="Nothing to split yet." hint="Cut the ring into categories first." />
       {:else}
-        {#if activities.activities.length === 0 && activities.editing !== "new"}
+        {#if activities.drafts.length === 0}
           <EmptyState
             title="No activities yet."
             hint="An activity is something you do — and how its hours land across your categories."
           />
         {/if}
 
-        <Rows items={activities.activities} key={(activity) => activity.id}>
-          {#snippet children(activity)}
+        <Rows items={activities.drafts} key={(draft) => draft.key}>
+          {#snippet children(draft)}
             <ActivityRow
-              {activity}
+              {draft}
               categoryById={activities.categoryById}
               plannedCategories={activities.planned}
-              expanded={activities.editing === activity.id}
-              ontoggle={() => (activities.editing = activities.editing === activity.id ? null : activity.id)}
-              oncancel={() => (activities.editing = null)}
-              onsave={(draft) => activities.save(activity.id, draft)}
-              onarchive={() => activities.archive(activity)}
+              expanded={activities.expanded === draft.key}
+              focus={activities.focusKey === draft.key}
+              ontoggle={() => (activities.expanded = activities.expanded === draft.key ? null : draft.key)}
+              onupdate={(patch) => activities.update(draft.key, patch)}
+              onfocused={() => (activities.focusKey = null)}
+              onarchive={() => activities.archive(draft)}
             />
           {/snippet}
         </Rows>
 
-        {#if activities.editing === "new"}
-          <Panel class="mt-3">
-            <ActivityEditor
-              activity={null}
-              categories={activities.planned}
-              oncancel={() => (activities.editing = null)}
-              onsave={(draft) => activities.save("new", draft)}
-            />
-          </Panel>
-        {:else}
-          <AddRow label="Add activity" onclick={() => (activities.editing = "new")} />
-        {/if}
+        <AddRow label="Add activity" onclick={() => activities.add()} />
       {/if}
     </section>
   {/if}

@@ -3,33 +3,45 @@
   import IconButton from "$lib/components/IconButton.svelte";
   import Panel from "$lib/components/Panel.svelte";
   import SplitBar from "$lib/components/SplitBar.svelte";
-  import Tag from "$lib/components/Tag.svelte";
-  import { activitySplits } from "$lib/splits";
-  import type { Activity, Category } from "$lib/types";
+  import type { Category, Split } from "$lib/types";
   import { Archive } from "lucide-svelte";
-  import type { ActivityDraft } from "./activities-data.svelte";
+  import type { ActivityDraft, Piece } from "./activities-data.svelte";
   import ActivityEditor from "./ActivityEditor.svelte";
 
   /** One row in the Activities list: summary + split bar, expanding into the full editor. */
   let {
-    activity,
+    draft,
     categoryById,
     plannedCategories,
     expanded,
+    focus,
     ontoggle,
-    oncancel,
-    onsave,
+    onupdate,
+    onfocused,
     onarchive,
   }: {
-    activity: Activity;
+    draft: ActivityDraft;
     categoryById: Map<string, Category>;
-    plannedCategories: Category[];
+    plannedCategories: readonly Category[];
     expanded: boolean;
+    focus: boolean;
     ontoggle: () => void;
-    oncancel: () => void;
-    onsave: (draft: ActivityDraft) => Promise<void>;
+    onupdate: (patch: { name?: string; pieces?: Piece[] }) => void;
+    onfocused: () => void;
     onarchive: () => void;
   } = $props();
+
+  const claimed = $derived(draft.pieces.reduce((sum, p) => sum + p.percent, 0));
+
+  const previewSplits = $derived<Split[]>([
+    ...draft.pieces
+      .filter((p) => p.percent > 0)
+      .map((p) => {
+        const category = categoryById.get(p.categoryId);
+        return { id: p.key, color: category?.isBuffer ? restColor : (category?.color ?? restColor), value: p.percent };
+      }),
+    ...(claimed < 100 ? [{ id: "__free__", color: restColor, value: 100 - claimed }] : []),
+  ]);
 </script>
 
 <div class="flex items-center gap-3">
@@ -37,29 +49,26 @@
     type="button"
     onclick={ontoggle}
     aria-expanded={expanded}
-    aria-label="Edit {activity.name}"
+    aria-label="Edit {draft.name || 'Untitled activity'}"
     class="hoverable -mx-2 flex flex-1 items-center gap-3 rounded-md px-2 py-3 text-left"
   >
-    <SplitBar splits={activitySplits(activity, categoryById)} vertical thickness={3} class="min-h-9 self-stretch" />
+    <SplitBar splits={previewSplits} vertical thickness={3} class="min-h-9 self-stretch" />
     <span class="flex-1 space-y-1.5">
-      <span class="t-body-strong block truncate">{activity.name}</span>
-      <span class="flex flex-wrap gap-1.5">
-        {#if activity.weights.length === 0}
-          <span class="t-micro text-fg-faint">Unassigned</span>
+      <span class="t-body-strong block truncate">{draft.name || "Untitled activity"}</span>
+      <span class="t-micro block text-fg-faint">
+        {#if draft.pieces.length === 0}
+          Unassigned
         {:else}
-          {#each activity.weights as weight (weight.categoryId)}
-            {@const category = categoryById.get(weight.categoryId)}
-            <Tag
-              label="{category?.isBuffer ? 'Free time' : (category?.name ?? 'Unknown')} {weight.weightPercent}%"
-              color={category?.isBuffer ? restColor : (category?.color ?? restColor)}
-            />
-          {/each}
+          {draft.pieces
+            .filter((p) => p.percent > 0)
+            .map((p) => `${categoryById.get(p.categoryId)?.name ?? "Unknown"} ${p.percent}%`)
+            .join(" · ")}
         {/if}
       </span>
     </span>
   </button>
   {#if expanded}
-    <IconButton label="Archive {activity.name}" onclick={onarchive}>
+    <IconButton label="Archive {draft.name || 'this activity'}" onclick={onarchive}>
       <Archive size={15} class="text-fg-muted" />
     </IconButton>
   {/if}
@@ -67,6 +76,6 @@
 
 {#if expanded}
   <Panel class="mb-3">
-    <ActivityEditor {activity} categories={plannedCategories} {oncancel} {onsave} />
+    <ActivityEditor {draft} categories={plannedCategories} {categoryById} {focus} {onupdate} {onfocused} />
   </Panel>
 {/if}
