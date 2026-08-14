@@ -42,7 +42,7 @@
     </button>
   {/snippet}
 
-  {#snippet content(close: () => void)}
+  {#snippet content()}
     <div class="p-3">
       <div class="grid grid-cols-6 gap-1">
         {#each iconNames as name (name)}
@@ -52,10 +52,7 @@
             type="button"
             aria-label="Use the {name.replace(/-/g, ' ')} icon"
             aria-pressed={selected}
-            onclick={() => {
-              onchange({ icon: name });
-              close();
-            }}
+            onclick={() => onchange({ icon: name })}
             class="press-sm flex size-9 items-center justify-center rounded-md transition-colors
               {selected ? 'text-fg' : 'text-fg-muted hover:bg-fg/5'}"
             style={selected
@@ -67,8 +64,7 @@
         {/each}
       </div>
 
-      <div class="mt-3 flex items-center gap-2.5 border-t border-line pt-3">
-        <CategoryIcon {icon} {color} size={28} />
+      <div class="mt-3 border-t border-line pt-3">
         <Slider.Root
           type="single"
           value={hue}

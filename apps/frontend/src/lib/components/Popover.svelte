@@ -23,7 +23,14 @@
   let anchor = $state<HTMLElement>();
   let panel = $state<HTMLElement>();
   let open = $state(false);
-  let position = $state<{ left: number; top: number } | null>(null);
+  let position = $state<{ left: number; top: number; flipped: boolean } | null>(null);
+  /** Off for the first frame and again while closing — what the fade and the drift animate on. */
+  let shown = $state(false);
+
+  const IN_MS = 300;
+  const OUT_MS = 150;
+  /** The panel drifts in from the side its anchor is on, so it reads as coming out of the trigger. */
+  const OFFSET = 8;
 
   /**
    * Placement waits for the panel to exist so it can be measured: the account menu sits at the
@@ -43,12 +50,26 @@
     position = {
       left: Math.min(Math.max(MARGIN, left), window.innerWidth - width - MARGIN),
       top: flip ? rect.top - GAP - height : Math.min(below, Math.max(MARGIN, window.innerHeight - MARGIN - height)),
+      flipped: flip,
     };
   });
 
+  // The panel is placed on one frame and starts moving on the next: same frame, and there's no
+  // change for the transition to animate.
+  $effect(() => {
+    if (!position) return;
+    const frame = requestAnimationFrame(() => (shown = true));
+    return () => cancelAnimationFrame(frame);
+  });
+
+  /** Closing plays the same move backwards — shorter, because a dismissal shouldn't be waited on. */
   function close() {
-    open = false;
-    position = null;
+    if (!open) return;
+    shown = false;
+    setTimeout(() => {
+      open = false;
+      position = null;
+    }, OUT_MS);
   }
 
   /**
@@ -69,22 +90,28 @@
 </div>
 
 {#if open}
-  <!-- The backdrop closes the panel on any tap outside it; Escape does the same for keyboards. -->
+  <!--
+    An invisible sheet, not a dim one: this panel is a small aside, and darkening the page for it
+    said the rest of the screen had stopped mattering. It still catches the tap that dismisses.
+  -->
   <div
     use:portal
     class="fixed inset-0 z-50"
-    style="background:var(--overlay)"
     role="presentation"
     onclick={close}
     onkeydown={(e) => e.key === "Escape" && close()}
   >
-    <!-- Hidden until measured, so it never flashes at the top-left corner first. -->
+    <!-- Transparent until measured, so it never fades in at the top-left corner first. -->
     <div
       bind:this={panel}
-      class="absolute overflow-hidden rounded-lg border border-line bg-surface py-1"
-      style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;width:{width}px;visibility:{position
-        ? 'visible'
-        : 'hidden'}"
+      class="absolute overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-(--shadow-float)
+        motion-reduce:transition-none"
+      style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;width:{width}px;
+        opacity:{shown ? 1 : 0};
+        transform:translateY({shown ? '0px' : position?.flipped ? `${OFFSET}px` : `-${OFFSET}px`});
+        transition:opacity {shown ? IN_MS : OUT_MS}ms ease-out, transform {shown
+        ? IN_MS
+        : OUT_MS}ms cubic-bezier(0.16, 1, 0.3, 1)"
       role="menu"
       tabindex="-1"
       onclick={(e) => e.stopPropagation()}
