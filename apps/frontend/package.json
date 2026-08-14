@@ -23,6 +23,7 @@
     "@capgo/capacitor-social-login": "^8.3.40",
     "@clerk/clerk-js": "^6.26.0",
     "bits-ui": "^2.18.1",
+    "expr-eval": "^2.0.2",
     "lucide-svelte": "^1.0.1"
   },
   "devDependencies": {

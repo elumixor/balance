@@ -7,6 +7,8 @@
    * What's typed is kept as typed until it parses — otherwise "1." collapses to "1" mid-keystroke
    * and a decimal can never be entered.
    */
+  import { Parser } from "expr-eval";
+
   let {
     value,
     unit,
@@ -32,10 +34,23 @@
   let typed = $state<string | null>(null);
   const shown = $derived(typed ?? String(value));
 
+  const parser = new Parser();
+
+  /** "7*7" evaluates the moment it parses, same as a plain number — no separate submit step. */
+  function evaluate(next: string) {
+    try {
+      const result = parser.evaluate(next);
+      return typeof result === "number" && Number.isFinite(result) ? result : null;
+    } catch {
+      return null;
+    }
+  }
+
   function edit(next: string) {
     typed = next;
-    const parsed = Number(next);
-    if (next.trim() !== "" && !Number.isNaN(parsed)) onchange(parsed);
+    if (next.trim() === "") return;
+    const result = evaluate(next);
+    if (result !== null) onchange(result);
   }
 </script>
 
