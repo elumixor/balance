@@ -50,6 +50,18 @@
     open = false;
     position = null;
   }
+
+  /**
+   * The panel has to leave the tree it was declared in. A list row carries the stagger animation,
+   * and an element with an animated transform is a containing block for `position: fixed` — so
+   * the backdrop stopped at the row's edges, greying that one row and hiding the panel with it.
+   */
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy: () => node.remove(),
+    };
+  }
 </script>
 
 <div bind:this={anchor} class="contents">
@@ -59,6 +71,7 @@
 {#if open}
   <!-- The backdrop closes the panel on any tap outside it; Escape does the same for keyboards. -->
   <div
+    use:portal
     class="fixed inset-0 z-50"
     style="background:var(--overlay)"
     role="presentation"

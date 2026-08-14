@@ -27,8 +27,7 @@
   const name = $derived(draft.name || "New category");
 </script>
 
-<!-- Selection is never what a tap on a row means here, and a dragged tap used to grey the lot. -->
-<div class="flex items-center gap-2 py-2 select-none">
+<div class="flex items-center gap-2 py-2">
   <IconPicker icon={draft.icon} color={draft.color} {taken} {onchange} />
   <Field
     variant="inline"
@@ -36,7 +35,7 @@
     oninput={(value) => onchange({ name: value })}
     placeholder="Category name"
     autocapitalize="sentences"
-    class="min-w-0 flex-1 select-text"
+    class="min-w-0 flex-1"
   />
   <NumberField
     value={toUnit(draft.hours, "h")}
