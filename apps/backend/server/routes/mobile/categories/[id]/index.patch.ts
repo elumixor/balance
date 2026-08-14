@@ -26,7 +26,7 @@ export default handler(
       });
       if (!existing) throw new ApiError("Category not found", 404);
       if (existing.isBuffer) {
-        throw new ApiError("The Rest + Buffer category is system-managed and can't be edited directly", 403);
+        throw new ApiError("The Buffer category is system-managed and can't be edited directly", 403);
       }
 
       const updated = await new CategoryService(user.id).update(id, body);

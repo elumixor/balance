@@ -67,7 +67,7 @@ class CategoryDrafts {
 
   segments = $derived<RingSegment[]>([
     ...this.drafts.map((d) => ({ id: d.key, label: d.name || "Untitled", color: d.color, value: d.hours })),
-    { id: "__rest__", label: "Rest + Buffer", color: restColor, value: this.restHours },
+    { id: "__rest__", label: "Buffer", color: restColor, value: this.restHours },
   ]);
 
   /**

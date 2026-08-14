@@ -99,7 +99,7 @@
           <span class="flex w-8 justify-center">
             <span class="size-3.5 rounded-full" style="background:{restColor}"></span>
           </span>
-          <span class="t-body min-w-0 flex-1 text-fg-muted">Rest + Buffer</span>
+          <span class="t-body min-w-0 flex-1 text-fg-muted">Buffer</span>
           <!-- Not editable — it's whatever the categories above leave — but it lines up under them. -->
           <span class="flex h-9 items-center pr-1.5 pl-1">
             <span class="t-data w-11 text-right text-fg-muted">{toUnit(week.restHours, "h")}</span>

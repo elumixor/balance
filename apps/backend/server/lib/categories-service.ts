@@ -66,7 +66,7 @@ export class CategoryService {
       where: and(eq(categories.id, id), eq(categories.userId, this.userId)),
     });
     if (!existing) throw new Error("Category not found");
-    if (existing.isBuffer) throw new Error("The Rest + Buffer category is system-managed and can't be edited directly");
+    if (existing.isBuffer) throw new Error("The Buffer category is system-managed and can't be edited directly");
   }
 }
 
@@ -76,7 +76,7 @@ export class ActivityService {
 
   /**
    * Explicit weights may leave time unassigned — that remainder implicitly belongs to the
-   * user's Rest + Buffer category, so an activity with no weights at all is 100% free time.
+   * user's Buffer category, so an activity with no weights at all is 100% free time.
    * Returns the full weight list (explicit + implicit buffer remainder, if any) to persist.
    */
   async resolveWeightsWithBufferRemainder(weights: ActivityWeightInput[]): Promise<ActivityWeightInput[]> {

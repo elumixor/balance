@@ -16,7 +16,7 @@ export default handler(async ({ router, event }) => {
     });
     if (!existing) throw new ApiError("Category not found", 404);
     if (existing.isBuffer) {
-      throw new ApiError("The Rest + Buffer category is system-managed and can't be archived directly", 403);
+      throw new ApiError("The Buffer category is system-managed and can't be archived directly", 403);
     }
 
     await new CategoryService(user.id).archive(id);

@@ -5,12 +5,12 @@ import { categories } from "../db/schema";
 type Category = typeof categories.$inferSelect;
 
 /**
- * Manages each user's system-managed "Rest + Buffer" category, which always absorbs
+ * Manages each user's system-managed "Buffer" category, which always absorbs
  * whatever a 168-hour week hasn't been explicitly allocated to other categories.
  */
 export class BufferCategoryService {
   static readonly WEEK_HOURS = 168;
-  static readonly NAME = "Rest + Buffer";
+  static readonly NAME = "Buffer";
 
   /** Makes sure the user's buffer category exists. Safe to call repeatedly. */
   async ensure(userId: string): Promise<Category> {
