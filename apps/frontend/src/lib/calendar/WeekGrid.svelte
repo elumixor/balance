@@ -3,6 +3,7 @@
   import type { CalendarEvent, Category } from "$lib/types";
   import { calendarData, STRIP_DAYS } from "./calendar-data.svelte";
   import EventBlock from "./EventBlock.svelte";
+  import EventContextMenu from "./EventContextMenu.svelte";
   import {
     allDaySpansForRange,
     HOUR_PX,
@@ -226,6 +227,10 @@
                 style="grid-column:{span.dayIndex + 1} / span {span.days}"
                 onclick={(e) =>
                   data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
+                oncontextmenu={(e) => {
+                  e.preventDefault();
+                  data.openContextMenu(span.event, e);
+                }}
               >
                 <EventBlock event={span.event} {categories} narrow />
               </div>
@@ -264,6 +269,10 @@
                 onpointercancel={() => data.endDrag()}
                 onclick={(e) =>
                   data.tap(segment.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
+                oncontextmenu={(e) => {
+                  e.preventDefault();
+                  data.openContextMenu(segment.event, e);
+                }}
               >
                 <EventBlock
                   event={segment.event}
@@ -276,7 +285,7 @@
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <span
-                    class="absolute inset-x-0 bottom-0 h-3 cursor-ns-resize touch-none"
+                    class="absolute right-0 bottom-0 left-5 h-3 cursor-ns-resize touch-none"
                     onpointerdown={(e) => data.beginResize(segment.event, e)}
                     onpointermove={(e) => data.moveDrag(e)}
                     onpointerup={() => data.endDrag()}
@@ -339,3 +348,7 @@
     </div>
   </div>
 </div>
+
+{#if data.contextMenuEvent && data.contextMenuRect}
+  <EventContextMenu event={data.contextMenuEvent} rect={data.contextMenuRect} categories={[...categories.values()]} />
+{/if}
