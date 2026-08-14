@@ -38,7 +38,7 @@
       .sort((a, b) => b.weight - a.weight);
     return ranked[0]?.category ?? null;
   });
-  const letter = $derived((category?.name ?? "Rest").charAt(0).toUpperCase());
+  const letter = $derived((category?.name ?? "Buffer").charAt(0).toUpperCase());
 
   const calendars = $derived(store.calendars.value?.calendars ?? []);
   const fillColor = $derived(category?.color ?? restColor);

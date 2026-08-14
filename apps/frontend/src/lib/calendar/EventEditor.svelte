@@ -213,7 +213,7 @@
         style={category ? `background:color-mix(in srgb, var(--bg) 60%, ${category.color} 40%)` : ""}
         onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
       >
-        {(category?.name ?? "?").charAt(0).toUpperCase()}
+        {(category?.name ?? "Buffer").charAt(0).toUpperCase()}
       </button>
       {#if editable}
         <Field bind:value={title} oninput={queue} variant="inline" ariaLabel="Event title" class="t-heading py-1" />
