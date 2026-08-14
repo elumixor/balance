@@ -4,8 +4,8 @@
    * The box belongs to the pair, not the input, so the unit sits inside the same outline the
    * digits get on focus.
    *
-   * What's typed is kept as typed until it parses — otherwise "1." collapses to "1" mid-keystroke
-   * and a decimal can never be entered.
+   * What's typed is kept as typed, not parsed, until Enter or focusout applies it — so "1." or a
+   * half-finished expression like "7*" never collapses mid-keystroke. Escape drops it instead.
    */
   import { Parser } from "expr-eval";
 
@@ -46,11 +46,26 @@
     }
   }
 
-  function edit(next: string) {
-    typed = next;
-    if (next.trim() === "") return;
-    const result = evaluate(next);
+  /** Enter or clicking away applies what's typed; Escape drops it and shows `value` again. */
+  function commit() {
+    if (typed === null) return;
+    const trimmed = typed.trim();
+    typed = null;
+    if (trimmed === "") return;
+    const result = evaluate(trimmed);
     if (result !== null) onchange(result);
+  }
+
+  function keydown(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      typed = null;
+      e.currentTarget.blur();
+    }
   }
 </script>
 
@@ -64,8 +79,9 @@
     autocomplete="off"
     aria-label={ariaLabel}
     value={shown}
-    oninput={(e) => edit(e.currentTarget.value)}
-    onblur={() => (typed = null)}
+    oninput={(e) => (typed = e.currentTarget.value)}
+    onkeydown={keydown}
+    onfocusout={commit}
     class="{type} {width} bg-transparent text-right text-fg focus:outline-none"
   />
   <span class="{type} pl-0.5 text-fg-faint">{unit}</span>
