@@ -35,8 +35,6 @@ const DRAFT_PREFIX = "draft:";
 /** How close together, in time and on screen, two taps on empty grid have to be to count as one. */
 const DOUBLE_TAP_MS = 320;
 const DOUBLE_TAP_PX = 24;
-/** What a block made by tapping the grid is called until the editor is told otherwise. */
-const NEW_EVENT_TITLE = "New event";
 
 export type DragKind = "create" | "move" | "resize" | "resize-start";
 
@@ -140,6 +138,8 @@ class CalendarData {
   selectedId = $state<string | null>(null);
   /** Where the tapped block is on screen, so its editor can open beside it rather than over it. */
   selectedRect = $state<DOMRect | null>(null);
+  /** The block made a moment ago and still unnamed: its editor opens with the cursor in the name. */
+  unnamedId = $state<string | null>(null);
   /** The block a right-click landed on, and where — null when no context menu is open. */
   contextMenuEvent = $state<CalendarEvent | null>(null);
   contextMenuRect = $state<DOMRect | null>(null);
@@ -383,9 +383,11 @@ class CalendarData {
 
     this.deselect();
     this.clearPicked();
+    // Untitled: the editor opens on it with the cursor in the name, which is where the name comes
+    // from — a placeholder would only be something to delete first.
     return this.#create(
       null,
-      NEW_EVENT_TITLE,
+      "",
       this.#instantAt(day, minutes),
       this.#instantAt(day, minutes + DEFAULT_EVENT_MINUTES),
       new DOMRect(e.clientX, e.clientY, 0, 0),
@@ -882,7 +884,10 @@ class CalendarData {
         });
         // Opened on the real event rather than the drawn-ahead one: the editor writes what it's
         // shown, and the draft's made-up id is nothing the calendar would take a write against.
-        if (openAt) this.select(event, openAt);
+        if (openAt) {
+          this.unnamedId = event.id;
+          this.select(event, openAt);
+        }
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },

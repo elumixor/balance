@@ -9,7 +9,7 @@ export default handler(
   {
     body: {
       calendarId: z.string().min(1),
-      title: z.string().trim().min(1).optional(),
+      title: z.string().trim().optional(),
       description: z.string().optional(),
       start: z.string().optional(),
       end: z.string().optional(),

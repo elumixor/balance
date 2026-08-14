@@ -96,8 +96,9 @@ export class CalendarEventsService {
       : undefined;
     if (input.activityId && !activity) throw new ApiError("That activity no longer exists", 404);
 
-    const title = input.title ?? activity?.name;
-    if (!title) throw new ApiError("An event needs an activity or a title");
+    // An event tapped onto the grid is named after the fact, so an untitled one is a real state
+    // rather than a mistake — the calendar shows it the way Google does, as no title at all.
+    const title = input.title ?? activity?.name ?? "";
 
     const calendarId = input.calendarId ?? connection.account.writeCalendarId ?? PRIMARY_CALENDAR_ID;
     const created = await connection.provider.createEvent({

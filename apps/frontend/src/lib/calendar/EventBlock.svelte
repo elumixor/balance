@@ -39,6 +39,8 @@
     return ranked[0]?.category ?? null;
   });
   const letter = $derived((category?.name ?? "Buffer").charAt(0).toUpperCase());
+  /** An hour tapped onto the grid is named afterwards, so a block with nothing on it says so. */
+  const label = $derived(event.title.trim() || "Untitled");
 
   const calendars = $derived(store.calendars.value?.calendars ?? []);
   const fillColor = $derived(category?.color ?? restColor);
@@ -90,7 +92,7 @@
 <div
   role="button"
   tabindex={ghost ? -1 : 0}
-  aria-label="{event.title}, {formatClock(new Date(event.start))}"
+  aria-label="{label}, {formatClock(new Date(event.start))}"
   class="absolute inset-0 flex min-w-0 overflow-hidden px-1.5 text-left leading-tight @container/evt
     {oneLine ? 'flex-row items-center gap-1 py-0' : 'flex-col justify-start py-0.5'}
     {ghost ? 'pointer-events-none opacity-70' : 'press-fade'}"
@@ -106,7 +108,7 @@
 
   {#if oneLine}
     <span class="relative z-10 min-w-0 flex-1 overflow-hidden whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}">
-      {@render badge()}{event.title}</span
+      {@render badge()}{label}</span
     >
     {#if !narrow}
       <span class="relative z-10 shrink-0 font-sans text-[10px] leading-none text-fg-muted/60"
@@ -118,7 +120,7 @@
       class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}"
       style="display:-webkit-box;-webkit-line-clamp:{titleLines};-webkit-box-orient:vertical;overflow:hidden"
     >
-      {@render badge()}{event.title}</span
+      {@render badge()}{label}</span
     >
     <span
       class="relative z-10 flex w-full shrink-0 overflow-hidden whitespace-nowrap font-sans text-[10px] leading-none text-fg-muted/60"

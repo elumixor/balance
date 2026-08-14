@@ -9,6 +9,8 @@
    */
   let {
     value = $bindable(""),
+    /** The input itself, for the callers that have to focus or select it. */
+    element = $bindable<HTMLInputElement | null>(null),
     /** For fields whose value is derived elsewhere and can't simply be bound. */
     oninput,
     placeholder,
@@ -22,6 +24,7 @@
     class: klass = "",
   }: {
     value: string;
+    element?: HTMLInputElement | null;
     oninput?: (value: string) => void;
     placeholder?: string;
     type?: "text" | "password";
@@ -36,6 +39,7 @@
 </script>
 
 <input
+  bind:this={element}
   bind:value
   oninput={(e) => oninput?.(e.currentTarget.value)}
   {placeholder}

@@ -13,7 +13,7 @@ export default handler(
       start: z.string(),
       end: z.string(),
       calendarId: z.string().optional(),
-      title: z.string().trim().min(1).optional(),
+      title: z.string().trim().optional(),
       description: z.string().optional(),
     },
   },

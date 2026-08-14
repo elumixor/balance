@@ -51,6 +51,18 @@
   let loaded = "";
   /** A deleted event must not be written back by the pending edit the card is unmounting with. */
   let deleted = false;
+  let titleEl = $state<HTMLInputElement | null>(null);
+
+  /**
+   * A block tapped onto the grid arrives unnamed, and naming it is the only reason its editor is
+   * open — so the cursor is already in the name, over whatever's there, ready to be typed past.
+   */
+  $effect(() => {
+    if (!titleEl || data.unnamedId !== event.id) return;
+    data.unnamedId = null;
+    titleEl.focus();
+    titleEl.select();
+  });
 
   // Selecting another block while this one is open swaps the prop rather than remounting.
   $effect(() => {
@@ -154,10 +166,6 @@
       error = "Check the date and times.";
       return;
     }
-    if (!title.trim()) {
-      error = "An event needs a title.";
-      return;
-    }
     const next = { title: title.trim(), notes, start: range.start.getTime(), end: range.end.getTime() };
     if (next.title === saved.title && next.notes === saved.notes && next.start === saved.start && next.end === saved.end) {
       error = null;
@@ -227,7 +235,15 @@
         {(category?.name ?? "Buffer").charAt(0).toUpperCase()}
       </button>
       {#if editable}
-        <Field bind:value={title} oninput={queue} variant="inline" ariaLabel="Event title" class="t-heading py-1" />
+        <Field
+          bind:value={title}
+          bind:element={titleEl}
+          oninput={queue}
+          placeholder="Untitled"
+          variant="inline"
+          ariaLabel="Event title"
+          class="t-heading py-1"
+        />
       {:else}
         <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
       {/if}
@@ -275,10 +291,10 @@
             ariaLabel="End time"
           />
         {:else}
-          <span class="t-data">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
+          <span class="t-data-strong">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
           {#if !event.allDay}
             <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-            <span class="t-data">{formatClock(new Date(event.end))}</span>
+            <span class="t-data-strong">{formatClock(new Date(event.end))}</span>
           {/if}
           <span class="t-data-micro text-fg-muted">{span}</span>
         {/if}
@@ -291,7 +307,7 @@
             class="relative flex h-9 items-center rounded-md border border-transparent px-2 transition-colors
               hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
           >
-            <span class="t-data">{dateLabel}</span>
+            <span class="t-data-strong">{dateLabel}</span>
             <input
               type="date"
               bind:value={date}
@@ -301,7 +317,7 @@
             />
           </label>
         {:else}
-          <span class="t-data px-2">{longDate}</span>
+          <span class="t-data-strong px-2">{longDate}</span>
         {/if}
       </div>
 
