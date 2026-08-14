@@ -128,6 +128,6 @@
 {#if data.selected}
   <!-- Keyed so opening a second event starts from that event's mapping, not the last one's. -->
   {#key data.selected.id}
-    <EventEditor event={data.selected} rect={data.selectedRect} {activities} {categories} />
+    <EventEditor event={data.selected} rect={data.selectedRect} {categories} />
   {/key}
 {/if}

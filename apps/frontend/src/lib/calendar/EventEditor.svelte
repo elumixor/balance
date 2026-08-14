@@ -1,18 +1,14 @@
 <script lang="ts">
-  import { restColor } from "$lib/colors";
   import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
-  import Button from "$lib/components/Button.svelte";
-  import Chip from "$lib/components/Chip.svelte";
   import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
-  import NumberField from "$lib/components/NumberField.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
   import { formatClock, formatDateInput, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
-  import type { Activity, ActivityWeight, CalendarEvent, Category, MappingScope } from "$lib/types";
+  import type { CalendarEvent, Category, MappingScope } from "$lib/types";
   import { ArrowRight, Bell, Clock, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
+  import CategoryPicker from "./CategoryPicker.svelte";
 
   /**
    * One event, opened beside the block you tapped: what it says, when it runs, and what it counts
@@ -22,12 +18,10 @@
   let {
     event,
     rect,
-    activities,
     categories,
   }: {
     event: CalendarEvent;
     rect: DOMRect | null;
-    activities: readonly Activity[];
     categories: readonly Category[];
   } = $props();
 
@@ -36,17 +30,13 @@
   const SAVE_DELAY_MS = 700;
 
   const data = calendarData;
-  const plannable = $derived(categories.filter((c) => !c.isBuffer));
+  const plannable = $derived(categories.filter((c) => !c.isBuffer && !c.archived));
   const editable = $derived(!event.readOnly && !event.allDay);
 
   // A repeating event always counts as the same thing on every occurrence — only a one-off event
   // gets an instance-scoped mapping.
   const scope: MappingScope = $derived(event.seriesId ? "series" : "instance");
   // Every field below is filled in by the effect that loads the event, including the first one.
-  let mode = $state<"activity" | "categories">("activity");
-  let mapping = $state(false);
-  let search = $state("");
-  let weights = $state<Record<string, number>>({});
   let title = $state("");
   let notes = $state("");
   let date = $state("");
@@ -66,12 +56,7 @@
   $effect(() => {
     if (loaded === event.id) return;
     loaded = event.id;
-    mode = event.activityId || !event.weights.length ? "activity" : "categories";
-    mapping = false;
-    search = "";
-    weights = Object.fromEntries(
-      plannable.map((c) => [c.id, event.weights.find((w) => w.categoryId === c.id)?.weightPercent ?? 0]),
-    );
+    pickerRect = null;
     title = event.title;
     notes = event.description ?? "";
     date = formatDateInput(new Date(event.start));
@@ -86,14 +71,17 @@
     };
   });
 
-  const matches = $derived(
-    activities.filter((a) => !a.archived && a.name.toLowerCase().includes(search.trim().toLowerCase())),
-  );
-  const claimed = $derived(plannable.reduce((sum, c) => sum + (weights[c.id] ?? 0), 0));
-  const countsAs = $derived(event.activityName ?? (event.weights.length > 0 ? "a split of categories" : "Add mapping"));
-  const dotColor = $derived(
-    categories.find((c) => c.id === event.weights[0]?.categoryId)?.color ?? (event.activityName ? restColor : null),
-  );
+  /** Set to the row's rect while the category list is open, null otherwise. */
+  let pickerRect = $state<DOMRect | null>(null);
+
+  /** A block counts as one category here: whichever it mostly counts toward, if it's split. */
+  const category = $derived.by(() => {
+    const ranked = event.weights
+      .map((w) => ({ weight: w.weightPercent, category: plannable.find((c) => c.id === w.categoryId) }))
+      .filter((w) => w.category)
+      .sort((a, b) => b.weight - a.weight);
+    return ranked[0]?.category ?? null;
+  });
 
   /** The span the two clock fields describe, shown beside them the way the calendar shows it. */
   const span = $derived.by(() => {
@@ -177,17 +165,10 @@
     }
   }
 
-  const chooseActivity = (activity: Activity) => run(() => data.mapEvent(event, scope, { activityId: activity.id }));
-
-  function saveWeights() {
-    if (claimed > 100) {
-      error = "That's more than one hour's worth.";
-      return;
-    }
-    const chosen: ActivityWeight[] = plannable
-      .filter((c) => (weights[c.id] ?? 0) > 0)
-      .map((c) => ({ categoryId: c.id, weightPercent: Math.round(weights[c.id]) }));
-    void run(() => data.mapEvent(event, scope, { weights: chosen }));
+  /** One category, whole: a split across several is a thing the week screen sets, not this card. */
+  function chooseCategory(categoryId: string) {
+    pickerRect = null;
+    void run(() => data.mapEvent(event, scope, { weights: [{ categoryId, weightPercent: 100 }] }));
   }
 
   function close() {
@@ -212,7 +193,7 @@
   </button>
 {/snippet}
 
-<AnchoredPopup {rect} width={WIDTH} onclose={close}>
+<AnchoredPopup {rect} width={WIDTH} dismiss={!pickerRect} onclose={close}>
     <!-- Header: what this is on the left, the two things you can do to it on the right. -->
     <div class="flex items-center gap-2 px-3 pt-3">
       <span class="t-label flex-1 text-fg-muted">Event</span>
@@ -311,83 +292,29 @@
       </p>
     {/if}
 
-    <!-- What the block counts as: set once, changed far less often than its time, so folded away. -->
-    <div class="space-y-2 border-t border-line px-3 py-3">
-      <button
-        type="button"
-        class="press-sm flex w-full items-center gap-3 rounded-md py-1 text-left"
-        onclick={() => (mapping = !mapping)}
-      >
-        <span
-          class="size-4 shrink-0 rounded-sm {dotColor ? '' : 'border border-line-strong'}"
-          style={dotColor ? `background:${dotColor}` : ""}
-        ></span>
-        <span class="t-body flex-1 truncate {event.activityName || event.weights.length ? '' : 'text-fg-faint'}"
-          >{countsAs}</span
+    <!-- What the block counts as — one category, picked from the same list as everywhere else. -->
+    <div class="border-t border-line px-3 py-3">
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="press-sm flex flex-1 items-center gap-3 rounded-md py-1 text-left"
+          onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
         >
-      </button>
-
-      {#if mapping}
-        {#if event.seriesId}
-          <p class="t-micro text-fg-faint">Applies to every occurrence of this repeating event.</p>
-        {/if}
-
-        <Segmented
-          options={[
-            { value: "activity", label: "An activity" },
-            { value: "categories", label: "Categories" },
-          ]}
-          value={mode}
-          onchange={(next) => (mode = next)}
-        />
-
-        {#if mode === "activity"}
-          <Field bind:value={search} placeholder="Search activities" ariaLabel="Search activities" />
-          <div class="flex flex-wrap gap-2">
-            {#each matches as activity (activity.id)}
-              <Chip
-                label={activity.name}
-                selected={activity.id === event.activityId}
-                onclick={() => void chooseActivity(activity)}
-              />
-            {/each}
-          </div>
-        {:else}
-          <div class="space-y-2">
-            {#each plannable as category (category.id)}
-              <div class="flex items-center justify-between gap-3">
-                <span class="t-label flex items-center gap-2 truncate">
-                  <span class="size-2 shrink-0 rounded-full" style="background:{category.color}"></span>
-                  {category.name}
-                </span>
-                <NumberField
-                  value={weights[category.id] ?? 0}
-                  unit="%"
-                  ariaLabel="{category.name} share"
-                  onchange={(next) => (weights = { ...weights, [category.id]: Math.max(0, Math.round(next)) })}
-                />
-              </div>
-            {/each}
-            <div class="flex items-center justify-between gap-3">
-              <span class="t-label flex items-center gap-2 text-fg-muted">
-                <span class="size-2 shrink-0 rounded-full" style="background:{restColor}"></span>
-                Rest + Buffer
-              </span>
-              <span class="t-data-micro text-fg-muted">{Math.max(0, 100 - claimed)}%</span>
-            </div>
-            <Button label="Save split" size="sm" onclick={saveWeights} loading={saving} />
-          </div>
-        {/if}
-
+          <span
+            class="size-4 shrink-0 rounded-sm {category ? '' : 'border border-line-strong'}"
+            style={category ? `background:${category.color}` : ""}
+          ></span>
+          <span class="t-body flex-1 truncate {category ? '' : 'text-fg-faint'}">{category?.name ?? "Category"}</span>
+        </button>
         {#if event.mappingScope}
-          <Button
-            label="Doesn't count as anything"
-            variant="outline"
-            size="sm"
-            full
-            onclick={() => void run(() => data.unmapEvent(event))}
-          />
+          <button type="button" class="press-sm t-label text-fg-faint" onclick={() => void run(() => data.unmapEvent(event))}>
+            Clear
+          </button>
         {/if}
+      </div>
+
+      {#if event.seriesId}
+        <p class="t-micro pt-1 pl-7 text-fg-faint">Applies to every occurrence of this repeating event.</p>
       {/if}
 
       <div class="flex items-center gap-3 py-1">
@@ -396,3 +323,13 @@
       </div>
     </div>
 </AnchoredPopup>
+
+{#if pickerRect}
+  <CategoryPicker
+    rect={pickerRect}
+    categories={plannable}
+    value={category?.id ?? ""}
+    onchoose={chooseCategory}
+    onclose={() => (pickerRect = null)}
+  />
+{/if}

@@ -9,11 +9,18 @@
   let {
     rect,
     width = 380,
+    /**
+     * Whether a press outside or an Escape closes this card. A card that opened a second popup of
+     * its own turns it off: the press that lands in the child is outside the parent, and would
+     * otherwise take both cards down at once.
+     */
+    dismiss = true,
     onclose,
     children,
   }: {
     rect: DOMRect | null;
     width?: number;
+    dismiss?: boolean;
     onclose: () => void;
     children: Snippet;
   } = $props();
@@ -50,12 +57,12 @@
   const placed = $derived(Boolean(position) || !rect);
 
   function onpointerdown(e: PointerEvent) {
-    if (!card || card.contains(e.target as Node)) return;
+    if (!dismiss || !card || card.contains(e.target as Node)) return;
     onclose();
   }
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") onclose();
+    if (dismiss && e.key === "Escape") onclose();
   }
 </script>
 
@@ -70,7 +77,7 @@
 <div
   class="fade-in fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:pointer-events-none sm:block
     sm:bg-transparent"
-  onclick={onclose}
+  onclick={() => dismiss && onclose()}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
   <div
