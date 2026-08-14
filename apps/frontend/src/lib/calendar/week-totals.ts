@@ -1,4 +1,5 @@
 import { restColor } from "$lib/colors";
+import { DEFAULT_ICON } from "$lib/icons";
 import type { CalendarEvent, Category } from "$lib/types";
 
 const MS_PER_HOUR = 3_600_000;
@@ -8,6 +9,7 @@ export interface CategoryTotal {
   readonly id: string;
   readonly name: string;
   readonly color: string;
+  readonly icon: string;
   readonly plannedHours: number;
   readonly actualHours: number;
 }
@@ -48,6 +50,7 @@ export function weekTotals(
     id: category.id,
     name: category.name,
     color: category.isBuffer ? restColor : category.color,
+    icon: category.isBuffer ? DEFAULT_ICON : category.icon,
     plannedHours: category.targetHoursPerWeek,
     actualHours: category.isBuffer ? rest : (actual.get(category.id) ?? 0),
   }));

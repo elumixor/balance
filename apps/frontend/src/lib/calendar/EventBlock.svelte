@@ -1,6 +1,8 @@
 <script lang="ts">
+  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import { restColor } from "$lib/colors";
   import { formatClock } from "$lib/format";
+  import { DEFAULT_ICON } from "$lib/icons";
   import { store } from "$lib/store.svelte";
   import type { CalendarEvent, Category } from "$lib/types";
   import { calendarData } from "./calendar-data.svelte";
@@ -38,7 +40,7 @@
       .sort((a, b) => b.weight - a.weight);
     return ranked[0]?.category ?? null;
   });
-  const letter = $derived((category?.name ?? "Buffer").charAt(0).toUpperCase());
+  const icon = $derived(category?.icon ?? DEFAULT_ICON);
   /** An hour tapped onto the grid is named afterwards, so a block with nothing on it says so. */
   const label = $derived(event.title.trim() || "Untitled");
 
@@ -72,7 +74,9 @@
 
 {#snippet badge()}
   {#if ghost}
-    <span class="-my-0.5 rounded-sm px-1 py-0.5 text-[10px] font-bold leading-none text-fg">{letter}</span>
+    <span class="-my-0.5 mr-1 inline-block align-middle">
+      <CategoryIcon {icon} color={fillColor} size={14} bg={false} />
+    </span>
   {:else}
     <button
       type="button"
@@ -83,9 +87,10 @@
         categoryRect = e.currentTarget.getBoundingClientRect();
       }}
       aria-label="Change category"
-      class="-my-0.5 z-10 rounded-sm px-1 py-0.5 text-[10px] font-bold leading-none text-fg transition-colors hover:bg-fg/10"
-      >{letter}</button
+      class="press-fade -my-0.5 z-10 mr-1 inline-block rounded-sm align-middle transition-colors hover:bg-fg/10"
     >
+      <CategoryIcon {icon} color={fillColor} size={14} bg={false} />
+    </button>
   {/if}
 {/snippet}
 

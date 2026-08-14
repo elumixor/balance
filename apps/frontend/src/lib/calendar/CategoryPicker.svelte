@@ -61,9 +61,17 @@
     e.preventDefault();
   }
 
-  /** The list is all there is to this popup — typing is the only thing you opened it to do. */
+  /**
+   * The list is all there is to this popup — typing is the only thing you opened it to do. The
+   * popup spends its first frames hidden while it works out where it belongs, though, and a hidden
+   * field can't take focus, so this keeps asking until it lands.
+   */
   function autofocus(node: HTMLInputElement) {
-    node.focus();
+    const focus = () => {
+      node.focus();
+      if (node.isConnected && document.activeElement !== node) requestAnimationFrame(focus);
+    };
+    focus();
   }
 </script>
 

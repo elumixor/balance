@@ -259,7 +259,7 @@
     aria-label={ariaLabel}
     autocomplete="off"
     autocapitalize="off"
-    class="t-data w-11 bg-transparent text-fg outline-none"
+    class="font-sans text-[14px] leading-[19px] tabular-nums w-11 bg-transparent text-fg outline-none"
   />
   <!-- The span belongs to one field, not both: saying it twice in one row says nothing extra. -->
   {#if end && span}

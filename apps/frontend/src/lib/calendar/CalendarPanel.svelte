@@ -7,6 +7,7 @@
   import ActivityPalette from "./ActivityPalette.svelte";
   import { calendarData } from "./calendar-data.svelte";
   import ConnectGoogle from "./ConnectGoogle.svelte";
+  import WeekMeters from "./WeekMeters.svelte";
 
   /**
    * Everything the calendar screen needs beside itself: which of the account's calendars are
@@ -18,6 +19,7 @@
   const prefs = store.calendars;
 
   const calendars = $derived(prefs.value?.calendars ?? []);
+  const categories = $derived(store.categories.value ?? []);
   const visible = $derived(prefs.value?.visibleCalendarIds ?? []);
   const writeId = $derived(prefs.value?.writeCalendarId ?? "primary");
   const activities = $derived(store.activities.value ?? []);
@@ -112,6 +114,22 @@
       </button>
     {/if}
   </section>
+
+  {#if data.connected}
+    <section>
+      <!-- The week changes by scrolling the grid sideways; this only offers the way back to today. -->
+      <button
+        type="button"
+        onclick={() => data.goToToday()}
+        class="t-heading press-sm rounded-md px-1.5 py-1 {data.isThisWeek ? 'text-danger' : 'text-fg-muted'}"
+      >
+        {data.monthLabel}
+      </button>
+      <div class="mt-3">
+        <WeekMeters events={data.events} {categories} weekStart={data.weekStart} />
+      </div>
+    </section>
+  {/if}
 
   {#if data.connected && activities.length > 0}
     <section>

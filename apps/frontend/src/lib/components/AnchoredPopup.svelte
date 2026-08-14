@@ -82,16 +82,22 @@
     sm:bg-transparent"
   onclick={() => dismiss && onclose()}
 >
+  <!--
+    Presses inside the card go no further: the card is rendered where whatever opened it lives, and
+    on the calendar that's inside a block that starts a drag — and swallows the press's default —
+    on pointerdown. Without this a field in here could never take focus.
+  -->
   <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
   <div
     bind:this={card}
-    class="max-h-[85dvh] w-full overflow-y-auto rounded-t-lg border border-line bg-surface
-      shadow-(--shadow-float) sm:pointer-events-auto sm:absolute sm:w-[var(--popup-w)] sm:rounded-lg
-      {placed ? 'float-in' : ''}"
+    class="max-h-[85dvh] w-full touch-auto select-text overflow-y-auto rounded-t-lg border border-line
+      bg-surface shadow-(--shadow-float) sm:pointer-events-auto sm:absolute sm:w-[var(--popup-w)]
+      sm:rounded-lg {placed ? 'float-in' : ''}"
     style="--popup-w:{width}px;left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{placed
       ? 'visible'
       : 'hidden'}"
     onclick={(e) => e.stopPropagation()}
+    onpointerdown={(e) => e.stopPropagation()}
   >
     {@render children()}
   </div>

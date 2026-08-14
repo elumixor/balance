@@ -8,6 +8,13 @@ export function formatHoursAndMinutes(hours: number): string {
   return `${sign}${h}h ${m}m`;
 }
 
+/** "11.5h" — hours to one decimal, trimmed when whole. */
+export function formatHoursDecimal(hours: number): string {
+  const rounded = Math.round(Math.abs(hours) * 10) / 10;
+  const sign = hours < 0 ? "-" : "";
+  return `${sign}${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}h`;
+}
+
 const pad = (n: number) => n.toString().padStart(2, "0");
 
 /** "14:05" — the format the inline entry editor reads and writes. */

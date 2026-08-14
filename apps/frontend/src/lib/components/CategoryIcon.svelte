@@ -10,10 +10,12 @@
     icon,
     color,
     size = 32,
+    bg = true,
   }: {
     icon: string;
     color: string;
     size?: number;
+    bg?: boolean;
   } = $props();
 
   const Icon = $derived(iconFor(icon));
@@ -21,7 +23,7 @@
 
 <span
   class="flex shrink-0 items-center justify-center rounded-md"
-  style="width:{size}px;height:{size}px;background:{withAlpha(color, 0.16)};color:{color}"
+  style="width:{size}px;height:{size}px;{bg ? `background:${withAlpha(color, 0.16)};` : ''}color:{color}"
 >
   <Icon size={Math.round(size * 0.56)} strokeWidth={2} />
 </span>
