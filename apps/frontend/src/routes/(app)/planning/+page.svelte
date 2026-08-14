@@ -10,6 +10,7 @@
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
   import { AUTOSAVE_DELAY_MS, categoryDrafts as week, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
+  import { planHistory } from "$lib/week/plan-history.svelte";
   import PlanDial from "$lib/week/PlanDial.svelte";
 
   /**
@@ -41,7 +42,24 @@
     const timeout = setTimeout(() => void activities.flush(), AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timeout);
   });
+
+  /** ⌘Z takes back the last edit here — a category cut, renamed or removed, an activity's split. */
+  function onkeydown(e: KeyboardEvent) {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    const key = e.key.toLowerCase();
+    const redo = key === "y" || (key === "z" && e.shiftKey);
+    if (key !== "z" && !redo) return;
+
+    const target = e.target as HTMLElement | null;
+    if (target?.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+
+    e.preventDefault();
+    if (redo) planHistory.redo();
+    else planHistory.undo();
+  }
 </script>
+
+<svelte:window {onkeydown} />
 
 <Screen title="Planning" wide>
   {#if week.loadError && !week.categories}

@@ -19,6 +19,7 @@ export const updateCategory = (
   input: { name: string; color: string; icon: string; targetHoursPerWeek: number },
 ) => callApi(api.categories(id).$patch(input)).then((r) => unwrapOk(r).category as Category);
 export const archiveCategory = (id: string) => callApi(api.categories(id).archive.$post()).then(unwrapOk);
+export const restoreCategory = (id: string) => callApi(api.categories(id).restore.$post()).then(unwrapOk);
 
 // Activities
 export const getActivities = () => callApi(api.activities.$get()).then((r) => r.activities as Activity[]);
@@ -27,6 +28,7 @@ export const createActivity = (input: { name: string; weights: ActivityWeight[] 
 export const updateActivity = (id: string, input: { name: string; weights: ActivityWeight[] }) =>
   callApi(api.activities(id).$patch(input)).then((r) => unwrapOk(r).activity as Activity);
 export const archiveActivity = (id: string) => callApi(api.activities(id).archive.$post()).then(unwrapOk);
+export const restoreActivity = (id: string) => callApi(api.activities(id).restore.$post()).then(unwrapOk);
 
 // Integrations
 export const getIntegrations = () =>

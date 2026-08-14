@@ -64,6 +64,15 @@ export class CategoryService {
     await bufferCategoryService.sync(this.userId);
   }
 
+  async restore(id: string): Promise<void> {
+    await this.assertNotBuffer(id);
+    await db
+      .update(categories)
+      .set({ archived: false })
+      .where(and(eq(categories.id, id), eq(categories.userId, this.userId)));
+    await bufferCategoryService.sync(this.userId);
+  }
+
   private async assertNotBuffer(id: string): Promise<void> {
     const existing = await db.query.categories.findFirst({
       where: and(eq(categories.id, id), eq(categories.userId, this.userId)),
@@ -136,6 +145,13 @@ export class ActivityService {
     await db
       .update(activities)
       .set({ archived: true })
+      .where(and(eq(activities.id, id), eq(activities.userId, this.userId)));
+  }
+
+  async restore(id: string): Promise<void> {
+    await db
+      .update(activities)
+      .set({ archived: false })
       .where(and(eq(activities.id, id), eq(activities.userId, this.userId)));
   }
 }

@@ -1,6 +1,7 @@
-import { archiveActivity, createActivity, updateActivity } from "$lib/queries";
+import { archiveActivity, createActivity, restoreActivity, updateActivity } from "$lib/queries";
 import { invalidate, store } from "$lib/store.svelte";
 import type { Activity, ActivityWeight } from "$lib/types";
+import { planHistory } from "$lib/week/plan-history.svelte";
 
 /**
  * One piece of an activity's split. Two pieces may share a category for as long as a split hasn't
@@ -68,6 +69,9 @@ class ActivitiesData {
   /** The row that should grab the name field and select it — consumed once by that row. */
   focusKey = $state<string | null>(null);
 
+  /** What the drafts looked like before the edit burst that's still running. */
+  #historyBefore: ActivityDraft[] | null = null;
+
   loadError = $derived(store.activities.error ?? store.categories.error);
   categoryById = $derived(new Map((store.categories.value ?? []).map((c) => [c.id, c])));
   planned = $derived((store.categories.value ?? []).filter((c) => !c.isBuffer));
@@ -84,6 +88,7 @@ class ActivitiesData {
   load = async () => {
     await Promise.all([store.activities.refresh(), store.categories.refresh()]);
     this.#syncDrafts();
+    planHistory.clear();
   };
 
   #syncDrafts() {
@@ -100,15 +105,75 @@ class ActivitiesData {
     return !this.saving && this.dirty && this.drafts.every((d) => d.name.trim());
   }
 
+  /** Marks an edit burst as started, if one isn't already running — one undo step per burst. */
+  #beginEdit() {
+    if (this.#historyBefore === null) this.#historyBefore = this.drafts;
+  }
+
+  /** Closes the running burst, if any, as one undo step — a rename or a split reweighed. */
+  #commitEdit() {
+    const before = this.#historyBefore;
+    this.#historyBefore = null;
+    if (!before || before === this.drafts) return;
+    const after = this.drafts;
+    planHistory.push({
+      undo: () => {
+        this.drafts = before;
+        this.#publish();
+      },
+      redo: () => {
+        this.drafts = after;
+        this.#publish();
+      },
+    });
+  }
+
   /** A blank row, on screen and in edit mode before the server has heard of it. */
   add() {
+    this.#commitEdit();
     const draft: ActivityDraft = { key: `new-${++cut}`, id: null, name: "", pieces: [] };
+    const before = this.drafts;
     this.drafts = [draft, ...this.drafts];
+    const after = this.drafts;
     this.focusKey = draft.key;
     this.#publish();
+
+    // The row may become its own activity on the server by the time this is undone or redone —
+    // a freshly added one is checked for and taken back off, then put back the same way.
+    let archivedId: string | null = null;
+    planHistory.push({
+      undo: async () => {
+        const current = this.drafts.find((d) => d.key === draft.key);
+        if (current?.id) {
+          archivedId = current.id;
+          try {
+            await archiveActivity(current.id);
+            void store.activities.refresh();
+          } catch {
+            archivedId = null;
+          }
+        }
+        this.drafts = before;
+        this.#publish();
+      },
+      redo: async () => {
+        this.drafts = after;
+        this.#publish();
+        if (archivedId) {
+          try {
+            await restoreActivity(archivedId);
+            void store.activities.refresh();
+          } catch {
+            /* best effort — the next load will show the truth */
+          }
+          archivedId = null;
+        }
+      },
+    });
   }
 
   update(key: string, patch: Partial<Pick<ActivityDraft, "name" | "pieces">>) {
+    this.#beginEdit();
     this.drafts = this.drafts.map((d) => (d.key === key ? { ...d, ...patch } : d));
     this.#publish();
   }
@@ -118,6 +183,7 @@ class ActivitiesData {
    * showing the answer — what this adds is the id a new row was given, and the check behind it.
    */
   flush = async () => {
+    this.#commitEdit();
     const changed = this.drafts.filter((d) => isDirty(d) && d.name.trim());
     if (changed.length === 0) return;
     this.saving = true;
@@ -144,16 +210,56 @@ class ActivitiesData {
   archive = async (draft: ActivityDraft) => {
     const message = `Archive "${draft.name || "this activity"}"? It disappears from the list. Past entries stay.`;
     if (!confirm(message)) return;
-    const previous = this.drafts;
+    this.#commitEdit();
+    const before = this.drafts;
     this.drafts = this.drafts.filter((d) => d.key !== draft.key);
+    const after = this.drafts;
     this.#publish();
-    if (!draft.id) return;
+
+    if (!draft.id) {
+      planHistory.push({
+        undo: () => {
+          this.drafts = before;
+          this.#publish();
+        },
+        redo: () => {
+          this.drafts = after;
+          this.#publish();
+        },
+      });
+      return;
+    }
+
     try {
       await archiveActivity(draft.id);
       void store.activities.refresh();
+      // Only a write that landed is worth taking back — a step for one that failed would undo
+      // an archive that never happened.
+      planHistory.push({
+        undo: async () => {
+          this.drafts = before;
+          this.#publish();
+          try {
+            await restoreActivity(draft.id!);
+            void store.activities.refresh();
+          } catch {
+            /* best effort — the next load will show the truth */
+          }
+        },
+        redo: async () => {
+          this.drafts = after;
+          this.#publish();
+          try {
+            await archiveActivity(draft.id!);
+            void store.activities.refresh();
+          } catch {
+            /* best effort — the next load will show the truth */
+          }
+        },
+      });
     } catch (e) {
       // The row goes back where it was: it still exists, whatever the screen said for a moment.
-      this.drafts = previous;
+      this.drafts = before;
       this.#publish();
       this.error = e instanceof Error ? e.message : "Couldn't archive that activity";
     }

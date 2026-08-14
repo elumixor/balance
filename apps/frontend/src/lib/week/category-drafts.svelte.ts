@@ -1,8 +1,9 @@
 import { restColor, swatchPalette } from "$lib/colors";
 import { DEFAULT_ICON, randomIcon } from "$lib/icons";
-import { archiveCategory, createCategory, updateCategory } from "$lib/queries";
+import { archiveCategory, createCategory, restoreCategory, updateCategory } from "$lib/queries";
 import { invalidate, store } from "$lib/store.svelte";
 import type { Category, RingSegment } from "$lib/types";
+import { planHistory } from "./plan-history.svelte";
 
 /**
  * The rows the shared cache should hold, given what the drafts currently say. A row the server
@@ -93,6 +94,9 @@ class CategoryDrafts {
   saving = $state(false);
   error = $state<string | null>(null);
 
+  /** What the drafts looked like before the edit burst that's still running. */
+  #historyBefore: Draft[] | null = null;
+
   categories = $derived(store.categories.hasValue ? (store.categories.value ?? []) : null);
   loadError = $derived(store.categories.error);
 
@@ -124,6 +128,7 @@ class CategoryDrafts {
   load = async () => {
     await store.categories.refresh();
     this.#syncDrafts();
+    planHistory.clear();
   };
 
   #syncDrafts() {
@@ -145,12 +150,36 @@ class CategoryDrafts {
     return !this.saving && this.dirty && this.drafts.every((d) => d.name.trim());
   }
 
+  /** Marks an edit burst as started, if one isn't already running — one undo step per burst. */
+  #beginEdit() {
+    if (this.#historyBefore === null) this.#historyBefore = this.drafts;
+  }
+
+  /** Closes the running burst, if any, as one undo step — a rename, a drag, a value typed. */
+  #commitEdit() {
+    const before = this.#historyBefore;
+    this.#historyBefore = null;
+    if (!before || before === this.drafts) return;
+    const after = this.drafts;
+    planHistory.push({
+      undo: () => {
+        this.drafts = before;
+        this.#publish();
+      },
+      redo: () => {
+        this.drafts = after;
+        this.#publish();
+      },
+    });
+  }
+
   /**
    * Writes every changed row. The page calls this a moment after the last edit, and the screen
    * is already showing the answer — what this adds is the id a new row was given, and the check
    * behind it. A row edited again while its own write was out stays dirty, and goes again.
    */
   flush = async () => {
+    this.#commitEdit();
     const changed = this.drafts.filter(isDirty);
     if (changed.length === 0) return;
     this.saving = true;
@@ -175,17 +204,21 @@ class CategoryDrafts {
   };
 
   update(key: string, patch: Partial<Draft>) {
+    this.#beginEdit();
     this.drafts = this.drafts.map((d) => (d.key === key ? { ...d, ...patch } : d));
     this.#publish();
   }
 
   setAllHours = (values: number[]) => {
+    this.#beginEdit();
     this.drafts = this.drafts.map((d, i) => ({ ...d, hours: values[i] ?? d.hours }));
     this.#publish();
   };
 
   /** Cuts a slice in two. Past the last draft is the buffer: its half becomes a new category. */
   split = (index: number) => {
+    this.#commitEdit();
+    const before = this.drafts;
     const used = this.drafts.map((d) => d.color);
     const wearing = this.drafts.map((d) => d.icon);
     const fresh = (hours: number, taken: string[], worn: string[]): Draft => ({
@@ -209,20 +242,95 @@ class CategoryDrafts {
         ...this.drafts.slice(index + 1),
       ];
     }
+    const after = this.drafts;
     this.#publish();
+
+    // The new slice may be its own row on the server by the time this is undone or redone — a
+    // freshly cut category is checked for and taken back off, then put back the same way.
+    const newKey = after.find((d) => !before.some((b) => b.key === d.key))?.key;
+    let archivedId: string | null = null;
+    planHistory.push({
+      undo: async () => {
+        const current = newKey ? this.drafts.find((d) => d.key === newKey) : undefined;
+        if (current?.id) {
+          archivedId = current.id;
+          try {
+            await archiveCategory(current.id);
+            void store.categories.refresh();
+          } catch {
+            archivedId = null;
+          }
+        }
+        this.drafts = before;
+        this.#publish();
+      },
+      redo: async () => {
+        this.drafts = after;
+        this.#publish();
+        if (archivedId) {
+          try {
+            await restoreCategory(archivedId);
+            void store.categories.refresh();
+          } catch {
+            /* best effort — the next load will show the truth */
+          }
+          archivedId = null;
+        }
+      },
+    });
   };
 
   remove = async (draft: Draft) => {
-    const previous = this.drafts;
+    this.#commitEdit();
+    const before = this.drafts;
     this.drafts = this.drafts.filter((d) => d.key !== draft.key);
+    const after = this.drafts;
     this.#publish();
-    if (!draft.id) return;
+
+    if (!draft.id) {
+      planHistory.push({
+        undo: () => {
+          this.drafts = before;
+          this.#publish();
+        },
+        redo: () => {
+          this.drafts = after;
+          this.#publish();
+        },
+      });
+      return;
+    }
+
     try {
       await archiveCategory(draft.id);
       void store.categories.refresh();
+      // Only a write that landed is worth taking back — a step for one that failed would undo
+      // an archive that never happened.
+      planHistory.push({
+        undo: async () => {
+          this.drafts = before;
+          this.#publish();
+          try {
+            await restoreCategory(draft.id!);
+            void store.categories.refresh();
+          } catch {
+            /* best effort — the next load will show the truth */
+          }
+        },
+        redo: async () => {
+          this.drafts = after;
+          this.#publish();
+          try {
+            await archiveCategory(draft.id!);
+            void store.categories.refresh();
+          } catch {
+            /* best effort — the next load will show the truth */
+          }
+        },
+      });
     } catch (e) {
       // The row goes back where it was: it still exists, whatever the screen said for a moment.
-      this.drafts = previous;
+      this.drafts = before;
       this.#publish();
       this.error = e instanceof Error ? e.message : "Couldn't remove that category";
     }
