@@ -3,23 +3,20 @@
   import CalendarPanel from "$lib/calendar/CalendarPanel.svelte";
   import ConnectGoogle from "$lib/calendar/ConnectGoogle.svelte";
   import EventEditor from "$lib/calendar/EventEditor.svelte";
-  import SelectionBar from "$lib/calendar/SelectionBar.svelte";
   import WeekGrid from "$lib/calendar/WeekGrid.svelte";
-  import WeekMeters from "$lib/calendar/WeekMeters.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
   import SidePanelSection from "$lib/components/nav/SidePanelSection.svelte";
-  import { addDays, DAYS_PER_WEEK } from "$lib/dates";
   import { store } from "$lib/store.svelte";
   import { SlidersHorizontal } from "lucide-svelte";
 
   /**
-   * The whole window is the week. Everything that isn't the grid — the calendars, the activity
-   * chips — sits in the rail, and what's left above the grid is a single strip: where you are in
-   * the year, and how the week is filling up against its targets.
+   * The whole window is the week. Everything that isn't the grid — the calendars, where you are
+   * in the year, how the week is filling up against its targets — sits in the rail, so the grid
+   * keeps the whole window.
    */
   const data = calendarData;
   void data.enter();
@@ -28,18 +25,6 @@
   const categoryById = $derived(new Map(categories.map((c) => [c.id, c])));
   const activities = $derived(store.activities.value ?? []);
   const week = $derived(data.week);
-
-  /** "August 2026", or "Jul – Aug 2026" for the weeks that straddle two. */
-  const monthLabel = $derived.by(() => {
-    const end = addDays(data.weekStart, DAYS_PER_WEEK - 1);
-    const year = end.getFullYear();
-    if (data.weekStart.getMonth() === end.getMonth()) {
-      return `${end.toLocaleDateString(undefined, { month: "long" })} ${year}`;
-    }
-    const from = data.weekStart.toLocaleDateString(undefined, { month: "short" });
-    const to = end.toLocaleDateString(undefined, { month: "short" });
-    return `${from} – ${to} ${year}`;
-  });
 
   /**
    * ⌘Z takes back the last write to the week — a move, an edit, a delete, what a block counts as.
@@ -91,23 +76,22 @@
   <CalendarPanel />
 </SidePanelSection>
 
-<div class="safe-top flex h-full min-h-0 flex-col">
-  <header class="flex items-center gap-3 border-b border-line px-3 py-2 md:px-4">
-    <!-- The week changes by scrolling the grid sideways; this only offers the way back to today. -->
+<div class="safe-top relative flex h-full min-h-0 flex-col">
+  <!-- The grid keeps the whole window now; on a phone, where there's no rail, these two float over
+       its top-left gutter and top-right corner instead of spending a row of their own. -->
+  <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 p-1 md:hidden">
     <button
       type="button"
       onclick={() => data.goToToday()}
-      class="t-heading press-sm shrink-0 rounded-md px-1.5 py-1 whitespace-nowrap {data.isThisWeek
+      class="t-heading press-sm pointer-events-auto shrink-0 rounded-md bg-surface/90 px-1.5 py-1 whitespace-nowrap backdrop-blur-sm {data.isThisWeek
         ? 'text-danger'
         : 'text-fg-muted'}"
     >
-      {monthLabel}
+      {data.monthLabel}
     </button>
 
-    <WeekMeters events={data.events} {categories} weekStart={data.weekStart} />
-
     <!-- Nothing connected yet? The empty week below is already asking, so this stays out of it. -->
-    <div class="md:hidden" class:hidden={!data.connected}>
+    <div class="pointer-events-auto rounded-md bg-surface/90 backdrop-blur-sm" class:hidden={!data.connected}>
       <Popover width={280}>
         {#snippet trigger(open: () => void)}
           <IconButton label="Calendars and activities" onclick={open}>
@@ -119,10 +103,10 @@
         {/snippet}
       </Popover>
     </div>
-  </header>
+  </div>
 
   {#if data.actionError}
-    <div class="px-3 pt-2 md:px-4"><InlineError message={data.actionError} /></div>
+    <div class="absolute inset-x-0 top-10 z-20 px-3 md:top-2 md:px-4"><InlineError message={data.actionError} /></div>
   {/if}
 
   {#if week.error && !data.ready}
@@ -143,8 +127,6 @@
     </div>
   {/if}
 </div>
-
-<SelectionBar {categories} />
 
 {#if data.selected}
   <!-- Keyed so opening a second event starts from that event's mapping, not the last one's. -->

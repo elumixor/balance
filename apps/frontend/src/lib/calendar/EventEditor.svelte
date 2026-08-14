@@ -1,10 +1,13 @@
 <script lang="ts">
   import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
+  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
+  import { restColor } from "$lib/colors";
   import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
+  import { DEFAULT_ICON } from "$lib/icons";
   import type { CalendarEvent, Category, MappingScope } from "$lib/types";
   import { ArrowRight, Bell, Clock, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
@@ -197,10 +200,19 @@
     error = data.actionError;
   }
 
-  /** One category, whole: a split across several is a thing the week screen sets, not this card. */
+  /**
+   * One category, whole: a split across several is a thing the week screen sets, not this card.
+   * With other blocks gathered, the choice applies to the whole batch rather than just this one.
+   */
   function chooseCategory(categoryId: string) {
     pickerRect = null;
-    void run(() => data.mapEvent(event, scope, { weights: [{ categoryId, weightPercent: 100 }] }));
+    const weights = [{ categoryId, weightPercent: 100 }];
+    if (data.picked.size > 0) {
+      void run(() => data.mapEvents(data.pickedEvents, weights));
+      data.clearPicked();
+      return;
+    }
+    void run(() => data.mapEvent(event, scope, { weights }));
   }
 
   function close() {
@@ -232,12 +244,10 @@
       <button
         type="button"
         aria-label="Change category"
-        class="press-sm flex size-6 shrink-0 items-center justify-center rounded-sm text-[11px] font-bold
-          {category ? 'text-fg' : 'border border-line-strong text-fg-faint'}"
-        style={category ? `background:color-mix(in srgb, var(--bg) 60%, ${category.color} 40%)` : ""}
+        class="press-sm shrink-0 rounded-md"
         onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
       >
-        {(category?.name ?? "Buffer").charAt(0).toUpperCase()}
+        <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={28} />
       </button>
       {#if editable}
         <Field
@@ -296,10 +306,10 @@
             ariaLabel="End time"
           />
         {:else}
-          <span class="t-data-strong">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
+          <span class="font-sans text-[14px] leading-[19px] tabular-nums">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
           {#if !event.allDay}
             <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-            <span class="t-data-strong">{formatClock(new Date(event.end))}</span>
+            <span class="font-sans text-[14px] leading-[19px] tabular-nums">{formatClock(new Date(event.end))}</span>
           {/if}
           <span class="t-data-micro text-fg-muted">{span}</span>
         {/if}
@@ -312,7 +322,7 @@
             class="relative flex h-9 items-center rounded-md border border-transparent px-2 transition-colors
               hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
           >
-            <span class="t-data-strong">{dateLabel}</span>
+            <span class="font-sans text-[14px] leading-[19px] tabular-nums">{dateLabel}</span>
             <input
               type="date"
               bind:value={date}
@@ -322,7 +332,7 @@
             />
           </label>
         {:else}
-          <span class="t-data-strong px-2">{longDate}</span>
+          <span class="font-sans text-[14px] leading-[19px] tabular-nums px-2">{longDate}</span>
         {/if}
       </div>
 
