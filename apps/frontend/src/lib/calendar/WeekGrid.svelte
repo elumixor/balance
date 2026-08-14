@@ -12,6 +12,7 @@
     NARROW_BLOCK_PERCENT,
     OPENING_HOUR,
     placeDay,
+    resizeBandPx,
     segmentsForRange,
   } from "./week-grid";
 
@@ -72,7 +73,18 @@
   const ghostWidthPercent = $derived(draggedSegment?.widthPercent ?? 100);
   const ghostLeftPercent = $derived(draggedSegment?.leftPercent ?? 0);
   const allDay = $derived(allDaySpansForRange(data.events, data.stripStart, STRIP_DAYS));
-  const allDayRows = $derived(allDay.reduce((max, span) => Math.max(max, span.row + 1), 0));
+  /** Row count reserved by the header only counts spans touching the days actually on screen —
+   *  tracks the live scroll position so it grows/shrinks while scrolling, not just once settled. */
+  const allDayRows = $derived.by(() => {
+    const offset = dayWidth > 0 ? liveScrollLeft / dayWidth : data.dayOffset;
+    return allDay.reduce(
+      (max, span) =>
+        span.dayIndex + span.days > offset && span.dayIndex < offset + VISIBLE_DAYS
+          ? Math.max(max, span.row + 1)
+          : max,
+      0,
+    );
+  });
   const headerPx = $derived(DAY_HEAD_PX + allDayRows * ALL_DAY_PX);
 
   const todayStart = $derived(startOfDay(new Date()).getTime());
@@ -262,7 +274,7 @@
   <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
     <!-- The hours stay put while the days slide past them. -->
     <div class="sticky left-0 z-30 flex shrink-0 flex-col bg-surface" style="width:{GUTTER_PX}px">
-      <div class="sticky top-0 z-10 shrink-0 border-line border-b bg-surface" style="height:{headerPx}px"></div>
+      <div class="sticky top-0 z-10 shrink-0 border-line border-b bg-surface transition-[height] duration-150" style="height:{headerPx}px"></div>
       <div class="relative" style="height:{24 * HOUR_PX}px">
         {#each HOURS as hour (hour)}
           <div class="t-data-micro absolute right-2 -translate-y-1/2 text-fg-faint" style="top:{hour * HOUR_PX}px">
@@ -273,7 +285,7 @@
     </div>
 
     <div class="min-w-0">
-      <div class="sticky top-0 z-20 border-line border-b bg-surface" style="height:{headerPx}px">
+      <div class="sticky top-0 z-20 border-line border-b bg-surface transition-[height] duration-150" style="height:{headerPx}px">
         <!-- Unkeyed: the columns are fixed slots the days move through, and moving DOM nodes
              under a scroller resets the very scroll offset this grid is holding. -->
         <div class="grid" style="grid-template-columns:{columns};height:{DAY_HEAD_PX}px">
@@ -332,13 +344,17 @@
           HOUR_PX}px;background-image:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px {HOUR_PX}px)"
       >
         {#each days as day, index}
-          <div class="relative snap-start border-line border-l">
+          {@const weekend = day.getDay() === 0 || day.getDay() === 6}
+          <div class="relative snap-start border-line border-l {weekend ? 'bg-fg/[0.02]' : ''}">
             {#each placedByDay[index] as segment (segment.event.id)}
               <!-- Alt held: the original stays put in full, since the pointer is dragging a copy. -->
               {@const dragging = data.drag?.event?.id === segment.event.id && !data.drag?.copy}
               <!-- The rest of a dragged batch stays where it is, faded, with its target outlined. -->
               {@const trailing =
                 !data.drag?.copy && (data.drag?.others.some((other) => other.id === segment.event.id) ?? false)}
+              <!-- Resize bands sized off the drawn height, so the two can never meet and never eat
+                   the middle, which is what opens the event. Zero on a block too short to aim at. -->
+              {@const band = resizeBandPx(segment.height)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
@@ -363,12 +379,25 @@
                   flatTop={segment.continuesBefore}
                   flatBottom={segment.continuesAfter}
                 />
-                {#if !segment.event.readOnly && !segment.continuesAfter}
+                {#if band > 0 && !segment.event.readOnly && !segment.continuesAfter}
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <span
-                    class="absolute right-0 bottom-0 left-5 h-3 cursor-ns-resize touch-none"
+                    class="absolute right-0 bottom-0 left-5 z-20 cursor-ns-resize touch-none"
+                    style="height:{band}px"
                     onpointerdown={(e) => data.beginResize(segment.event, e)}
+                    onpointermove={(e) => data.moveDrag(e)}
+                    onpointerup={() => data.endDrag()}
+                    onpointercancel={() => data.endDrag()}
+                  ></span>
+                {/if}
+                {#if band > 0 && !segment.event.readOnly && !segment.continuesBefore}
+                  <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <span
+                    class="absolute top-0 right-0 left-5 z-20 cursor-ns-resize touch-none"
+                    style="height:{band}px"
+                    onpointerdown={(e) => data.beginResizeStart(segment.event, e)}
                     onpointermove={(e) => data.moveDrag(e)}
                     onpointerup={() => data.endDrag()}
                     onpointercancel={() => data.endDrag()}

@@ -29,6 +29,7 @@ export interface AllDaySpan {
   readonly event: CalendarEvent;
   readonly dayIndex: number;
   readonly days: number;
+  readonly row: number;
 }
 
 /**
@@ -73,7 +74,7 @@ export function allDaySpansForRange(
 ): AllDaySpan[] {
   const rangeEnd = addDays(rangeStart, dayCount);
 
-  return events
+  const spans = events
     .filter((e) => e.allDay)
     .flatMap((event) => {
       const start = new Date(event.start);
@@ -84,7 +85,19 @@ export function allDaySpansForRange(
       // Google's all-day end date is exclusive, so the last drawn day is the one before it.
       const lastDay = Math.min(dayCount - 1, dayIndexOf(new Date(end.getTime() - 1), rangeStart));
       return [{ event, dayIndex: firstDay, days: lastDay - firstDay + 1 }];
-    });
+    })
+    .sort((a, b) => a.dayIndex - b.dayIndex || b.days - a.days);
+
+  // Greedily drop each span into the first row whose occupied days don't overlap it, so a week
+  // with two overlapping banners grows to two rows instead of stacking them on top of each other.
+  const rowEnds: number[] = [];
+  return spans.map((span) => {
+    const lastDay = span.dayIndex + span.days;
+    let row = rowEnds.findIndex((end) => end <= span.dayIndex);
+    if (row === -1) row = rowEnds.length;
+    rowEnds[row] = lastDay;
+    return { ...span, row };
+  });
 }
 
 /**
@@ -143,6 +156,21 @@ export function placeDay(segments: readonly Segment[]): PlacedSegment[] {
   if (cluster.length > 0) closeCluster();
 
   return placed;
+}
+
+/** How thick a resize band gets on a tall block, and how thin one may get before it's dropped. */
+export const RESIZE_BAND_MAX_PX = 12;
+export const RESIZE_BAND_MIN_PX = 5;
+
+/**
+ * The resize band for a block of this drawn height. Capped at a third of the block, so the two
+ * bands can never meet and the middle third stays free to answer a tap. A block too short to give
+ * each band an aimable strip gets none at all — opening it and moving it beats a target you can't
+ * hit, and its times are still editable in the editor.
+ */
+export function resizeBandPx(height: number): number {
+  const band = Math.min(RESIZE_BAND_MAX_PX, height / 3);
+  return band < RESIZE_BAND_MIN_PX ? 0 : band;
 }
 
 /** Rounds a pointer position to the nearest quarter hour, the finest the grid commits to. */
