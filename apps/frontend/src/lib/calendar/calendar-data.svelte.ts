@@ -255,13 +255,27 @@ class CalendarData {
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(new Date()));
 
+  /** "August 2026", or "Jul – Aug 2026" for the weeks that straddle two. */
+  readonly monthLabel = $derived.by(() => {
+    const end = addDays(this.weekStart, DAYS_PER_WEEK - 1);
+    const year = end.getFullYear();
+    if (this.weekStart.getMonth() === end.getMonth()) {
+      return `${end.toLocaleDateString(undefined, { month: "long" })} ${year}`;
+    }
+    const from = this.weekStart.toLocaleDateString(undefined, { month: "short" });
+    const to = end.toLocaleDateString(undefined, { month: "short" });
+    return `${from} – ${to} ${year}`;
+  });
+
   /** The gathered blocks themselves, as the week currently holds them. */
   readonly pickedEvents = $derived(this.events.filter((event) => this.picked.has(event.id)));
 
   /** The open event as the week currently holds it, or null once it's gone from the week. */
   readonly selected = $derived(this.events.find((event) => event.id === this.selectedId) ?? null);
 
-  select(event: CalendarEvent, rect: DOMRect) {
+  select(event: CalendarEvent, rect: DOMRect | null) {
+    // Opening any other block ends the naming of the one made a moment ago.
+    if (this.unnamedId !== event.id) this.unnamedId = null;
     this.selectedId = event.id;
     this.selectedRect = rect;
   }
@@ -284,6 +298,7 @@ class CalendarData {
   deselect() {
     this.selectedId = null;
     this.selectedRect = null;
+    this.unnamedId = null;
   }
 
   /**
@@ -828,11 +843,19 @@ class CalendarData {
     );
     if (!created) return false;
 
+    this.#moveRef(ref, created);
+    return true;
+  }
+
+  /**
+   * Points every step and every queued write that holds this handle at the event the calendar has
+   * actually made — what was written against a made-up id lands on the real one.
+   */
+  #moveRef(ref: EventRef, created: CalendarEvent) {
     this.#refs.delete(ref.id);
     ref.id = created.id;
     ref.calendarId = created.calendarId;
     this.#refs.set(ref.id, ref);
-    return true;
   }
 
   /**
@@ -874,6 +897,14 @@ class CalendarData {
       activityName: activity?.name ?? null,
       weights: activity?.weights ?? [],
     };
+    // The handle is taken on the draft, so the editor's writes queue up behind the create against
+    // a made-up id and land on the real one — nothing here waits on Google to be usable.
+    const ref = this.#ref(draft);
+    if (openAt) {
+      this.unnamedId = draft.id;
+      this.select(draft, openAt);
+    }
+
     const created = await this.#run(
       async () => {
         const event = await createCalendarEvent({
@@ -882,20 +913,22 @@ class CalendarData {
           start: start.toISOString(),
           end: end.toISOString(),
         });
-        // Opened on the real event rather than the drawn-ahead one: the editor writes what it's
-        // shown, and the draft's made-up id is nothing the calendar would take a write against.
-        if (openAt) {
-          this.unnamedId = event.id;
-          this.select(event, openAt);
-        }
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },
       { id: draft.id, event: draft },
     );
-    if (!created) return;
+    if (!created) {
+      // Nothing was made, so there's nothing to have open — the error says why.
+      if (this.selectedId === draft.id) this.deselect();
+      return;
+    }
 
-    const ref = this.#ref(created);
+    this.#moveRef(ref, created);
+    // The draft comes off the grid with this write; whatever was open on it moves to the event
+    // the calendar made, which is the same block as far as the screen is concerned.
+    if (this.unnamedId === draft.id) this.unnamedId = created.id;
+    if (this.selectedId === draft.id) this.select(created, this.selectedRect);
     this.history.push({ undo: () => this.#remove(ref), redo: () => this.#restore(ref, created) });
   }
 

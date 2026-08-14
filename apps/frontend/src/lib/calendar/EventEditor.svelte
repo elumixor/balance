@@ -52,17 +52,8 @@
   /** A deleted event must not be written back by the pending edit the card is unmounting with. */
   let deleted = false;
   let titleEl = $state<HTMLInputElement | null>(null);
-
-  /**
-   * A block tapped onto the grid arrives unnamed, and naming it is the only reason its editor is
-   * open — so the cursor is already in the name, over whatever's there, ready to be typed past.
-   */
-  $effect(() => {
-    if (!titleEl || data.unnamedId !== event.id) return;
-    data.unnamedId = null;
-    titleEl.focus();
-    titleEl.select();
-  });
+  /** Which event the cursor has already been put in the name of — see the effect below. */
+  let focused = "";
 
   // Selecting another block while this one is open swaps the prop rather than remounting.
   $effect(() => {
@@ -81,6 +72,20 @@
       start: new Date(event.start).getTime(),
       end: new Date(event.end).getTime(),
     };
+  });
+
+  /**
+   * A block tapped onto the grid arrives unnamed, and naming it is the only reason its editor is
+   * open — so the cursor is in the name already, over whatever's there. Once per event: the card
+   * is rebuilt when the calendar gives the block its real id, and that must not take the cursor
+   * away from wherever it's got to by then, nor select what's been typed since.
+   */
+  $effect(() => {
+    if (!titleEl || data.unnamedId !== event.id || focused === event.id) return;
+    focused = event.id;
+    titleEl.focus();
+    if (title) titleEl.setSelectionRange(title.length, title.length);
+    else titleEl.select();
   });
 
   /** Set to the row's rect while the category list is open, null otherwise. */
