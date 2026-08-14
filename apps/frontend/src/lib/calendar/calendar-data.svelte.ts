@@ -292,8 +292,14 @@ class CalendarData {
 
   // --- gathering many blocks -------------------------------------------------
 
+  /**
+   * ⌘-click on a block. An open editor is a selection of one, so the block it was showing joins
+   * the batch rather than being dropped — ⌘-clicking a second block gathers both.
+   */
   togglePicked(event: CalendarEvent) {
+    const open = this.selectedId;
     this.deselect();
+    if (open && open !== event.id) this.picked.add(open);
     if (!this.picked.delete(event.id)) this.picked.add(event.id);
   }
 
