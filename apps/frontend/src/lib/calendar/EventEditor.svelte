@@ -201,8 +201,19 @@
 {/snippet}
 
 <AnchoredPopup {rect} width={WIDTH} dismiss={!pickerRect} onclose={close}>
-    <!-- Header: the title itself, beside the two things you can do to the event. -->
+    <!-- Header: what it counts as and what it's called, beside the two things you can do to it. -->
     <div class="flex items-center gap-1 px-3 py-3">
+      <!-- The same badge the block on the grid wears, opening the same list. -->
+      <button
+        type="button"
+        aria-label="Change category"
+        class="press-sm flex size-6 shrink-0 items-center justify-center rounded-sm text-[11px] font-bold
+          {category ? 'text-fg' : 'border border-line-strong text-fg-faint'}"
+        style={category ? `background:color-mix(in srgb, var(--bg) 60%, ${category.color} 40%)` : ""}
+        onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
+      >
+        {(category?.name ?? "?").charAt(0).toUpperCase()}
+      </button>
       {#if editable}
         <Field bind:value={title} oninput={queue} variant="inline" ariaLabel="Event title" class="t-heading py-1" />
       {:else}
@@ -308,29 +319,7 @@
       </p>
     {/if}
 
-    <!-- What the block counts as — one category, picked from the same list as everywhere else. -->
     <div class="border-t border-line px-3 py-3">
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          class="press-sm flex flex-1 items-center gap-3 rounded-md py-1 text-left"
-          onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
-        >
-          <span
-            class="size-4 shrink-0 rounded-sm {category ? '' : 'border border-line-strong'}"
-            style={category ? `background:${category.color}` : ""}
-          ></span>
-          <span class="t-body flex-1 truncate {category || event.activityName ? '' : 'text-fg-faint'}">
-            {category?.name ?? event.activityName ?? "Category"}
-          </span>
-        </button>
-        {#if event.mappingScope}
-          <button type="button" class="press-sm t-label text-fg-faint" onclick={() => void run(() => data.unmapEvent(event))}>
-            Clear
-          </button>
-        {/if}
-      </div>
-
       <div class="flex items-center gap-3 py-1">
         <Bell size={16} class="shrink-0 text-fg-faint" />
         <span class="t-body text-fg-faint">Reminders</span>

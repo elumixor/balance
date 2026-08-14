@@ -216,14 +216,15 @@ html.dark {
     --mix: 35%;
   }
 }
-.event-fill.is-selected {
-  --mix: 50%;
-}
 .event-fill.is-past {
   --mix: 15%;
 }
-/* Gathered for a batch: an outline drawn inside the fill, so nothing on the grid shifts. */
-.event-fill.is-picked {
+/*
+ * Chosen — opened on its own, or gathered into a batch. Both are the same state to look at, so
+ * they draw the same: a deeper fill and an outline inside it, so nothing on the grid shifts.
+ */
+.event-fill.is-picked,
+.event-fill.is-selected {
   --mix: 50%;
   box-shadow: inset 0 0 0 1.5px var(--fg);
 }
