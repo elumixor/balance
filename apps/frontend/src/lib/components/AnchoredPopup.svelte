@@ -67,6 +67,19 @@
   function onkeydown(e: KeyboardEvent) {
     if (dismiss && e.key === "Escape") onclose();
   }
+
+  /**
+   * This panel has to leave the tree it was declared in. A list row carries the stagger
+   * animation, and an element with an animated transform is a containing block for
+   * `position: fixed` — left inline, the popup would be pinned to that row's box instead of
+   * the viewport.
+   */
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy: () => node.remove(),
+    };
+  }
 </script>
 
 <!--
@@ -83,6 +96,7 @@
 -->
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 <div
+  use:portal
   class="fade-in fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:pointer-events-none sm:block
     sm:bg-transparent"
   onclick={() => dismiss && onclose()}
