@@ -8,6 +8,7 @@
   import EventContextMenu from "./EventContextMenu.svelte";
   import {
     allDaySpansForRange,
+    daySpans,
     HOUR_PX,
     NARROW_BLOCK_PERCENT,
     OPENING_HOUR,
@@ -124,17 +125,18 @@
     const shiftEnd =
       new Date(drag.day).setMinutes(drag.endMinutes) - new Date(drag.event.end).getTime();
 
-    return drag.others.map((event) => {
+    return drag.others.flatMap((event) => {
       const start = new Date(new Date(event.start).getTime() + shiftStart);
       const end = new Date(new Date(event.end).getTime() + shiftEnd);
       const dayIndex = Math.round((startOfDay(start).getTime() - data.stripStart.getTime()) / MS_PER_DAY);
       const startMinutes = minutesIntoDay(start);
-      return {
-        id: event.id,
-        left: dayIndex * dayWidth,
-        top: (startMinutes / 60) * HOUR_PX,
-        height: Math.max(2, ((end.getTime() - start.getTime()) / 60_000 / 60) * HOUR_PX),
-      };
+      const endMinutes = startMinutes + (end.getTime() - start.getTime()) / 60_000;
+      return daySpans(startMinutes, endMinutes).map((span) => ({
+        id: `${event.id}:${span.dayOffset}`,
+        left: (dayIndex + span.dayOffset) * dayWidth,
+        top: (span.startMinutes / 60) * HOUR_PX,
+        height: Math.max(2, ((span.endMinutes - span.startMinutes) / 60) * HOUR_PX),
+      }));
     });
   });
 
@@ -437,31 +439,40 @@
 
         {#if data.drag}
           {@const snappedIndex = Math.round((data.drag.day.getTime() - data.stripStart.getTime()) / MS_PER_DAY)}
-          {@const targetLeft = snappedIndex * dayWidth + (ghostLeftPercent / 100) * dayWidth}
-          <!-- Where the block will land once let go — snapped, not where it's held. -->
-          <div
-            class="pointer-events-none absolute z-40 rounded-sm border-2 border-fg/50 border-dashed"
-            style="left:{targetLeft}px;width:{(ghostWidthPercent / 100) * dayWidth -
-              10}px;top:{(data.drag.startMinutes / 60) * HOUR_PX}px;height:{((data.drag.endMinutes -
-              data.drag.startMinutes) /
-              60) *
-              HOUR_PX}px"
-          ></div>
+          <!-- Where the block will land once let go — snapped, not where it's held. A drag that
+               reaches past midnight lands as one rectangle per day it covers. -->
+          {#each daySpans(data.drag.startMinutes, data.drag.endMinutes) as span (span.dayOffset)}
+            <div
+              class="pointer-events-none absolute z-40 rounded-sm border-2 border-fg/50 border-dashed"
+              style="left:{(snappedIndex + span.dayOffset) * dayWidth +
+                (ghostLeftPercent / 100) * dayWidth}px;width:{(ghostWidthPercent / 100) * dayWidth -
+                10}px;top:{(span.startMinutes / 60) * HOUR_PX}px;height:{((span.endMinutes - span.startMinutes) / 60) *
+                HOUR_PX}px"
+            ></div>
+          {/each}
         {/if}
 
         {#if ghostEvent && data.drag}
-          {@const freeLeft = data.drag.freeDayIndex * dayWidth + (ghostLeftPercent / 100) * dayWidth}
-          <!-- The block itself, following the pointer unsnapped on both axes. -->
-          <div
-            class="pointer-events-none absolute z-40"
-            style="left:{freeLeft}px;width:{(ghostWidthPercent / 100) * dayWidth -
-              10}px;top:{(data.drag.freeStartMinutes / 60) * HOUR_PX}px;height:{((data.drag.freeEndMinutes -
-              data.drag.freeStartMinutes) /
-              60) *
-              HOUR_PX}px"
-          >
-            <EventBlock event={ghostEvent} {categories} ghost narrow />
-          </div>
+          <!-- The block itself, following the pointer unsnapped on both axes, split the same way. -->
+          {@const ghostSpans = daySpans(data.drag.freeStartMinutes, data.drag.freeEndMinutes)}
+          {#each ghostSpans as span, i (span.dayOffset)}
+            <div
+              class="pointer-events-none absolute z-40"
+              style="left:{(data.drag.freeDayIndex + span.dayOffset) * dayWidth +
+                (ghostLeftPercent / 100) * dayWidth}px;width:{(ghostWidthPercent / 100) * dayWidth -
+                10}px;top:{(span.startMinutes / 60) * HOUR_PX}px;height:{((span.endMinutes - span.startMinutes) / 60) *
+                HOUR_PX}px"
+            >
+              <EventBlock
+                event={ghostEvent}
+                {categories}
+                ghost
+                narrow
+                flatTop={i > 0}
+                flatBottom={i < ghostSpans.length - 1}
+              />
+            </div>
+          {/each}
         {/if}
       </div>
     </div>

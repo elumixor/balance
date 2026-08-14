@@ -12,7 +12,7 @@ import { calendarWeek, invalidate, store } from "$lib/store.svelte";
 import type { Activity, ActivityWeight, CalendarEvent, MappingScope } from "$lib/types";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
-import { DEFAULT_EVENT_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
+import { DEFAULT_EVENT_MINUTES, segmentsForRange, SNAP_MINUTES, snapMinutes } from "./week-grid";
 
 /** Three weeks of columns, so there's a week to scroll into on either side of the seven shown. */
 export const STRIP_DAYS = 3 * DAYS_PER_WEEK;
@@ -80,8 +80,13 @@ export interface DragState {
    * finger — empty for an ordinary drag.
    */
   readonly others: readonly CalendarEvent[];
-  /** The day the block is over, as a date: the strip runs across weeks, so an index won't do. */
+  /** The day the block starts on, as a date: the strip runs across weeks, so an index won't do. */
   day: Date;
+  /**
+   * Minutes from the start of `day`, which either edge may leave: dragging an end past midnight
+   * puts it above 1440, and dragging a start back before midnight takes it negative. That's what
+   * makes an evening-to-morning block — a night's sleep — something a drag can express.
+   */
   startMinutes: number;
   endMinutes: number;
   /**
@@ -534,21 +539,26 @@ class CalendarData {
     this.#autoscrollNear(e.clientY);
     if (this.drag.kind === "move") this.drag.copy = e.altKey;
 
-    if (this.drag.kind === "resize") {
-      this.drag.endMinutes = Math.max(this.drag.startMinutes + 15, at.minutes);
-      this.drag.freeEndMinutes = Math.max(this.drag.startMinutes + 15, at.rawMinutes);
+    // An edge follows the pointer into whatever column it's over, counted from the block's own
+    // start day, so dragging sideways as well as down grows the block across midnight.
+    if (this.drag.kind === "resize" || this.drag.kind === "resize-start") {
+      const edge = this.#pointerToEdge(e, this.drag.day);
+      if (!edge) return;
+      if (this.drag.kind === "resize") {
+        this.drag.endMinutes = Math.max(this.drag.startMinutes + SNAP_MINUTES, edge.minutes);
+        this.drag.freeEndMinutes = Math.max(this.drag.startMinutes + SNAP_MINUTES, edge.rawMinutes);
+      } else {
+        this.drag.startMinutes = Math.min(this.drag.endMinutes - SNAP_MINUTES, edge.minutes);
+        this.drag.freeStartMinutes = Math.min(this.drag.endMinutes - SNAP_MINUTES, edge.rawMinutes);
+      }
       return;
     }
-    if (this.drag.kind === "resize-start") {
-      this.drag.startMinutes = Math.min(this.drag.endMinutes - 15, at.minutes);
-      this.drag.freeStartMinutes = Math.min(this.drag.endMinutes - 15, at.rawMinutes);
-      return;
-    }
+    // A move keeps its length, however many days that is — only the day it starts on changes.
     const length = this.drag.endMinutes - this.drag.startMinutes;
     this.drag.day = at.day;
-    this.drag.startMinutes = Math.min(at.minutes, MINUTES_PER_DAY - length);
+    this.drag.startMinutes = at.minutes;
     this.drag.endMinutes = this.drag.startMinutes + length;
-    this.drag.freeStartMinutes = Math.min(at.rawMinutes, MINUTES_PER_DAY - length);
+    this.drag.freeStartMinutes = at.rawMinutes;
     this.drag.freeEndMinutes = this.drag.freeStartMinutes + length;
     this.drag.freeDayIndex = at.rawIndex;
   }
@@ -1179,9 +1189,12 @@ class CalendarData {
 
     const start = new Date(pending.event.start);
     const end = new Date(pending.event.end);
-    const startMinutes = start.getHours() * 60 + start.getMinutes();
-    const endMinutes = end.getHours() * 60 + end.getMinutes();
-    const dayIndex = daysBetween(this.stripStart, startOfDay(start));
+    const day = startOfDay(start);
+    const startMinutes = (start.getTime() - day.getTime()) / 60_000;
+    // Counted from the same midnight as the start, so an event that already spans days keeps its
+    // whole length rather than folding back to the hour its end reads on its own day.
+    const endMinutes = (end.getTime() - day.getTime()) / 60_000;
+    const dayIndex = daysBetween(this.stripStart, day);
 
     // A move grabs the block wherever the pointer landed on it, not its top-left corner —
     // remember the gap so the block doesn't jump to put that corner under the pointer once
@@ -1208,7 +1221,7 @@ class CalendarData {
       event: pending.event,
       copy: pending.kind === "move" && pending.copy,
       others,
-      day: startOfDay(start),
+      day,
       startMinutes,
       endMinutes,
       freeStartMinutes: startMinutes,
@@ -1240,6 +1253,31 @@ class CalendarData {
     const rawMinutes = clamp(at.minutes + this.#grabOffsetMinutes, 0, MINUTES_PER_DAY);
     const minutes = clamp(snapMinutes(rawMinutes), 0, MINUTES_PER_DAY);
     return { day: addDays(this.stripStart, index), minutes, rawMinutes, rawIndex };
+  }
+
+  /**
+   * Where a dragged edge is, in minutes from the start of `day` — past 1440 when the pointer has
+   * moved into a later column, negative when it's in an earlier one.
+   *
+   * The column is the one the pointer is inside, floored rather than rounded: an edge is being
+   * pointed at, not a block being dropped, so the nearest column boundary isn't what's meant.
+   *
+   * Minutes aren't held to the day either. Dragging an end past the foot of the grid runs the
+   * scroller to the bottom and then keeps going into the small hours of the next day, which is the
+   * gesture a night's sleep asks for — sideways into tomorrow's column does the same thing.
+   */
+  #pointerToEdge(e: PointerEvent, day: Date): { minutes: number; rawMinutes: number } | null {
+    if (!this.columnsEl) return null;
+    const rect = this.columnsEl.getBoundingClientRect();
+    const dayIndex = clamp(((e.clientX - rect.left) / rect.width) * STRIP_DAYS, 0, STRIP_DAYS);
+    const column = clamp(Math.floor(dayIndex), 0, STRIP_DAYS - 1);
+    const into = ((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY;
+    // Held inside the strip, so a pointer dragged far past the grid can't reach a day that isn't
+    // drawn — the block would go somewhere the drop target can't be seen.
+    const anchor = daysBetween(this.stripStart, day) * MINUTES_PER_DAY;
+    const span = STRIP_DAYS * MINUTES_PER_DAY;
+    const at = (minutes: number) => clamp(column * MINUTES_PER_DAY + minutes, 0, span) - anchor;
+    return { minutes: at(snapMinutes(into)), rawMinutes: at(into) };
   }
 
   #instantAt(day: Date, minutes: number): Date {

@@ -191,6 +191,33 @@ export function resizeBands(height: number, selected: boolean): ResizeBands {
   return { band: grown, overhang: grown - third };
 }
 
+/** One piece of a drag, in the column it draws in: an offset in whole days, and minutes into it. */
+export interface DaySpan {
+  readonly dayOffset: number;
+  readonly startMinutes: number;
+  readonly endMinutes: number;
+}
+
+/**
+ * Cuts a range at every midnight it crosses, so a drag that runs past the end of its day draws as
+ * one piece per column rather than one rectangle hanging off the bottom of the grid.
+ *
+ * Minutes are counted from the start of the anchor day and may sit outside it in either direction —
+ * an evening-to-morning sleep is `1320 → 1800`, and dragging a start backwards goes negative.
+ */
+export function daySpans(startMinutes: number, endMinutes: number): DaySpan[] {
+  const spans: DaySpan[] = [];
+  let from = startMinutes;
+  while (from < endMinutes) {
+    const dayOffset = Math.floor(from / MINUTES_PER_DAY);
+    const dayStart = dayOffset * MINUTES_PER_DAY;
+    const to = Math.min(endMinutes, dayStart + MINUTES_PER_DAY);
+    spans.push({ dayOffset, startMinutes: from - dayStart, endMinutes: to - dayStart });
+    from = to;
+  }
+  return spans;
+}
+
 /** Rounds a pointer position to the nearest quarter hour, the finest the grid commits to. */
 export function snapMinutes(minutes: number): number {
   return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
