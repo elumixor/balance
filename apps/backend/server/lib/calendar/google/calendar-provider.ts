@@ -27,6 +27,8 @@ const IGNORED_EVENT_TYPES = new Set(["workingLocation", "birthday"]);
 
 const EVENT_FIELDS =
   "nextPageToken,timeZone,accessRole,items(id,status,summary,description,start,end,recurringEventId,eventType,htmlLink,attendees(self,responseStatus))";
+const SINGLE_EVENT_FIELDS =
+  "id,status,summary,description,start,end,recurringEventId,eventType,htmlLink,attendees(self,responseStatus)";
 
 export class GoogleCalendarProvider implements CalendarProvider {
   readonly name = "google";
@@ -63,6 +65,14 @@ export class GoogleCalendarProvider implements CalendarProvider {
       },
     });
     return this.toExternalEvent(created, input.calendarId, "UTC", false);
+  }
+
+  /** The master event of a series, by its own id — used to shift a whole series by a delta. */
+  async getEvent(calendarId: string, eventId: string): Promise<ExternalEvent> {
+    const event = await this.request<GoogleEvent>(
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?fields=${SINGLE_EVENT_FIELDS}`,
+    );
+    return this.toExternalEvent(event, calendarId, "UTC", false);
   }
 
   async updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent> {

@@ -13,6 +13,10 @@ export default handler(
       description: z.string().optional(),
       start: z.string().optional(),
       end: z.string().optional(),
+      // Present only when the caller means the whole series, not just this occurrence.
+      seriesId: z.string().optional(),
+      previousStart: z.string().optional(),
+      previousEnd: z.string().optional(),
     },
   },
   async ({ body, router, event }) => {
@@ -22,12 +26,20 @@ export default handler(
       const end = parseInstant(body.end, "end");
       if (start && end && end <= start) throw new ApiError("An event has to end after it starts");
 
-      const updated = await new CalendarEventsService(user.id).update(body.calendarId, router.id, {
-        title: body.title,
-        description: body.description,
-        start,
-        end,
-      });
+      const series = body.seriesId
+        ? {
+            seriesId: body.seriesId,
+            previousStart: parseInstant(body.previousStart, "previousStart") ?? new Date(),
+            previousEnd: parseInstant(body.previousEnd, "previousEnd") ?? new Date(),
+          }
+        : undefined;
+
+      const updated = await new CalendarEventsService(user.id).update(
+        body.calendarId,
+        router.id,
+        { title: body.title, description: body.description, start, end },
+        series,
+      );
       return { event: new CalendarEventDTO(updated) };
     } catch (e) {
       return handleApiError(event, e);

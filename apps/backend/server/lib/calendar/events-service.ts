@@ -121,9 +121,37 @@ export class CalendarEventsService {
     return this.attachMappings([{ ...created, calendarId }], [mapping])[0];
   }
 
-  async update(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ResolvedEvent> {
+  /**
+   * A series-scoped write lands on the master event instead of the occurrence: title and notes
+   * copy straight across, but a time change has to become a delta first — the master's own start
+   * isn't the occurrence's start, so shifting every occurrence by the same amount means moving the
+   * master by however far this one just moved, not to where this one landed.
+   */
+  async update(
+    calendarId: string,
+    eventId: string,
+    patch: UpdateEventInput,
+    series?: { seriesId: string; previousStart: Date; previousEnd: Date },
+  ): Promise<ResolvedEvent> {
     const connection = await this.connected();
-    const updated = await connection.provider.updateEvent(calendarId, eventId, patch);
+    let targetId = eventId;
+    let targetPatch = patch;
+
+    if (series) {
+      targetId = series.seriesId;
+      if (patch.start && patch.end) {
+        const master = await connection.provider.getEvent(calendarId, series.seriesId);
+        const deltaStart = patch.start.getTime() - series.previousStart.getTime();
+        const deltaEnd = patch.end.getTime() - series.previousEnd.getTime();
+        targetPatch = {
+          ...patch,
+          start: new Date(master.start.getTime() + deltaStart),
+          end: new Date(master.end.getTime() + deltaEnd),
+        };
+      }
+    }
+
+    const updated = await connection.provider.updateEvent(calendarId, targetId, targetPatch);
     eventCache.invalidate(this.userId);
     const mappings = await new EventMappingService(this.userId).all();
     return this.attachMappings([updated], mappings)[0];

@@ -12,7 +12,7 @@ import { calendarWeek, invalidate, store } from "$lib/store.svelte";
 import type { Activity, ActivityWeight, CalendarEvent, MappingScope } from "$lib/types";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
-import { DEFAULT_EVENT_MINUTES, segmentsForRange, SNAP_MINUTES, snapMinutes } from "./week-grid";
+import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
 
 /** Three weeks of columns, so there's a week to scroll into on either side of the seven shown. */
 export const STRIP_DAYS = 3 * DAYS_PER_WEEK;
@@ -65,6 +65,20 @@ interface EventFields {
 interface Mapping {
   readonly scope: MappingScope;
   readonly choice: { activityId?: string; weights?: ActivityWeight[] };
+}
+
+/**
+ * A recurring event was just edited on this occurrence alone — offered up in case the change was
+ * meant for every occurrence. Holding ⌘/Ctrl through a drag skips this and detaches the occurrence
+ * on purpose, which is why the prompt only ever appears after a write that didn't ask for that.
+ */
+export interface SeriesPrompt {
+  readonly ref: EventRef;
+  readonly seriesId: string;
+  readonly title: string;
+  readonly fields: EventFields;
+  readonly previousStart: Date;
+  readonly previousEnd: Date;
 }
 
 export interface DragState {
@@ -159,6 +173,8 @@ class CalendarData {
   contextMenuRect = $state<DOMRect | null>(null);
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
+  /** A just-edited recurring occurrence, offered the choice to apply the same edit series-wide. */
+  seriesPrompt = $state<SeriesPrompt | null>(null);
   /**
    * Times the editor is entering right now, drawn on the grid before anything is written: typing a
    * new end, or walking the suggested ones, moves the block while it's being decided.
@@ -626,7 +642,12 @@ class CalendarData {
     if (this.drag?.kind === "move") this.drag.copy = copy;
   }
 
-  endDrag() {
+  /**
+   * `detach` is ⌘/Ctrl held at the moment of release: it means the occurrence is meant to come
+   * loose from its series on purpose, so the usual after-the-fact "apply to the series?" offer is
+   * skipped rather than asked and declined.
+   */
+  endDrag(e?: { metaKey: boolean; ctrlKey: boolean }) {
     this.#cancelPending();
     this.#stopAutoscroll();
     const drag = this.drag;
@@ -635,11 +656,12 @@ class CalendarData {
 
     const start = this.#instantAt(drag.day, drag.startMinutes);
     const end = this.#instantAt(drag.day, drag.endMinutes);
+    const detach = Boolean(e?.metaKey || e?.ctrlKey);
 
     if (drag.kind === "create" && drag.activityId) void this.#create(drag.activityId, drag.title, start, end);
     else if (drag.event && drag.copy) void this.#copyBatch(drag, start, end);
     else if (drag.event && drag.others.length > 0) void this.#retimeBatch(drag, start, end);
-    else if (drag.event) void this.retimeEvent(drag.event, start, end);
+    else if (drag.event) void this.retimeEvent(drag.event, start, end, detach);
   }
 
   /** Alt-drag: every gathered block is duplicated at the drop position, the originals untouched. */
@@ -753,8 +775,15 @@ class CalendarData {
     });
   }
 
-  /** The editor saves title, notes and times together — one write, so one refetch and one undo. */
-  async editEvent(event: CalendarEvent, patch: { title?: string; description?: string; start?: Date; end?: Date }) {
+  /**
+   * The editor saves title, notes and times together — one write, so one refetch and one undo.
+   * `detach` skips the series prompt entirely — see `endDrag`.
+   */
+  async editEvent(
+    event: CalendarEvent,
+    patch: { title?: string; description?: string; start?: Date; end?: Date },
+    detach = false,
+  ) {
     const ref = this.#ref(event);
     const before: EventFields = {
       title: event.title,
@@ -787,10 +816,45 @@ class CalendarData {
       undo: () => this.#writeFields(ref, event, before),
       redo: () => this.#writeFields(ref, event, after),
     });
+
+    if (event.seriesId && !detach) {
+      this.seriesPrompt = {
+        ref,
+        seriesId: event.seriesId,
+        title: after.title,
+        fields: after,
+        previousStart: before.start,
+        previousEnd: before.end,
+      };
+    }
   }
 
-  retimeEvent(event: CalendarEvent, start: Date, end: Date) {
-    return this.editEvent(event, { start, end });
+  retimeEvent(event: CalendarEvent, start: Date, end: Date, detach = false) {
+    return this.editEvent(event, { start, end }, detach);
+  }
+
+  /** The offered series-wide write actually goes out — see `seriesPrompt`. */
+  async applyToSeries() {
+    const prompt = this.seriesPrompt;
+    if (!prompt) return;
+    this.seriesPrompt = null;
+    await this.#run(() =>
+      updateCalendarEvent(prompt.ref.id, {
+        calendarId: prompt.ref.calendarId,
+        title: prompt.fields.title,
+        description: prompt.fields.description ?? "",
+        start: prompt.fields.start.toISOString(),
+        end: prompt.fields.end.toISOString(),
+        seriesId: prompt.seriesId,
+        previousStart: prompt.previousStart.toISOString(),
+        previousEnd: prompt.previousEnd.toISOString(),
+      }),
+    );
+  }
+
+  /** Just this occurrence, then — the write already happened, so there's nothing left to do. */
+  dismissSeriesPrompt() {
+    this.seriesPrompt = null;
   }
 
   async deleteEvent(event: CalendarEvent) {

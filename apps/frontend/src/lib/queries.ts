@@ -54,7 +54,17 @@ export const createCalendarEvent = (input: {
 }) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
 export const updateCalendarEvent = (
   id: string,
-  input: { calendarId: string; title?: string; description?: string; start?: string; end?: string },
+  input: {
+    calendarId: string;
+    title?: string;
+    description?: string;
+    start?: string;
+    end?: string;
+    /** Present only for a write meant to land on the whole series, not just this occurrence. */
+    seriesId?: string;
+    previousStart?: string;
+    previousEnd?: string;
+  },
 ) => callApi(api.calendar.events(id).$patch(input)).then((r) => unwrapOk(r).event as CalendarEvent);
 export const deleteCalendarEvent = (id: string, calendarId: string) =>
   callApi(api.calendar.events(id).$delete({ calendarId })).then(unwrapOk);

@@ -6,6 +6,7 @@
   import EventBlock from "./EventBlock.svelte";
   import { fade, fly } from "svelte/transition";
   import EventContextMenu from "./EventContextMenu.svelte";
+  import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import {
     allDaySpansForRange,
     daySpans,
@@ -373,7 +374,7 @@
                 style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - 10px)"
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
-                onpointerup={() => data.endDrag()}
+                onpointerup={(e) => data.endDrag(e)}
                 onpointercancel={() => data.endDrag()}
                 onclick={(e) =>
                   data.tap(segment.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
@@ -397,7 +398,7 @@
                     style="height:{bands.band}px;bottom:{-bands.overhang}px"
                     onpointerdown={(e) => data.beginResize(segment.event, e)}
                     onpointermove={(e) => data.moveDrag(e)}
-                    onpointerup={() => data.endDrag()}
+                    onpointerup={(e) => data.endDrag(e)}
                     onpointercancel={() => data.endDrag()}
                   ></span>
                 {/if}
@@ -409,7 +410,7 @@
                     style="height:{bands.band}px;top:{-bands.overhang}px"
                     onpointerdown={(e) => data.beginResizeStart(segment.event, e)}
                     onpointermove={(e) => data.moveDrag(e)}
-                    onpointerup={() => data.endDrag()}
+                    onpointerup={(e) => data.endDrag(e)}
                     onpointercancel={() => data.endDrag()}
                   ></span>
                 {/if}
@@ -483,3 +484,5 @@
 {#if data.contextMenuEvent && data.contextMenuRect}
   <EventContextMenu event={data.contextMenuEvent} rect={data.contextMenuRect} categories={[...categories.values()]} />
 {/if}
+
+<SeriesEditPrompt />

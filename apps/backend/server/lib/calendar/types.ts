@@ -59,6 +59,7 @@ export interface CalendarProvider {
   readonly name: string;
   listCalendars(): Promise<CalendarRef[]>;
   listEvents(calendarIds: readonly string[], from: Date, to: Date): Promise<ExternalEvent[]>;
+  getEvent(calendarId: string, eventId: string): Promise<ExternalEvent>;
   createEvent(input: CreateEventInput): Promise<ExternalEvent>;
   updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent>;
   deleteEvent(calendarId: string, eventId: string): Promise<void>;
