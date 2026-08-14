@@ -48,7 +48,6 @@
   <CategoryPicker
     rect={pickerRect}
     categories={plannable}
-    label="Category for {count}"
     onchoose={apply}
     onclose={() => (pickerRect = null)}
   />

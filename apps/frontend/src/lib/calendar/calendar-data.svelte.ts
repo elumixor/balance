@@ -651,21 +651,21 @@ class CalendarData {
       scope,
     });
     const activity = store.activities.value?.find((a) => a.id === choice?.activityId) ?? null;
-    const drawn: Drawn | undefined =
+    const restyle = (event: CalendarEvent): CalendarEvent => ({
+      ...event,
+      mappingScope: choice ? scope : null,
+      activityId: choice?.activityId ?? null,
+      activityName: choice ? (activity?.name ?? null) : null,
+      weights: choice ? (choice.weights ?? activity?.weights ?? []) : [],
+    });
+    const drawn: Drawn[] =
       scope === "instance"
-        ? {
-            id: ref.id,
-            event: {
-              ...was,
-              id: ref.id,
-              calendarId: ref.calendarId,
-              mappingScope: choice ? "instance" : null,
-              activityId: choice?.activityId ?? null,
-              activityName: choice ? (activity?.name ?? null) : null,
-              weights: choice ? (choice.weights ?? activity?.weights ?? []) : [],
-            },
-          }
-        : undefined;
+        ? [{ id: ref.id, event: restyle({ ...was, id: ref.id, calendarId: ref.calendarId }) }]
+        : was.seriesId
+          ? this.events
+              .filter((event) => event.seriesId === was.seriesId)
+              .map((event) => ({ id: event.id, event: restyle(event) }))
+          : [];
 
     const done = await this.#run<unknown>(
       () => (choice ? saveEventMapping({ ...target(), ...choice }) : removeEventMapping(target())),
@@ -822,18 +822,18 @@ class CalendarData {
    * The asking is one at a time. Two writes to the same event in flight together land in whichever
    * order Google gets to them, and undoing three edits in a second is exactly that case.
    */
-  #run<T>(action: () => Promise<T>, drawn?: Drawn): Promise<T | null> {
-    const id = drawn?.id;
+  #run<T>(action: () => Promise<T>, drawn?: Drawn | readonly Drawn[]): Promise<T | null> {
+    const drawnList = drawn ? (Array.isArray(drawn) ? drawn : [drawn]) : [];
     // Drawn now, before anything is queued: this is the whole point of drawing ahead. Holding
     // ⌘Z stacks its answers up on the grid at once and lets the writes catch up behind them.
     const token = Symbol("write");
-    if (id !== undefined) {
-      this.#pending.set(id, drawn?.event ?? null);
-      this.#drawnBy.set(id, token);
+    for (const one of drawnList) {
+      this.#pending.set(one.id, one.event);
+      this.#drawnBy.set(one.id, token);
     }
     this.actionError = null;
     /** Whether this write's version of the block is still the one on screen — see `#drawnBy`. */
-    const current = () => id !== undefined && this.#drawnBy.get(id) === token;
+    const current = () => drawnList.length > 0 && drawnList.every((one) => this.#drawnBy.get(one.id) === token);
 
     const run = this.#queue.then(async () => {
       // What the write answered, kept so the step that recorded it can be run backwards later.
@@ -850,12 +850,14 @@ class CalendarData {
         // Nothing to wait for once a later write has drawn over this one: the block on screen is
         // that write's now, and it does its own settling. Waiting here would only put this
         // write's older version back for as long as the waiting took.
-        if (saved && drawn && current()) await this.#settle(drawn);
+        if (saved && drawnList.length > 0 && current()) await this.#settle(drawnList);
         else await this.refreshWeeks();
       } finally {
-        if (id !== undefined && current()) {
-          this.#pending.delete(id);
-          this.#drawnBy.delete(id);
+        if (current()) {
+          for (const one of drawnList) {
+            this.#pending.delete(one.id);
+            this.#drawnBy.delete(one.id);
+          }
         }
       }
       return saved ? answer : null;
@@ -873,10 +875,10 @@ class CalendarData {
    * being moved. The drawn-ahead version stays up until the server's answer matches it, or until
    * asking again stops being worth the wait — at which point what the server says wins anyway.
    */
-  async #settle(drawn: Drawn) {
+  async #settle(drawn: readonly Drawn[]) {
     for (let attempt = 0; ; attempt++) {
       await this.refreshWeeks();
-      if (attempt >= SETTLE_ATTEMPTS - 1 || this.#serverAgrees(drawn)) return;
+      if (attempt >= SETTLE_ATTEMPTS - 1 || drawn.every((one) => this.#serverAgrees(one))) return;
       await new Promise((resolve) => setTimeout(resolve, SETTLE_DELAY_MS));
     }
   }

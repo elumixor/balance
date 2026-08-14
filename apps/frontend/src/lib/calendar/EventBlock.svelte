@@ -59,7 +59,7 @@
 
   function chooseCategory(id: string) {
     categoryRect = null;
-    void data.mapEvent(event, event.mappingScope ?? "instance", {
+    void data.mapEvent(event, event.seriesId ? "series" : "instance", {
       weights: [{ categoryId: id, weightPercent: 100 }],
     });
   }
