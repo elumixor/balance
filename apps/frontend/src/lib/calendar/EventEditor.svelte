@@ -74,10 +74,14 @@
   /** Set to the row's rect while the category list is open, null otherwise. */
   let pickerRect = $state<DOMRect | null>(null);
 
-  /** A block counts as one category here: whichever it mostly counts toward, if it's split. */
+  /**
+   * A block counts as one category here: whichever it mostly counts toward, if it's split. Looked
+   * up across every category rather than the pickable ones, so a block already counting as a
+   * buffer or an archived category still shows what it is.
+   */
   const category = $derived.by(() => {
     const ranked = event.weights
-      .map((w) => ({ weight: w.weightPercent, category: plannable.find((c) => c.id === w.categoryId) }))
+      .map((w) => ({ weight: w.weightPercent, category: categories.find((c) => c.id === w.categoryId) }))
       .filter((w) => w.category)
       .sort((a, b) => b.weight - a.weight);
     return ranked[0]?.category ?? null;
@@ -304,7 +308,9 @@
             class="size-4 shrink-0 rounded-sm {category ? '' : 'border border-line-strong'}"
             style={category ? `background:${category.color}` : ""}
           ></span>
-          <span class="t-body flex-1 truncate {category ? '' : 'text-fg-faint'}">{category?.name ?? "Category"}</span>
+          <span class="t-body flex-1 truncate {category || event.activityName ? '' : 'text-fg-faint'}">
+            {category?.name ?? event.activityName ?? "Category"}
+          </span>
         </button>
         {#if event.mappingScope}
           <button type="button" class="press-sm t-label text-fg-faint" onclick={() => void run(() => data.unmapEvent(event))}>
@@ -312,10 +318,6 @@
           </button>
         {/if}
       </div>
-
-      {#if event.seriesId}
-        <p class="t-micro pt-1 pl-7 text-fg-faint">Applies to every occurrence of this repeating event.</p>
-      {/if}
 
       <div class="flex items-center gap-3 py-1">
         <Bell size={16} class="shrink-0 text-fg-faint" />
