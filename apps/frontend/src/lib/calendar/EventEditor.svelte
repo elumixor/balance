@@ -55,8 +55,8 @@
   /** A deleted event must not be written back by the pending edit the card is unmounting with. */
   let deleted = false;
   let titleEl = $state<HTMLInputElement | null>(null);
-  /** Which event the cursor has already been put in the name of — see the effect below. */
-  let focused = "";
+  /** Whether the cursor has already been put in the name of the block on show — see below. */
+  let focused = false;
 
   // Selecting another block while this one is open swaps the prop rather than remounting.
   $effect(() => {
@@ -66,6 +66,7 @@
     const carriedOver = data.becameId(loaded) === event.id;
     loaded = event.id;
     if (carriedOver) return;
+    focused = false;
     pickerRect = null;
     previewFrom = null;
     previewTo = null;
@@ -91,8 +92,8 @@
    */
   $effect(() => {
     const input = titleEl;
-    if (!input || data.unnamedId !== event.id || focused === event.id) return;
-    focused = event.id;
+    if (!input || data.unnamedId !== event.id || focused) return;
+    focused = true;
     // Next frame: the card is hidden until it knows where it belongs, and nothing inside something
     // hidden can take focus.
     const frame = requestAnimationFrame(() => {

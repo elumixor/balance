@@ -974,10 +974,8 @@ class CalendarData {
     }
 
     this.#moveRef(ref, created);
-    // The draft comes off the grid with this write; whatever was open on it moves to the event
-    // the calendar made, which is the same block as far as the screen is concerned.
-    if (this.#became.size > REF_LIMIT) this.#became.clear();
-    this.#became.set(draft.id, created.id);
+    // Whatever was open on the draft moves onto the event the calendar made — the same block as
+    // far as the screen is concerned, and now one that can be written to directly.
     if (this.unnamedId === draft.id) this.unnamedId = created.id;
     if (this.selectedId === draft.id) this.select(created, this.selectedRect);
 
