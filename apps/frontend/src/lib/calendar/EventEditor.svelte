@@ -4,7 +4,7 @@
   import IconButton from "$lib/components/IconButton.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
-  import { formatClock, formatDateInput, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
+  import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
   import type { CalendarEvent, Category, MappingScope } from "$lib/types";
   import { ArrowRight, Bell, Clock, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
@@ -94,9 +94,12 @@
     return formatHoursAndMinutes((range.end.getTime() - range.start.getTime()) / 3_600_000);
   });
 
-  const longDate = $derived(
-    new Date(event.start).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }),
-  );
+  const longDate = $derived(formatDayDate(new Date(event.start)));
+  /** What the date field shows: the field it hides holds the same day in the format inputs take. */
+  const dateLabel = $derived.by(() => {
+    const at = parseDateAndClock(date, "00:00");
+    return at ? formatDayDate(at) : date;
+  });
 
   /** A pending edit still belongs to the user, so it's written before the card goes away. */
   $effect(() => () => flush());
@@ -246,7 +249,20 @@
 
       <div class="flex items-center gap-3 pl-7">
         {#if editable}
-          <Field bind:value={date} oninput={queue} mono variant="inline" ariaLabel="Date" class="w-32" />
+          <!-- Reads as "Fri Aug 14"; the native picker behind it is what's actually being typed in. -->
+          <label
+            class="relative flex h-9 items-center rounded-md border border-transparent px-2 transition-colors
+              hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
+          >
+            <span class="t-data">{dateLabel}</span>
+            <input
+              type="date"
+              bind:value={date}
+              oninput={queue}
+              aria-label="Date"
+              class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </label>
         {:else}
           <span class="t-data px-2">{longDate}</span>
         {/if}

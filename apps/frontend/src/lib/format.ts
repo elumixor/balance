@@ -20,6 +20,11 @@ export function formatDateInput(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** "Fri Aug 14" — a date as the calendar's popups say it, weekday first and no punctuation. */
+export function formatDayDate(date: Date) {
+  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }).replace(/,/g, "");
+}
+
 export function formatDayHeading(date: Date) {
   const today = new Date();
   const yesterday = new Date(today.getTime() - 86_400_000);
