@@ -35,6 +35,7 @@
   /** How long the scroll has to sit still before it counts as having landed on a day. */
   const SETTLE_MS = 120;
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const JUMP_ANIMATE_MS = 300;
 
   const data = calendarData;
 
@@ -45,6 +46,9 @@
   let opened = false;
   /** Raw scroll offset, updated on every scroll tick — unlike `data.dayOffset`, live mid-drag. */
   let liveScrollLeft = $state(0);
+  /** Set right before a programmatic jump (the today button) so the next scroll-left write eases in. */
+  let animateNextJump = false;
+  let jumpFrame: number | null = null;
 
   const dayWidth = $derived(Math.max(0, viewWidth - GUTTER_PX) / VISIBLE_DAYS);
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
@@ -167,12 +171,35 @@
     const frame = requestAnimationFrame(() => {
       if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
       opened = true;
-      scroller.scrollLeft = offset * width;
-      liveScrollLeft = scroller.scrollLeft;
+      if (animateNextJump) {
+        animateNextJump = false;
+        animateScrollLeft(scroller, offset * width);
+      } else {
+        if (jumpFrame !== null) cancelAnimationFrame(jumpFrame);
+        jumpFrame = null;
+        scroller.scrollLeft = offset * width;
+        liveScrollLeft = scroller.scrollLeft;
+      }
       stripAt = start;
     });
     return () => cancelAnimationFrame(frame);
   });
+
+  /** Eases the scroller to `target` over `JUMP_ANIMATE_MS` rather than snapping straight there. */
+  function animateScrollLeft(scroller: HTMLElement, target: number) {
+    if (jumpFrame !== null) cancelAnimationFrame(jumpFrame);
+    const from = scroller.scrollLeft;
+    const delta = target - from;
+    if (delta === 0) return;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - t0) / JUMP_ANIMATE_MS);
+      const eased = 1 - (1 - t) ** 3;
+      scroller.scrollLeft = from + delta * eased;
+      jumpFrame = t < 1 ? requestAnimationFrame(tick) : null;
+    };
+    jumpFrame = requestAnimationFrame(tick);
+  }
 
   /**
    * The strip is rebuilt a week over whenever the window crosses into the next one. Nothing should
@@ -200,6 +227,11 @@
     const shift = Math.round(scroller.scrollLeft / dayWidth) - data.dayOffset;
     if (shift !== 0) data.goToDay(shift);
   }
+
+  function goToToday() {
+    animateNextJump = true;
+    data.goToToday();
+  }
 </script>
 
 <div class="relative h-full">
@@ -214,7 +246,7 @@
           label="Today"
           size="sm"
           variant="danger"
-          onclick={() => data.goToToday()}
+          onclick={goToToday}
           class="shadow-(--shadow-float)"
         />
       </div>
