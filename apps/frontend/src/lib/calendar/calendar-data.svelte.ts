@@ -187,6 +187,16 @@ class CalendarData {
    * refetch would take the second one's block off the grid and put its own back for a second.
    */
   readonly #drawnBy = new Map<string, symbol>();
+  /**
+   * What each draft turned into, so a card open on a block the calendar has only just made knows
+   * it's still the same block rather than a different event that happened to appear.
+   */
+  readonly #became = new Map<string, string>();
+  /**
+   * Edits made to a block while it was still a draft. There's nothing to write them against until
+   * the calendar answers, so they're kept and sent as one write the moment it does.
+   */
+  readonly #draftEdits = new Map<string, EventFields>();
 
   #pendingDrag: PendingDrag | null = null;
   /** What was gathered before the current box started, so shrinking it back doesn't drop them. */
@@ -271,7 +281,16 @@ class CalendarData {
   readonly pickedEvents = $derived(this.events.filter((event) => this.picked.has(event.id)));
 
   /** The open event as the week currently holds it, or null once it's gone from the week. */
-  readonly selected = $derived(this.events.find((event) => event.id === this.selectedId) ?? null);
+  readonly selected = $derived.by(() => {
+    const id = this.selectedId;
+    if (!id) return null;
+    const open = this.events.find((event) => event.id === id);
+    if (open) return open;
+    // A draft comes off the grid the moment the calendar's own version of it arrives. That's the
+    // same block, so the card stays on it rather than closing and opening again.
+    const became = this.#became.get(id);
+    return (became && this.events.find((event) => event.id === became)) || null;
+  });
 
   select(event: CalendarEvent, rect: DOMRect | null) {
     // Opening any other block ends the naming of the one made a moment ago.
@@ -599,6 +618,16 @@ class CalendarData {
 
   // --- writes ---------------------------------------------------------------
 
+  /** Whether the block is one the calendar hasn't given a real id to yet — see `#create`. */
+  isDraft(id: string) {
+    return id.startsWith(DRAFT_PREFIX);
+  }
+
+  /** The event a draft turned into, for whatever was open on it — null for any other id. */
+  becameId(id: string) {
+    return this.#became.get(id) ?? null;
+  }
+
   /**
    * The editor holds its own copy of the fields it's showing and writes them back when it closes,
    * which is an argument an undo would lose — so an undo closes it first.
@@ -671,6 +700,19 @@ class CalendarData {
       start: patch.start ?? before.start,
       end: patch.end ?? before.end,
     };
+    // A block the calendar hasn't answered for yet has no id to write against, so the edit is
+    // drawn where the block already is and sent the moment the create comes back — see `#create`.
+    if (this.isDraft(event.id)) {
+      this.#draftEdits.set(event.id, after);
+      this.#pending.set(event.id, {
+        ...event,
+        title: after.title,
+        description: after.description,
+        start: after.start.toISOString(),
+        end: after.end.toISOString(),
+      });
+      return;
+    }
     if (!(await this.#writeFields(ref, event, after))) return;
 
     this.history.push({
@@ -915,6 +957,10 @@ class CalendarData {
           start: start.toISOString(),
           end: end.toISOString(),
         });
+        // Written before the refetch that takes the draft off the grid, so nothing open on the
+        // draft is ever left looking at a block that isn't there — see `selected`.
+        if (this.#became.size > REF_LIMIT) this.#became.clear();
+        this.#became.set(draft.id, event.id);
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },
@@ -922,6 +968,7 @@ class CalendarData {
     );
     if (!created) {
       // Nothing was made, so there's nothing to have open — the error says why.
+      this.#draftEdits.delete(draft.id);
       if (this.selectedId === draft.id) this.deselect();
       return;
     }
@@ -929,8 +976,15 @@ class CalendarData {
     this.#moveRef(ref, created);
     // The draft comes off the grid with this write; whatever was open on it moves to the event
     // the calendar made, which is the same block as far as the screen is concerned.
+    if (this.#became.size > REF_LIMIT) this.#became.clear();
+    this.#became.set(draft.id, created.id);
     if (this.unnamedId === draft.id) this.unnamedId = created.id;
     if (this.selectedId === draft.id) this.select(created, this.selectedRect);
+
+    // Whatever was typed into the block while it was a draft, as one write against the real event.
+    const edited = this.#draftEdits.get(draft.id);
+    this.#draftEdits.delete(draft.id);
+    if (edited) void this.#writeFields(ref, created, edited);
     this.history.push({ undo: () => this.#remove(ref), redo: () => this.#restore(ref, created) });
   }
 
@@ -1084,6 +1138,12 @@ class CalendarData {
       armed: input.armed,
       timer: null,
     };
+    // Captured immediately, not once a drag is confirmed — otherwise a fast flick outruns hit
+    // testing on this element before the threshold/long-press fires, and pointermove goes silent
+    // until the pointer happens to land on another element wired to the same handler. A captured
+    // pointer's click still lands here as normal, so the tap opens the event as long as `#dragged`
+    // stays false — that flag, not capture timing, is what tells `tap()` to swallow the click.
+    pending.el.setPointerCapture?.(input.e.pointerId);
     if (input.longPress) pending.timer = setTimeout(() => this.#start(pending), LONG_PRESS_MS);
     this.#pendingDrag = pending;
     if (input.armed) this.#start(pending);
@@ -1093,9 +1153,6 @@ class CalendarData {
     if (this.drag || pending.locked) return;
     pending.armed = true;
     this.#dragged = true;
-    // Captured only now: a captured pointer sends its click to whatever captured it, which would
-    // swallow the tap that opens an event. Nothing to capture for until something is moving.
-    pending.el.setPointerCapture?.(pending.pointerId);
     if (pending.timer) clearTimeout(pending.timer);
 
     this.#grabOffsetMinutes = 0;

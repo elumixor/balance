@@ -129,8 +129,7 @@
 </div>
 
 {#if data.selected}
-  <!-- Keyed so opening a second event starts from that event's mapping, not the last one's. -->
-  {#key data.selected.id}
-    <EventEditor event={data.selected} rect={data.selectedRect} {categories} />
-  {/key}
+  <!-- Unkeyed: the card loads whatever event it's handed, and rebuilding it would take the cursor
+       out of a name being typed the moment the calendar gives that block its real id. -->
+  <EventEditor event={data.selected} rect={data.selectedRect} {categories} />
 {/if}

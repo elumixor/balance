@@ -61,8 +61,14 @@
   // Selecting another block while this one is open swaps the prop rather than remounting.
   $effect(() => {
     if (loaded === event.id) return;
+    // A draft the calendar has just given a real id to is the same block, still being typed into:
+    // reloading it here would put the server's version of a half-typed name back.
+    const carriedOver = data.becameId(loaded) === event.id;
     loaded = event.id;
+    if (carriedOver) return;
     pickerRect = null;
+    previewFrom = null;
+    previewTo = null;
     title = event.title;
     notes = event.description ?? "";
     date = formatDateInput(new Date(event.start));
@@ -84,11 +90,17 @@
    * away from wherever it's got to by then, nor select what's been typed since.
    */
   $effect(() => {
-    if (!titleEl || data.unnamedId !== event.id || focused === event.id) return;
+    const input = titleEl;
+    if (!input || data.unnamedId !== event.id || focused === event.id) return;
     focused = event.id;
-    titleEl.focus();
-    if (title) titleEl.setSelectionRange(title.length, title.length);
-    else titleEl.select();
+    // Next frame: the card is hidden until it knows where it belongs, and nothing inside something
+    // hidden can take focus.
+    const frame = requestAnimationFrame(() => {
+      input.focus();
+      if (title) input.setSelectionRange(title.length, title.length);
+      else input.select();
+    });
+    return () => cancelAnimationFrame(frame);
   });
 
   /** Set to the row's rect while the category list is open, null otherwise. */
