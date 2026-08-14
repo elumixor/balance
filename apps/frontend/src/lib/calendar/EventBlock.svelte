@@ -41,7 +41,8 @@
   const letter = $derived((category?.name ?? "Rest").charAt(0).toUpperCase());
 
   const calendars = $derived(store.calendars.value?.calendars ?? []);
-  const color = $derived(calendars.find((c) => c.id === event.calendarId)?.color ?? restColor);
+  const fillColor = $derived(category?.color ?? restColor);
+  const borderColor = $derived(calendars.find((c) => c.id === event.calendarId)?.color ?? restColor);
 
   const plannable = $derived([...categories.values()].filter((c) => !c.isBuffer && !c.archived));
 
@@ -100,7 +101,7 @@
       {event.declined ? 'border-dashed opacity-50' : ''}
       {event.tentative ? 'border-dotted' : ''}
       {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''} {picked ? 'is-picked' : ''}"
-    style="--c:{color};border-color:{color}"
+    style="--c:{fillColor};border-color:{borderColor}"
   ></span>
 
   {#if oneLine}
