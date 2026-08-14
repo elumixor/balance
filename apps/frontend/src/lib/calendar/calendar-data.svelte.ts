@@ -291,7 +291,9 @@ class CalendarData {
   tap(event: CalendarEvent, rect: DOMRect, additive = false) {
     if (this.#dragged) return;
     if (additive) return this.togglePicked(event);
-    this.clearPicked();
+    // Tapping a block that's part of an already-gathered batch opens it for editing without
+    // scattering the rest — a category chosen there is meant to land on the whole batch.
+    if (!this.picked.has(event.id)) this.clearPicked();
     this.select(event, rect);
   }
 
