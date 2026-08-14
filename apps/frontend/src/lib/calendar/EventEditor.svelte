@@ -198,9 +198,14 @@
 {/snippet}
 
 <AnchoredPopup {rect} width={WIDTH} dismiss={!pickerRect} onclose={close}>
-    <!-- Header: the two things you can do to the event, and whether it's mid-write. -->
-    <div class="flex items-center justify-end gap-2 px-3 pt-3">
-      <span class="t-micro flex-1 text-fg-faint" aria-live="polite">{saving ? "Saving…" : ""}</span>
+    <!-- Header: the title itself, beside the two things you can do to the event. -->
+    <div class="flex items-center gap-1 px-3 py-3">
+      {#if editable}
+        <Field bind:value={title} oninput={queue} variant="inline" ariaLabel="Event title" class="t-heading py-1" />
+      {:else}
+        <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
+      {/if}
+      <span class="t-micro shrink-0 text-fg-faint" aria-live="polite">{saving ? "Saving…" : ""}</span>
       {#if editable}
         <IconButton
           label="Delete event"
@@ -217,14 +222,6 @@
       <IconButton label="Close" tone="plain" onclick={close}>
         <X size={16} class="text-fg-muted" />
       </IconButton>
-    </div>
-
-    <div class="px-3 pt-1 pb-3">
-      {#if editable}
-        <Field bind:value={title} oninput={queue} variant="inline" ariaLabel="Event title" class="t-heading py-1" />
-      {:else}
-        <h2 class="t-heading px-2 py-1">{event.title}</h2>
-      {/if}
     </div>
 
     {#if error}<div class="px-3 pb-3"><InlineError message={error} /></div>{/if}
