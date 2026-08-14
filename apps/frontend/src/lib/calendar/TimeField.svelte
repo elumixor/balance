@@ -38,17 +38,26 @@
   let open = $state(false);
   let highlighted = $state(0);
   let position = $state<{ left: number; top: number } | null>(null);
+  /** What the field said when it was last agreed on, and what anything unreadable goes back to. */
+  let fallback = "";
 
   const pad = (n: number) => n.toString().padStart(2, "0");
 
-  /** Minutes since midnight, or null when the text isn't a clock yet. */
-  function toMinutes(clock: string) {
-    const match = /^(\d{1,2}):(\d{2})$/.exec(clock.trim());
+  /** "9", "930", "9:30", "9.30" — every way a time gets typed, as "09:30". Null when it isn't one. */
+  function normalize(text: string) {
+    const match = /^(\d{1,2})[:.]?(\d{2})?$/.exec(text.replace(/\s+/g, ""));
     if (!match) return null;
     const hours = Number(match[1]);
-    const minutes = Number(match[2]);
+    const minutes = match[2] ? Number(match[2]) : 0;
     if (hours > 23 || minutes > 59) return null;
-    return hours * 60 + minutes;
+    return `${pad(hours)}:${pad(minutes)}`;
+  }
+
+  /** Minutes since midnight, or null when the text isn't a time. */
+  function toMinutes(text: string) {
+    const clock = normalize(text);
+    if (!clock) return null;
+    return Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3));
   }
 
   function toClock(minutes: number) {
@@ -87,14 +96,14 @@
   function matchIndex() {
     const mine = toMinutes(value);
     if (other === null || mine === null) return end ? 0 : options.length - 1;
-    const exact = options.findIndex((o) => o.clock === value.trim());
+    const clock = normalize(value);
+    const exact = options.findIndex((o) => o.clock === clock);
     if (exact >= 0) return exact;
     const slots = Math.ceil(spanBetween(end ? other : mine, end ? mine : other) / STEP_MINUTES);
-    const index = end ? slots - 1 : SLOTS - slots;
-    return Math.min(options.length - 1, Math.max(0, index));
+    return Math.min(options.length - 1, Math.max(0, end ? slots - 1 : SLOTS - slots));
   }
 
-  /** Below the field when the list fits there, above it otherwise. Fixed, so the card can't clip it. */
+  /** Below the field when the list fits there, above it otherwise. */
   function place() {
     if (!input) return;
     const rect = input.getBoundingClientRect();
@@ -107,17 +116,36 @@
   }
 
   function show() {
+    fallback = normalize(value) ?? fallback;
     highlighted = matchIndex();
     place();
     open = true;
   }
 
+  /** Puts the caret in the field from anywhere in the box — the span beside it counts as the field. */
+  function focus(e: PointerEvent) {
+    if (e.target === input) return;
+    e.preventDefault();
+    input?.focus();
+  }
+
+  function set(clock: string) {
+    value = clock;
+    fallback = clock;
+    oninput?.(clock);
+  }
+
   function choose(index: number) {
     const option = options[index];
     if (!option) return;
-    value = option.clock;
-    oninput?.(option.clock);
+    set(option.clock);
     open = false;
+  }
+
+  /** What's typed either reads as a time, in which case it's tidied up, or it goes back. */
+  function settle() {
+    const clock = normalize(value);
+    if (clock !== value) set(clock ?? fallback);
   }
 
   function move(delta: number) {
@@ -133,7 +161,7 @@
     }
     if (!open) return;
     // Enter and Escape belong to the list while it's up: the card behind it handles both too, and
-    // would otherwise save or close on the press that was meant to pick a time.
+    // would otherwise save or close on the press that was meant to answer this field.
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
@@ -142,10 +170,11 @@
     }
     if (e.key === "Escape") {
       e.stopPropagation();
+      set(fallback);
       open = false;
       return;
     }
-    if (e.key === "Tab") open = false;
+    if (e.key === "Tab") settle();
   }
 
   // Typing walks the highlight along with it, so the list always points at what's been entered.
@@ -169,22 +198,40 @@
       window.removeEventListener("scroll", reposition, true);
     };
   });
+
+  /**
+   * The list belongs to the page, not to the card that holds this field: left inside it, it would
+   * be cut off by the card's own scrolling and placed against the card instead of the window.
+   */
+  function layer(node: HTMLElement) {
+    document.body.appendChild(node);
+    return () => node.remove();
+  }
 </script>
 
 <!-- The box is the field: the input holds the time, the span sits beside it inside the same border. -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
+  onpointerdown={focus}
   class="flex h-9 shrink-0 items-center gap-2 rounded-md border border-transparent px-2 transition-colors
     hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
 >
   <input
     bind:this={input}
     bind:value
-    oninput={(e) => oninput?.(e.currentTarget.value)}
+    oninput={(e) => {
+      // Half-typed text is nobody's business but this field's — only a real time is passed on.
+      const clock = normalize(e.currentTarget.value);
+      if (clock) oninput?.(clock);
+    }}
     onfocus={() => {
       input?.select();
       show();
     }}
-    onblur={() => (open = false)}
+    onblur={() => {
+      settle();
+      open = false;
+    }}
     {onkeydown}
     aria-label={ariaLabel}
     autocomplete="off"
@@ -201,7 +248,9 @@
   <!-- Pressing a row must not blur the field first, or the list is gone before the press lands. -->
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <ul
+    {@attach layer}
     bind:this={list}
+    data-popup-layer
     onpointerdown={(e) => e.preventDefault()}
     class="float-in fixed z-50 overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-(--shadow-float)"
     style="left:{position.left}px;top:{position.top}px;width:{MENU_WIDTH}px;max-height:{MENU_MAX_HEIGHT}px"

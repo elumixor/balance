@@ -58,6 +58,9 @@
 
   function onpointerdown(e: PointerEvent) {
     if (!dismiss || !card || card.contains(e.target as Node)) return;
+    // A menu one of the card's own fields opened lives at the top of the document rather than
+    // inside the card, so it can't be clipped or mispositioned — pressing it isn't pressing away.
+    if ((e.target as Element | null)?.closest?.("[data-popup-layer]")) return;
     onclose();
   }
 
