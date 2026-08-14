@@ -166,6 +166,7 @@
 
     {#if i < pieces.length - 1 || free > 0}
       <div class="relative w-0 shrink-0">
+        <div class="absolute inset-y-1.5 left-0 w-px bg-line-strong"></div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="absolute inset-y-0 z-10 -mx-1.5 w-3 cursor-col-resize touch-none"

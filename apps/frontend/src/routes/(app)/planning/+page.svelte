@@ -101,9 +101,7 @@
               {draft}
               categoryById={activities.categoryById}
               plannedCategories={activities.planned}
-              expanded={activities.expanded === draft.key}
               focus={activities.focusKey === draft.key}
-              ontoggle={() => (activities.expanded = activities.expanded === draft.key ? null : draft.key)}
               onupdate={(patch) => activities.update(draft.key, patch)}
               onfocused={() => (activities.focusKey = null)}
               onarchive={() => activities.archive(draft)}

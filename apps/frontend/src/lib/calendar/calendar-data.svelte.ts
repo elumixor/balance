@@ -266,6 +266,53 @@ class CalendarData {
   });
 
   /**
+   * What the meters total against: `events`, with whatever a live move or resize would do to a
+   * block laid over the top — so a category's number follows the pointer instead of waiting for
+   * the drop's write. Kept apart from `events` itself, which the grid positions blocks from and
+   * which alt-drag's ghost already covers on its own.
+   */
+  readonly eventsForTotals = $derived.by(() => {
+    const drag = this.drag;
+    if (!drag?.event || (drag.kind !== "move" && drag.kind !== "resize" && drag.kind !== "resize-start")) {
+      return this.events;
+    }
+    const was = drag.event;
+    const start = this.#instantAt(drag.day, drag.startMinutes);
+    const end = this.#instantAt(drag.day, drag.endMinutes);
+    const shiftStart = start.getTime() - new Date(was.start).getTime();
+    const shiftEnd = end.getTime() - new Date(was.end).getTime();
+    const byId = new Map(this.events.map((event) => [event.id, event]));
+
+    // Alt-drag drops a duplicate and leaves the original where it was, so the total gains a block
+    // instead of moving one.
+    if (drag.copy) {
+      const extra = [
+        { ...was, id: `${was.id}:drag-copy`, start: start.toISOString(), end: end.toISOString() },
+        ...drag.others.map((event) => ({
+          ...event,
+          id: `${event.id}:drag-copy`,
+          start: new Date(new Date(event.start).getTime() + shiftStart).toISOString(),
+          end: new Date(new Date(event.end).getTime() + shiftEnd).toISOString(),
+        })),
+      ];
+      return [...byId.values(), ...extra];
+    }
+
+    // A resize drags one edge, so the others' starts stay put and only their ends follow — the
+    // same rule `#retimeBatch` writes once the drag ends.
+    const moving = drag.kind === "resize" ? 0 : shiftStart;
+    byId.set(was.id, { ...was, start: start.toISOString(), end: end.toISOString() });
+    for (const event of drag.others) {
+      byId.set(event.id, {
+        ...event,
+        start: new Date(new Date(event.start).getTime() + moving).toISOString(),
+        end: new Date(new Date(event.end).getTime() + shiftEnd).toISOString(),
+      });
+    }
+    return [...byId.values()];
+  });
+
+  /**
    * Seven days always overlap two calendar weeks; the one holding four or more of them is the
    * week the meters and the title are about. Adding three days lands on that week by itself.
    */

@@ -65,7 +65,6 @@ class ActivitiesData {
   drafts = $state<ActivityDraft[]>([]);
   saving = $state(false);
   error = $state<string | null>(null);
-  expanded = $state<string | null>(null);
   /** The row that should grab the name field and select it — consumed once by that row. */
   focusKey = $state<string | null>(null);
 
@@ -104,7 +103,6 @@ class ActivitiesData {
   add() {
     const draft: ActivityDraft = { key: `new-${++cut}`, id: null, name: "", pieces: [] };
     this.drafts = [draft, ...this.drafts];
-    this.expanded = draft.key;
     this.focusKey = draft.key;
     this.#publish();
   }
@@ -147,7 +145,6 @@ class ActivitiesData {
     if (!confirm(message)) return;
     const previous = this.drafts;
     this.drafts = this.drafts.filter((d) => d.key !== draft.key);
-    if (this.expanded === draft.key) this.expanded = null;
     this.#publish();
     if (!draft.id) return;
     try {

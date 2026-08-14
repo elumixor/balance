@@ -1,21 +1,17 @@
 <script lang="ts">
-  import { restColor } from "$lib/colors";
+  import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
-  import Panel from "$lib/components/Panel.svelte";
-  import SplitBar from "$lib/components/SplitBar.svelte";
-  import type { Category, Split } from "$lib/types";
+  import type { Category } from "$lib/types";
   import { Archive } from "lucide-svelte";
+  import ActivitySplitBar from "./ActivitySplitBar.svelte";
   import type { ActivityDraft, Piece } from "./activities-data.svelte";
-  import ActivityEditor from "./ActivityEditor.svelte";
 
-  /** One row in the Activities list: summary + split bar, expanding into the full editor. */
+  /** One row in the Activities list: name and split, both live and always editable — no expanding. */
   let {
     draft,
     categoryById,
     plannedCategories,
-    expanded,
     focus,
-    ontoggle,
     onupdate,
     onfocused,
     onarchive,
@@ -23,59 +19,46 @@
     draft: ActivityDraft;
     categoryById: Map<string, Category>;
     plannedCategories: readonly Category[];
-    expanded: boolean;
     focus: boolean;
-    ontoggle: () => void;
     onupdate: (patch: { name?: string; pieces?: Piece[] }) => void;
     onfocused: () => void;
     onarchive: () => void;
   } = $props();
 
-  const claimed = $derived(draft.pieces.reduce((sum, p) => sum + p.percent, 0));
+  let nameInput = $state<HTMLInputElement | null>(null);
 
-  const previewSplits = $derived<Split[]>([
-    ...draft.pieces
-      .filter((p) => p.percent > 0)
-      .map((p) => {
-        const category = categoryById.get(p.categoryId);
-        return { id: p.key, color: category?.isBuffer ? restColor : (category?.color ?? restColor), value: p.percent };
-      }),
-    ...(claimed < 100 ? [{ id: "__free__", color: restColor, value: 100 - claimed }] : []),
-  ]);
+  $effect(() => {
+    if (!focus || !nameInput) return;
+    nameInput.focus();
+    nameInput.select();
+    onfocused();
+  });
 </script>
 
-<div class="flex items-center gap-3">
-  <button
-    type="button"
-    onclick={ontoggle}
-    aria-expanded={expanded}
-    aria-label="Edit {draft.name || 'Untitled activity'}"
-    class="hoverable -mx-2 flex flex-1 items-center gap-3 rounded-md px-2 py-3 text-left"
-  >
-    <SplitBar splits={previewSplits} vertical thickness={3} class="min-h-9 self-stretch" />
-    <span class="flex-1 space-y-1.5">
-      <span class="t-body-strong block truncate">{draft.name || "Untitled activity"}</span>
-      <span class="t-micro block text-fg-faint">
-        {#if draft.pieces.length === 0}
-          Unassigned
-        {:else}
-          {draft.pieces
-            .filter((p) => p.percent > 0)
-            .map((p) => `${categoryById.get(p.categoryId)?.name ?? "Unknown"} ${p.percent}%`)
-            .join(" · ")}
-        {/if}
-      </span>
-    </span>
-  </button>
-  {#if expanded}
+<div class="space-y-2 py-3">
+  <div class="flex items-center gap-2">
+    <Field
+      value={draft.name}
+      oninput={(name) => onupdate({ name })}
+      bind:element={nameInput}
+      variant="inline"
+      placeholder="Activity name"
+      autocapitalize="sentences"
+      class="t-body-strong flex-1"
+    />
     <IconButton label="Archive {draft.name || 'this activity'}" onclick={onarchive}>
       <Archive size={15} class="text-fg-muted" />
     </IconButton>
+  </div>
+
+  {#if plannedCategories.length === 0}
+    <p class="t-label text-fg-muted">Plan at least one category on the Week tab first.</p>
+  {:else}
+    <ActivitySplitBar
+      pieces={draft.pieces}
+      categories={plannedCategories}
+      {categoryById}
+      onchange={(pieces) => onupdate({ pieces })}
+    />
   {/if}
 </div>
-
-{#if expanded}
-  <Panel class="mb-3">
-    <ActivityEditor {draft} categories={plannedCategories} {categoryById} {focus} {onupdate} {onfocused} />
-  </Panel>
-{/if}

@@ -126,7 +126,7 @@
         {data.monthLabel}
       </button>
       <div class="mt-3">
-        <WeekMeters events={data.events} {categories} weekStart={data.weekStart} />
+        <WeekMeters events={data.eventsForTotals} {categories} weekStart={data.weekStart} />
       </div>
     </section>
   {/if}
