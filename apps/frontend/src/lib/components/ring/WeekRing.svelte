@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { iconFor } from "$lib/icons";
   import type { RingSegment } from "$lib/types";
   import Arc, { pointOnRing, RING_START } from "./Arc.svelte";
 
   const GAP_FRACTION = 0.004;
   const MIN_SPLIT_FRACTION = 0.055;
+  /** Below this a slice is a sliver: an icon in it would touch both seams. */
+  const MIN_ICON_FRACTION = 0.045;
 
   /**
    * The week as a dial: one ring holding every hour you have, cut into the slices
@@ -34,7 +37,12 @@
   let dragging = $state<number | null>(null);
 
   const c = $derived(size / 2);
-  const r = $derived(size / 2 - thickness / 2);
+  /**
+   * The cut buttons live just outside the band now — the icons have the middle of each slice —
+   * so a ring that offers cutting draws itself a little smaller to keep them inside its box.
+   */
+  const outerPad = $derived(onsplit ? 13 : 0);
+  const r = $derived(size / 2 - thickness / 2 - outerPad);
   const total = $derived(segments.reduce((sum, s) => sum + s.value, 0) || 1);
 
   /** Running sums: `bounds[i]` is where segment `i` ends, in segment units. */
@@ -107,10 +115,35 @@
     </span>
   </div>
 
+  <!--
+    Each slice wears its category's icon, so the ring can be read without the list beside it. It
+    sits in the band, in white: every palette colour is mid-dark, and one rule beats per-colour
+    guesswork at keeping the icon legible.
+  -->
+  {#each segments as segment, i (`icon-${segment.id}`)}
+    {#if segment.icon && segment.value / total >= MIN_ICON_FRACTION}
+      {@const Icon = iconFor(segment.icon)}
+      {@const pos = pointOnRing(c, c, r, (bounds[i] - segment.value / 2) / total)}
+      {@const iconSize = Math.min(18, Math.round(thickness * 0.62))}
+      <span
+        class="pointer-events-none absolute text-white transition-opacity duration-150"
+        style="left:{pos.x - iconSize / 2}px;top:{pos.y - iconSize / 2}px;opacity:{dragging === null ||
+        dragging === i ||
+        dragging + 1 === i
+          ? 0.95
+          : 0.4}"
+        aria-hidden="true"
+      >
+        <Icon size={iconSize} strokeWidth={2.25} />
+      </span>
+    {/if}
+  {/each}
+
   {#if onsplit}
     {#each segments as segment, i (`split-${segment.id}`)}
       {#if segment.value / total >= MIN_SPLIT_FRACTION}
-        {@const pos = pointOnRing(c, c, r, (bounds[i] - segment.value / 2) / total)}
+        <!-- Outside the band now: the icon has the middle, and a cut reads better on the edge. -->
+        {@const pos = pointOnRing(c, c, r + thickness / 2 + outerPad, (bounds[i] - segment.value / 2) / total)}
         <button
           type="button"
           aria-label="Split {segment.label || 'slice'}"

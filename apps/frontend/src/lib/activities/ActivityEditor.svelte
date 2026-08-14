@@ -43,8 +43,14 @@
   const free = $derived(Math.max(0, 100 - claimed));
 
   const segments = $derived<RingSegment[]>([
-    ...categories.map((c) => ({ id: c.id, label: c.name, color: c.color, value: weights[c.id] ?? 0 })),
-    { id: "__free__", label: "Unclaimed", color: restColor, value: free },
+    ...categories.map((c) => ({
+      id: c.id,
+      label: c.name,
+      color: c.color,
+      icon: c.icon,
+      value: weights[c.id] ?? 0,
+    })),
+    { id: "__free__", label: "Unclaimed", color: restColor, icon: "circle-dashed", value: free },
   ]);
 
   function setWeightsFromRing(values: number[]) {
