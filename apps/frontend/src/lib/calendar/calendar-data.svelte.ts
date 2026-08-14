@@ -69,6 +69,8 @@ export interface DragState {
   readonly weights: ActivityWeight[];
   readonly activityId: string | null;
   readonly event: CalendarEvent | null;
+  /** Alt held on the way in: dropping makes a duplicate instead of moving the original. */
+  readonly copy: boolean;
   /**
    * The rest of the gathered blocks, dragged along by the same distance as the one under the
    * finger — empty for an ordinary drag.
@@ -108,6 +110,8 @@ interface PendingDrag {
   readonly event: CalendarEvent | null;
   /** An event someone else owns: it still opens on a tap, it just can't be dragged anywhere. */
   readonly locked: boolean;
+  /** Alt held on the way in — see `DragState.copy`. */
+  readonly copy: boolean;
   /** The element the press started on, and the one a started drag captures the pointer to. */
   readonly el: Element;
   timer: ReturnType<typeof setTimeout> | null;
@@ -125,6 +129,9 @@ class CalendarData {
   selected = $state<CalendarEvent | null>(null);
   /** Where the tapped block is on screen, so its editor can open beside it rather than over it. */
   selectedRect = $state<DOMRect | null>(null);
+  /** The block a right-click landed on, and where — null when no context menu is open. */
+  contextMenuEvent = $state<CalendarEvent | null>(null);
+  contextMenuRect = $state<DOMRect | null>(null);
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
   /**
@@ -244,6 +251,20 @@ class CalendarData {
     this.selectedRect = null;
   }
 
+  /**
+   * A right-click on a block. Left over the gathered blocks it opens for the batch; otherwise it
+   * opens for that block alone, and doesn't disturb whatever's already gathered or selected.
+   */
+  openContextMenu(event: CalendarEvent, at: { clientX: number; clientY: number }) {
+    this.contextMenuEvent = event;
+    this.contextMenuRect = new DOMRect(at.clientX, at.clientY, 0, 0);
+  }
+
+  closeContextMenu() {
+    this.contextMenuEvent = null;
+    this.contextMenuRect = null;
+  }
+
   // --- gathering many blocks -------------------------------------------------
 
   togglePicked(event: CalendarEvent) {
@@ -343,6 +364,9 @@ class CalendarData {
 
   /** A block: a tap opens its editor, so moving it takes a hold rather than a nudge. */
   beginMove(event: CalendarEvent, e: PointerEvent) {
+    // The category badge can sit under the resize band on a short block — its own handlers
+    // stop propagation, but that only helps if the press actually reaches the button.
+    if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     // A ⌘-click is gathering blocks, not moving one — the click that follows does the gathering.
     if (e.metaKey || e.ctrlKey) {
       this.#dragged = false;
@@ -356,11 +380,13 @@ class CalendarData {
       armed: false,
       longPress: !event.readOnly,
       locked: event.readOnly,
+      copy: e.altKey,
     });
   }
 
   beginResize(event: CalendarEvent, e: PointerEvent) {
     if (event.readOnly) return;
+    if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     e.stopPropagation();
     this.#arm({ kind: "resize", activity: null, event, e, armed: true });
   }
@@ -403,8 +429,27 @@ class CalendarData {
     const end = this.#instantAt(drag.day, drag.endMinutes);
 
     if (drag.kind === "create" && drag.activityId) void this.#create(drag.activityId, drag.title, start, end);
+    else if (drag.event && drag.copy) void this.#copyBatch(drag, start, end);
     else if (drag.event && drag.others.length > 0) void this.#retimeBatch(drag, start, end);
     else if (drag.event) void this.retimeEvent(drag.event, start, end);
+  }
+
+  /** Alt-drag: every gathered block is duplicated at the drop position, the originals untouched. */
+  #copyBatch(drag: DragState, start: Date, end: Date) {
+    const was = drag.event;
+    if (!was) return;
+    const shiftStart = start.getTime() - new Date(was.start).getTime();
+    const shiftEnd = end.getTime() - new Date(was.end).getTime();
+    return Promise.all(
+      [
+        { event: was, start, end },
+        ...drag.others.map((event) => ({
+          event,
+          start: new Date(new Date(event.start).getTime() + shiftStart),
+          end: new Date(new Date(event.end).getTime() + shiftEnd),
+        })),
+      ].map(({ event, start: at, end: until }) => this.#copyEvent(event, at, until)),
+    );
   }
 
   /**
@@ -730,6 +775,44 @@ class CalendarData {
     this.history.push({ undo: () => this.#remove(ref), redo: () => this.#restore(ref, created) });
   }
 
+  /** Alt-drag on an existing block: a new event with the same fields, dropped at the new time. */
+  async #copyEvent(was: CalendarEvent, start: Date, end: Date) {
+    const draft: CalendarEvent = {
+      ...was,
+      id: `${DRAFT_PREFIX}${this.#nextTempId++}`,
+      seriesId: null,
+      start: start.toISOString(),
+      end: end.toISOString(),
+    };
+    const created = await this.#run(
+      async () => {
+        const event = await createCalendarEvent({
+          activityId: was.activityId ?? undefined,
+          title: was.title,
+          description: was.description ?? undefined,
+          start: start.toISOString(),
+          end: end.toISOString(),
+        });
+        // An activity maps itself on the way in; a split of categories has to be written after.
+        if (!was.activityId && was.mappingScope === "instance" && was.weights.length > 0) {
+          await saveEventMapping({
+            calendarId: event.calendarId,
+            externalEventId: event.id,
+            scope: "instance",
+            weights: was.weights,
+          });
+        }
+        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
+        return event;
+      },
+      { id: draft.id, event: draft },
+    );
+    if (!created) return;
+
+    const ref = this.#ref(created);
+    this.history.push({ undo: () => this.#remove(ref), redo: () => this.#restore(ref, created) });
+  }
+
   /**
    * Every write puts its answer on the grid first and asks the server second. The server is still
    * the truth: the week is refetched either way, and the drawn-ahead version is only dropped once
@@ -822,6 +905,7 @@ class CalendarData {
     armed: boolean;
     longPress?: boolean;
     locked?: boolean;
+    copy?: boolean;
   }) {
     // Otherwise a press-drag across a title selects its text instead of moving the block.
     input.e.preventDefault();
@@ -835,6 +919,7 @@ class CalendarData {
       activity: input.activity,
       event: input.event,
       locked: input.locked ?? false,
+      copy: input.copy ?? false,
       armed: input.armed,
       timer: null,
     };
@@ -863,6 +948,7 @@ class CalendarData {
         weights: pending.activity.weights,
         activityId: pending.activity.id,
         event: null,
+        copy: false,
         others: [],
         day: this.windowStart,
         startMinutes: 0,
@@ -904,6 +990,7 @@ class CalendarData {
       weights: pending.event.weights,
       activityId: pending.event.activityId,
       event: pending.event,
+      copy: pending.kind === "move" && pending.copy,
       others,
       day: startOfDay(start),
       startMinutes,
