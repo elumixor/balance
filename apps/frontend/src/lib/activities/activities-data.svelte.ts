@@ -76,6 +76,7 @@ class ActivitiesData {
   /** What the screen calls on mount — edits typed before navigating away outlive the screen. */
   enter = async () => {
     const dirty = this.dirty;
+    if (!dirty) this.#syncDrafts();
     await Promise.all([store.activities.ensure(), store.categories.ensure()]);
     if (!dirty) this.#syncDrafts();
   };

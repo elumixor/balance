@@ -116,6 +116,7 @@ class CategoryDrafts {
    */
   enter = async () => {
     const dirty = this.dirty;
+    if (!dirty) this.#syncDrafts();
     await store.categories.ensure();
     if (!dirty) this.#syncDrafts();
   };
