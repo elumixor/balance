@@ -68,7 +68,10 @@
    */
   function autofocus(node: HTMLInputElement) {
     const focus = () => {
-      node.focus();
+      // Without this, a plain focus() on a field still hidden at (0,0) scrolls whatever
+      // ancestor is scrollable into "view" of that phantom position — a screen wrapped in
+      // Screen.svelte lurches and shows a scrollbar the moment the popup opens.
+      node.focus({ preventScroll: true });
       if (node.isConnected && document.activeElement !== node) requestAnimationFrame(focus);
     };
     focus();
