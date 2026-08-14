@@ -69,7 +69,12 @@
   }
 </script>
 
-<svelte:window {onkeydown} {onpointerdown} />
+<!--
+  Capture phase, not bubble: a nested popup's own card stops pointerdown from bubbling (see below),
+  which would otherwise stop a press inside the parent card — but outside this one — from ever
+  reaching this listener.
+-->
+<svelte:window {onkeydown} onpointerdowncapture={onpointerdown} />
 
 <!--
   On a phone the card is a sheet, and the backdrop behind it dims the week and takes the tap that
