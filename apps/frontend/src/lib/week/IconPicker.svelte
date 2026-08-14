@@ -2,7 +2,7 @@
   import { hueOf, withAlpha, withHue } from "$lib/colors";
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Popover from "$lib/components/Popover.svelte";
-  import { iconFor, iconNames } from "$lib/icons";
+  import { iconFor, iconLabel, searchIcons } from "$lib/icons";
   import { Slider } from "bits-ui";
 
   /**
@@ -25,9 +25,17 @@
 
   const hue = $derived(hueOf(color));
 
+  let query = $state("");
+  const results = $derived(searchIcons(query));
+
   const hueTrack = `linear-gradient(to right, ${[0, 60, 120, 180, 240, 300, 360]
     .map((h) => withHue("#c4553b", h))
     .join(", ")})`;
+
+  /** The panel opens to a full grid — the search box is where you'd start typing anyway. */
+  function autofocus(node: HTMLInputElement) {
+    node.focus();
+  }
 </script>
 
 <Popover width={268} align="start">
@@ -43,14 +51,27 @@
   {/snippet}
 
   {#snippet content()}
-    <div class="p-3">
-      <div class="grid grid-cols-6 gap-1">
-        {#each iconNames as name (name)}
+    <div class="flex flex-col gap-3 p-3">
+      <input
+        use:autofocus
+        bind:value={query}
+        placeholder="Search icons"
+        spellcheck="false"
+        autocomplete="off"
+        aria-label="Search icons"
+        class="t-body h-9 w-full shrink-0 rounded-md border border-line bg-surface px-2.5
+          transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong
+          focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
+      />
+
+      <!-- Tall enough to scan, short enough that the hue slider stays in view under it. -->
+      <div class="grid max-h-52 grid-cols-6 gap-1 overflow-y-auto">
+        {#each results as name (name)}
           {@const Icon = iconFor(name)}
           {@const selected = name === icon}
           <button
             type="button"
-            aria-label="Use the {name.replace(/-/g, ' ')} icon"
+            aria-label="Use the {iconLabel(name)} icon"
             aria-pressed={selected}
             onclick={() => onchange({ icon: name })}
             class="press-sm flex size-9 items-center justify-center rounded-md transition-colors
@@ -62,9 +83,13 @@
             <Icon size={18} />
           </button>
         {/each}
+
+        {#if results.length === 0}
+          <p class="t-micro col-span-6 py-6 text-center text-fg-faint">No icon by that name.</p>
+        {/if}
       </div>
 
-      <div class="mt-3 border-t border-line pt-3">
+      <div class="border-t border-line pt-3">
         <Slider.Root
           type="single"
           value={hue}
