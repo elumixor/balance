@@ -1,14 +1,14 @@
 <script lang="ts">
   import { restColor } from "$lib/colors";
   import { formatClock } from "$lib/format";
+  import { store } from "$lib/store.svelte";
   import type { CalendarEvent, Category } from "$lib/types";
   import { calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
 
   /**
-   * A block is coloured by whichever category it mostly counts toward, so a week reads as bands
-   * of where the time went before a single title is read. Unmapped time stays neutral, which is
-   * the point: it's the thing the screen is asking you to fix.
+   * A block is coloured by the Google calendar it lives on, so a week reads as bands of which
+   * calendar an hour belongs to. The category still shows, as the letter badge.
    *
    * Purely visual except for the category badge — dragging and opening the full editor are owned
    * by whatever positions the block.
@@ -38,8 +38,10 @@
       .sort((a, b) => b.weight - a.weight);
     return ranked[0]?.category ?? null;
   });
-  const color = $derived(category?.color ?? restColor);
   const letter = $derived((category?.name ?? "Rest").charAt(0).toUpperCase());
+
+  const calendars = $derived(store.calendars.value?.calendars ?? []);
+  const color = $derived(calendars.find((c) => c.id === event.calendarId)?.color ?? restColor);
 
   const plannable = $derived([...categories.values()].filter((c) => !c.isBuffer && !c.archived));
 

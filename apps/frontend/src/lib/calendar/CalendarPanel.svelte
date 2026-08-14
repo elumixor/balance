@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { restColor } from "$lib/colors";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import { disconnectGoogle, updateCalendarPrefs } from "$lib/queries";
   import { invalidate, store } from "$lib/store.svelte";
-  import { Check, PenLine } from "lucide-svelte";
+  import { Eye, EyeOff } from "lucide-svelte";
   import ActivityPalette from "./ActivityPalette.svelte";
   import { calendarData } from "./calendar-data.svelte";
   import ConnectGoogle from "./ConnectGoogle.svelte";
@@ -30,20 +31,26 @@
     if (data.connected) void prefs.ensure();
   });
 
-  async function save(input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) {
-    try {
-      await updateCalendarPrefs(input);
-      invalidate.integrations();
-      await Promise.all([prefs.refresh(), data.refreshWeeks()]);
-    } catch (e) {
+  /** Applies the change to the screen immediately, then tells the server — reverting only on failure. */
+  function save(input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) {
+    const previous = prefs.value;
+    if (!previous) return;
+    prefs.set({ ...previous, ...input });
+    void updateCalendarPrefs(input).catch((e) => {
+      prefs.set(previous);
       data.actionError = e instanceof Error ? e.message : "Couldn't save that.";
-    }
+    });
   }
 
   function toggle(id: string, primary: boolean) {
     const current = visible.length === 0 ? calendars.filter((c) => c.primary).map((c) => c.id) : visible;
     const next = isVisible(id, primary) ? current.filter((c) => c !== id) : [...current, id];
-    void save({ visibleCalendarIds: next });
+    save({ visibleCalendarIds: next });
+  }
+
+  function selectWrite(id: string) {
+    if (isWriteTarget(id, calendars.find((c) => c.id === id)?.primary ?? false)) return;
+    save({ writeCalendarId: id });
   }
 
   /** The mappings outlive this: they key on Google's own event ids, so reconnecting restores them. */
@@ -68,38 +75,34 @@
       <div class="flex flex-col gap-0.5">
         {#each calendars as calendar (calendar.id)}
           {@const shown = isVisible(calendar.id, calendar.primary)}
+          {@const isWrite = isWriteTarget(calendar.id, calendar.primary)}
           <div class="hoverable flex items-center gap-1 rounded-md pr-1">
+            <!-- The colour swatch doubles as the write-target picker: click it to make new events land here. -->
             <button
               type="button"
-              role="menuitemcheckbox"
-              aria-checked={shown}
-              onclick={() => toggle(calendar.id, calendar.primary)}
-              class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
+              aria-label="Add new events to {calendar.name}"
+              aria-pressed={isWrite}
+              disabled={calendar.readOnly}
+              onclick={() => selectWrite(calendar.id)}
+              class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left disabled:cursor-default"
             >
-              <span class="flex size-4 shrink-0 items-center justify-center">
-                {#if shown}<Check size={14} />{/if}
-              </span>
+              <span
+                class="size-3 shrink-0 rounded-full {isWrite ? 'ring-2 ring-fg ring-offset-1 ring-offset-surface' : ''}"
+                style="background:{calendar.color ?? restColor}"
+              ></span>
               <span class="t-label min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
                 {calendar.name}
               </span>
             </button>
-            {#if !calendar.readOnly}
-              <!-- One calendar has to take new events; the pen says which. -->
-              <button
-                type="button"
-                aria-label="Add new events to {calendar.name}"
-                aria-pressed={isWriteTarget(calendar.id, calendar.primary)}
-                onclick={() => void save({ writeCalendarId: calendar.id })}
-                class="press-sm flex size-6 shrink-0 items-center justify-center rounded {isWriteTarget(
-                  calendar.id,
-                  calendar.primary,
-                )
-                  ? 'bg-surface-alt text-fg'
-                  : 'text-fg-faint'}"
-              >
-                <PenLine size={13} />
-              </button>
-            {/if}
+            <button
+              type="button"
+              aria-label={shown ? "Hide {calendar.name}" : "Show {calendar.name}"}
+              aria-pressed={shown}
+              onclick={() => toggle(calendar.id, calendar.primary)}
+              class="press-sm flex size-6 shrink-0 items-center justify-center rounded text-fg-faint hover:text-fg"
+            >
+              {#if shown}<Eye size={14} />{:else}<EyeOff size={14} />{/if}
+            </button>
           </div>
         {/each}
       </div>
