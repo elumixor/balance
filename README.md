@@ -104,12 +104,21 @@ that holds a Clerk session and knows what an event counts as, and there is no se
 that logic in Rust. Closing the window hides it rather than quitting, because destroying the
 webview would take both with it.
 
-Signing in goes out through the browser. The app's origin is `tauri://localhost`, which Clerk
-refuses as a redirect target and Google refuses to show a consent screen in, so the OAuth buttons
-open `/desktop-link` on the deployed web app instead; that page signs in normally, trades its
-session for a one-minute Clerk ticket, and hands it back over `balance-desktop://`. Email and
-password need none of this and work in the app directly. **The hand-off only works against a
-deployed frontend and backend** — it is the live site the browser is sent to.
+The bundle is served over `http://localhost:8123` rather than Tauri's `tauri://` custom protocol
+(`tauri-plugin-localhost`, port pinned in `src-tauri/src/lib.rs`). WebKit gives a custom scheme no
+cookie jar, and Clerk keeps the signed-in client in a cookie — on the custom protocol the app asked
+for a password on every launch. It's the same fix the iOS build makes with `iosScheme: "https"`.
+The port is fixed because an origin includes its port, and a moving one would lose the session it
+was chosen to keep. That also makes the window a *remote* origin to Tauri's ACL, which is why
+`capabilities/default.json` lists the URLs — without them there is no IPC and the menu bar never
+updates.
+
+Signing in goes out through the browser: Google won't show a consent screen inside an embedded
+webview, so the OAuth buttons open `/desktop-link` on the deployed web app instead. That page signs
+in normally, trades its session for a one-minute Clerk ticket, and hands it back over
+`balance-desktop://`. Email and password need none of this and work in the app directly. **The
+hand-off only works against a deployed frontend and backend** — it is the live site the browser is
+sent to.
 
 The bundle is unsigned. That is fine for the machine that built it (nothing copied off local disk
 carries a quarantine flag) and not fine for anyone else, who would need a Developer ID in

@@ -18,14 +18,22 @@
    */
 </script>
 
+<!-- `select-none`: none of this is text anyone means to copy, and a drag across it should move the
+     window or scroll the rail rather than paint a selection over the labels. -->
 <nav
-  class="hidden h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
+  class="hidden h-full w-60 shrink-0 select-none flex-col overflow-y-auto border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
     ? 'pt-0'
     : 'pt-3'}"
 >
   <!-- On macOS this strip is the window's title bar, and `h-9` is the height that centres the
-       account button on the same line as the window buttons it sits beside. -->
-  <div class="mb-4 flex items-center {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}">
+       account button on the same line as the window buttons it sits beside. `data-tauri-drag-region`
+       is what makes it behave like one: the webview covers the native title bar, so without it a
+       drag here selects the page instead of moving the window. The attribute is read off the event
+       target, so the button inside stays a button. -->
+  <div
+    data-tauri-drag-region={isDesktop ? true : undefined}
+    class="mb-4 flex items-center {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}"
+  >
     <AccountMenu align="start" compact />
   </div>
 

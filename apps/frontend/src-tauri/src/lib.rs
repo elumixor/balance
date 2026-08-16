@@ -1,8 +1,20 @@
 mod tray;
 
 use tauri::{
-    tray::TrayIconBuilder, AppHandle, Emitter, Manager, RunEvent, WindowEvent,
+    tray::TrayIconBuilder, AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
+    WindowEvent,
 };
+
+/// The app is served over HTTP from here rather than through Tauri's `tauri://` custom protocol.
+///
+/// Clerk keeps the signed-in client in a cookie, and WebKit gives a custom scheme no cookie jar at
+/// all — which is why the app asked for a password on every launch. An origin the browser
+/// recognises gets normal storage rules, and the session survives a restart like it does anywhere
+/// else. Clerk's redirect URLs become valid `http://` ones for the same reason.
+///
+/// Fixed, not picked at random: cookies belong to an origin, and an origin includes its port. A
+/// port that moved between launches would lose the session it was chosen to keep.
+const PORT: u16 = 8123;
 
 /// Brings the window back without making a new one. The webview holds the Clerk session and the
 /// calendar cache the menu bar is drawn from, so it is never destroyed — only hidden.
@@ -20,6 +32,35 @@ fn open_window(app: AppHandle) {
     show_window(&app);
 }
 
+fn build_main_window(app: &AppHandle) -> tauri::Result<()> {
+    // In development the Vite server is already a real origin, so it plays the part the localhost
+    // server plays in a release build — same storage rules, same redirect URLs, no second case.
+    let url = if cfg!(dev) {
+        "http://localhost:8081".to_string()
+    } else {
+        format!("http://localhost:{PORT}")
+    };
+    let url = url.parse().expect("the window URL is built from a constant port");
+
+    let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+        .title("Balance")
+        .inner_size(1180.0, 800.0)
+        // Below this the side rail collapses, and the window buttons would land on the calendar.
+        .min_inner_size(820.0, 520.0)
+        .resizable(true)
+        .center();
+
+    // No title bar of its own: the rail runs to the top of the window and the window buttons sit
+    // on it. `apps/frontend/src/lib/components/nav/SideNav.svelte` keeps that strip clear.
+    #[cfg(target_os = "macos")]
+    let window = window
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true);
+
+    window.build()?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
@@ -34,6 +75,7 @@ pub fn run() {
     }
 
     let app = builder
+        .plugin(tauri_plugin_localhost::Builder::new(PORT).build())
         .plugin(tauri_plugin_opener::init())
         // `balance-desktop://auth?ticket=…`, sent back by the browser that did the OAuth. The webview
         // listens for it and redeems it; all this side has to do is be there to receive it.
@@ -47,6 +89,10 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Built here rather than declared in `tauri.conf.json`: a window defined there is
+            // opened on the custom protocol before the localhost server is up to serve it.
+            build_main_window(app.handle())?;
 
             // A ticket arriving while the window is hidden should bring it forward — signing in
             // and being left staring at the browser you just came from is nobody's idea of done.
