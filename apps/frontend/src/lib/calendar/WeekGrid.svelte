@@ -309,7 +309,7 @@
                 {day.toLocaleDateString(undefined, { weekday: "short" })}
               </span>
               <span
-                class="t-data-strong flex h-5 min-w-5 items-center justify-center rounded-md px-1 {today
+                class="t-micro flex h-5 min-w-5 items-center justify-center rounded-md px-1 tabular-nums {today
                   ? 'bg-danger text-ink-fg'
                   : 'text-fg-muted'}"
               >

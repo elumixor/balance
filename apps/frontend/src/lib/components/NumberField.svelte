@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * A quantity with its unit welded on: right-aligned mono digits, faint unit, no spinner.
+   * A quantity with its unit welded on: right-aligned tabular digits, faint unit, no spinner.
    * The box belongs to the pair, not the input, so the unit sits inside the same outline the
    * digits get on focus.
    *

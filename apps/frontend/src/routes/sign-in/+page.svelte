@@ -85,7 +85,7 @@
 
 {#if awaitingCode}
   <AuthShell tagline="We sent a code to {email}.">
-    <Field bind:value={code} placeholder="Verification code" inputmode="numeric" mono />
+    <Field bind:value={code} placeholder="Verification code" inputmode="numeric" numeric />
     {#if error}<p class="t-label text-danger">{error}</p>{/if}
     <Button label="Verify" onclick={onVerify} {loading} disabled={!code} full />
   </AuthShell>

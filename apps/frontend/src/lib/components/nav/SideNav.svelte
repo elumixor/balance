@@ -2,7 +2,6 @@
   import { page } from "$app/state";
   import { auth } from "$lib/auth.svelte";
   import AccountMenu from "$lib/components/AccountMenu.svelte";
-  import BrandMark from "$lib/components/BrandMark.svelte";
   import Spinner from "$lib/components/Spinner.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
@@ -24,11 +23,8 @@
     ? 'pt-11'
     : 'pt-6'}"
 >
-  <div class="mb-8 flex items-center gap-2.5 px-2">
-    <BrandMark size={26} />
-    <span class="t-heading">Balance</span>
-  </div>
-
+  <!-- No mark and no wordmark: the window's own title says Balance, and the rail is short enough
+       that giving its first inch to a logo costs a screen's worth of room for nothing. -->
   <div class="flex flex-col gap-0.5">
     {#each NAV_TABS as tab (tab.href)}
       {@const active = isActive(page.url.pathname, tab.href)}

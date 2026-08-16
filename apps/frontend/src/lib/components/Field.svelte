@@ -17,7 +17,7 @@
     type = "text",
     inputmode,
     variant = "boxed",
-    mono = false,
+    numeric = false,
     align = "left",
     ariaLabel,
     autocapitalize = "off",
@@ -30,7 +30,7 @@
     type?: "text" | "password";
     inputmode?: "numeric" | "decimal" | "email";
     variant?: "boxed" | "inline" | "inline-sm";
-    mono?: boolean;
+    numeric?: boolean;
     align?: "left" | "center" | "right";
     ariaLabel?: string;
     autocapitalize?: "off" | "sentences";
@@ -48,7 +48,7 @@
   {autocapitalize}
   autocomplete="off"
   aria-label={ariaLabel}
-  class="{mono ? 't-data' : variant === 'inline-sm' ? 't-label' : 't-body'} w-full rounded-md border text-fg
+  class="{numeric ? 't-data' : variant === 'inline-sm' ? 't-label' : 't-body'} w-full rounded-md border text-fg
     transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-fg-faint
     focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none
     {variant === 'boxed'

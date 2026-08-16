@@ -1,6 +1,6 @@
 /* Ahead of Tailwind: that import inlines a whole stylesheet, and a plain `@import` may not
    follow other statements. */
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 /*
@@ -61,7 +61,6 @@ html.dark {
 
   --font-display: "Bricolage Grotesque", system-ui, sans-serif;
   --font-sans: "Instrument Sans", system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, monospace;
 
   /* Low radii on purpose — the ring is the only round thing that matters. */
   --radius-sm: 4px;
@@ -70,8 +69,10 @@ html.dark {
 }
 
 /*
- * Prose speaks in Instrument Sans, quantities in DM Mono. Anything that is a
- * duration, an hour count or a percentage is a readout and gets the mono face.
+ * One face throughout: Instrument Sans for prose and quantities alike, Bricolage for headings.
+ * The app has no monospace — a second face for numbers reads as a different app grafted into
+ * this one. What a readout actually needs is digits that don't shift as they tick, and
+ * `tabular-nums` gives that without changing the voice.
  */
 @utility t-title {
   font-family: var(--font-display);
@@ -119,28 +120,28 @@ html.dark {
   letter-spacing: 0.2px;
 }
 @utility t-data {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-weight: 400;
   font-size: 14px;
   line-height: 19px;
   font-variant-numeric: tabular-nums;
 }
 @utility t-data-strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 18px;
   line-height: 23px;
   font-variant-numeric: tabular-nums;
 }
 @utility t-data-micro {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-weight: 400;
   font-size: 11px;
   line-height: 15px;
   font-variant-numeric: tabular-nums;
 }
 @utility t-readout {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 32px;
   line-height: 38px;
