@@ -23,9 +23,9 @@
     ? 'pt-0'
     : 'pt-3'}"
 >
-  <!-- On macOS this strip is the window's title bar: `h-7` is its height, so the account button
-       centres on the same line as the buttons it sits beside rather than below them. -->
-  <div class="mb-5 flex items-center {isDesktop ? 'h-7 pl-[78px]' : 'px-1'}">
+  <!-- On macOS this strip is the window's title bar, and `h-9` is the height that centres the
+       account button on the same line as the window buttons it sits beside. -->
+  <div class="mb-4 flex items-center {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}">
     <AccountMenu align="start" compact />
   </div>
 
