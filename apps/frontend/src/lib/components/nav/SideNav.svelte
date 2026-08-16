@@ -4,6 +4,7 @@
   import AccountMenu from "$lib/components/AccountMenu.svelte";
   import BrandMark from "$lib/components/BrandMark.svelte";
   import Spinner from "$lib/components/Spinner.svelte";
+  import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { sidePanel } from "./side-panel.svelte";
 
@@ -11,10 +12,18 @@
    * The wide-screen rail. Where the tab bar can only afford an icon, this has room for the
    * mark, the four screens as a read-down list, the current screen's own controls, and the
    * account — so no screen has to carry chrome that isn't its own content.
+   *
+   * On macOS the window has no title bar of its own — the rail runs to the top of the window and
+   * the close/minimise/zoom buttons sit over it, which is where the extra top padding goes. The
+   * window's minimum width keeps the rail on screen so they always have this to sit on.
    */
 </script>
 
-<nav class="hidden h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface px-3 py-6 md:flex">
+<nav
+  class="hidden h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
+    ? 'pt-11'
+    : 'pt-6'}"
+>
   <div class="mb-8 flex items-center gap-2.5 px-2">
     <BrandMark size={26} />
     <span class="t-heading">Balance</span>
