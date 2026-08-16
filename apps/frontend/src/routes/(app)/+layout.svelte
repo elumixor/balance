@@ -4,9 +4,14 @@
   import AppLoading from "$lib/components/AppLoading.svelte";
   import SideNav from "$lib/components/nav/SideNav.svelte";
   import TabBar from "$lib/components/nav/TabBar.svelte";
+  import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import { desktopTray } from "$lib/desktop/tray.svelte";
+  import { isBareKey, isTyping } from "$lib/keys";
+  import { isActive, NAV_TABS } from "$lib/nav";
+  import { settings } from "$lib/settings.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
   import { untrack, type Snippet } from "svelte";
+  import { page } from "$app/state";
 
   let { children }: { children: Snippet } = $props();
 
@@ -42,7 +47,27 @@
     desktopTray.start();
     return () => desktopTray.stop();
   });
+
+  /**
+   * The shell's own keys: a letter each for the two screens, and ⌘, for settings the way every
+   * other Mac app spells it. Bare letters only outside a text field — `c` is Calendar everywhere
+   * except in the box where somebody is naming an event.
+   */
+  function onkeydown(e: KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "," && !isTyping(e.target)) {
+      e.preventDefault();
+      return settings.toggle();
+    }
+    if (!isBareKey(e)) return;
+
+    const tab = NAV_TABS.find((candidate) => candidate.key === e.key.toLowerCase());
+    if (!tab || isActive(page.url.pathname, tab.href)) return;
+    e.preventDefault();
+    void goto(tab.href);
+  }
 </script>
+
+<svelte:window {onkeydown} />
 
 {#if !shellReady}
   <AppLoading />
@@ -59,4 +84,7 @@
       <TabBar />
     </div>
   </div>
+  <!-- Above the shell rather than inside the rail: ⌘, opens it from any screen, and on a phone
+       there is no rail for it to hang off at all. -->
+  <SettingsDialog />
 {/if}

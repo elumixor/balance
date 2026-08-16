@@ -56,7 +56,13 @@ class DesktopTray {
     const dispose = $effect.root(() => {
       // Reading `state` is what subscribes this to the weeks, the categories and the tick, so the
       // menu bar follows a write on the calendar screen without anything telling it to.
-      $effect(() => void invoke("update_tray", { state: this.#state }));
+      // A rejection here is silent by nature — the menu bar just stops changing, on a screen
+      // nobody is looking at — so it gets said out loud once rather than swallowed.
+      $effect(() => {
+        void invoke("update_tray", { state: this.#state }).catch((e) => {
+          console.error("The menu bar rejected an update", e);
+        });
+      });
     });
 
     this.#stop = () => {

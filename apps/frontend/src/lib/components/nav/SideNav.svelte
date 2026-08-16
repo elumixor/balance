@@ -1,73 +1,72 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import AccountMenu from "$lib/components/AccountMenu.svelte";
-  import Spinner from "$lib/components/Spinner.svelte";
+  import AccountButton from "$lib/components/AccountButton.svelte";
   import ThemeToggle from "$lib/components/ThemeToggle.svelte";
+  import Tooltip from "$lib/components/Tooltip.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { sidePanel } from "./side-panel.svelte";
 
   /**
-   * The wide-screen rail: the screens as a read-down list, the current screen's own controls, and
-   * the account — so no screen has to carry chrome that isn't its own content. No mark and no
-   * wordmark; giving the rail's first inch to a logo costs real room and says nothing.
+   * The wide-screen rail. Everything that isn't the current screen's own controls fits on one
+   * line: where you are on the left, who you are on the right, and the screen's section under
+   * both. Two destinations don't need a read-down list with their names spelled out — the icons
+   * are the whole vocabulary, and hovering one says the name and the key that gets there.
    *
    * On macOS the window has no title bar of its own, so the close/minimise/zoom buttons land on
-   * the rail. The account button sits in that same strip, indented past them — one top row of
-   * round controls rather than a system half and an app half at different heights. In a browser
-   * there are no such buttons and the indent goes away.
+   * that same line, and the strip is indented past them. In a browser the indent goes away and the
+   * icons start at the edge.
    */
 </script>
 
 <!-- `select-none`: none of this is text anyone means to copy, and a drag across it should move the
-     window or scroll the rail rather than paint a selection over the labels. -->
+     window rather than paint a selection over it. -->
 <nav
   class="hidden h-full w-60 shrink-0 select-none flex-col overflow-hidden border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
     ? 'pt-0'
     : 'pt-3'}"
 >
-  <!-- On macOS this strip is the window's title bar, and `h-9` is the height that centres the
-       account button on the same line as the window buttons it sits beside. `data-tauri-drag-region`
-       is what makes it behave like one: the webview covers the native title bar, so without it a
-       drag here selects the page instead of moving the window. The attribute is read off the event
-       target, so the button inside stays a button. -->
+  <!-- On macOS `h-9` is the title bar's height, which is what puts these on the window buttons'
+       own line. `data-tauri-drag-region` makes the strip behave like the title bar it covers —
+       the attribute is read off the event target, so every button on it stays a button, and the
+       spacer carries it too or the widest part of the strip wouldn't drag. -->
   <div
     data-tauri-drag-region={isDesktop ? true : undefined}
-    class="mb-4 flex items-center gap-1.5 {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}"
+    class="mb-4 flex items-center gap-1 {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}"
   >
-    <AccountMenu align="start" compact />
-    <ThemeToggle compact />
-  </div>
-
-  <div class="flex flex-col gap-0.5">
     {#each NAV_TABS as tab (tab.href)}
       {@const active = isActive(page.url.pathname, tab.href)}
-      <a
-        href={tab.href}
-        aria-current={active ? "page" : undefined}
-        aria-busy={tab.syncing()}
-        class="flex items-center gap-3 rounded-md px-3 py-2.5 {active
-          ? 'bg-surface-alt text-fg'
-          : 'hoverable text-fg-muted'}"
-      >
-        <tab.icon size={18} />
-        <span class="t-label flex-1">{tab.label}</span>
-        <!-- The row's one trailing mark: a spinner while the screen's data is being checked,
-             the you-are-here dot the rest of the time. -->
-        {#if tab.syncing()}
-          <Spinner size={12} />
-        {:else if active}
-          <span class="size-1.5 rounded-full bg-ink"></span>
-        {/if}
-      </a>
+      <Tooltip label={tab.label} hotkey={tab.key}>
+        <a
+          href={tab.href}
+          aria-current={active ? "page" : undefined}
+          aria-busy={tab.syncing()}
+          aria-label={tab.label}
+          class="press-sm relative flex size-[22px] items-center justify-center rounded-md {active
+            ? 'bg-surface-alt text-fg'
+            : 'hoverable text-fg-muted'}"
+        >
+          <tab.icon size={14} />
+          <!-- A screen whose rows are being checked wears a dot, in the corner rather than the row:
+               the strip has no room to grow and nothing beside it should shift. -->
+          {#if tab.syncing()}
+            <span class="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-fg-faint"></span>
+          {/if}
+        </a>
+      </Tooltip>
     {/each}
+
+    <div data-tauri-drag-region={isDesktop ? true : undefined} class="flex-1"></div>
+
+    <ThemeToggle compact />
+    <AccountButton compact />
   </div>
 
-  <!-- The one part of the rail that scrolls. The account strip and the screen list are the rail's
-       fixed points — scrolling them away would take the window buttons' backdrop with them — so
-       the overflow lives here, on the screen's own section, and clips to whatever room is left. -->
+  <!-- The one part of the rail that scrolls. The strip is the rail's fixed point — scrolling it
+       away would take the window buttons' backdrop with it — so the overflow lives here, on the
+       screen's own section, and clips to whatever room is left. -->
   {#if sidePanel.section}
-    <div class="mt-6 min-h-0 flex-1 overflow-y-auto border-t border-line pt-6">
+    <div class="min-h-0 flex-1 overflow-y-auto border-t border-line pt-4">
       {@render sidePanel.section()}
     </div>
   {/if}

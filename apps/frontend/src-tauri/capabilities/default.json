@@ -5,7 +5,7 @@
   "platforms": ["macOS"],
   "windows": ["main"],
   "remote": {
-    "urls": ["http://localhost:8123", "http://localhost:8081"]
+    "urls": ["http://localhost:8123/*", "http://localhost:8081/*"]
   },
   "permissions": [
     "core:default",

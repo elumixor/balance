@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import AccountMenu from "./AccountMenu.svelte";
+  import AccountButton from "./AccountButton.svelte";
   import ThemeToggle from "./ThemeToggle.svelte";
 
   /**
@@ -36,7 +36,7 @@
     <!-- Account and appearance move into the side rail as soon as there is one. -->
     <div class="flex items-center gap-1.5 md:hidden">
       <ThemeToggle />
-      <AccountMenu />
+      <AccountButton />
     </div>
   </header>
 

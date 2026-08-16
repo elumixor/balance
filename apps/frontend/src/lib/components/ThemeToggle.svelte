@@ -1,6 +1,7 @@
 <script lang="ts">
   import { theme, type ThemeMode } from "$lib/theme.svelte";
   import { Monitor, Moon, Sun } from "lucide-svelte";
+  import Tooltip from "./Tooltip.svelte";
 
   /**
    * Appearance as one button rather than a menu: the three modes are a short cycle, and a list
@@ -10,9 +11,9 @@
    * `system` first, because that is where it starts and where most people leave it.
    */
   const CYCLE: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
-    { mode: "system", label: "Appearance: matching this device", icon: Monitor },
-    { mode: "light", label: "Appearance: light", icon: Sun },
-    { mode: "dark", label: "Appearance: dark", icon: Moon },
+    { mode: "system", label: "Matching this device", icon: Monitor },
+    { mode: "light", label: "Light", icon: Sun },
+    { mode: "dark", label: "Dark", icon: Moon },
   ];
 
   let { compact = false }: { compact?: boolean } = $props();
@@ -25,14 +26,15 @@
   }
 </script>
 
-<button
-  type="button"
-  onclick={advance}
-  aria-label={current.label}
-  title={current.label}
-  class="press-sm flex shrink-0 items-center justify-center rounded-full text-fg-muted hoverable {compact
-    ? 'size-[18px]'
-    : 'size-7'}"
->
-  <current.icon size={compact ? 12 : 15} />
-</button>
+<Tooltip label={current.label}>
+  <button
+    type="button"
+    onclick={advance}
+    aria-label="Appearance: {current.label}"
+    class="press-sm flex shrink-0 items-center justify-center rounded-full text-fg-muted hoverable {compact
+      ? 'size-[18px]'
+      : 'size-7'}"
+  >
+    <current.icon size={compact ? 12 : 15} />
+  </button>
+</Tooltip>

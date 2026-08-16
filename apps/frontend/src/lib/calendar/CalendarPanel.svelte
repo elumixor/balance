@@ -1,12 +1,9 @@
 <script lang="ts">
-  import { restColor } from "$lib/colors";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
-  import { disconnectGoogle, updateCalendarPrefs } from "$lib/queries";
-  import { invalidate, store } from "$lib/store.svelte";
-  import { Eye, EyeOff } from "lucide-svelte";
+  import { store } from "$lib/store.svelte";
   import ActivityPalette from "./ActivityPalette.svelte";
   import { calendarData } from "./calendar-data.svelte";
-  import ConnectGoogle from "./ConnectGoogle.svelte";
+  import CalendarsSection from "./CalendarsSection.svelte";
   import WeekMeters from "./WeekMeters.svelte";
 
   /**
@@ -16,108 +13,19 @@
    * no rail.
    */
   const data = calendarData;
-  const prefs = store.calendars;
 
-  const calendars = $derived(prefs.value?.calendars ?? []);
   const categories = $derived(store.categories.value ?? []);
-  const visible = $derived(prefs.value?.visibleCalendarIds ?? []);
-  const writeId = $derived(prefs.value?.writeCalendarId ?? "primary");
   const activities = $derived(store.activities.value ?? []);
-  const categoryById = $derived(new Map((store.categories.value ?? []).map((c) => [c.id, c])));
-
-  // An empty list isn't "nothing shown" — it's the untouched default, which is the primary calendar.
-  const isVisible = (id: string, primary: boolean) => (visible.length === 0 ? primary : visible.includes(id));
-  const isWriteTarget = (id: string, primary: boolean) => id === writeId || (writeId === "primary" && primary);
-
-  $effect(() => {
-    if (data.connected) void prefs.ensure();
-  });
-
-  /** Applies the change to the screen immediately, then tells the server — reverting only on failure. */
-  function save(input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) {
-    const previous = prefs.value;
-    if (!previous) return;
-    prefs.set({ ...previous, ...input });
-    void updateCalendarPrefs(input).catch((e) => {
-      prefs.set(previous);
-      data.actionError = e instanceof Error ? e.message : "Couldn't save that.";
-    });
-  }
-
-  function toggle(id: string, primary: boolean) {
-    const current = visible.length === 0 ? calendars.filter((c) => c.primary).map((c) => c.id) : visible;
-    const next = isVisible(id, primary) ? current.filter((c) => c !== id) : [...current, id];
-    save({ visibleCalendarIds: next });
-  }
-
-  function selectWrite(id: string) {
-    if (isWriteTarget(id, calendars.find((c) => c.id === id)?.primary ?? false)) return;
-    save({ writeCalendarId: id });
-  }
-
-  /** The mappings outlive this: they key on Google's own event ids, so reconnecting restores them. */
-  async function disconnect() {
-    try {
-      await disconnectGoogle();
-      invalidate.integrations();
-      await Promise.all([prefs.refresh(), data.refreshWeeks()]);
-    } catch (e) {
-      data.actionError = e instanceof Error ? e.message : "Couldn't disconnect.";
-    }
-  }
+  const categoryById = $derived(new Map(categories.map((c) => [c.id, c])));
 </script>
 
 <div class="space-y-6">
   <section>
     <SectionHeader title="Calendars" />
-
-    <!-- Asked only once the server has said there's nothing connected — before that the list is
-         simply empty, rather than an invitation that gets taken back a moment later. -->
-    {#if data.connectionKnown && !data.connected}
-      <ConnectGoogle />
-    {:else}
-      <div class="flex flex-col gap-0.5">
-        {#each calendars as calendar (calendar.id)}
-          {@const shown = isVisible(calendar.id, calendar.primary)}
-          {@const isWrite = isWriteTarget(calendar.id, calendar.primary)}
-          <div class="hoverable flex items-center gap-1 rounded-md pr-1">
-            <!-- The colour swatch doubles as the write-target picker: click it to make new events land here. -->
-            <button
-              type="button"
-              aria-label="Add new events to {calendar.name}"
-              aria-pressed={isWrite}
-              disabled={calendar.readOnly}
-              onclick={() => selectWrite(calendar.id)}
-              class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left disabled:cursor-default"
-            >
-              <span
-                class="size-3 shrink-0 rounded-full {isWrite ? 'ring-2 ring-fg ring-offset-1 ring-offset-surface' : ''}"
-                style="background:{calendar.color ?? restColor}"
-              ></span>
-              <span class="t-label min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
-                {calendar.name}
-              </span>
-            </button>
-            <button
-              type="button"
-              aria-label={shown ? "Hide {calendar.name}" : "Show {calendar.name}"}
-              aria-pressed={shown}
-              onclick={() => toggle(calendar.id, calendar.primary)}
-              class="press-sm flex size-6 shrink-0 items-center justify-center rounded text-fg-faint hover:text-fg"
-            >
-              {#if shown}<Eye size={14} />{:else}<EyeOff size={14} />{/if}
-            </button>
-          </div>
-        {/each}
-      </div>
-
-      <button type="button" class="t-micro press-sm mt-2 px-2 py-1 text-fg-faint" onclick={() => void disconnect()}>
-        Disconnect Google
-      </button>
-    {/if}
+    <CalendarsSection />
   </section>
 
-  {#if data.connected || !data.connectionKnown}
+  {#if data.connected}
     <section>
       <!-- The week changes by scrolling the grid sideways; this only offers the way back to today. -->
       <button
@@ -133,7 +41,7 @@
     </section>
   {/if}
 
-  {#if (data.connected || !data.connectionKnown) && activities.length > 0}
+  {#if data.connected && activities.length > 0}
     <section>
       <SectionHeader title="Activities" />
       <ActivityPalette {activities} categories={categoryById} />

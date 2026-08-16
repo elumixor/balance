@@ -167,6 +167,12 @@ html.dark {
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 
 /* Every tappable surface in the app dips the same amount, so touch feels uniform. */
 @utility press {
@@ -247,7 +253,7 @@ html.dark {
     color: var(--fg);
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
-    overscroll-behavior-y: none;
+    overscroll-behavior: none;
   }
 
   body {

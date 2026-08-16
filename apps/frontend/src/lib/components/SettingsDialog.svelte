@@ -1,0 +1,62 @@
+<script lang="ts">
+  import { goto } from "$app/navigation";
+  import { auth } from "$lib/auth.svelte";
+  import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
+  import { settings } from "$lib/settings.svelte";
+  import { clearStore } from "$lib/store.svelte";
+  import { theme, type ThemeMode } from "$lib/theme.svelte";
+  import Button from "./Button.svelte";
+  import Dialog from "./Dialog.svelte";
+  import SectionHeader from "./SectionHeader.svelte";
+  import Segmented from "./Segmented.svelte";
+
+  /**
+   * The one panel for everything that isn't the week: who is signed in, how the app looks, and
+   * which calendars it reads. All three used to be a popover hanging off an 18px avatar, which
+   * was the wrong shape for them and had nowhere to put the third.
+   */
+  const MODES: { value: ThemeMode; label: string }[] = [
+    { value: "system", label: "System" },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+  ];
+
+  const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
+
+  async function signOut() {
+    settings.hide();
+    await auth.signOut();
+    // Whatever is cached belongs to the account that just left.
+    clearStore();
+    await goto("/sign-in");
+  }
+</script>
+
+<Dialog title="Settings" open={settings.open} onclose={() => settings.hide()}>
+  <section class="flex items-center gap-3">
+    <span
+      class="t-body flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-surface-alt text-fg-muted"
+    >
+      {#if auth.avatarUrl}
+        <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
+      {:else}
+        {initial}
+      {/if}
+    </span>
+    <div class="min-w-0 flex-1">
+      <p class="t-body-strong truncate">{auth.email || "Signed in"}</p>
+      <p class="t-micro text-fg-faint">Google account</p>
+    </div>
+    <Button label="Sign out" variant="outline" size="sm" onclick={() => void signOut()} />
+  </section>
+
+  <section>
+    <SectionHeader title="Appearance" />
+    <Segmented options={MODES} value={theme.mode} onchange={(mode) => theme.setMode(mode)} />
+  </section>
+
+  <section>
+    <SectionHeader title="Calendars" />
+    <CalendarsSection />
+  </section>
+</Dialog>
