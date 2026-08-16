@@ -71,7 +71,9 @@
   <section>
     <SectionHeader title="Calendars" />
 
-    {#if !data.connected}
+    <!-- Asked only once the server has said there's nothing connected — before that the list is
+         simply empty, rather than an invitation that gets taken back a moment later. -->
+    {#if data.connectionKnown && !data.connected}
       <ConnectGoogle />
     {:else}
       <div class="flex flex-col gap-0.5">
@@ -115,7 +117,7 @@
     {/if}
   </section>
 
-  {#if data.connected}
+  {#if data.connected || !data.connectionKnown}
     <section>
       <!-- The week changes by scrolling the grid sideways; this only offers the way back to today. -->
       <button
@@ -131,7 +133,7 @@
     </section>
   {/if}
 
-  {#if data.connected && activities.length > 0}
+  {#if (data.connected || !data.connectionKnown) && activities.length > 0}
     <section>
       <SectionHeader title="Activities" />
       <ActivityPalette {activities} categories={categoryById} />

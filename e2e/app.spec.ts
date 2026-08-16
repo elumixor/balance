@@ -20,7 +20,7 @@ test.describe("Balance app", () => {
   // stops at the connect card. What's still covered end to end is the plan itself.
   test("sign in and land on Calendar", async () => {
     await authenticate(page);
-    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Connect Google Calendar").first()).toBeVisible({ timeout: 15_000 });
   });
 
   test("create a category by splitting the week ring", async () => {
@@ -70,7 +70,7 @@ test.describe("Balance app", () => {
 
   test("the activity is draggable onto the week from the calendar", async () => {
     await page.goto("/calendar");
-    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("Connect Google Calendar").first()).toBeVisible({ timeout: 10_000 });
     // Without a calendar there is no grid to drop onto, so the palette isn't drawn either.
     await expect(page.getByText("Drag onto the week")).toHaveCount(0);
   });

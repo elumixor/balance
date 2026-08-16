@@ -14,7 +14,7 @@ test.describe("Moving between tabs", () => {
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
     await authenticate(page);
-    await expect(page.getByLabel("Connect Google Calendar")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Connect Google Calendar").first()).toBeVisible({ timeout: 15_000 });
     // The startup warm-up fetches every tab's data; let it finish before counting requests.
     await expect.poll(() => page.getByRole("link", { name: "Planning" }).count()).toBeGreaterThan(0);
     await page.waitForTimeout(2500);

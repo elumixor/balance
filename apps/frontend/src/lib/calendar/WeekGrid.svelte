@@ -65,8 +65,19 @@
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
   const days = $derived(Array.from({ length: STRIP_DAYS }, (_, i) => addDays(data.stripStart, i)));
 
-  /** Bucketed in one pass rather than a filter per column, which would walk three weeks of
-   *  segments twenty-one times over for every change to the events behind them. */
+  /**
+   * How far past the seven on screen the blocks are actually drawn. The strip is wide so a fling
+   * always has columns ahead of it, but only the days near the window are worth building: the rest
+   * would be a few hundred absolutely-positioned nodes nobody can see, rebuilt on every write.
+   * Three days of margin covers the columns a fling exposes between two scroll ticks.
+   */
+  const DRAW_MARGIN_DAYS = 3;
+  const firstDrawn = $derived(Math.max(0, liveDayOffset - DRAW_MARGIN_DAYS));
+  const lastDrawn = $derived(Math.min(STRIP_DAYS - 1, liveDayOffset + VISIBLE_DAYS - 1 + DRAW_MARGIN_DAYS));
+  const isDrawn = (index: number) => index >= firstDrawn && index <= lastDrawn;
+
+  /** Bucketed in one pass rather than a filter per column, which would walk the whole strip's
+   *  segments once per column for every change to the events behind them. */
   const placedByDay = $derived.by(() => {
     const byDay: Segment[][] = Array.from({ length: STRIP_DAYS }, () => []);
     for (const segment of segmentsForRange(data.events, data.stripStart, STRIP_DAYS)) {
@@ -88,6 +99,11 @@
   const ghostWidthPercent = $derived(draggedSegment?.widthPercent ?? 100);
   const ghostLeftPercent = $derived(draggedSegment?.leftPercent ?? 0);
   const allDay = $derived(allDaySpansForRange(data.events, data.stripStart, STRIP_DAYS));
+  /** Rows are reserved for the whole strip, so a banner keeps its row as it scrolls in — but only
+   *  the banners near the window are built, the same way the blocks below them are. */
+  const drawnAllDay = $derived(
+    allDay.filter((span) => span.dayIndex + span.days > firstDrawn && span.dayIndex <= lastDrawn),
+  );
   /** Row count reserved by the header only counts spans touching the days actually on screen —
    *  tracks the live scroll position so it grows/shrinks while scrolling, not just once settled. */
   const allDayRows = $derived.by(() => {
@@ -247,9 +263,13 @@
     stripAt = start;
   });
 
-  /** How close to either end of the loaded strip triggers a recentre mid-scroll, so a fast
-   *  continuous scroll always has columns ahead of it rather than running into the physical edge
-   *  of the DOM and stopping dead while the next week's events are still in flight. */
+  /**
+   * How close to either end of the loaded strip forces a recentre mid-scroll rather than waiting
+   * for the scroll to settle — the last resort against running into the physical edge of the DOM
+   * and stopping dead. It costs the momentum of the fling that triggered it (setting `scrollLeft`
+   * ends a fling), which is why the strip is two weeks wide either side: eleven days of runway
+   * means an ordinary swipe, however fast, settles long before it gets here.
+   */
   const EDGE_DAYS = 3;
 
   function onscroll() {
@@ -354,10 +374,12 @@
 
         {#if allDayRows > 0}
           <div class="grid" style="grid-template-columns:{columns};height:{allDayRows * ALL_DAY_PX}px">
-            {#each days as day, index (day.getTime())}
+            <!-- Unkeyed, like the day headings: these are the columns' own cells, and moving DOM
+                 nodes under a scroller resets the very scroll offset this grid is holding. -->
+            {#each days as _, index}
               <div class="border-line border-l" style="grid-row:1 / span {allDayRows};grid-column:{index + 1}"></div>
             {/each}
-            {#each allDay as span (span.event.id)}
+            {#each drawnAllDay as span (span.event.id)}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
@@ -395,7 +417,9 @@
         {#each days as day, index}
           {@const weekend = day.getDay() === 0 || day.getDay() === 6}
           <div class="relative snap-start border-line border-l {weekend ? 'bg-fg/[0.02]' : ''}">
-            {#each placedByDay[index] as segment (segment.event.id)}
+            <!-- The column itself is a fixed slot that always exists — it's what the scroll offset
+                 is measured in. Only its blocks come and go with the window. -->
+            {#each isDrawn(index) ? placedByDay[index] : [] as segment (segment.event.id)}
               <!-- Alt held: the original stays put in full, since the pointer is dragging a copy. -->
               {@const dragging = data.drag?.event?.id === segment.event.id && !data.drag?.copy}
               <!-- The rest of a dragged batch stays where it is, faded, with its target outlined. -->

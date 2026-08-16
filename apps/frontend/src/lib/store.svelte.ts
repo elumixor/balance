@@ -28,9 +28,11 @@ export const store = {
  * whichever arrived first. Reactive, because what's syncing is read off the set as it grows.
  */
 const weeks = new SvelteMap<string, Cached<CalendarWeek>>();
-const WEEKS_KEPT = 9;
+/** Comfortably more than the five the grid's strip holds at once, so scrolling a week over and
+ *  back doesn't drop the week that was on screen a moment ago. */
+const WEEKS_KEPT = 13;
 /** A few more than memory holds: paging back to last week shouldn't have to ask the server. */
-const WEEKS_STORED = 12;
+const WEEKS_STORED = 16;
 
 export function calendarWeek(key: string) {
   let cached = weeks.get(key);

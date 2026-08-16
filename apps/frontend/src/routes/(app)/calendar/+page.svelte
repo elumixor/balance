@@ -8,7 +8,6 @@
   import InlineError from "$lib/components/InlineError.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import Popover from "$lib/components/Popover.svelte";
-  import Skeleton from "$lib/components/Skeleton.svelte";
   import SidePanelSection from "$lib/components/nav/SidePanelSection.svelte";
   import { store } from "$lib/store.svelte";
   import { SlidersHorizontal } from "lucide-svelte";
@@ -91,7 +90,10 @@
     </button>
 
     <!-- Nothing connected yet? The empty week below is already asking, so this stays out of it. -->
-    <div class="pointer-events-auto rounded-md bg-surface/90 backdrop-blur-sm" class:hidden={!data.connected}>
+    <div
+      class="pointer-events-auto rounded-md bg-surface/90 backdrop-blur-sm"
+      class:hidden={data.connectionKnown && !data.connected}
+    >
       <Popover width={280}>
         {#snippet trigger(open: () => void)}
           <IconButton label="Calendars and activities" onclick={open}>
@@ -109,23 +111,26 @@
     <div class="absolute inset-x-0 top-10 z-20 px-3 md:top-2 md:px-4"><InlineError message={data.actionError} /></div>
   {/if}
 
-  {#if week.error && !data.ready}
-    <div class="p-4"><LoadError message={week.error} onretry={() => void week.refresh()} /></div>
-  {:else if !data.ready}
-    <div class="p-4"><Skeleton height={384} radius={10} /></div>
-  {:else}
-    {#if !data.connected}
-      <!-- The rail already asks on a wide screen, so there the empty week itself is the answer. -->
-      <div class="flex flex-1 items-center justify-center p-6 md:hidden">
-        <div class="w-full max-w-sm"><ConnectGoogle /></div>
-      </div>
-    {/if}
-    <!-- One grid, shown or hidden. A second instance would remount it, and a remounted scroller
-         forgets which day it was on. -->
-    <div class="min-h-0 flex-1 {data.connected ? '' : 'hidden md:block'}">
-      <WeekGrid categories={categoryById} />
+  <!-- The week that failed to load still has its days, hours and today's line, so the grid keeps
+       the screen and the failure asks for a retry from on top of it. -->
+  {#if week.error}
+    <div class="absolute inset-x-0 top-10 z-20 px-3 md:top-2 md:px-4">
+      <LoadError message={week.error} onretry={() => void week.refresh()} />
     </div>
   {/if}
+
+  {#if data.connectionKnown && !data.connected}
+    <!-- The rail already asks on a wide screen, so there the empty week itself is the answer. -->
+    <div class="flex flex-1 items-center justify-center p-6 md:hidden">
+      <div class="w-full max-w-sm"><ConnectGoogle /></div>
+    </div>
+  {/if}
+  <!-- One grid, always mounted, never a skeleton: an empty week is drawn entirely from the clock,
+       and the events fill into it when they land. A second instance would remount it, and a
+       remounted scroller forgets which day it was on. -->
+  <div class="min-h-0 flex-1 {data.connectionKnown && !data.connected ? 'hidden md:block' : ''}">
+    <WeekGrid categories={categoryById} />
+  </div>
 </div>
 
 {#if data.selected}

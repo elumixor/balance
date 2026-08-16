@@ -14,8 +14,17 @@ import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
 import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
 
-/** Three weeks of columns, so there's a week to scroll into on either side of the seven shown. */
-export const STRIP_DAYS = 3 * DAYS_PER_WEEK;
+/**
+ * Five weeks of columns, so there are two to scroll into on either side of the seven shown — far
+ * enough that a fast fling reaches the end of a week's events long before it reaches the end of the
+ * loaded strip, and the strip only has to be rebuilt once the scroll has come to rest.
+ *
+ * The columns beyond the visible ones aren't drawn (see `WeekGrid`), so the width costs requests,
+ * not DOM — and those requests are the ones the next swipe was going to make anyway.
+ */
+const SIDE_WEEKS = 2;
+export const STRIP_WEEKS = 2 * SIDE_WEEKS + 1;
+export const STRIP_DAYS = STRIP_WEEKS * DAYS_PER_WEEK;
 
 /** How far a finger has to travel before a tap becomes a drag, and how long before a hold does. */
 const DRAG_THRESHOLD_PX = 6;
@@ -247,13 +256,13 @@ class CalendarData {
   readonly windowStart = $derived(startOfDay(this.anchor));
 
   /**
-   * The grid draws three whole weeks and shows seven days of them, so there's always a week
-   * either side to scroll into and the day columns line up with the week the events came in.
+   * The grid draws whole weeks and shows seven days of them, so there's always room to scroll into
+   * on either side and the day columns line up with the week the events came in.
    */
-  readonly stripStart = $derived(addDays(startOfWeek(this.windowStart), -DAYS_PER_WEEK));
+  readonly stripStart = $derived(addDays(startOfWeek(this.windowStart), -SIDE_WEEKS * DAYS_PER_WEEK));
   readonly dayOffset = $derived(daysBetween(this.stripStart, this.windowStart));
   readonly weeks = $derived(
-    [0, DAYS_PER_WEEK, 2 * DAYS_PER_WEEK].map((day) => calendarWeek(weekKey(addDays(this.stripStart, day)))),
+    Array.from({ length: STRIP_WEEKS }, (_, i) => calendarWeek(weekKey(addDays(this.stripStart, i * DAYS_PER_WEEK)))),
   );
 
   /**
@@ -336,8 +345,13 @@ class CalendarData {
   readonly key = $derived(weekKey(this.weekStart));
   readonly week = $derived(calendarWeek(this.key));
 
-  /** Whether there's a grid to draw at all — a week still loading must not unmount the one on show. */
-  readonly ready = $derived(this.weeks.some((week) => week.hasValue));
+  /**
+   * Whether the account's calendar connection is a settled question. Days, hours and today's line
+   * are the grid whether or not anything is connected, so the week draws from the first frame and
+   * nothing on the screen may say "connect" until the server has actually said there's nothing to
+   * connect to — the alternative is asking every cold start and taking it back a moment later.
+   */
+  readonly connectionKnown = $derived(this.weeks.some((week) => week.hasValue) || store.integrations.hasValue);
   readonly connected = $derived(this.week.value?.connected ?? store.integrations.value?.[0]?.connected ?? false);
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(new Date()));
