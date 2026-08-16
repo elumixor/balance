@@ -15,6 +15,7 @@
     OPENING_HOUR,
     placeDay,
     resizeBands,
+    type Segment,
     segmentsForRange,
   } from "./week-grid";
 
@@ -47,19 +48,31 @@
   /** Which strip the current scroll offset was measured against, and whether it's been placed yet. */
   let stripAt: number | null = null;
   let opened = false;
-  /** Raw scroll offset, updated on every scroll tick — unlike `data.dayOffset`, live mid-drag. */
-  let liveScrollLeft = $state(0);
+  /**
+   * The leftmost column the scroll is over, updated as it moves — unlike `data.dayOffset`, live
+   * mid-drag. Whole days rather than pixels: everything reading it only cares which columns are on
+   * screen, and a pixel-accurate copy would re-run all of it on every frame of every scroll.
+   */
+  let liveDayOffset = $state(0);
   /** Set right before a programmatic jump (the today button) so the next scroll-left write eases in. */
   let animateNextJump = false;
   let jumpFrame: number | null = null;
+  /** True for the whole today-button jump, so the button stays hidden through the intermediate
+   *  scroll states (strip recentre snap, then the eased animation) instead of flickering back in. */
+  let jumping = $state(false);
 
   const dayWidth = $derived(Math.max(0, viewWidth - GUTTER_PX) / VISIBLE_DAYS);
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
   const days = $derived(Array.from({ length: STRIP_DAYS }, (_, i) => addDays(data.stripStart, i)));
 
+  /** Bucketed in one pass rather than a filter per column, which would walk three weeks of
+   *  segments twenty-one times over for every change to the events behind them. */
   const placedByDay = $derived.by(() => {
-    const segments = segmentsForRange(data.events, data.stripStart, STRIP_DAYS);
-    return days.map((_, index) => placeDay(segments.filter((s) => s.dayIndex === index)));
+    const byDay: Segment[][] = Array.from({ length: STRIP_DAYS }, () => []);
+    for (const segment of segmentsForRange(data.events, data.stripStart, STRIP_DAYS)) {
+      byDay[segment.dayIndex]?.push(segment);
+    }
+    return byDay.map((segments) => placeDay(segments));
   });
 
   /** The dragged block's own slot, so the free-floating preview keeps its real width. */
@@ -78,7 +91,7 @@
   /** Row count reserved by the header only counts spans touching the days actually on screen —
    *  tracks the live scroll position so it grows/shrinks while scrolling, not just once settled. */
   const allDayRows = $derived.by(() => {
-    const offset = dayWidth > 0 ? liveScrollLeft / dayWidth : data.dayOffset;
+    const offset = liveDayOffset;
     return allDay.reduce(
       (max, span) =>
         span.dayIndex + span.days > offset && span.dayIndex < offset + VISIBLE_DAYS
@@ -95,8 +108,7 @@
    *  scroll position, so it updates mid-drag rather than only once the scroll settles. */
   const todayOutOfView = $derived.by(() => {
     const todayDayIndex = Math.round((todayStart - data.stripStart.getTime()) / MS_PER_DAY);
-    const offset = dayWidth > 0 ? liveScrollLeft / dayWidth : data.dayOffset;
-    return todayDayIndex + 1 <= offset || todayDayIndex >= offset + VISIBLE_DAYS;
+    return todayDayIndex < liveDayOffset || todayDayIndex >= liveDayOffset + VISIBLE_DAYS;
   });
 
   /** The gathering box, in pixels down the grid rather than the grid's own day-and-minute units. */
@@ -194,11 +206,11 @@
       if (animateNextJump) {
         animateNextJump = false;
         animateScrollLeft(scroller, offset * width);
-      } else {
-        if (jumpFrame !== null) cancelAnimationFrame(jumpFrame);
-        jumpFrame = null;
-        scroller.scrollLeft = offset * width;
-        liveScrollLeft = scroller.scrollLeft;
+      } else if (!jumping) {
+        // Only when the scroll isn't already on the column: a settle that landed dead-on would
+        // otherwise take a second, redundant write a frame later, which CSS snapping then answers.
+        if (Math.abs(scroller.scrollLeft - offset * width) >= 1) scroller.scrollLeft = offset * width;
+        liveDayOffset = offset;
       }
       stripAt = start;
     });
@@ -216,6 +228,7 @@
       const t = Math.min(1, (now - t0) / JUMP_ANIMATE_MS);
       const eased = 1 - (1 - t) ** 3;
       scroller.scrollLeft = from + delta * eased;
+      if (t >= 1) jumping = false;
       jumpFrame = t < 1 ? requestAnimationFrame(tick) : null;
     };
     jumpFrame = requestAnimationFrame(tick);
@@ -230,17 +243,36 @@
     const scroller = data.scrollerEl;
     if (!scroller || stripAt === null || start === stripAt) return;
     scroller.scrollLeft -= Math.round((start - stripAt) / MS_PER_DAY) * dayWidth;
-    liveScrollLeft = scroller.scrollLeft;
+    if (dayWidth > 0) liveDayOffset = Math.round(scroller.scrollLeft / dayWidth);
     stripAt = start;
   });
 
+  /** How close to either end of the loaded strip triggers a recentre mid-scroll, so a fast
+   *  continuous scroll always has columns ahead of it rather than running into the physical edge
+   *  of the DOM and stopping dead while the next week's events are still in flight. */
+  const EDGE_DAYS = 3;
+
   function onscroll() {
-    if (data.scrollerEl) liveScrollLeft = data.scrollerEl.scrollLeft;
+    const scroller = data.scrollerEl;
+    if (!scroller || dayWidth === 0) return;
+    const offset = scroller.scrollLeft / dayWidth;
+    // Whole columns only, so the header and the today button re-run when the day under the left
+    // edge changes rather than on every frame of the scroll that gets there.
+    const column = Math.round(offset);
+    if (column !== liveDayOffset) liveDayOffset = column;
+    // A jump drives the scroll itself and ends by landing on its own column; letting these ticks
+    // schedule a settle would have `land` cut the animation short from underneath it.
+    if (jumping) return;
     if (settle) clearTimeout(settle);
     settle = setTimeout(land, SETTLE_MS);
+    if (data.drag) return;
+    const maxOffset = STRIP_DAYS - VISIBLE_DAYS;
+    if (offset < EDGE_DAYS || offset > maxOffset - EDGE_DAYS) land();
   }
 
-  /** The column the scroll came to rest on becomes the first day on screen. */
+  /** The column the scroll came to rest on becomes the first day on screen. Recentring keeps the
+   *  scroll position visually put (see the stripStart-rebuild effect above), so calling this early
+   *  near an edge doesn't jump anything — it just makes more columns appear to scroll into. */
   function land() {
     const scroller = data.scrollerEl;
     if (!scroller || dayWidth === 0 || data.drag) return;
@@ -249,13 +281,14 @@
   }
 
   function goToToday() {
+    jumping = true;
     animateNextJump = true;
     data.goToToday();
   }
 </script>
 
 <div class="relative h-full">
-  {#if todayOutOfView}
+  {#if todayOutOfView && !jumping}
     <div
       class="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center"
       in:fly={{ y: 16, duration: 200 }}
@@ -277,7 +310,7 @@
     bind:this={data.scrollerEl}
     bind:clientWidth={viewWidth}
     {onscroll}
-    class="h-full snap-x snap-mandatory overflow-auto overscroll-contain scroll-pl-14 bg-surface"
+    class="no-scrollbar h-full snap-x snap-proximity overflow-auto overscroll-none scroll-pl-14 bg-surface"
   >
   <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
     <!-- The hours stay put while the days slide past them. -->
