@@ -14,6 +14,7 @@ and it becomes a real event in your calendar.
 | --------------------- | --------------------------------------------------------------------- |
 | `apps/frontend`       | SvelteKit app (static SPA), shipped to iOS inside a Capacitor webview  |
 | `apps/frontend/ios`   | Everything Apple: the committed Xcode project, BalanceKit, fastlane    |
+| `apps/frontend/src-tauri` | The macOS shell: the menu bar item and the window around the SPA  |
 | `apps/backend`        | Nitro JSON API over Postgres (Neon) with Drizzle                       |
 | `e2e`                 | Playwright suite, driven against the app's web build                   |
 
@@ -86,6 +87,34 @@ through the
 Apple Developer portal — the App Store Connect API can't do it — and the entitlement added to both
 watch targets. Until then the widget falls back to its placeholder, which is where it has been
 since before the Capacitor move.
+
+## macOS
+
+```bash
+bun run dev              # the dev server the desktop shell loads
+bun run desktop          # runs the app against it
+bun run desktop:install  # builds a release bundle and puts it in /Applications
+```
+
+The same SPA, wrapped in Tauri (`apps/frontend/src-tauri`). What the desktop adds is a menu bar
+item: the event you're in the middle of and how much of it is left, or the next one and how soon,
+with a dropdown of the days ahead. macOS renders that natively, so the Rust side owns the status
+item and the webview pushes it a whole state through `update_tray` — the webview is the only half
+that holds a Clerk session and knows what an event counts as, and there is no second, worse copy of
+that logic in Rust. Closing the window hides it rather than quitting, because destroying the
+webview would take both with it.
+
+Signing in goes out through the browser. The app's origin is `tauri://localhost`, which Clerk
+refuses as a redirect target and Google refuses to show a consent screen in, so the OAuth buttons
+open `/desktop-link` on the deployed web app instead; that page signs in normally, trades its
+session for a one-minute Clerk ticket, and hands it back over `balance-desktop://`. Email and
+password need none of this and work in the app directly. **The hand-off only works against a
+deployed frontend and backend** — it is the live site the browser is sent to.
+
+The bundle is unsigned. That is fine for the machine that built it (nothing copied off local disk
+carries a quarantine flag) and not fine for anyone else, who would need a Developer ID in
+`bundle.macOS.signingIdentity`. Deep links also only resolve to an installed `.app`, so a
+`bun run desktop` session hands its ticket to whatever is in `/Applications`.
 
 ## Linting
 

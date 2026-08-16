@@ -11,7 +11,10 @@
     "sync": "cap sync ios",
     "assets": "bun scripts/assets.ts",
     "ios": "CAPACITOR_LIVE_RELOAD=true cap sync ios && cap open ios",
-    "ios:prod": "VITE_API_BASE_URL=https://balance-app-mauve.vercel.app vite build && cap sync ios && cap open ios"
+    "ios:prod": "VITE_API_BASE_URL=https://balance-app-mauve.vercel.app vite build && cap sync ios && cap open ios",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build --bundles app",
+    "desktop:install": "bun scripts/install-desktop.ts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
@@ -22,6 +25,9 @@
     "@capacitor/preferences": "^8.0.1",
     "@capgo/capacitor-social-login": "^8.3.40",
     "@clerk/clerk-js": "^6.26.0",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-deep-link": "^2.4.9",
+    "@tauri-apps/plugin-opener": "^2.5.4",
     "bits-ui": "^2.18.1",
     "expr-eval": "^2.0.2",
     "lucide-svelte": "^1.0.1"
@@ -33,6 +39,7 @@
     "@sveltejs/kit": "^2.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.11.4",
     "sharp": "^0.35.3",
     "svelte": "^5.56.1",
     "svelte-check": "^4.6.0",

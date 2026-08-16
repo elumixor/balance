@@ -188,7 +188,12 @@ class CategoryDrafts {
       for (const draft of changed) {
         const payload = { name: draft.name, color: draft.color, icon: draft.icon, targetHoursPerWeek: draft.hours };
         const written = draft.id ? await updateCategory(draft.id, payload) : await createCategory(payload);
-        const saved = { name: payload.name, color: payload.color, icon: payload.icon, hours: payload.targetHoursPerWeek };
+        const saved = {
+          name: payload.name,
+          color: payload.color,
+          icon: payload.icon,
+          hours: payload.targetHoursPerWeek,
+        };
         this.drafts = this.drafts.map((d) => (d.key === draft.key ? { ...d, id: written.id, saved } : d));
       }
       this.#publish();

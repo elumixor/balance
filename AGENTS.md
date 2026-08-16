@@ -42,6 +42,10 @@ must call `eventCache.invalidate(userId)`, or the next read is served a 30-secon
 
 - `apps/frontend/src/lib/api-client/` is generated from the backend's routes (`bunx nitro-client`).
   Never hand-edit it; regenerate and commit.
+- `apps/frontend/src-tauri/` is the macOS shell. It renders the menu bar item and nothing else
+  decides what goes in it: `src/lib/desktop/tray.svelte.ts` computes the whole state and pushes it
+  through `update_tray`. Don't fetch or reason about events in Rust — the session lives in the
+  webview. `target/` and `gen/` are generated; the rest is committed.
 - `apps/frontend/ios/` is a committed Xcode project, and holds everything Apple: `App/WatchApp`,
   `App/WatchWidget`, the `BalanceKit` package they share, and `fastlane/`. The watch app and widget
   targets are added by `ios/wire_watch_targets.rb`, which is idempotent — change the script, re-run

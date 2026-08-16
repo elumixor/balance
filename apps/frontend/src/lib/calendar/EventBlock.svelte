@@ -7,6 +7,7 @@
   import type { CalendarEvent, Category } from "$lib/types";
   import { calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
+  import { eventCategory } from "./event-category";
 
   /**
    * A block is coloured by the Google calendar it lives on, so a week reads as bands of which
@@ -33,13 +34,7 @@
 
   const data = calendarData;
 
-  const category = $derived.by(() => {
-    const ranked = event.weights
-      .map((w) => ({ weight: w.weightPercent, category: categories.get(w.categoryId) }))
-      .filter((w) => w.category && !w.category.isBuffer)
-      .sort((a, b) => b.weight - a.weight);
-    return ranked[0]?.category ?? null;
-  });
+  const category = $derived(eventCategory(event, categories));
   const icon = $derived(category?.icon ?? DEFAULT_ICON);
   /** An hour tapped onto the grid is named afterwards, so a block with nothing on it says so. */
   const label = $derived(event.title.trim() || "Untitled");

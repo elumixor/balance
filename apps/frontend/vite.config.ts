@@ -26,7 +26,8 @@ function resolveApiBaseUrl(mode: string, cwd: string) {
 
 export default defineConfig(({ mode }) => ({
   plugins: [tailwindcss(), sveltekit()],
-  server: { port: 8081 },
+  // Rust build artefacts are far too many files to watch, and none of them change the page.
+  server: { port: 8081, watch: { ignored: ["**/src-tauri/**"] } },
   define: {
     "import.meta.env.VITE_API_BASE_URL": JSON.stringify(resolveApiBaseUrl(mode, process.cwd())),
   },

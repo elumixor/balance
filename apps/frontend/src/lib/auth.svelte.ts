@@ -113,7 +113,7 @@ class Auth {
     const { result } = await SocialLogin.login({ provider: "google", options: { scopes: ["email", "profile"] } });
     const idToken = "idToken" in result ? result.idToken : undefined;
     if (!idToken) throw new Error("Google didn't return an ID token.");
-    await this.#redeemNativeIdToken("google", idToken);
+    await this.redeemTicket(await this.#nativeTicket("google", idToken));
   }
 
   async signInWithNativeApple() {
@@ -121,10 +121,10 @@ class Auth {
     const { result } = await SocialLogin.login({ provider: "apple", options: { scopes: ["email", "name"] } });
     const idToken = "idToken" in result ? result.idToken : undefined;
     if (!idToken) throw new Error("Apple didn't return an ID token.");
-    await this.#redeemNativeIdToken("apple", idToken);
+    await this.redeemTicket(await this.#nativeTicket("apple", idToken));
   }
 
-  async #redeemNativeIdToken(provider: "google" | "apple", idToken: string) {
+  async #nativeTicket(provider: "google" | "apple", idToken: string) {
     const response = await fetch(`${API_BASE_URL}/mobile/auth/native/${provider}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -132,11 +132,19 @@ class Auth {
     });
     const body = (await response.json()) as { ticket?: string; error?: string };
     if (!response.ok || !body.ticket) throw new Error(body.error ?? "Sign in didn't finish.");
+    return body.ticket;
+  }
 
+  /**
+   * Turns a short-lived Clerk sign-in ticket into this client's session. Both platforms that
+   * can't run Clerk's redirect flow in their own webview end up here: iOS with a ticket minted
+   * from a native idToken, macOS with one handed back by the browser that did the OAuth.
+   */
+  async redeemTicket(ticket: string) {
     const signIn = await this.signIn();
-    const ticketResult = await signIn.create({ strategy: "ticket", ticket: body.ticket });
-    if (ticketResult.status !== "complete") throw new Error("Sign in didn't finish.");
-    await this.activate(ticketResult.createdSessionId);
+    const result = await signIn.create({ strategy: "ticket", ticket });
+    if (result.status !== "complete") throw new Error("Sign in didn't finish.");
+    await this.activate(result.createdSessionId);
   }
 
   async handleRedirectCallback(afterSignIn: string) {

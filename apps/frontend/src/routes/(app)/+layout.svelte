@@ -4,6 +4,7 @@
   import AppLoading from "$lib/components/AppLoading.svelte";
   import SideNav from "$lib/components/nav/SideNav.svelte";
   import TabBar from "$lib/components/nav/TabBar.svelte";
+  import { desktopTray } from "$lib/desktop/tray.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
   import { untrack, type Snippet } from "svelte";
 
@@ -32,6 +33,14 @@
       if (userId) adoptUser(userId);
       void warmStore();
     });
+  });
+
+  // On macOS the app is also the menu bar item, which outlives every screen — so it starts with
+  // the session rather than with a route, and stops when the session goes.
+  $effect(() => {
+    if (!auth.signedIn) return;
+    desktopTray.start();
+    return () => desktopTray.stop();
   });
 </script>
 

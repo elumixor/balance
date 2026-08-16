@@ -11,6 +11,8 @@
     "dev:open": "devkit --open",
     "check": "bun --filter frontend check",
     "ios": "bun --filter frontend ios",
+    "desktop": "bun --filter frontend desktop",
+    "desktop:install": "bun --filter frontend desktop:install",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test:e2e": "playwright test",

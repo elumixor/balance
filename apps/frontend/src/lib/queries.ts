@@ -30,6 +30,10 @@ export const updateActivity = (id: string, input: { name: string; weights: Activ
 export const archiveActivity = (id: string) => callApi(api.activities(id).archive.$post()).then(unwrapOk);
 export const restoreActivity = (id: string) => callApi(api.activities(id).restore.$post()).then(unwrapOk);
 
+// Auth
+/** Trades this browser's session for a ticket the macOS app can sign in with — see `/desktop-link`. */
+export const createDesktopTicket = () => callApi(api.auth.desktop.ticket.$post()).then((r) => unwrapOk(r).ticket);
+
 // Integrations
 export const getIntegrations = () =>
   callApi(api.integrations.$get()).then((r) => unwrapOk(r).integrations as IntegrationStatus[]);

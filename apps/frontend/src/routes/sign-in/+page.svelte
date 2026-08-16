@@ -6,6 +6,8 @@
   import Button from "$lib/components/Button.svelte";
   import Divider from "$lib/components/Divider.svelte";
   import Field from "$lib/components/Field.svelte";
+  import { isDesktop } from "$lib/desktop/platform";
+  import { startDesktopSSO } from "$lib/desktop/sign-in";
 
   let email = $state("");
   let password = $state("");
@@ -61,9 +63,13 @@
   async function onSSO(strategy: "oauth_google" | "oauth_apple") {
     error = null;
     try {
-      // Both providers' OAuth flows fall apart inside the app's embedded webview on iOS
-      // (Google blocks it outright, Apple's redirect can't get back in), so native sign-in
-      // replaces Clerk's redirect flow there entirely.
+      // Neither native build can run Clerk's redirect flow in its own webview, and each gets
+      // around it differently: iOS has the OS's own account picker, macOS has a real browser
+      // to send people to. Only the web gets the redirect flow it was written for.
+      if (isDesktop) {
+        await startDesktopSSO(strategy);
+        return;
+      }
       if (Capacitor.getPlatform() === "ios") {
         if (strategy === "oauth_google") await auth.signInWithNativeGoogle();
         else await auth.signInWithNativeApple();
