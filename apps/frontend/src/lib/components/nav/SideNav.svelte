@@ -22,7 +22,7 @@
 <!-- `select-none`: none of this is text anyone means to copy, and a drag across it should move the
      window or scroll the rail rather than paint a selection over the labels. -->
 <nav
-  class="hidden h-full w-60 shrink-0 select-none flex-col overflow-y-auto border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
+  class="hidden h-full w-60 shrink-0 select-none flex-col overflow-hidden border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
     ? 'pt-0'
     : 'pt-3'}"
 >
@@ -63,8 +63,11 @@
     {/each}
   </div>
 
+  <!-- The one part of the rail that scrolls. The account strip and the screen list are the rail's
+       fixed points — scrolling them away would take the window buttons' backdrop with them — so
+       the overflow lives here, on the screen's own section, and clips to whatever room is left. -->
   {#if sidePanel.section}
-    <div class="mt-6 min-h-0 border-t border-line pt-6">
+    <div class="mt-6 min-h-0 flex-1 overflow-y-auto border-t border-line pt-6">
       {@render sidePanel.section()}
     </div>
   {/if}
