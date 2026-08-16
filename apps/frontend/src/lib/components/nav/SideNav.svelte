@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import AccountMenu from "$lib/components/AccountMenu.svelte";
   import Spinner from "$lib/components/Spinner.svelte";
+  import ThemeToggle from "$lib/components/ThemeToggle.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { sidePanel } from "./side-panel.svelte";
@@ -32,9 +33,10 @@
        target, so the button inside stays a button. -->
   <div
     data-tauri-drag-region={isDesktop ? true : undefined}
-    class="mb-4 flex items-center {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}"
+    class="mb-4 flex items-center gap-1.5 {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}"
   >
     <AccountMenu align="start" compact />
+    <ThemeToggle compact />
   </div>
 
   <div class="flex flex-col gap-0.5">
