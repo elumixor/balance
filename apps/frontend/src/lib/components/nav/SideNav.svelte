@@ -26,7 +26,7 @@
   <!-- On macOS this strip is the window's title bar: `h-7` is its height, so the account button
        centres on the same line as the buttons it sits beside rather than below them. -->
   <div class="mb-5 flex items-center {isDesktop ? 'h-7 pl-[78px]' : 'px-1'}">
-    <AccountMenu align="start" />
+    <AccountMenu align="start" compact />
   </div>
 
   <div class="flex flex-col gap-0.5">

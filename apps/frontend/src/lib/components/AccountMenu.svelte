@@ -14,8 +14,12 @@
     { value: "dark", label: "Dark", icon: Moon },
   ];
 
-  /** Mobile hangs this off the right edge of a screen header; the side rail off its left. */
-  let { align = "end" }: { align?: "start" | "end" } = $props();
+  /**
+   * Mobile hangs this off the right edge of a screen header; the side rail off its left.
+   * `compact` is for the rail, where it lines up beside the window buttons and wants their
+   * scale — a finger needs the bigger one, a cursor doesn't.
+   */
+  let { align = "end", compact = false }: { align?: "start" | "end"; compact?: boolean } = $props();
 
   const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
 
@@ -36,7 +40,9 @@
       onclick={open}
       aria-label="Account and appearance"
       title={auth.email}
-      class="press-sm t-micro flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-surface-alt text-fg-muted"
+      class="press-sm t-micro flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-surface-alt text-fg-muted {compact
+        ? 'size-[18px]'
+        : 'size-7'}"
     >
       {#if auth.avatarUrl}
         <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
