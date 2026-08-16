@@ -32,7 +32,7 @@
 
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
   const GUTTER_PX = 56;
-  const DAY_HEAD_PX = 44;
+  const DAY_HEAD_PX = 28;
   const ALL_DAY_PX = 28;
   const VISIBLE_DAYS = 7;
   /** How long the scroll has to sit still before it counts as having landed on a day. */
@@ -142,6 +142,11 @@
   });
 
   const pad = (n: number) => n.toString().padStart(2, "0");
+
+  const timeZoneLabel = $derived.by(() => {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(new Date());
+    return parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+  });
 
   /** The drag ghost borrows the block's own look, so what you're dropping is what you'll get. */
   const ghostEvent = $derived.by((): CalendarEvent | null => {
@@ -276,8 +281,13 @@
   >
   <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
     <!-- The hours stay put while the days slide past them. -->
-    <div class="sticky left-0 z-30 flex shrink-0 flex-col bg-surface" style="width:{GUTTER_PX}px">
-      <div class="sticky top-0 z-10 shrink-0 border-line border-b bg-surface transition-[height] duration-150" style="height:{headerPx}px"></div>
+    <div class="sticky left-0 z-30 flex shrink-0 flex-col border-line border-r bg-surface" style="width:{GUTTER_PX}px">
+      <div
+        class="sticky top-0 z-10 flex shrink-0 items-end justify-center border-line border-b bg-surface pb-0.5 transition-[height] duration-150"
+        style="height:{headerPx}px"
+      >
+        <span class="t-data-micro text-fg-faint">{timeZoneLabel}</span>
+      </div>
       <div class="relative" style="height:{24 * HOUR_PX}px">
         {#each HOURS as hour (hour)}
           <div class="t-data-micro absolute right-2 -translate-y-1/2 text-fg-faint" style="top:{hour * HOUR_PX}px">
@@ -294,17 +304,17 @@
         <div class="grid" style="grid-template-columns:{columns};height:{DAY_HEAD_PX}px">
           {#each days as day}
             {@const today = day.getTime() === todayStart}
-            <div class="flex flex-col justify-center border-line border-l px-1 text-center">
-              <div class="t-micro {today ? 'text-danger' : 'text-fg-faint'}">
+            <div class="flex items-center justify-center gap-1 border-line border-l px-1 text-center">
+              <span class="t-micro {today ? 'text-danger' : 'text-fg-faint'}">
                 {day.toLocaleDateString(undefined, { weekday: "short" })}
-              </div>
-              <div
-                class="t-data-strong mx-auto flex h-6 min-w-7 items-center justify-center rounded-md px-1 {today
+              </span>
+              <span
+                class="t-data-strong flex h-5 min-w-5 items-center justify-center rounded-md px-1 {today
                   ? 'bg-danger text-ink-fg'
                   : 'text-fg-muted'}"
               >
                 {day.getDate()}
-              </div>
+              </span>
             </div>
           {/each}
         </div>
