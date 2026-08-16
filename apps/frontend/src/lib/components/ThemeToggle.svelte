@@ -26,7 +26,7 @@
   }
 </script>
 
-<Tooltip label={current.label}>
+<Tooltip label="Theme">
   <button
     type="button"
     onclick={advance}
