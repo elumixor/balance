@@ -6,6 +6,7 @@
   import EventBlock from "./EventBlock.svelte";
   import { fade, fly } from "svelte/transition";
   import EventContextMenu from "./EventContextMenu.svelte";
+  import { freeScroll } from "./free-scroll";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import {
     allDaySpansForRange,
@@ -329,6 +330,7 @@
   <div
     bind:this={data.scrollerEl}
     bind:clientWidth={viewWidth}
+    use:freeScroll
     {onscroll}
     class="no-scrollbar h-full snap-x snap-proximity overflow-auto overscroll-none scroll-pl-14 bg-surface"
   >

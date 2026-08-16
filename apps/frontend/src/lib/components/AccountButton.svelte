@@ -15,7 +15,9 @@
   const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
 </script>
 
-<Tooltip label={auth.email || "Settings"} hotkey="⌘,">
+<!-- The name of the thing it opens, not whose account it is — the row's other icons say what they
+     do, and the email is the first line inside the panel anyway. -->
+<Tooltip label="Settings" hotkey="⌘,">
   <button
     type="button"
     onclick={() => settings.show()}

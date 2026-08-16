@@ -22,6 +22,8 @@
   --positive: #2e7d5b;
   --caution: #a8761f;
   --overlay: rgba(21, 23, 26, 0.32);
+  /* Modals take the page away entirely, so their scrim is heavier than a popover's. */
+  --overlay-strong: rgba(21, 23, 26, 0.55);
   /* The one elevation in the app: what floats above the page — popovers, the event editor. */
   --shadow-float: 0 10px 30px rgba(21, 23, 26, 0.13), 0 2px 6px rgba(21, 23, 26, 0.07);
 }
@@ -41,6 +43,7 @@ html.dark {
   --positive: #62bf97;
   --caution: #d9a54b;
   --overlay: rgba(0, 0, 0, 0.55);
+  --overlay-strong: rgba(0, 0, 0, 0.72);
   --shadow-float: 0 12px 36px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
@@ -58,6 +61,8 @@ html.dark {
   --color-danger: var(--danger);
   --color-positive: var(--positive);
   --color-caution: var(--caution);
+  --color-overlay: var(--overlay);
+  --color-overlay-strong: var(--overlay-strong);
 
   --font-display: "Bricolage Grotesque", system-ui, sans-serif;
   --font-sans: "Instrument Sans", system-ui, sans-serif;
