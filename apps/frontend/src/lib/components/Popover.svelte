@@ -34,8 +34,8 @@
   const OFFSET = 8;
 
   /**
-   * Placement waits for the panel to exist so it can be measured: the account menu sits at the
-   * foot of the side rail, where the only room left is upward.
+   * Placement waits for the panel to exist so it can be measured — a trigger low on the screen
+   * has no room below it, and only a measured panel knows whether it has to flip above.
    */
   $effect(() => {
     if (!open || !panel) return;

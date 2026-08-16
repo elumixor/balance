@@ -21,6 +21,12 @@ class Auth {
   readonly wasSignedIn = readSignedIn();
   signedIn = $state(false);
   email = $state("");
+  /**
+   * The picture the account signed up with — Google's, for anyone who came in through it. Empty
+   * when there isn't one: Clerk answers `imageUrl` regardless, with initials it drew itself, and
+   * the app would rather draw its own than show a second style of the same fallback.
+   */
+  avatarUrl = $state("");
   /** Which account's data the device is holding — see `adoptUser`. */
   userId = $state("");
   /** Set when Clerk itself couldn't start. Without this the app sits on its splash forever. */
@@ -59,6 +65,7 @@ class Auth {
     const clerk = this.#clerk;
     this.signedIn = Boolean(clerk?.session);
     this.email = clerk?.user?.primaryEmailAddress?.emailAddress ?? "";
+    this.avatarUrl = clerk?.user?.hasImage ? (clerk.user.imageUrl ?? "") : "";
     this.userId = clerk?.user?.id ?? "";
     writeSignedIn(this.signedIn);
   }

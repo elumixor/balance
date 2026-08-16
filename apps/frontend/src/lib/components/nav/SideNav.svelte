@@ -1,6 +1,5 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { auth } from "$lib/auth.svelte";
   import AccountMenu from "$lib/components/AccountMenu.svelte";
   import Spinner from "$lib/components/Spinner.svelte";
   import { isDesktop } from "$lib/desktop/platform";
@@ -8,23 +7,28 @@
   import { sidePanel } from "./side-panel.svelte";
 
   /**
-   * The wide-screen rail. Where the tab bar can only afford an icon, this has room for the
-   * mark, the four screens as a read-down list, the current screen's own controls, and the
-   * account — so no screen has to carry chrome that isn't its own content.
+   * The wide-screen rail: the screens as a read-down list, the current screen's own controls, and
+   * the account — so no screen has to carry chrome that isn't its own content. No mark and no
+   * wordmark; giving the rail's first inch to a logo costs real room and says nothing.
    *
-   * On macOS the window has no title bar of its own — the rail runs to the top of the window and
-   * the close/minimise/zoom buttons sit over it, which is where the extra top padding goes. The
-   * window's minimum width keeps the rail on screen so they always have this to sit on.
+   * On macOS the window has no title bar of its own, so the close/minimise/zoom buttons land on
+   * the rail. The account button sits in that same strip, indented past them — one top row of
+   * round controls rather than a system half and an app half at different heights. In a browser
+   * there are no such buttons and the indent goes away.
    */
 </script>
 
 <nav
   class="hidden h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
-    ? 'pt-11'
-    : 'pt-6'}"
+    ? 'pt-0'
+    : 'pt-3'}"
 >
-  <!-- No mark and no wordmark: the window's own title says Balance, and the rail is short enough
-       that giving its first inch to a logo costs a screen's worth of room for nothing. -->
+  <!-- On macOS this strip is the window's title bar: `h-7` is its height, so the account button
+       centres on the same line as the buttons it sits beside rather than below them. -->
+  <div class="mb-5 flex items-center {isDesktop ? 'h-7 pl-[78px]' : 'px-1'}">
+    <AccountMenu align="start" />
+  </div>
+
   <div class="flex flex-col gap-0.5">
     {#each NAV_TABS as tab (tab.href)}
       {@const active = isActive(page.url.pathname, tab.href)}
@@ -54,11 +58,4 @@
       {@render sidePanel.section()}
     </div>
   {/if}
-
-  <div class="mt-auto flex items-center gap-2.5 px-1 pt-6">
-    <AccountMenu />
-    {#if auth.email}
-      <span class="t-micro min-w-0 flex-1 truncate text-fg-faint">{auth.email}</span>
-    {/if}
-  </div>
 </nav>

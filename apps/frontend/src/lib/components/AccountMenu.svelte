@@ -14,6 +14,9 @@
     { value: "dark", label: "Dark", icon: Moon },
   ];
 
+  /** Mobile hangs this off the right edge of a screen header; the side rail off its left. */
+  let { align = "end" }: { align?: "start" | "end" } = $props();
+
   const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
 
   async function signOut(close: () => void) {
@@ -26,15 +29,20 @@
 </script>
 
 <!-- One place for the two things that aren't part of the week: appearance and account. -->
-<Popover width={230}>
+<Popover width={230} {align}>
   {#snippet trigger(open: () => void)}
     <button
       type="button"
       onclick={open}
       aria-label="Account and appearance"
-      class="press-sm t-label flex size-9 items-center justify-center rounded-md border border-line-strong"
+      title={auth.email}
+      class="press-sm t-micro flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-surface-alt text-fg-muted"
     >
-      {initial}
+      {#if auth.avatarUrl}
+        <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
+      {:else}
+        {initial}
+      {/if}
     </button>
   {/snippet}
 
