@@ -56,14 +56,17 @@ class Auth {
   async #load() {
     const clerk = new Clerk(PUBLISHABLE_KEY);
     // A webview is not a browser that keeps things. `capacitor.config.ts` serves the app from
-    // `https://localhost` so Clerk recognises the origin, but WKWebView still treats Clerk's own
-    // domain as third party and may drop what it left behind, which is why the app used to ask
-    // for a sign-in every launch. On the phone, then, Clerk is told it isn't in a standard
-    // browser — it keeps the device's client in local storage rather than in cookies — and that
-    // storage is mirrored into the native side, where nothing prunes it.
+    // `https://localhost` so Clerk recognises the origin, but WKWebView still prunes what Clerk
+    // leaves behind, which is why the app asked for a sign-in every launch. What it leaves behind
+    // on a development instance is the browser's own token, in local storage — so that is mirrored
+    // into native storage, where nothing prunes it, and put back before Clerk goes looking.
+    //
+    // Telling Clerk it isn't a standard browser is not the fix, however tempting it reads: a
+    // development instance then can't run its browser handshake at all, and every launch fails
+    // with "Unable to authenticate this browser for your development instance".
     try {
       if (isNativeApp) await restoreClerkState();
-      await clerk.load(isNativeApp ? { standardBrowser: false } : {});
+      await clerk.load();
     } catch (e) {
       // A signed-out app is still usable enough to show what went wrong; hanging on the
       // splash tells the person holding the phone nothing at all.
