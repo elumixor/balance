@@ -134,6 +134,10 @@ async function compute(
     // An address Google can't place, or a journey it won't route, is a normal answer for a
     // calendar event whose location is "Room 4" — the app shows nothing rather than an error.
     if (response.status === 400 || response.status === 404) return null;
+    // A key that isn't allowed to ask — no billing on the project, the wrong restriction — is a
+    // configuration problem, not something the person looking at a calendar can act on. It is
+    // the same outcome for them as having no key at all, so it reads as one.
+    if (response.status === 401 || response.status === 403) return null;
     const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
     throw new ApiError(`Google Maps said: ${body.error?.message ?? response.statusText}`, 502);
   }
@@ -161,5 +165,7 @@ function timing(mode: TravelMode, arriveBy: Date | undefined) {
   if (mode === "transit") return { arrivalTime: arriveBy.toISOString() };
   if (mode !== "drive") return {};
   const soon = arriveBy.getTime() - Date.now() < TRAFFIC_HORIZON_MS;
-  return soon ? { routingPreference: "TRAFFIC_AWARE", departureTime: new Date(Date.now() + 1000).toISOString() } : {};
+  // A departure in the past is refused outright, and the request itself takes a moment, so "now"
+  // is asked for as half a minute from now.
+  return soon ? { routingPreference: "TRAFFIC_AWARE", departureTime: new Date(Date.now() + 30_000).toISOString() } : {};
 }
