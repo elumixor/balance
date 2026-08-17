@@ -2,10 +2,42 @@ mod dock;
 mod reminder;
 mod tray;
 
+use std::time::Duration;
+
 use tauri::{
     tray::TrayIconBuilder, AppHandle, Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder,
     WindowEvent,
 };
+
+/// Matches `TICK_MS`/`REFRESH_MS` in `src/lib/desktop/agenda.svelte.ts` — the recompute cadence
+/// and how often the weeks behind it are re-checked against the calendar.
+const AGENDA_TICK: Duration = Duration::from_secs(30);
+const AGENDA_REFRESH: Duration = Duration::from_secs(5 * 60);
+
+/// Emitted on a native timer so the menu bar's clock keeps moving whether or not a window is on
+/// screen. `setInterval` in the webview gets throttled by WebKit once its window is hidden — which
+/// is every waking minute, for a menu-bar app — so the tick has to come from outside it.
+fn spawn_agenda_ticks(app: &AppHandle) {
+    let tick_app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let mut interval = tokio::time::interval(AGENDA_TICK);
+        interval.tick().await; // fires immediately; the webview already computes its own first frame
+        loop {
+            interval.tick().await;
+            let _ = tick_app.emit("agenda://tick", ());
+        }
+    });
+
+    let refresh_app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let mut interval = tokio::time::interval(AGENDA_REFRESH);
+        interval.tick().await;
+        loop {
+            interval.tick().await;
+            let _ = refresh_app.emit("agenda://refresh", ());
+        }
+    });
+}
 
 /// The app is served over HTTP from here rather than through Tauri's `tauri://` custom protocol.
 ///
@@ -121,6 +153,7 @@ pub fn run() {
             // Built here rather than declared in `tauri.conf.json`: a window defined there is
             // opened on the custom protocol before the localhost server is up to serve it.
             build_main_window(app.handle())?;
+            spawn_agenda_ticks(app.handle());
 
             // Registered in a release build too, and at a level the webview can reach through
             // `@tauri-apps/plugin-log`. Everything the desktop half does happens on a screen

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { emit } from "@tauri-apps/api/event";
+  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import { openExternal } from "$lib/desktop/open";
   import { decodeReminder, type ReminderCard } from "$lib/desktop/reminder";
   import { formatClock, formatHoursAndMinutes } from "$lib/format";
@@ -86,7 +87,7 @@
   {@const Icon = card.join ? Video : MapPin}
   <div bind:this={root} class="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 shadow-float">
     <div class="flex items-start gap-3">
-      <span class="mt-1 h-9 w-1 shrink-0 rounded-full" style="background: {card.color}"></span>
+      <CategoryIcon icon={card.icon} color={card.color} size={36} />
       <div class="min-w-0 flex-1">
         <p class="t-body-strong truncate">{card.title}</p>
         <p class="t-micro text-fg-muted">

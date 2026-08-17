@@ -24,6 +24,9 @@ tauri-plugin-log = "2"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-localhost = "2.3.2"
 tauri-plugin-notification = "2.3.3"
+# Drives the menu bar's clock from the native side — see `spawn_agenda_ticks` in `lib.rs`. A
+# webview timer gets throttled once its window is hidden; a tick from here doesn't.
+tokio = { version = "1", features = ["time"] }
 
 # The Dock icon and the reminder card's window level are AppKit's, and Tauri exposes neither.
 # Unpinned minors on purpose: these are the versions tao and wry already resolve to, and a second

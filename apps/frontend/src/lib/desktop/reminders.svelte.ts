@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { eventCategory } from "$lib/calendar/event-category";
 import { restColor } from "$lib/colors";
+import { DEFAULT_ICON } from "$lib/icons";
 import { hasAddress, meetingOf } from "$lib/meeting";
 import { preferences } from "$lib/preferences.svelte";
 import { getTravelTimes, type TravelLeg } from "$lib/travel";
@@ -150,13 +151,15 @@ class DesktopReminders {
 
   async #show(event: CalendarEvent, kind: ReminderKind) {
     const meeting = meetingOf(event);
+    const category = eventCategory(event, desktopAgenda.categories);
     const card: ReminderCard = {
       id: event.id,
       kind,
       title: event.title.trim() || "Untitled",
       start: event.start,
       end: event.end,
-      color: eventCategory(event, desktopAgenda.categories)?.color ?? restColor,
+      color: category?.color ?? restColor,
+      icon: category?.icon ?? DEFAULT_ICON,
       location: meeting.location,
       join: meeting.join ? { url: meeting.join.url, label: meeting.join.label } : null,
       links: meeting.links.slice(0, 4),

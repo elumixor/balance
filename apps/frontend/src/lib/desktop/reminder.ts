@@ -20,6 +20,8 @@ export interface ReminderCard {
   readonly end: string;
   /** The category colour, so the card is the same colour as the block on the week. */
   readonly color: string;
+  /** The category icon, so the card names what the event counts as, not just its colour. */
+  readonly icon: string;
   readonly location: string | null;
   readonly join: { url: string; label: string } | null;
   readonly links: { url: string; label: string }[];

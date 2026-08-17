@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import type { Cached } from "$lib/cache.svelte";
 import { addDays, DAYS_PER_WEEK, startOfWeek, weekKey } from "$lib/dates";
 import { calendarWeek, invalidate, store } from "$lib/store.svelte";
@@ -10,12 +11,12 @@ import { isDesktop } from "./platform";
  * The menu bar and the reminders are two views of the same question — "what is next, and what
  * does it count as" — asked once a minute whether or not a window is open. Sharing one answer
  * keeps them from disagreeing, and keeps one clock instead of two.
+ *
+ * The tick itself comes from Rust (`spawn_agenda_ticks` in `src-tauri/src/lib.rs`), not a
+ * `setInterval` here — WebKit throttles a hidden window's own timers, and this app spends most of
+ * its life as exactly that. Matches `AGENDA_TICK`/`AGENDA_REFRESH` on that side.
  */
 
-/** How often the answer is recomputed. A countdown that ticks once a minute reads as stuck. */
-const TICK_MS = 30_000;
-/** How often the weeks behind it are checked against the calendar. */
-const REFRESH_MS = 5 * 60_000;
 /** Past this, the next thing on the calendar is tomorrow's problem. */
 const HORIZON_MS = 14 * 24 * 60 * 60_000;
 
@@ -39,16 +40,17 @@ class DesktopAgenda {
     this.#sync();
     void this.#ensure();
 
-    const tick = setInterval(() => {
-      this.now = new Date();
-      this.#sync();
-      void this.#ensure();
-    }, TICK_MS);
-    const refresh = setInterval(() => this.refresh(), REFRESH_MS);
+    const unlisten = [
+      listen("agenda://tick", () => {
+        this.now = new Date();
+        this.#sync();
+        void this.#ensure();
+      }),
+      listen("agenda://refresh", () => this.refresh()),
+    ];
 
     this.#stop = () => {
-      clearInterval(tick);
-      clearInterval(refresh);
+      for (const pending of unlisten) void pending.then((off) => off());
     };
   }
 
