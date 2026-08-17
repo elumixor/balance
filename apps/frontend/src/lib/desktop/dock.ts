@@ -96,24 +96,23 @@ async function render(now: Date): Promise<Uint8Array> {
   await document.fonts.ready;
 
   // Straight across the middle, over the ring. The date is the thing being read at Dock size, so
-  // it gets the centre and the ring becomes what it sits on; an outline and a shadow underneath
-  // keep it legible over the bright part of the artwork as well as the dark.
+  // it gets the centre and the ring becomes what it sits on; a shadow under each line is what
+  // holds it against the bright part of the artwork.
   const middle = SIZE / 2;
-  const step = tile * 0.23;
+  const step = tile * 0.29;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.lineJoin = "round";
-  context.miterLimit = 2;
 
   const line = (text: string, y: number, size: number) => {
     context.font = `600 ${size}px "Instrument Sans", system-ui, sans-serif`;
     context.save();
-    context.shadowColor = "rgba(0, 0, 0, 0.65)";
-    context.shadowBlur = tile * 0.035;
-    context.shadowOffsetY = tile * 0.008;
-    context.strokeStyle = "rgba(0, 0, 0, 0.9)";
-    context.lineWidth = size * 0.14;
-    context.strokeText(text, middle, y);
+    context.shadowColor = "rgba(0, 0, 0, 0.7)";
+    context.shadowBlur = tile * 0.045;
+    context.shadowOffsetY = tile * 0.01;
+    context.fillStyle = "#ffffff";
+    // Drawn twice through the same shadow: one pass is too faint to carry the thin labels.
+    context.fillText(text, middle, y);
+    context.fillText(text, middle, y);
     context.restore();
     context.fillStyle = "#ffffff";
     context.fillText(text, middle, y);
