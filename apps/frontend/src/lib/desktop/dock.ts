@@ -62,43 +62,66 @@ class DesktopDock {
 
 export const desktopDock = new DesktopDock();
 
-/** The app's own icon with the date laid over it, as PNG bytes. */
+/**
+ * How much of the tile macOS expects to be empty. A full-bleed square sits proud of every other
+ * icon in the Dock; the system's own are drawn inside a rounded square with air around it.
+ */
+const MARGIN = 0.1;
+/** Apple's corner is a fraction of the icon, not a fixed radius — this is the Big Sur proportion. */
+const CORNER = 0.2237;
+
+/** The app's own icon with today's date over it, as PNG bytes. */
 async function render(now: Date): Promise<Uint8Array> {
   const canvas = new OffscreenCanvas(SIZE, SIZE);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("no canvas to draw the icon on");
 
+  const inset = SIZE * MARGIN;
+  const tile = SIZE - inset * 2;
+
+  // Clipped rather than trusted: the artwork carries its own corners, but they are the phone's
+  // proportion, and a tile drawn without the artwork at all still has to be the right shape.
+  context.save();
+  context.beginPath();
+  context.roundRect(inset, inset, tile, tile, tile * CORNER);
+  context.clip();
+  context.fillStyle = "#0e1013";
+  context.fillRect(inset, inset, tile, tile);
   const icon = await base();
-  if (icon) context.drawImage(icon, 0, 0, SIZE, SIZE);
+  if (icon) context.drawImage(icon, inset, inset, tile, tile);
+  context.restore();
+
   // The app's face, not the system's fallback — which is what a canvas draws with if the web
   // font hasn't landed yet.
   await document.fonts.ready;
 
-  // A plate in the corner rather than a number across the middle: the icon is mostly ring, and
-  // the ring is what makes it recognisable at Dock size.
-  const plate = SIZE * 0.46;
-  const inset = SIZE * 0.09;
-  const x = SIZE - inset - plate;
-  const y = SIZE - inset - plate;
-
-  context.fillStyle = "#f6f6f4";
-  context.beginPath();
-  context.roundRect(x, y, plate, plate, plate * 0.22);
-  context.fill();
-
+  // Straight across the middle, over the ring. The date is the thing being read at Dock size, so
+  // it gets the centre and the ring becomes what it sits on; an outline and a shadow underneath
+  // keep it legible over the bright part of the artwork as well as the dark.
+  const middle = SIZE / 2;
+  const step = tile * 0.23;
   context.textAlign = "center";
-  context.fillStyle = "#6a6f75";
-  context.font = `600 ${plate * 0.18}px "Instrument Sans", system-ui, sans-serif`;
-  context.textBaseline = "alphabetic";
-  context.fillText(
-    now.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase(),
-    x + plate / 2,
-    y + plate * 0.31,
-  );
+  context.textBaseline = "middle";
+  context.lineJoin = "round";
+  context.miterLimit = 2;
 
-  context.fillStyle = "#15171a";
-  context.font = `600 ${plate * 0.52}px "Instrument Sans", system-ui, sans-serif`;
-  context.fillText(String(now.getDate()), x + plate / 2, y + plate * 0.83);
+  const line = (text: string, y: number, size: number) => {
+    context.font = `600 ${size}px "Instrument Sans", system-ui, sans-serif`;
+    context.save();
+    context.shadowColor = "rgba(0, 0, 0, 0.65)";
+    context.shadowBlur = tile * 0.035;
+    context.shadowOffsetY = tile * 0.008;
+    context.strokeStyle = "rgba(0, 0, 0, 0.9)";
+    context.lineWidth = size * 0.14;
+    context.strokeText(text, middle, y);
+    context.restore();
+    context.fillStyle = "#ffffff";
+    context.fillText(text, middle, y);
+  };
+
+  line(now.toLocaleDateString(undefined, { weekday: "short" }), middle - step, tile * 0.17);
+  line(String(now.getDate()), middle, tile * 0.4);
+  line(now.toLocaleDateString(undefined, { month: "short" }), middle + step, tile * 0.17);
 
   const blob = await canvas.convertToBlob({ type: "image/png" });
   return new Uint8Array(await blob.arrayBuffer());
