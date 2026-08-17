@@ -196,6 +196,13 @@ class CalendarData {
   contextMenuRect = $state<DOMRect | null>(null);
   actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
+  /**
+   * Set right before a jump that didn't come from a swipe (today, a month arrow, a tapped date in
+   * the month grid), so the grid eases the scroll there instead of the instant, no-op-looking snap
+   * a Monday-to-Monday jump would otherwise be — the strip recentres on the same offset either way,
+   * so without this the columns swap out with no visible motion. The grid clears it once consumed.
+   */
+  animateNextJump = $state(false);
   /** A just-edited recurring occurrence, offered the choice to apply the same edit series-wide. */
   seriesPrompt = $state<SeriesPrompt | null>(null);
   /**
@@ -610,21 +617,16 @@ class CalendarData {
   }
 
   goToToday() {
+    this.animateNextJump = true;
     this.anchor = startOfWeek(new Date());
     void this.ensureWeeks();
   }
 
   /** The month grid jumps straight to whichever week a tapped date falls in. */
   goToDate(date: Date) {
+    this.animateNextJump = true;
     this.anchor = startOfWeek(date);
     void this.ensureWeeks();
-  }
-
-  /** A month at a time, kept on the same day of the month where the next month has one. */
-  goToMonth(shift: number) {
-    const next = new Date(this.windowStart);
-    next.setMonth(next.getMonth() + shift);
-    this.goToDate(next);
   }
 
   // --- dragging -------------------------------------------------------------

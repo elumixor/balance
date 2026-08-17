@@ -8,6 +8,7 @@
   import EventContextMenu from "./EventContextMenu.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { freeScroll, onWheelGesture, wheelGestureActive } from "./free-scroll";
+  import { theme } from "$lib/theme.svelte";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import {
     allDaySpansForRange,
@@ -58,8 +59,6 @@
    * screen, and a pixel-accurate copy would re-run all of it on every frame of every scroll.
    */
   let liveDayOffset = $state(0);
-  /** Set right before a programmatic jump (the today button) so the next scroll-left write eases in. */
-  let animateNextJump = false;
   let jumpFrame: number | null = null;
   /** True for the whole today-button jump, so the button stays hidden through the intermediate
    *  scroll states (strip recentre snap, then the eased animation) instead of flickering back in. */
@@ -71,6 +70,14 @@
   /** Set when the window is only catching up to where the scroll already is, so the effect below
    *  leaves the scroll alone instead of writing the position it's already at. */
   let followingScroll = false;
+  /**
+   * A Monday-to-Monday jump (today, a month arrow, a tapped date) recentres the strip on the same
+   * scroll offset it was already at — nothing about the scroll position itself changes, so easing
+   * `scrollLeft` there has nothing to ease. This fades and settles the days back in instead, in
+   * whichever direction the jump moved, so the swap still reads as motion rather than a hard cut.
+   */
+  let easing = $state(false);
+  let easeDirection = $state(1);
 
   const dayWidth = $derived(Math.max(0, viewWidth - GUTTER_PX) / VISIBLE_DAYS);
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
@@ -230,16 +237,32 @@
     const offset = data.dayOffset;
     const start = data.stripStart.getTime();
     if (!scroller || width === 0) return;
+    // Captured before the strip-rebase effect below gets a turn in this same flush and moves
+    // `stripAt` on to `start` itself — this is the one place that still remembers where it was.
+    const previousStripAt = stripAt;
+    const shouldAnimate = data.animateNextJump;
+    if (shouldAnimate) jumping = true;
     // Next frame: the columns have to be laid out at their new width before an offset into them
     // means anything — set it too early and the browser clamps it to a scroll range of zero.
     const frame = requestAnimationFrame(() => {
       if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
       opened = true;
-      if (animateNextJump) {
-        animateNextJump = false;
-        animateScrollLeft(scroller, offset * width, JUMP_ANIMATE_MS, () => {
+      if (shouldAnimate) {
+        data.animateNextJump = false;
+        scroller.scrollLeft = offset * width;
+        liveDayOffset = offset;
+        // The strip always recentres on the same offset, so there's no distance here for
+        // `scrollLeft` itself to ease across — see the note by `easing` above.
+        if (!theme.reduceMotion) {
+          easeDirection = previousStripAt !== null && start < previousStripAt ? -1 : 1;
+          easing = true;
+          requestAnimationFrame(() => {
+            easing = false;
+            jumping = false;
+          });
+        } else {
           jumping = false;
-        });
+        }
       } else if (!jumping && !followingScroll) {
         // Only when the scroll isn't already on the column: a settle that landed dead-on would
         // otherwise take a second, redundant write a frame later.
@@ -286,7 +309,9 @@
   $effect(() => {
     const start = data.stripStart.getTime();
     const scroller = data.scrollerEl;
-    if (!scroller || stripAt === null || start === stripAt) return;
+    // A programmatic jump lands `scrollLeft` on its own canonical offset a frame from now (see the
+    // effect above) — walking it back here first would only flash the wrong columns in between.
+    if (!scroller || stripAt === null || start === stripAt || jumping) return;
     scroller.scrollLeft -= Math.round((start - stripAt) / MS_PER_DAY) * dayWidth;
     if (dayWidth > 0) liveDayOffset = Math.round(scroller.scrollLeft / dayWidth);
     stripAt = start;
@@ -370,11 +395,7 @@
     }),
   );
 
-  function goToToday() {
-    jumping = true;
-    animateNextJump = true;
-    data.goToToday();
-  }
+
 </script>
 
 <div class="relative h-full">
@@ -389,7 +410,7 @@
           label="Today"
           size="sm"
           variant="danger"
-          onclick={goToToday}
+          onclick={() => data.goToToday()}
           class="shadow-(--shadow-float)"
         />
       </div>
@@ -421,7 +442,14 @@
       </div>
     </div>
 
-    <div class="min-w-0">
+    <div
+      class="min-w-0"
+      style="transition:{easing
+        ? 'none'
+        : 'opacity 200ms ease, transform 200ms ease'};opacity:{easing ? 0 : 1};transform:translateX({easing
+        ? easeDirection * 10
+        : 0}px)"
+    >
       <div class="sticky top-0 z-20 border-line border-b bg-surface transition-[height] duration-150" style="height:{headerPx}px">
         <!-- Unkeyed: the columns are fixed slots the days move through, and moving DOM nodes
              under a scroller resets the very scroll offset this grid is holding. -->
