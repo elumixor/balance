@@ -2,6 +2,17 @@ import Capacitor
 import Foundation
 import WatchConnectivity
 
+/// Capacitor only auto-registers the plugins listed in `capacitor.config.json`, and that list is
+/// rewritten from the installed npm packages every time `cap sync` runs — a plugin that lives in
+/// this app rather than in a package would be dropped from it. Registering the instance here is
+/// how such a plugin is kept: the bridge asks its view controller once it has loaded, and nothing
+/// generated can forget about it.
+class BalanceBridgeViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        bridge?.registerPluginInstance(WatchHandoffPlugin())
+    }
+}
+
 /// The one native thing the phone app does for the watch: carry a sign-in ticket across.
 ///
 /// Clerk lives in the webview here — this app has no native session for Clerk's own watch sync to

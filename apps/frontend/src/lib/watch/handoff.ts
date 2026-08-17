@@ -39,16 +39,21 @@ async function mintTicket() {
   return response.ok ? (body.ticket ?? null) : null;
 }
 
-/** Best effort throughout: a watch that didn't get a ticket shows its "open Balance" card, which
- *  is the same thing it would show if this failed loudly. */
+/**
+ * Best effort on the phone's screen — a watch that didn't get a ticket shows its "open Balance"
+ * card, and there is nothing the person holding the phone could do about it anyway. It is logged
+ * rather than swallowed, because every failure here looks identical from the wrist: a watch that
+ * simply never signs in, whether the plugin is missing, the mint failed, or there is no watch.
+ */
 async function push() {
   try {
     const { available } = await plugin.isAvailable();
     if (!available) return;
     const ticket = await mintTicket();
-    if (ticket) await plugin.setTicket({ ticket });
-  } catch {
-    /* no watch, or it isn't listening — either way there is nothing to tell anyone */
+    if (!ticket) return console.warn("[watch] signed in, but the API wouldn't mint a ticket");
+    await plugin.setTicket({ ticket });
+  } catch (e) {
+    console.warn("[watch] couldn't hand a session over", e);
   }
 }
 
