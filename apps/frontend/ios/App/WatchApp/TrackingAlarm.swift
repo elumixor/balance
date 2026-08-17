@@ -28,39 +28,92 @@ enum TrackingAlarm {
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
     }
 
-    /// Replaces any pending alarm with one for `date`. A date already in the past means the session
-    /// is over as far as the alarm is concerned, so nothing is scheduled.
-    static func schedule(categoryName: String, at date: Date) {
+    /// The ticks scheduled alongside the current alarm, so the next call can take them back out
+    /// again — there is no way to ask the system to drop "everything with this prefix".
+    private static var tickIDs: [String] = []
+
+    /// The one call that puts the whole session in the system's hands: the end of it, if it has one,
+    /// and the nudges along the way. It always replaces what was pending, so moving the end or
+    /// changing the rhythm is the same operation as setting it in the first place.
+    ///
+    /// A tick carries no sound and no urgency: it is a haptic that says how far through you are, and
+    /// there is nothing to do about it. The end keeps the sound, because it is the thing being
+    /// waited for. An open-ended session has no end and so ticks on a repeat instead.
+    static func schedule(
+        categoryName: String,
+        endingAt end: Date? = nil,
+        ticksAt ticks: [Date] = [],
+        repeatingEvery interval: TimeInterval? = nil
+    ) {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [requestID])
+        center.removePendingNotificationRequests(withIdentifiers: [requestID] + tickIDs)
         token += 1
         let mine = token
 
-        let seconds = date.timeIntervalSinceNow
-        guard seconds > 1 else { return }
+        var requests: [UNNotificationRequest] = []
 
-        let content = UNMutableNotificationContent()
-        content.title = categoryName
-        content.body = "Time's up."
-        content.sound = .default
-        content.interruptionLevel = .timeSensitive
+        if let end, end.timeIntervalSinceNow > 1 {
+            let content = UNMutableNotificationContent()
+            content.title = categoryName
+            content.body = "Time's up."
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+            requests.append(
+                UNNotificationRequest(
+                    identifier: requestID,
+                    content: content,
+                    trigger: UNTimeIntervalNotificationTrigger(
+                        timeInterval: end.timeIntervalSinceNow, repeats: false
+                    )
+                )
+            )
+        }
 
-        let request = UNNotificationRequest(
-            identifier: requestID,
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
-        )
+        for (number, at) in ticks.enumerated() where at.timeIntervalSinceNow > 1 {
+            requests.append(
+                UNNotificationRequest(
+                    identifier: "\(requestID).tick.\(number)",
+                    content: tickContent(categoryName: categoryName),
+                    trigger: UNTimeIntervalNotificationTrigger(
+                        timeInterval: at.timeIntervalSinceNow, repeats: false
+                    )
+                )
+            )
+        }
+
+        if let interval, interval >= 60 {
+            requests.append(
+                UNNotificationRequest(
+                    identifier: "\(requestID).tick.repeating",
+                    content: tickContent(categoryName: categoryName),
+                    trigger: UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: true)
+                )
+            )
+        }
+
+        tickIDs = requests.map(\.identifier).filter { $0 != requestID }
+        guard !requests.isEmpty else { return }
 
         Task { @MainActor in
             await requestAuthorizationIfNeeded()
             guard token == mine else { return }
-            try? await center.add(request)
+            for request in requests { try? await center.add(request) }
         }
     }
 
     static func cancel() {
         token += 1
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [requestID])
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [requestID] + tickIDs)
+        tickIDs = []
+    }
+
+    private static func tickContent(categoryName: String) -> UNMutableNotificationContent {
+        let content = UNMutableNotificationContent()
+        content.title = categoryName
+        content.body = "Still going."
+        content.interruptionLevel = .passive
+        return content
     }
 
     /// Played when the app happens to be in front — a start or a finish the user is watching should

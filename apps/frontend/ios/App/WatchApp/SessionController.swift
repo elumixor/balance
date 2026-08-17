@@ -25,6 +25,11 @@ final class SessionController {
     /// and this controller is the only writer of that blob, so it has to hold both halves.
     private var week: WatchSummary?
 
+    /// How the running session was asked to be broken up. A session found already running — one
+    /// started on the phone, or before the app was last closed — has no rhythm we know of, so it
+    /// simply doesn't tick.
+    private var ticks = TrackingPlan(minutes: 0, ticks: .off)
+
     init(active: ActiveSession? = nil) {
         self.active = active
         self.confirmed = active
@@ -60,7 +65,12 @@ final class SessionController {
 
     /// Starts a session with everything needed to show it immediately; the category is only used
     /// for the optimistic placeholder, the server decides the real session.
-    func start(category: WatchCategory, durationMinutes: Int?, title: String? = nil) async {
+    ///
+    /// The ticks are the watch's own business — nothing about being nudged part-way through belongs
+    /// in the calendar — so they are kept here and re-scheduled from `publish` alongside the alarm.
+    func start(category: WatchCategory, plan: TrackingPlan, title: String? = nil) async {
+        ticks = plan
+        let durationMinutes = plan.duration.minutes
         let placeholder = ActiveSession(
             id: "pending",
             categoryId: category.id,
@@ -85,6 +95,7 @@ final class SessionController {
 
     func stop() async {
         guard active != nil else { return }
+        ticks = TrackingPlan(minutes: 0, ticks: .off)
         active = nil
         TrackingAlarm.playConfirmation()
         await perform { _ = try await APIClient.shared.stopTracking(); return nil }
@@ -156,10 +167,18 @@ final class SessionController {
         WatchSharedState.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
 
-        if let session = active, let end = session.plannedEndAt {
-            TrackingAlarm.schedule(categoryName: session.categoryName, at: end)
-        } else {
+        guard let session = active else {
             TrackingAlarm.cancel()
+            return
         }
+
+        // Ticks are measured from where the session actually started, not from now, so a re-publish
+        // part-way through puts the remaining ones back where they always were.
+        TrackingAlarm.schedule(
+            categoryName: session.categoryName,
+            endingAt: session.plannedEndAt,
+            ticksAt: ticks.tickOffsets.map { session.startedAt.addingTimeInterval($0) },
+            repeatingEvery: session.plannedEndAt == nil ? ticks.repeatingTickInterval : nil
+        )
     }
 }

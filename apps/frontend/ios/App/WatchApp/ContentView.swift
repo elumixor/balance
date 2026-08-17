@@ -29,9 +29,10 @@ struct ContentView: View {
     @State private var sessions = SessionController()
     @State private var wheel = WheelGestureModel()
 
-    /// Set by letting go of the ring, cleared by the confirmation sheet. Nothing is written while
-    /// this is non-nil — the drag has only nominated a category.
-    @State private var pendingCategory: WatchCategory?
+    /// Set by letting go of the ring, cleared by starting or cancelling. Nothing is written while
+    /// this is non-nil — the drag has only nominated a category, and the ring it was picked off is
+    /// now the dial its length is set on.
+    @State private var planner: TrackingPlanner?
 
     var body: some View {
         Group {
@@ -56,9 +57,24 @@ struct ContentView: View {
         return NavigationStack(path: $router.path) {
             screen
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        if planner != nil {
+                            Button {
+                                withAnimation(WheelMetrics.collapse) { planner = nil }
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink(value: Route.calendar) {
-                            Image(systemName: "gearshape")
+                        if let planner {
+                            Button { planner.cycleTicks() } label: {
+                                Image(systemName: planner.tickGlyph)
+                            }
+                        } else {
+                            NavigationLink(value: Route.calendar) {
+                                Image(systemName: "gearshape")
+                            }
                         }
                     }
                 }
@@ -78,15 +94,14 @@ struct ContentView: View {
         .onChange(of: summary.categories) { _, categories in
             wheel.categories = categories
         }
-        .sheet(item: $pendingCategory) { category in
-            StartTrackingSheet(
-                category: category,
-                onStart: { duration in
-                    pendingCategory = nil
-                    Task { await start(category: category, duration: duration) }
-                },
-                onCancel: { pendingCategory = nil }
-            )
+        // A fixed session is over when its time is up, whoever is looking: the app finishes it
+        // itself rather than leaving a timer running past its own end waiting to be told.
+        .task(id: sessions.active?.plannedEndAt) {
+            guard let end = sessions.active?.plannedEndAt else { return }
+            let wait = end.timeIntervalSinceNow
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+            guard !Task.isCancelled, sessions.active?.plannedEndAt == end else { return }
+            await sessions.stop()
         }
     }
 
@@ -107,7 +122,9 @@ struct ContentView: View {
                     // The readout is an overlay rather than a band of its own, so the name appearing
                     // under the finger costs the ring no height.
                     .overlay(alignment: .bottom) {
-                        CategoryFocusReadout(category: wheel.focusedCategory)
+                        if planner == nil {
+                            CategoryFocusReadout(category: wheel.focusedCategory)
+                        }
                     }
             }
 
@@ -119,7 +136,10 @@ struct ContentView: View {
                     .multilineTextAlignment(.center)
             }
 
-            NextEventLine(event: summary.nextEvent)
+            // What is coming up is a thing to know at a glance, not while aiming: a finger on the
+            // ring is halfway through a decision, and the line below it only competes for the eye.
+            NextEventLine(event: wheel.isPressing || planner != nil ? nil : summary.nextEvent)
+                .animation(.easeOut(duration: 0.15), value: wheel.isPressing)
         }
     }
 
@@ -139,8 +159,8 @@ struct ContentView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             } else {
-                CategoryWheel(model: wheel)
-                    .opacity(wheel.isPressing ? 1 : 0.3)
+                CategoryWheel(model: wheel, chosenIndex: planner?.index)
+                    .opacity(wheel.isPressing || planner != nil ? 1 : 0.3)
                     .animation(.easeOut(duration: 0.18), value: wheel.isPressing)
                     .contentShape(Rectangle())
                     .gesture(
@@ -149,10 +169,18 @@ struct ContentView: View {
                                 if !wheel.isPressing { wheel.began(at: value.startLocation) }
                                 wheel.moved(to: value.location)
                             }
-                            .onEnded { _ in
-                                if let category = wheel.ended() { pendingCategory = category }
-                            }
+                            .onEnded { _ in choose() }
                     )
+                    // The ring stops being a picker the moment it becomes a dial — the crown takes
+                    // over, and a stray touch must not start a second choice on top of the first.
+                    .allowsHitTesting(planner == nil)
+
+                if let planner {
+                    DurationDialView(planner: planner) { plan in
+                        Task { await start(plan: plan, planner: planner) }
+                    }
+                    .transition(.opacity)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -169,10 +197,21 @@ struct ContentView: View {
         if let value = summary.summary { sessions.apply(summary: value) }
     }
 
-    private func start(category: WatchCategory, duration: TrackingDuration) async {
-        wheel.cancel()
-        if duration.minutes != nil { await TrackingAlarm.requestAuthorizationIfNeeded() }
-        await sessions.start(category: category, durationMinutes: duration.minutes)
+    /// The drag has landed on a segment: the ring keeps it and becomes the dial its length is set
+    /// on. The index has to be read before `ended()`, which clears the gesture behind it.
+    private func choose() {
+        guard let index = wheel.focusedIndex, let category = wheel.ended() else { return }
+        withAnimation(WheelMetrics.collapse) {
+            planner = TrackingPlanner(category: category, index: index)
+        }
+    }
+
+    private func start(plan: TrackingPlan, planner: TrackingPlanner) async {
+        withAnimation(WheelMetrics.collapse) { self.planner = nil }
+        if plan.duration.minutes != nil || plan.ticks != .off {
+            await TrackingAlarm.requestAuthorizationIfNeeded()
+        }
+        await sessions.start(category: planner.category, plan: plan)
         // Starting a session writes an event into the week the ring is drawn from, so the numbers
         // under the finger are stale the moment it lands.
         await reload()

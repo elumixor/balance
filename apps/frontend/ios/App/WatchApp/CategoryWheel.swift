@@ -22,9 +22,22 @@ enum WheelMetrics {
     /// way, putting the focused band under the middle of the screen.
     static let panTravel: CGFloat = 45
 
+    /// How far the camera leans from the finger's own direction towards the middle of the segment it
+    /// has focused. Enough that the focused band ends up centred rather than half off the edge, not
+    /// so much that the ring stops feeling dragged.
+    static let segmentSnap = 0.65
+
     /// Below this a segment is too narrow for a legible glyph, so it goes without one unless it is
     /// the focused segment, which is always drawn large enough.
     static let iconMinimumSweep = Angle.degrees(26)
+
+    /// What the ring becomes once a category is chosen: one thinner lap of the clock face, which the
+    /// duration dial then reads its minutes off. The week's segments collapse into it rather than
+    /// being replaced by it, so the choice and what is being set with it are visibly the same ring.
+    static let dialThickness: CGFloat = 11
+
+    /// The collapse, and everything that rides on it.
+    static let collapse = Animation.spring(response: 0.42, dampingFraction: 0.85)
 }
 
 /// The ring is a ``DialLayout`` — shares of the circle worked out from planned hours, the same way
@@ -61,15 +74,25 @@ struct CategoryWheel: View {
     let focusedIndex: Int?
     /// The finger's travel since the press began, in screen coordinates.
     let pan: CGSize
+    /// The category that has been chosen, once the finger has lifted. The ring gives the whole
+    /// circle to it and takes it away from everything else, ending up as the clock face the
+    /// duration is dialled on.
+    let chosenIndex: Int?
 
-    init(categories: [WatchCategory], focusedIndex: Int?, pan: CGSize = .zero) {
+    init(categories: [WatchCategory], focusedIndex: Int?, pan: CGSize = .zero, chosenIndex: Int? = nil) {
         self.categories = categories
         self.focusedIndex = focusedIndex
         self.pan = pan
+        self.chosenIndex = chosenIndex
     }
 
-    init(model: WheelGestureModel) {
-        self.init(categories: model.categories, focusedIndex: model.focusedIndex, pan: model.pan)
+    init(model: WheelGestureModel, chosenIndex: Int? = nil) {
+        self.init(
+            categories: model.categories,
+            focusedIndex: model.focusedIndex,
+            pan: model.pan,
+            chosenIndex: chosenIndex
+        )
     }
 
     private var layout: WheelLayout { WheelLayout(categories: categories) }
@@ -78,11 +101,15 @@ struct CategoryWheel: View {
         GeometryReader { proxy in
             let size = min(proxy.size.width, proxy.size.height)
             let radius = size / 2 - WheelMetrics.ringInset
-            let scale: CGFloat = focusedIndex == nil ? 1 : WheelMetrics.focusScale
+            let scale: CGFloat = focusedIndex == nil || chosenIndex != nil ? 1 : WheelMetrics.focusScale
 
             ZStack {
                 ForEach(layout.segments) { segment in
-                    SegmentBand(segment: segment, isFocused: segment.index == focusedIndex)
+                    SegmentBand(
+                        segment: segment,
+                        isFocused: segment.index == focusedIndex && chosenIndex == nil,
+                        collapse: collapse(for: segment)
+                    )
                 }
                 ForEach(layout.segments) { segment in
                     SegmentIcon(
@@ -91,29 +118,54 @@ struct CategoryWheel: View {
                         radius: radius - WheelMetrics.bandThickness / 2,
                         scale: scale
                     )
+                    // The glyphs belong to picking a category. Once one is picked the ring is a
+                    // clock face, and its own ticks say what it means.
+                    .opacity(chosenIndex == nil ? 1 : 0)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .scaleEffect(scale)
-            .offset(cameraOffset(radius: radius))
+            .offset(chosenIndex == nil ? cameraOffset(radius: radius) : .zero)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: focusedIndex)
             .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.9), value: pan)
+            .animation(WheelMetrics.collapse, value: chosenIndex)
         }
         .aspectRatio(1, contentMode: .fit)
+    }
+
+    /// Where a segment is heading once a category has been chosen: the chosen one to a full lap
+    /// starting at twelve o'clock, everything else to nothing where it already stands.
+    private func collapse(for segment: WheelSegment) -> (start: Angle, sweep: Angle)? {
+        guard let chosenIndex else { return nil }
+        guard segment.index == chosenIndex else { return (segment.midAngle, .zero) }
+        return (.zero, .degrees(360))
     }
 
     /// The ring moves opposite the finger, by as much as it takes to put the band the finger points
     /// at under the middle of the screen — reached gradually over `panTravel`, so the close-up can
     /// be nudged around rather than jumping to its far side the moment the dead zone is crossed.
+    ///
+    /// The direction is pulled part of the way towards the middle of the focused segment rather than
+    /// following the finger exactly. A fingertip is wider than the gap between two bands, and a
+    /// camera that tracked the finger to the last degree would sit on a seam as readily as on a
+    /// band; leaning towards the middle means whatever is focused is also what is centred, while the
+    /// remaining freedom still makes the ring feel dragged rather than switched.
     private func cameraOffset(radius: CGFloat) -> CGSize {
-        guard focusedIndex != nil else { return .zero }
+        guard let focusedIndex, let segment = layout.segment(at: focusedIndex) else { return .zero }
         let travel = hypot(pan.width, pan.height)
         guard travel > 0 else { return .zero }
 
+        let aim = Angle.radians(atan2(Double(pan.width), Double(-pan.height)))
+            .leaning(towards: segment.midAngle, by: WheelMetrics.segmentSnap)
         let bandCentre = (radius - WheelMetrics.bandThickness / 2) * WheelMetrics.focusScale
         let progress = min(max((travel - WheelGestureModel.deadZone) / WheelMetrics.panTravel, 0), 1)
         let distance = bandCentre * progress
-        return CGSize(width: -pan.width / travel * distance, height: -pan.height / travel * distance)
+
+        // Angles are measured clockwise from twelve o'clock; screen coordinates run downward.
+        return CGSize(
+            width: -sin(aim.radians) * distance,
+            height: cos(aim.radians) * distance
+        )
     }
 }
 
@@ -123,32 +175,41 @@ struct CategoryWheel: View {
 private struct SegmentBand: View {
     let segment: WheelSegment
     let isFocused: Bool
+    /// Where this segment is going once a category has been chosen, if one has been.
+    let collapse: (start: Angle, sweep: Angle)?
 
     private var color: Color { Color(hex: segment.category.color) }
     private var fill: Double { segment.category.dialFill }
     private var overflow: Double { segment.category.dialOverflow }
 
     var body: some View {
+        let start = collapse?.start ?? segment.startAngle
+        let sweep = collapse?.sweep ?? segment.sweep
         let inset = isFocused ? WheelMetrics.ringInset - 2 : WheelMetrics.ringInset
-        let thickness = WheelMetrics.bandThickness + (isFocused ? 5 : 0)
+        let thickness = collapse != nil
+            ? WheelMetrics.dialThickness
+            : WheelMetrics.bandThickness + (isFocused ? 5 : 0)
+        // The week so far is what the ring says while a category is being picked. Once one is, the
+        // ring is a clock face and the fill would only be another arc to misread as minutes.
+        let weekFill = collapse == nil ? fill : 0
 
         ZStack {
-            Band(start: segment.startAngle, sweep: segment.sweep, inset: inset, thickness: thickness)
+            Band(start: start, sweep: sweep, inset: inset, thickness: thickness)
                 .fill(color.opacity(0.12))
-            Band(start: segment.startAngle, sweep: segment.sweep, inset: inset, thickness: thickness)
+            Band(start: start, sweep: sweep, inset: inset, thickness: thickness)
                 .stroke(color.opacity(isFocused ? 0.95 : 0.55), lineWidth: 1.5)
             Band(
-                start: segment.startAngle,
-                sweep: segment.sweep,
-                inset: inset + thickness * (1 - fill),
-                thickness: thickness * fill
+                start: start,
+                sweep: sweep,
+                inset: inset + thickness * (1 - weekFill),
+                thickness: thickness * weekFill
             )
             .fill(color.opacity(isFocused ? 0.95 : 0.7))
 
-            if overflow > 0 {
+            if overflow > 0, collapse == nil {
                 Band(
-                    start: segment.startAngle,
-                    sweep: Angle.radians(segment.sweep.radians * overflow),
+                    start: start,
+                    sweep: Angle.radians(sweep.radians * overflow),
                     inset: inset + thickness + 2,
                     thickness: 2.5
                 )
@@ -182,11 +243,25 @@ private struct SegmentIcon: View {
 
 /// An annular wedge: out along the outer edge, back along the inner one. Angles come in measured
 /// clockwise from twelve o'clock, which is a quarter turn off the coordinate system's zero.
-private struct Band: Shape {
-    let start: Angle
-    let sweep: Angle
-    let inset: CGFloat
-    let thickness: CGFloat
+///
+/// Every number it is drawn from is animatable, which is what lets the week's segments collapse into
+/// the single lap the duration dial is set on: the same shapes travel from their share of the circle
+/// to nothing (or, for the chosen one, to the whole of it) instead of being swapped for other views.
+struct Band: Shape {
+    var start: Angle
+    var sweep: Angle
+    var inset: CGFloat
+    var thickness: CGFloat
+
+    var animatableData: AnimatablePair<AnimatablePair<Double, Double>, AnimatablePair<CGFloat, CGFloat>> {
+        get { .init(.init(start.radians, sweep.radians), .init(inset, thickness)) }
+        set {
+            start = .radians(newValue.first.first)
+            sweep = .radians(newValue.first.second)
+            inset = newValue.second.first
+            thickness = newValue.second.second
+        }
+    }
 
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
@@ -215,5 +290,14 @@ extension Angle {
     var normalizedTurn: Angle {
         let turn = 2 * Double.pi
         return .radians(radians.truncatingRemainder(dividingBy: turn) + (radians < 0 ? turn : 0))
+    }
+
+    /// This direction moved a fraction of the way towards another one, the short way round.
+    func leaning(towards other: Angle, by amount: Double) -> Angle {
+        let turn = 2 * Double.pi
+        var delta = (other.radians - radians).truncatingRemainder(dividingBy: turn)
+        if delta > .pi { delta -= turn }
+        if delta < -.pi { delta += turn }
+        return .radians(radians + delta * amount)
     }
 }
