@@ -73,8 +73,8 @@
   /**
    * A Monday-to-Monday jump (today, a month arrow, a tapped date) recentres the strip on the same
    * scroll offset it was already at — nothing about the scroll position itself changes, so easing
-   * `scrollLeft` there has nothing to ease. This fades and settles the days back in instead, in
-   * whichever direction the jump moved, so the swap still reads as motion rather than a hard cut.
+   * `scrollLeft` there has nothing to ease. This slides the days off and the new ones in from
+   * whichever direction the jump moved, so the swap reads as a scroll rather than a hard cut.
    */
   let easing = $state(false);
   let easeDirection = $state(1);
@@ -444,10 +444,8 @@
 
     <div
       class="min-w-0"
-      style="transition:{easing
-        ? 'none'
-        : 'opacity 200ms ease, transform 200ms ease'};opacity:{easing ? 0 : 1};transform:translateX({easing
-        ? easeDirection * 10
+      style="transition:{easing ? 'none' : `transform ${JUMP_ANIMATE_MS}ms ease-out`};transform:translateX({easing
+        ? easeDirection * Math.max(0, viewWidth - GUTTER_PX)
         : 0}px)"
     >
       <div class="sticky top-0 z-20 border-line border-b bg-surface transition-[height] duration-150" style="height:{headerPx}px">
@@ -484,6 +482,7 @@
               <div
                 class="relative py-0.5"
                 style="grid-row:{span.row + 1};grid-column:{span.dayIndex + 1} / span {span.days}"
+                in:fade={{ duration: theme.reduceMotion ? 0 : 150 }}
                 onclick={(e) =>
                   data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
                 oncontextmenu={(e) => {
@@ -538,6 +537,7 @@
                   ? 'z-30'
                   : ''} {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
                 style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - 10px)"
+                in:fade={{ duration: theme.reduceMotion ? 0 : 150 }}
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
                 onpointerup={(e) => data.endDrag(e)}

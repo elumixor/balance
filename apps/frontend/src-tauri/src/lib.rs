@@ -47,6 +47,25 @@ pub fn app_url(path: &str) -> String {
     format!("{origin}{path}")
 }
 
+/// Anything the app throws before it has any of its own code running to catch it.
+///
+/// A packaged build has no devtools attached, so a webview that fails to boot shows a blank window
+/// and says nothing anywhere. This runs before the app's own bundle does, which is the only way to
+/// hear about the failures that stop that bundle from loading at all.
+const REPORT_ERRORS: &str = r#"
+(() => {
+  const send = (message) => {
+    try {
+      window.__TAURI_INTERNALS__?.invoke("plugin:log|log", { level: 5, message });
+    } catch {}
+  };
+  window.addEventListener("error", (e) =>
+    send(`webview error: ${e.message} (${e.filename}:${e.lineno}:${e.colno})`),
+  );
+  window.addEventListener("unhandledrejection", (e) => send(`webview rejection: ${e.reason}`));
+})();
+"#;
+
 fn build_main_window(app: &AppHandle) -> tauri::Result<()> {
     let url = app_url("/").parse().expect("the window URL is built from a constant port");
 
@@ -56,6 +75,7 @@ fn build_main_window(app: &AppHandle) -> tauri::Result<()> {
         // Below this the side rail collapses, and the window buttons would land on the calendar.
         .min_inner_size(820.0, 520.0)
         .resizable(true)
+        .initialization_script(REPORT_ERRORS)
         .center();
 
     // No title bar of its own: the rail runs to the top of the window and the window buttons sit
@@ -98,17 +118,23 @@ pub fn run() {
             open_window
         ])
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-
             // Built here rather than declared in `tauri.conf.json`: a window defined there is
             // opened on the custom protocol before the localhost server is up to serve it.
             build_main_window(app.handle())?;
+
+            // Registered in a release build too, and at a level the webview can reach through
+            // `@tauri-apps/plugin-log`. Everything the desktop half does happens on a screen
+            // nobody is looking at — a menu bar that quietly stopped updating used to leave no
+            // trace anywhere, which is most of why it went unnoticed for so long.
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(if cfg!(debug_assertions) {
+                        log::LevelFilter::Info
+                    } else {
+                        log::LevelFilter::Warn
+                    })
+                    .build(),
+            )?;
 
             // A ticket arriving while the window is hidden should bring it forward — signing in
             // and being left staring at the browser you just came from is nobody's idea of done.

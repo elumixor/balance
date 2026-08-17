@@ -1,16 +1,12 @@
 <script lang="ts">
-  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
-  import CategoryRing from "$lib/components/CategoryRing.svelte";
-  import ProgressBar from "$lib/components/ProgressBar.svelte";
-  import TooltipAnchor from "$lib/components/TooltipAnchor.svelte";
-  import { formatHoursDecimal } from "$lib/format";
+  import CategoryDial, { type DialSegment } from "$lib/components/ring/CategoryDial.svelte";
   import type { CalendarEvent, Category } from "$lib/types";
   import { weekTotals } from "./week-totals";
 
   /**
-   * What the week is actually shaping up to be, against what it was planned to be — a row of
-   * rings in the rail, one per category. Computed from the blocks on screen rather than fetched,
-   * so remapping an event fills the ring at once.
+   * What the week is actually shaping up to be, against what it was planned to be — one dial in
+   * the rail, each category a segment as wide as the hours it was promised. Computed from the
+   * blocks on screen rather than fetched, so remapping an event fills the segment at once.
    */
   let {
     events,
@@ -18,28 +14,25 @@
     weekStart,
   }: { events: readonly CalendarEvent[]; categories: readonly Category[]; weekStart: Date } = $props();
 
-  const planned = $derived(weekTotals(events, categories, weekStart).filter((c) => c.plannedHours > 0));
+  /** The largest the dial gets; below that it takes whatever the rail can spare. */
+  const MAX_SIZE = 232;
+  const MIN_SIZE = 152;
+
+  let width = $state(0);
+
+  const buffers = $derived(new Set(categories.filter((c) => c.isBuffer).map((c) => c.id)));
+
+  const segments = $derived<DialSegment[]>(
+    weekTotals(events, categories, weekStart)
+      .filter((c) => c.plannedHours > 0)
+      .map((c) => ({ ...c, muted: buffers.has(c.id) })),
+  );
+
+  const size = $derived(Math.max(MIN_SIZE, Math.min(MAX_SIZE, width || MAX_SIZE)));
 </script>
 
-<div class="flex flex-wrap gap-3">
-  {#each planned as category (category.id)}
-    {@const ratio = category.actualHours / category.plannedHours}
-    <TooltipAnchor instant>
-      <CategoryRing icon={category.icon} color={category.color} {ratio} />
-      {#snippet bubble()}
-        <div class="w-48 space-y-1.5 rounded-md border border-line bg-surface px-2.5 py-2 shadow-float">
-          <div class="flex items-center gap-1.5">
-            <CategoryIcon icon={category.icon} color={category.color} size={16} />
-            <span class="t-micro min-w-0 flex-1 truncate text-fg">{category.name}</span>
-            <span class="shrink-0 font-sans text-[10px] leading-none text-fg-muted/60">
-              {formatHoursDecimal(category.actualHours).slice(0, -1)} / {formatHoursDecimal(
-                category.plannedHours,
-              )}&nbsp;&nbsp;{Math.round(ratio * 100)}%
-            </span>
-          </div>
-          <ProgressBar {ratio} color={category.color} height={3} />
-        </div>
-      {/snippet}
-    </TooltipAnchor>
-  {/each}
+<div bind:clientWidth={width} class="flex justify-center">
+  {#if segments.length}
+    <CategoryDial {segments} {size} thickness={size >= 200 ? 24 : 20} />
+  {/if}
 </div>

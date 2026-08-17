@@ -17,11 +17,13 @@
 </script>
 
 <div class="space-y-5">
+  {#if data.connected}
+    <MonthGrid />
+  {/if}
+
   <CalendarsSection />
 
   {#if data.connected}
-    <MonthGrid />
-
     <section>
       <WeekMeters events={data.eventsForTotals} {categories} weekStart={data.weekStart} />
     </section>

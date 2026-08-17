@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./platform";
+import { report } from "./report";
 
 /**
  * Today's date, on the Dock icon.
@@ -54,7 +55,7 @@ class DesktopDock {
       await invoke("set_dock_icon", { png: [...(await render(now))] });
     } catch (e) {
       this.#painted = "";
-      console.error("The Dock refused the icon", e);
+      report("The Dock refused the icon", e);
     }
   }
 }

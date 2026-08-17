@@ -10,8 +10,12 @@
  * an older build; none of those are worth an error on screen, so a bad read is just a miss.
  */
 
-/** Bumped when a stored shape stops matching what the code expects — old keys are ignored. */
-const PREFIX = "balance:v1";
+/**
+ * Bumped when a stored shape stops matching what the code expects — old keys are ignored.
+ * v2: calendars became a list of accounts, each with its own calendars. A v1 entry read back
+ * into that shape has no `accounts` at all, and the screen it hydrates dies on the first frame.
+ */
+const PREFIX = "balance:v2";
 const OWNER_KEY = `${PREFIX}:owner`;
 
 /** Older than this and the round trip is worth waiting for after all. */

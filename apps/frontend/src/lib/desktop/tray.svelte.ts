@@ -10,6 +10,7 @@ import { meetingOf } from "$lib/meeting";
 import type { CalendarEvent, Category } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
+import { report } from "./report";
 
 /** A macOS menu that runs past the bottom of the screen scrolls, which nobody wants. */
 const MAX_ROWS = 16;
@@ -53,9 +54,7 @@ class DesktopTray {
       // A rejection here is silent by nature — the menu bar just stops changing, on a screen
       // nobody is looking at — so it gets said out loud once rather than swallowed.
       $effect(() => {
-        void invoke("update_tray", { state: this.#state }).catch((e) => {
-          console.error("The menu bar rejected an update", e);
-        });
+        void invoke("update_tray", { state: this.#state }).catch((e) => report("The menu bar rejected an update", e));
       });
     });
 

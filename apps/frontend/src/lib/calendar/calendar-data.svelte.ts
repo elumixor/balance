@@ -311,7 +311,10 @@ class CalendarData {
     if (preview && previewed) byId.set(preview.id, { ...previewed, start: preview.start, end: preview.end });
     const prefs = store.calendars.value;
     if (!prefs) return [...byId.values()];
-    const allCalendars = prefs.accounts.flatMap((a) => a.calendars);
+    // `accounts` is absent when the server is older than this bundle — which the macOS build can
+    // be, since it runs local code against the deployed API. No calendars is a week that draws
+    // everything, not a screen that dies.
+    const allCalendars = (prefs.accounts ?? []).flatMap((a) => a.calendars);
     const primaryIds = new Set(allCalendars.filter((c) => c.primary).map((c) => c.id));
     const shownIds = prefs.visibleCalendarIds.length === 0 ? primaryIds : new Set(prefs.visibleCalendarIds);
     return [...byId.values()].filter((event) => shownIds.has(event.calendarId));

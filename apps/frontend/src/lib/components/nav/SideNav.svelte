@@ -66,7 +66,7 @@
        away would take the window buttons' backdrop with it — so the overflow lives here, on the
        screen's own section, and clips to whatever room is left. -->
   {#if sidePanel.section}
-    <div class="min-h-0 flex-1 overflow-y-auto border-t border-line pt-4">
+    <div class="min-h-0 flex-1 overflow-y-auto pt-4">
       {@render sidePanel.section()}
     </div>
   {/if}

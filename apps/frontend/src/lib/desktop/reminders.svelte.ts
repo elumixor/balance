@@ -9,6 +9,7 @@ import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
 import { encodeReminder, type ReminderCard, type ReminderKind } from "./reminder";
+import { report } from "./report";
 
 /**
  * The reminders themselves: what is about to start, and when to set off for it.
@@ -140,7 +141,7 @@ class DesktopReminders {
       this.#travel.set(event.id, answer.legs);
     } catch (e) {
       // A route that can't be worked out costs the leave-in-time card, not the reminder itself.
-      console.error("Couldn't work out how long it takes to get there", e);
+      report("Couldn't work out how long it takes to get there", e);
       this.#travel.set(event.id, []);
     } finally {
       this.#asking.delete(event.id);
@@ -165,7 +166,7 @@ class DesktopReminders {
     try {
       await invoke("show_reminder", { payload: encodeReminder(card) });
     } catch (e) {
-      console.error("The reminder card wouldn't open", e);
+      report("The reminder card wouldn't open", e);
     }
 
     if (!preferences.reminders.sound) return;
@@ -175,7 +176,7 @@ class DesktopReminders {
       const { sendNotification } = await import("@tauri-apps/plugin-notification");
       sendNotification({ title: card.title, body: bodyOf(card), sound: "Ping" });
     } catch (e) {
-      console.error("The notification didn't go out", e);
+      report("The notification didn't go out", e);
     }
   }
 }
