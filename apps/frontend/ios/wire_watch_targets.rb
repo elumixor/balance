@@ -127,8 +127,9 @@ link_package_product(project, watch, package_ref, "ClerkKit")
 add_settings(watch, COMMON.merge(
   "PRODUCT_BUNDLE_IDENTIFIER" => WATCH_BUNDLE,
   "INFOPLIST_FILE" => "WatchApp/Info.plist",
-  # The App Group is the widget's only source of data, and a fixed session's end is announced with
-  # a time-sensitive local notification — both are entitlements, not plist keys.
+  # The App Group is the widget's only source of data, and it is an entitlement rather than a plist
+  # key. A fixed session's alarm is a plain local notification: marking it time-sensitive would buy
+  # only the right to interrupt a Focus, at the cost of one more capability to provision.
   "CODE_SIGN_ENTITLEMENTS" => "WatchApp/#{WATCH_NAME}.entitlements",
   "SKIP_INSTALL" => "NO",
   # Without CFBundleIconName the App Store rejects the upload, and that key comes from here.
