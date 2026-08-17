@@ -48,6 +48,7 @@ export default handler({ query: { weekStart: z.string().optional() } }, async ({
           e.id !== active?.eventId,
       )
       .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+    const nextCategory = next ? dominantCategory(next.weights, data.categories) : undefined;
 
     // Per-user data behind a bearer token: no shared cache may ever hold it.
     setResponseHeader(event, "cache-control", "private, no-store");
@@ -74,6 +75,10 @@ export default handler({ query: { weekStart: z.string().optional() } }, async ({
             start: next.start.toISOString(),
             end: next.end.toISOString(),
             inProgress: next.start <= now,
+            // The watch wears this as the event's glyph, so it wants the one category the event is
+            // mostly about rather than the split it is actually mapped to.
+            categoryColor: nextCategory?.color ?? null,
+            categoryIcon: nextCategory?.icon ?? null,
           }
         : null,
       active,
@@ -82,6 +87,15 @@ export default handler({ query: { weekStart: z.string().optional() } }, async ({
     return handleApiError(event, e);
   }
 });
+
+/** The category an event counts most towards, or nothing when it counts towards none. */
+function dominantCategory<T extends { id: string }>(
+  weights: { categoryId: string; weightPercent: number }[],
+  categories: T[],
+): T | undefined {
+  const heaviest = [...weights].sort((a, b) => b.weightPercent - a.weightPercent)[0];
+  return heaviest ? categories.find((c) => c.id === heaviest.categoryId) : undefined;
+}
 
 /** The caller's week when it sent one, the server's week when it didn't. */
 function resolveWeek(weekStart: string | undefined, now: Date): Period {

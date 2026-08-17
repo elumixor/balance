@@ -14,7 +14,6 @@ import BalanceKit
 @Observable
 final class WatchSummaryModel {
     private(set) var summary: WatchSummary?
-    private(set) var isLoading = false
     var errorMessage: String?
 
     var categories: [WatchCategory] { summary?.categories ?? [] }
@@ -29,17 +28,7 @@ final class WatchSummaryModel {
 
     var hasLoaded: Bool { summary != nil }
 
-    /// The week as a single fraction, for the line above the ring: everything planned against
-    /// everything spent. Categories without a target contribute their hours to neither side, since
-    /// they are not part of the plan being measured.
-    var weekTotals: (actual: Double, target: Double) {
-        let planned = categories.filter { $0.targetHours > 0 }
-        return (planned.reduce(0) { $0 + $1.actualHours }, planned.reduce(0) { $0 + $1.targetHours })
-    }
-
     func refresh() async {
-        isLoading = true
-        defer { isLoading = false }
         do {
             summary = try await APIClient.shared.fetchWatchSummary()
             errorMessage = nil

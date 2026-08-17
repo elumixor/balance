@@ -1,16 +1,13 @@
 import SwiftUI
 import BalanceKit
 
-/// The one line under the ring that says what the finger is currently pointing at: the category's
+/// The one line over the ring that says what the finger is currently pointing at: the category's
 /// glyph and name, then how the week stands for it — "3.5 / 10h · 35%".
 ///
-/// It keeps its height whether or not anything is focused, so the ring above it does not jump when
-/// the drag crosses in and out of the dead zone; with nothing focused it shows the hint instead.
+/// It draws nothing at all while the drag is inside the dead zone. There is no hint to replace it
+/// with: the ring appearing under the thumb is the instruction.
 struct CategoryFocusReadout: View {
     let category: WatchCategory?
-
-    /// What to say while the finger is still inside the dead zone.
-    var placeholder = "Drag to pick"
 
     var body: some View {
         Group {
@@ -32,15 +29,13 @@ struct CategoryFocusReadout: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(.black.opacity(0.65), in: Capsule())
                 .transition(.opacity)
-            } else {
-                Text(placeholder)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 20)
         .animation(.easeOut(duration: 0.15), value: category)
     }
 

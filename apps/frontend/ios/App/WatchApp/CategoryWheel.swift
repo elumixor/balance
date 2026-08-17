@@ -5,20 +5,22 @@ import BalanceKit
 /// on it have to agree about geometry, so the numbers live in one place instead of being repeated
 /// in the shapes.
 enum WheelMetrics {
-    /// Every angle in the wheel is measured clockwise from twelve o'clock, because that is where
-    /// the focused segment is parked and it makes the maths read the same way the screen looks.
-    static let focusAngle = Angle.zero
-
+    /// Every angle in the wheel is measured clockwise from twelve o'clock, which is where the
+    /// drag's direction is measured from too, so the maths reads the same way the screen looks.
     static let ringInset: CGFloat = 3
     static let bandThickness: CGFloat = 18
 
     /// A constant wedge taken out of both ends of a segment so neighbours read as separate bands.
     static let gap = Angle.degrees(3)
 
-    /// The camera-focus move: the ring grows and slides down so the segment parked at the top sits
-    /// closer to the middle of the screen, the way a lens pulls its subject forward.
-    static let focusScale: CGFloat = 1.16
-    static let focusPull: CGFloat = 0.2
+    /// The camera move. The ring never turns — dragging pushes it under the screen the way a hand
+    /// pushes a map, and crossing the dead zone snaps to the close-up so the segment being dragged
+    /// towards fills the middle instead of sitting on the rim.
+    static let focusScale: CGFloat = 2
+
+    /// How much further than the dead zone the finger travels before the ring has slid the whole
+    /// way, putting the focused band under the middle of the screen.
+    static let panTravel: CGFloat = 45
 
     /// Below this a segment is too narrow for a legible glyph, so it goes without one unless it is
     /// the focused segment, which is always drawn large enough.
@@ -45,41 +47,38 @@ extension DialLayout {
 }
 
 /// The ring of categories that appears under a press: each segment is as wide as the category's
-/// share of the planned week and as full as the hours already spent on it, and the whole ring turns
-/// so the focused segment comes to rest at the top.
+/// share of the planned week and as full as the hours already spent on it.
 ///
-/// This view knows nothing about touches. It is handed a focused index and renders the state; the
-/// gesture that produces that index lives in `WheelGestureModel`.
+/// The ring is fixed in place — a category always sits in the same direction, so it can be reached
+/// by muscle memory. What the drag moves is the camera: past the dead zone the view snaps to a
+/// close-up and the ring slides against the finger, bringing whatever is being dragged towards into
+/// the middle of the screen.
+///
+/// This view knows nothing about touches. It is handed a focused index and the drag it came from,
+/// and renders the state; the gesture that produces both lives in `WheelGestureModel`.
 struct CategoryWheel: View {
     let categories: [WatchCategory]
     let focusedIndex: Int?
+    /// The finger's travel since the press began, in screen coordinates.
+    let pan: CGSize
 
-    init(categories: [WatchCategory], focusedIndex: Int?) {
+    init(categories: [WatchCategory], focusedIndex: Int?, pan: CGSize = .zero) {
         self.categories = categories
         self.focusedIndex = focusedIndex
+        self.pan = pan
     }
 
     init(model: WheelGestureModel) {
-        self.init(categories: model.categories, focusedIndex: model.focusedIndex)
+        self.init(categories: model.categories, focusedIndex: model.focusedIndex, pan: model.pan)
     }
 
     private var layout: WheelLayout { WheelLayout(categories: categories) }
-
-    private var focused: WheelSegment? {
-        focusedIndex.flatMap { layout.segment(at: $0) }
-    }
-
-    /// Turning the ring by minus the focused segment's middle brings that segment to the focus
-    /// point; with nothing focused the ring rests unrotated.
-    private var rotation: Angle {
-        guard let focused else { return .zero }
-        return WheelMetrics.focusAngle - focused.midAngle
-    }
 
     var body: some View {
         GeometryReader { proxy in
             let size = min(proxy.size.width, proxy.size.height)
             let radius = size / 2 - WheelMetrics.ringInset
+            let scale: CGFloat = focusedIndex == nil ? 1 : WheelMetrics.focusScale
 
             ZStack {
                 ForEach(layout.segments) { segment in
@@ -90,17 +89,31 @@ struct CategoryWheel: View {
                         segment: segment,
                         isFocused: segment.index == focusedIndex,
                         radius: radius - WheelMetrics.bandThickness / 2,
-                        counterRotation: -rotation
+                        scale: scale
                     )
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
-            .rotationEffect(rotation)
-            .scaleEffect(focused == nil ? 1 : WheelMetrics.focusScale)
-            .offset(y: focused == nil ? 0 : radius * WheelMetrics.focusPull)
-            .animation(.spring(response: 0.32, dampingFraction: 0.78), value: focusedIndex)
+            .scaleEffect(scale)
+            .offset(cameraOffset(radius: radius))
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: focusedIndex)
+            .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.9), value: pan)
         }
         .aspectRatio(1, contentMode: .fit)
+    }
+
+    /// The ring moves opposite the finger, by as much as it takes to put the band the finger points
+    /// at under the middle of the screen — reached gradually over `panTravel`, so the close-up can
+    /// be nudged around rather than jumping to its far side the moment the dead zone is crossed.
+    private func cameraOffset(radius: CGFloat) -> CGSize {
+        guard focusedIndex != nil else { return .zero }
+        let travel = hypot(pan.width, pan.height)
+        guard travel > 0 else { return .zero }
+
+        let bandCentre = (radius - WheelMetrics.bandThickness / 2) * WheelMetrics.focusScale
+        let progress = min(max((travel - WheelGestureModel.deadZone) / WheelMetrics.panTravel, 0), 1)
+        let distance = bandCentre * progress
+        return CGSize(width: -pan.width / travel * distance, height: -pan.height / travel * distance)
     }
 }
 
@@ -145,21 +158,23 @@ private struct SegmentBand: View {
     }
 }
 
-/// The category's glyph, sitting on the middle of its band and kept upright while the ring turns.
+/// The category's glyph, sitting on the middle of its band. It is drawn against the close-up's
+/// magnification so the glyph keeps roughly the size it had before the camera moved in — the point
+/// of the zoom is a bigger band to aim at, not a bigger icon.
 private struct SegmentIcon: View {
     let segment: WheelSegment
     let isFocused: Bool
     let radius: CGFloat
-    let counterRotation: Angle
+    let scale: CGFloat
 
     var body: some View {
         let visible = isFocused || segment.sweep.radians >= WheelMetrics.iconMinimumSweep.radians
         let placement = segment.midAngle.radians - .pi / 2
+        let size = (isFocused ? 15 : 12) / max(scale, 1) * 1.35
 
         Image(systemName: Icons.symbol(for: segment.category.icon))
-            .font(.system(size: isFocused ? 13 : 10, weight: .semibold))
+            .font(.system(size: size, weight: .semibold))
             .foregroundStyle(isFocused ? Color.black : Color.white.opacity(0.85))
-            .rotationEffect(counterRotation)
             .offset(x: radius * cos(placement), y: radius * sin(placement))
             .opacity(visible ? 1 : 0)
     }

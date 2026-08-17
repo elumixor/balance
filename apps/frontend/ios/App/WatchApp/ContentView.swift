@@ -90,10 +90,11 @@ struct ContentView: View {
         }
     }
 
-    /// The three bands of the sketch: what is happening now on top, the interaction surface in the
-    /// middle, and the next thing on the calendar as a single line at the bottom.
+    /// Two bands: the ring takes everything it can get, and the next thing on the calendar sits
+    /// under it. Nothing else is drawn while idle — a wrist-sized screen buys a bigger target to
+    /// aim at by spending the words it could have printed above it.
     private var screen: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 0) {
             if let active = sessions.active {
                 ActiveSessionView(
                     session: active,
@@ -102,9 +103,12 @@ struct ContentView: View {
                     onExtend: { minutes in Task { await sessions.extendBy(minutes: minutes) } }
                 )
             } else {
-                weekHeadline
                 gestureSurface
-                CategoryFocusReadout(category: wheel.focusedCategory, placeholder: hint)
+                    // The readout is an overlay rather than a band of its own, so the name appearing
+                    // under the finger costs the ring no height.
+                    .overlay(alignment: .bottom) {
+                        CategoryFocusReadout(category: wheel.focusedCategory)
+                    }
             }
 
             if let message = errorMessage {
@@ -120,30 +124,6 @@ struct ContentView: View {
     }
 
     // MARK: - Idle bands
-
-    /// The top band while nothing is running: the week as one number, so the screen still says
-    /// something useful when it is only glanced at.
-    private var weekHeadline: some View {
-        let totals = summary.weekTotals
-        return HStack(spacing: 4) {
-            if summary.isLoading && !summary.hasLoaded {
-                ProgressView().controlSize(.mini)
-            } else if totals.target > 0 {
-                Text(hoursText(totals.actual))
-                    .font(.system(.title3, design: .rounded).weight(.semibold))
-                    .monospacedDigit()
-                Text("/ \(hoursText(totals.target))h this week")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Balance")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-    }
 
     /// The middle band. The ring rests dim until a finger is on it, then comes up to full while the
     /// drag decides which segment it points at.
@@ -178,8 +158,6 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var hint: String { wheel.isPressing ? "Drag to pick" : "Hold, then drag out" }
-
     private var errorMessage: String? { sessions.errorMessage ?? summary.errorMessage }
 
     // MARK: - Actions
@@ -205,19 +183,27 @@ private enum Route: Hashable {
     case calendar
 }
 
-/// The bottom band: one line, the next thing on the calendar and how far away it is. It keeps its
-/// height when there is nothing coming, so the bands above it do not shift as events pass.
+/// The bottom band: the next thing on the calendar, its title on one line and how far away it is on
+/// the next, wearing the glyph of whatever category it counts towards so the band says what kind of
+/// thing is coming without being read. It keeps its height when there is nothing coming, so the ring
+/// above it does not shift as events pass.
+///
+/// It sits in the screen's bottom safe area on purpose: watchOS keeps a generous margin there for
+/// the home gesture, and a line this quiet can live in it without being in the way.
 private struct NextEventLine: View {
     let event: NextEvent?
 
     var body: some View {
         Group {
             if let event {
-                HStack(spacing: 4) {
-                    Image(systemName: event.inProgress ? "record.circle" : "calendar")
-                        .font(.system(size: 9))
-                    Text(event.title)
-                        .lineLimit(1)
+                VStack(spacing: 1) {
+                    HStack(spacing: 4) {
+                        Image(systemName: glyph(for: event))
+                            .font(.system(size: 10))
+                            .foregroundStyle(tint(for: event))
+                        Text(event.title)
+                            .lineLimit(1)
+                    }
                     timing(for: event)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -228,7 +214,19 @@ private struct NextEventLine: View {
                 Color.clear
             }
         }
-        .frame(height: 14)
+        .frame(height: 30)
+        .padding(.bottom, -8)
+    }
+
+    /// The category's glyph when the event counts towards one, and the calendar's own otherwise —
+    /// an unmapped event is exactly the one the watch knows nothing else about.
+    private func glyph(for event: NextEvent) -> String {
+        guard let icon = event.categoryIcon else { return event.inProgress ? "record.circle" : "calendar" }
+        return Icons.symbol(for: icon)
+    }
+
+    private func tint(for event: NextEvent) -> Color {
+        event.categoryColor.map { Color(hex: $0) } ?? .secondary
     }
 
     /// `.relative` keeps counting down without this view being redrawn, which matters on a screen

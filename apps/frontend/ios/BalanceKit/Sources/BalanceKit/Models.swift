@@ -46,6 +46,10 @@ public struct WatchCategory: Codable, Identifiable, Hashable, Sendable, DialCate
 }
 
 /// The next thing in the calendar, or the one happening right now — `inProgress` says which.
+///
+/// The category is the one the event counts most towards, and is absent when the event counts
+/// towards nothing — the watch draws it as the event's glyph, so an unmapped event simply keeps the
+/// calendar's own.
 public struct NextEvent: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let calendarId: String
@@ -53,14 +57,21 @@ public struct NextEvent: Codable, Identifiable, Hashable, Sendable {
     public let start: Date
     public let end: Date
     public let inProgress: Bool
+    public let categoryColor: String?
+    public let categoryIcon: String?
 
-    public init(id: String, calendarId: String, title: String, start: Date, end: Date, inProgress: Bool) {
+    public init(
+        id: String, calendarId: String, title: String, start: Date, end: Date, inProgress: Bool,
+        categoryColor: String? = nil, categoryIcon: String? = nil
+    ) {
         self.id = id
         self.calendarId = calendarId
         self.title = title
         self.start = start
         self.end = end
         self.inProgress = inProgress
+        self.categoryColor = categoryColor
+        self.categoryIcon = categoryIcon
     }
 }
 

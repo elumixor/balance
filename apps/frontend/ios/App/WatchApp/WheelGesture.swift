@@ -35,8 +35,8 @@ final class WheelGestureModel {
 
     /// The finger's offset from where the press began, in the wheel's own coordinate space. Its
     /// length decides whether the press has left the dead zone and its direction decides which
-    /// segment is focused; nothing outside this model needs either.
-    private var dragTranslation: CGSize = .zero
+    /// segment is focused — and the wheel slides against it, so it is public as well.
+    private(set) var pan: CGSize = .zero
 
     /// How far the finger has to travel before the wheel commits to a direction. Short enough that
     /// a deliberate flick selects at once, long enough that a plain tap selects nothing.
@@ -60,7 +60,7 @@ final class WheelGestureModel {
     func began(at point: CGPoint) {
         origin = point
         isPressing = true
-        dragTranslation = .zero
+        pan = .zero
         focusedIndex = nil
         WKInterfaceDevice.current().play(.start)
     }
@@ -72,7 +72,7 @@ final class WheelGestureModel {
             began(at: point)
             return
         }
-        dragTranslation = CGSize(width: point.x - origin.x, height: point.y - origin.y)
+        pan = CGSize(width: point.x - origin.x, height: point.y - origin.y)
         resolve(silently: false)
     }
 
@@ -99,7 +99,7 @@ final class WheelGestureModel {
     /// what a layout change wants: the finger did not move, so nothing was "selected".
     private func resolve(silently: Bool) {
         let previous = focusedIndex
-        let travel = hypot(dragTranslation.width, dragTranslation.height)
+        let travel = hypot(pan.width, pan.height)
 
         if travel < Self.deadZone || layout.isEmpty {
             focusedIndex = nil
@@ -115,12 +115,12 @@ final class WheelGestureModel {
     /// The drag's direction, measured clockwise from twelve o'clock so it lines up with the angles
     /// the ring is drawn from. Screen coordinates run downward, hence the negated height.
     private var direction: Angle {
-        Angle.radians(atan2(Double(dragTranslation.width), Double(-dragTranslation.height))).normalizedTurn
+        Angle.radians(atan2(Double(pan.width), Double(-pan.height))).normalizedTurn
     }
 
     private func reset() {
         isPressing = false
         focusedIndex = nil
-        dragTranslation = .zero
+        pan = .zero
     }
 }
