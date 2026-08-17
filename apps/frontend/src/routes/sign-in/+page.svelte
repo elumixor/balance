@@ -96,13 +96,13 @@
 </script>
 
 {#if awaitingCode}
-  <AuthShell tagline="We sent a code to {email}.">
+  <AuthShell>
     <Field bind:value={code} placeholder="Verification code" inputmode="numeric" numeric />
     {#if error}<p class="t-label text-danger">{error}</p>{/if}
     <Button label="Verify" onclick={onVerify} {loading} disabled={!code} full />
   </AuthShell>
 {:else}
-  <AuthShell tagline="Pick up your week where you left it.">
+  <AuthShell>
     <div class="space-y-2">
       <Field bind:value={email} placeholder="Email" inputmode="email" />
       <Field bind:value={password} placeholder="Password" type="password" />

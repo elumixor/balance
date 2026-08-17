@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
   import BrandMark from "./BrandMark.svelte";
 
-  let { tagline, children }: { tagline: string; children: Snippet } = $props();
+  let { tagline, children }: { tagline?: string; children: Snippet } = $props();
 </script>
 
 <!--
@@ -12,15 +12,15 @@
 -->
 <div class="flex min-h-dvh flex-col bg-bg lg:flex-row">
   <div
-    class="flex flex-col justify-center gap-6 border-line px-5 pt-12 pb-6
-      lg:flex-1 lg:items-center lg:border-r lg:bg-surface lg:px-12 lg:py-12"
+    class="flex flex-col items-center justify-center gap-6 border-line px-5 pt-12 pb-6 text-center
+      lg:flex-1 lg:border-r lg:bg-surface lg:px-12 lg:py-12"
   >
     <div class="space-y-4 lg:max-w-sm lg:space-y-8">
       <div class="lg:hidden"><BrandMark size={44} /></div>
       <div class="hidden lg:block"><BrandMark size={200} /></div>
       <div class="space-y-1 lg:space-y-2">
         <h1 class="t-title">Balance</h1>
-        <p class="t-body text-fg-muted">{tagline}</p>
+        {#if tagline}<p class="t-body text-fg-muted">{tagline}</p>{/if}
       </div>
     </div>
   </div>
