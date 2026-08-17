@@ -18,7 +18,8 @@
     "test:e2e": "playwright test",
     "deploy": "bun scripts/deploy.ts",
     "deploy:vercel": "bun scripts/deploy-vercel.ts",
-    "deploy:ios": "bun scripts/deploy-ios.ts"
+    "deploy:ios": "bun scripts/deploy-ios.ts",
+    "release:ios": "git tag ios-v$(date +%Y%m%d%H%M%S) && git push origin --tags"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",

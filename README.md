@@ -81,7 +81,7 @@ Both halves ship as one Vercel deployment at
 one function for `/mobile/*` and `/health`. Any path that isn't an API prefix answers with the app
 shell, and the client router takes it from there. `bun run deploy` ships it (see "Releasing");
 pushing to `main` does not — `vercel.json` turns Vercel's git deployments off, so a release is
-something you run, not something a push causes.
+something you trigger, not something a push causes.
 
 ## iOS
 
@@ -202,3 +202,18 @@ build number from TestFlight itself and writes it into the Xcode project and bot
 The two halves build the same sources with different settings at the same time, so the native
 build gets its own output directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`); nothing else
 should need them.
+
+### Shipping without this machine
+
+Both halves can also be built by CI, but never by a push — each is a button in the Actions tab, so
+a merge to `main` still changes nothing that users see.
+
+```bash
+bun run release:ios  # tags the commit and pushes the tag; the iOS workflow picks it up
+```
+
+**iOS TestFlight** runs the same `fastlane beta` lane on a macOS runner, on an `ios-v*` tag or a
+manual run. It needs `APP_STORE_CONNECT_API_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`,
+`APP_STORE_CONNECT_API_KEY_CONTENT`, `IOS_DIST_CERT_P12_BASE64` and `IOS_DIST_CERT_PASSWORD` as
+repository secrets. **Vercel Deploy** is manual only: it pings a Vercel deploy hook
+(`VERCEL_DEPLOY_HOOK_URL`), and Vercel builds `main` on its own machines.
