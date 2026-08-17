@@ -16,11 +16,12 @@
   class="flex min-h-dvh flex-col justify-center bg-bg max-lg:safe-top max-lg:safe-bottom lg:flex-row"
 >
   <div
-    class="flex flex-col items-center border-line px-5 pt-6 pb-8 text-center
+    class="flex flex-col items-center border-line px-5 pt-6 pb-8 max-lg:text-center
       lg:flex-1 lg:justify-center lg:border-r lg:bg-surface lg:px-12 lg:py-12"
   >
     <div class="space-y-4 lg:max-w-sm lg:space-y-8">
-      <div class="lg:hidden"><BrandMark size={44} /></div>
+      <!-- The mark is an <img>, which preflight makes display:block — text-center can't reach it. -->
+      <div class="flex justify-center lg:hidden"><BrandMark size={44} /></div>
       <div class="hidden lg:block"><BrandMark size={200} /></div>
       <div class="space-y-1 lg:space-y-2">
         <h1 class="t-title">Balance</h1>
