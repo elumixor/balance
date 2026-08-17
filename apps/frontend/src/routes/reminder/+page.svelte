@@ -1,6 +1,5 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { emit } from "@tauri-apps/api/event";
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import { openExternal } from "$lib/desktop/open";
   import { decodeReminder, type ReminderCard } from "$lib/desktop/reminder";
@@ -65,11 +64,6 @@
     void invoke("close_reminder");
   }
 
-  function snooze() {
-    if (card) void emit("reminder://snooze", { id: card.id, kind: card.kind });
-    close();
-  }
-
   /** Opened in the browser rather than in here: this window is a card, not a place to work. */
   async function open(url: string) {
     try {
@@ -95,6 +89,16 @@
           {until} · {formatClock(new Date(card.start))}–{formatClock(new Date(card.end))}
         </p>
       </div>
+      {#if card.join}
+        <button
+          type="button"
+          aria-label="Join {card.join.label}"
+          class="press-sm rounded-md p-1.5"
+          onclick={() => open(card?.join?.url ?? "")}
+        >
+          <Video size={16} />
+        </button>
+      {/if}
       <button type="button" aria-label="Dismiss" class="press-sm rounded-md p-1" onclick={close}>
         <X size={16} class="text-fg-muted" />
       </button>
@@ -125,31 +129,20 @@
       </div>
     {/if}
 
-    <div class="flex items-center gap-2">
-      {#if card.join}
-        <button
-          type="button"
-          class="press flex flex-1 items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-ink-fg"
-          onclick={() => open(card?.join?.url ?? "")}
-        >
-          <Video size={15} />
-          <span class="t-label">Join {card.join.label}</span>
-        </button>
-      {/if}
-      {#each card.links as link (link.url)}
-        <button
-          type="button"
-          class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-2"
-          onclick={() => open(link.url)}
-        >
-          <Link2 size={14} class="text-fg-muted" />
-          <span class="t-label max-w-28 truncate">{link.label}</span>
-        </button>
-      {/each}
-      <button type="button" class="press-sm rounded-md border border-line px-3 py-2" onclick={snooze}>
-        <span class="t-label">Snooze</span>
-      </button>
-    </div>
+    {#if card.links.length > 0}
+      <div class="flex flex-wrap items-center gap-2">
+        {#each card.links as link (link.url)}
+          <button
+            type="button"
+            class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-2"
+            onclick={() => open(link.url)}
+          >
+            <Link2 size={14} class="text-fg-muted" />
+            <span class="t-label max-w-28 truncate">{link.label}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
   </div>
 {/if}
 

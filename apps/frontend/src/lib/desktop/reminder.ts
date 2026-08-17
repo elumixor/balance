@@ -9,10 +9,9 @@ import type { TravelLeg } from "$lib/travel";
  * one channel a freshly built webview has before it has run any of its own code.
  */
 
-export type ReminderKind = "starts" | "leave";
+export type ReminderKind = "starts" | "leave" | "join";
 
 export interface ReminderCard {
-  /** The event's id, so a snooze can be matched back to what it was about. */
   readonly id: string;
   readonly kind: ReminderKind;
   readonly title: string;

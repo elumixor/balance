@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { eventCategory } from "$lib/calendar/event-category";
 import { restColor } from "$lib/colors";
 import { DEFAULT_ICON } from "$lib/icons";
@@ -28,8 +27,8 @@ import { report } from "./report";
 const LATE_MS = 3 * 60_000;
 /** How far ahead a journey is worth asking about. Traffic an hour out isn't today's traffic. */
 const TRAVEL_HORIZON_MS = 45 * 60_000;
-/** What "snooze" means. */
-const SNOOZE_MS = 5 * 60_000;
+/** A meeting gets one more card right before it starts, whatever the lead-time preference says. */
+const JOIN_LEAD_MS = 60_000;
 
 const FIRED_KEY = "balance.reminders-fired";
 
@@ -37,8 +36,6 @@ class DesktopReminders {
   #stop: (() => void) | null = null;
   /** `${eventId}|${kind}` for everything already shown, so a tick never repeats one. */
   #fired = new Map<string, number>();
-  /** Pushed back by the card's Snooze, keyed the same way. */
-  #snoozed = new Map<string, number>();
   /** The journey to an event, once asked about. */
   #travel = new Map<string, TravelLeg[]>();
   #asking = new Set<string>();
@@ -50,12 +47,6 @@ class DesktopReminders {
     desktopAgenda.start();
     this.#fired = read();
 
-    // The card is its own window with its own copy of the app, so Snooze can only come back as
-    // an event — this side is where the schedule lives.
-    const unlisten = listen<{ id: string; kind: ReminderKind }>("reminder://snooze", (event) =>
-      this.snooze(event.payload.id, event.payload.kind),
-    );
-
     const dispose = $effect.root(() => {
       // Reading the agenda's clock is what makes this run every tick; reading its events is what
       // makes it run again when the calendar changes under it.
@@ -66,23 +57,12 @@ class DesktopReminders {
       });
     });
 
-    this.#stop = () => {
-      void unlisten.then((off) => off());
-      dispose();
-    };
+    this.#stop = dispose;
   }
 
   stop() {
     this.#stop?.();
     this.#stop = null;
-  }
-
-  /** The card's Snooze: the same reminder, five minutes from now. */
-  snooze(eventId: string, kind: ReminderKind) {
-    const key = `${eventId}|${kind}`;
-    this.#snoozed.set(key, Date.now() + SNOOZE_MS);
-    this.#fired.delete(key);
-    write(this.#fired);
   }
 
   async #sweep(events: CalendarEvent[], now: number) {
@@ -94,13 +74,11 @@ class DesktopReminders {
       // Asked for a little before it's needed, so the card doesn't open on an empty route.
       if (start - now < TRAVEL_HORIZON_MS) void this.#askTravel(event);
 
-      for (const kind of ["leave", "starts"] as const) {
+      for (const kind of ["leave", "starts", "join"] as const) {
         const due = this.#dueAt(event, kind, start);
         if (due === null) continue;
         const key = `${event.id}|${kind}`;
-        const snoozed = this.#snoozed.get(key);
-        const at = snoozed && snoozed > due ? snoozed : due;
-        if (at > now || now - at > LATE_MS || this.#fired.has(key)) continue;
+        if (due > now || now - due > LATE_MS || this.#fired.has(key)) continue;
 
         this.#fired.set(key, start);
         write(this.#fired);
@@ -112,10 +90,17 @@ class DesktopReminders {
   /**
    * When a reminder is due, or null when it isn't wanted. What's about to start uses the event's
    * own reminder if the calendar carries one, and the preference otherwise; setting off is timed
-   * off the journey the app just looked up.
+   * off the journey the app just looked up. A meeting always gets a second, fixed reminder right
+   * before it starts — missing the join link because the lead time was set to twenty minutes isn't
+   * something a preference should be able to cause.
    */
   #dueAt(event: CalendarEvent, kind: ReminderKind, start: number) {
     if (!preferences.reminders.enabled || event.allDay) return null;
+
+    if (kind === "join") {
+      if (!meetingOf(event).join) return null;
+      return start - JOIN_LEAD_MS;
+    }
 
     if (kind === "starts") {
       const own = preferences.reminders.useCalendarReminders ? popupMinutes(event) : null;
