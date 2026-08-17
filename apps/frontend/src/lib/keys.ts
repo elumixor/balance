@@ -1,3 +1,5 @@
+import { isNativeShell } from "./desktop/platform";
+
 /**
  * Whether a keystroke belongs to a text field rather than to the app.
  *
@@ -9,6 +11,23 @@ export function isTyping(target: EventTarget | null) {
   return Boolean(
     element?.isContentEditable || element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement,
   );
+}
+
+/**
+ * How settings are opened from the keyboard.
+ *
+ * ⌘, in the native shells, the way every other Mac app spells it. In a browser that combination
+ * already belongs to the browser — Chrome opens its own preferences on it and never lets the page
+ * see it — so the tab takes ⌘⇧, instead.
+ */
+export const SETTINGS_HOTKEY = isNativeShell ? "⌘," : "⌘⇧,";
+
+/** Whether a keystroke is the one that opens settings. Matched by physical key: with shift held,
+ *  the comma key reports itself as `<`. */
+export function isSettingsKey(event: KeyboardEvent) {
+  if (!(event.metaKey || event.ctrlKey) || isTyping(event.target)) return false;
+  if (event.code !== "Comma" && event.key !== ",") return false;
+  return isNativeShell || event.shiftKey;
 }
 
 /** True for a plain keypress — a shortcut that means something else once a modifier is held. */

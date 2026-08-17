@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { isDesktop } from "./desktop/platform";
+import { isDesktop, isNativeShell } from "./desktop/platform";
 
 /**
  * Which build of the app is on screen.
@@ -15,11 +15,11 @@ export const buildInfo = {
   builtAt: import.meta.env.VITE_BUILD_TIME ?? "",
   get platform() {
     if (isDesktop) return "macOS";
-    if (Capacitor.isNativePlatform()) return Capacitor.getPlatform() === "ios" ? "iOS" : "Android";
-    return "Web";
+    if (!isNativeShell) return "Web";
+    return Capacitor.getPlatform() === "ios" ? "iOS" : "Android";
   },
-  /** A single line: `0.1.0 · a9fb8cf · macOS · 17 Aug 14:03`. */
-  get label() {
+  /** The line at the bottom of settings, as its parts — the dots between them are the dialog's. */
+  get parts() {
     const built = this.builtAt
       ? new Date(this.builtAt).toLocaleString(undefined, {
           day: "numeric",
@@ -28,6 +28,6 @@ export const buildInfo = {
           minute: "2-digit",
         })
       : "";
-    return [this.version, this.commit, this.platform, built].filter(Boolean).join(" · ");
+    return [this.version, this.commit, this.platform, built].filter(Boolean);
   },
 };

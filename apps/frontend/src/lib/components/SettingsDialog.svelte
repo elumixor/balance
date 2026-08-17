@@ -62,6 +62,12 @@
   </section>
 
   <!-- Which build this is: the native shells carry their own copy of the frontend, and this is the
-       only thing on screen that says how old it is. -->
-  <p class="t-data-micro select-text text-center text-fg-faint">{buildInfo.label}</p>
+       only thing on screen that says how old it is. The parts are spaced well apart, because at
+       this size four fields run together into one string of characters otherwise. -->
+  <p class="t-data-micro flex select-text flex-wrap items-center justify-center gap-x-3 text-fg-faint">
+    {#each buildInfo.parts as part, index (part)}
+      {#if index > 0}<span class="text-line-strong">·</span>{/if}
+      <span>{part}</span>
+    {/each}
+  </p>
 </Dialog>

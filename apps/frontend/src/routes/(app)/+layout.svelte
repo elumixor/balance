@@ -6,7 +6,7 @@
   import TabBar from "$lib/components/nav/TabBar.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import { desktopTray } from "$lib/desktop/tray.svelte";
-  import { isBareKey, isTyping } from "$lib/keys";
+  import { isBareKey, isSettingsKey } from "$lib/keys";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { settings } from "$lib/settings.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
@@ -49,12 +49,12 @@
   });
 
   /**
-   * The shell's own keys: a letter each for the two screens, and ⌘, for settings the way every
-   * other Mac app spells it. Bare letters only outside a text field — `c` is Calendar everywhere
+   * The shell's own keys: a letter each for the two screens, and the settings combination (see
+   * `SETTINGS_HOTKEY`). Bare letters only outside a text field — `c` is Calendar everywhere
    * except in the box where somebody is naming an event.
    */
   function onkeydown(e: KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === "," && !isTyping(e.target)) {
+    if (isSettingsKey(e)) {
       e.preventDefault();
       return settings.toggle();
     }
@@ -84,7 +84,7 @@
       <TabBar />
     </div>
   </div>
-  <!-- Above the shell rather than inside the rail: ⌘, opens it from any screen, and on a phone
-       there is no rail for it to hang off at all. -->
+  <!-- Above the shell rather than inside the rail: the hotkey opens it from any screen, and on a
+       phone there is no rail for it to hang off at all. -->
   <SettingsDialog />
 {/if}

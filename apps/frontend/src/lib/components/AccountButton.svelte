@@ -1,11 +1,12 @@
 <script lang="ts">
   import { auth } from "$lib/auth.svelte";
+  import { SETTINGS_HOTKEY } from "$lib/keys";
   import { settings } from "$lib/settings.svelte";
   import Tooltip from "./Tooltip.svelte";
 
   /**
-   * The face of the account, and the way into settings — the same panel ⌘, opens, because two
-   * doors onto one room should be one room.
+   * The face of the account, and the way into settings — the same panel the hotkey opens, because
+   * two doors onto one room should be one room.
    *
    * `compact` is for the rail, where it lines up beside the window buttons and wants their scale.
    * A finger needs the bigger one, a cursor doesn't.
@@ -17,7 +18,7 @@
 
 <!-- The name of the thing it opens, not whose account it is — the row's other icons say what they
      do, and the email is the first line inside the panel anyway. -->
-<Tooltip label="Settings" hotkey="⌘,">
+<Tooltip label="Settings" hotkey={SETTINGS_HOTKEY}>
   <button
     type="button"
     onclick={() => settings.show()}
