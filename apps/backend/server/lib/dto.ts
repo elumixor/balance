@@ -1,5 +1,5 @@
 import type { activityCategoryWeights, categories } from "../db/schema";
-import type { ResolvedEvent } from "./calendar/events-service";
+import { qualifyCalendarId, type ResolvedEvent } from "./calendar/events-service";
 import type { CalendarRef, MappingScope } from "./calendar/types";
 
 /** Serializes a `categories` row into the shape the mobile app expects. */
@@ -45,16 +45,22 @@ export class ActivityDTO {
   }
 }
 
-/** Serializes one of the connected account's calendars. */
+/**
+ * Serializes one of a connected account's calendars. `id` is qualified with the account it came
+ * from — see `qualifyCalendarId` — so two accounts can't collide, and a write-back knows which
+ * account to reach.
+ */
 export class CalendarDTO {
   readonly id: string;
+  readonly accountId: string;
   readonly name: string;
   readonly color: string | null;
   readonly primary: boolean;
   readonly readOnly: boolean;
 
-  constructor(c: CalendarRef) {
-    this.id = c.id;
+  constructor(c: CalendarRef, accountId: string) {
+    this.id = qualifyCalendarId(accountId, c.id);
+    this.accountId = accountId;
     this.name = c.name;
     this.color = c.color;
     this.primary = c.primary;
@@ -87,7 +93,7 @@ export class CalendarEventDTO {
 
   constructor(e: ResolvedEvent) {
     this.id = e.id;
-    this.calendarId = e.calendarId;
+    this.calendarId = qualifyCalendarId(e.accountId, e.calendarId);
     this.seriesId = e.seriesId;
     this.title = e.title;
     this.description = e.description;

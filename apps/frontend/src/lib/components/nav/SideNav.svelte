@@ -22,7 +22,7 @@
 <!-- `select-none`: none of this is text anyone means to copy, and a drag across it should move the
      window rather than paint a selection over it. -->
 <nav
-  class="hidden h-full w-60 shrink-0 select-none flex-col overflow-hidden border-r border-line bg-surface px-3 pb-6 md:flex {isDesktop
+  class="hidden h-full w-60 shrink-0 select-none flex-col overflow-hidden bg-surface px-3 pb-6 md:flex {isDesktop
     ? 'pt-0'
     : 'pt-3'}"
 >

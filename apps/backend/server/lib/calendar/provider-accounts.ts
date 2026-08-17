@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "../../db";
 import { providerAccounts } from "../../db/schema";
 import { decryptSecret, encryptSecret } from "../crypto";
@@ -15,13 +15,19 @@ export interface CalendarPrefsInput {
 /** Refresh a little before the token actually dies, so a slow request doesn't run out mid-flight. */
 const EXPIRY_MARGIN_MS = 60 * 1000;
 
-/** The stored OAuth grant for one user's connected calendar accounts, and the tokens it yields. */
+/** The stored OAuth grants for one user's connected calendar accounts, and the tokens they yield. */
 export class ProviderAccountService {
   constructor(private readonly userId: string) {}
 
-  get(provider: string): Promise<ProviderAccount | undefined> {
-    return db.query.providerAccounts.findFirst({
+  list(provider: string): Promise<ProviderAccount[]> {
+    return db.query.providerAccounts.findMany({
       where: and(eq(providerAccounts.userId, this.userId), eq(providerAccounts.provider, provider)),
+    });
+  }
+
+  getById(accountId: string): Promise<ProviderAccount | undefined> {
+    return db.query.providerAccounts.findFirst({
+      where: and(eq(providerAccounts.id, accountId), eq(providerAccounts.userId, this.userId)),
     });
   }
 
@@ -46,16 +52,19 @@ export class ProviderAccountService {
     const [account] = await db
       .insert(providerAccounts)
       .values(values)
-      .onConflictDoUpdate({ target: [providerAccounts.userId, providerAccounts.provider], set: values })
+      .onConflictDoUpdate({
+        target: [providerAccounts.userId, providerAccounts.provider, providerAccounts.externalAccountId],
+        set: values,
+      })
       .returning();
     return account;
   }
 
   /** A live access token, refreshed and re-cached when the stored one is spent. */
-  async accessToken(provider: string): Promise<string> {
-    const account = await this.get(provider);
-    if (!account) throw new ProviderNotConnectedError(provider);
-    if (account.revokedAt) throw new ProviderNeedsReconnectError(provider);
+  async accessToken(accountId: string): Promise<string> {
+    const account = await this.getById(accountId);
+    if (!account) throw new ProviderNotConnectedError("google");
+    if (account.revokedAt) throw new ProviderNeedsReconnectError("google");
 
     const expiresAt = account.accessTokenExpiresAt?.getTime() ?? 0;
     if (account.accessTokenEnc && expiresAt - EXPIRY_MARGIN_MS > Date.now()) {
@@ -78,25 +87,33 @@ export class ProviderAccountService {
         .where(eq(providerAccounts.id, account.id));
       return tokens.accessToken;
     } catch (e) {
-      if (e instanceof ProviderNeedsReconnectError) await this.markRevoked(account.provider);
+      if (e instanceof ProviderNeedsReconnectError) await this.markRevoked(account.id);
       throw e;
     }
   }
 
-  async markRevoked(provider: string): Promise<void> {
+  async markRevoked(accountId: string): Promise<void> {
     await db
       .update(providerAccounts)
       .set({ revokedAt: new Date(), accessTokenEnc: null, accessTokenExpiresAt: null })
-      .where(and(eq(providerAccounts.userId, this.userId), eq(providerAccounts.provider, provider)));
+      .where(and(eq(providerAccounts.id, accountId), eq(providerAccounts.userId, this.userId)));
   }
 
-  async setPrefs(provider: string, prefs: CalendarPrefsInput): Promise<ProviderAccount> {
+  /** A write target is unique across every connected account, so setting one here clears the rest. */
+  async setPrefs(accountId: string, prefs: CalendarPrefsInput): Promise<ProviderAccount> {
+    if (prefs.writeCalendarId) {
+      await db
+        .update(providerAccounts)
+        .set({ writeCalendarId: null, updatedAt: new Date() })
+        .where(and(eq(providerAccounts.userId, this.userId), ne(providerAccounts.id, accountId)));
+    }
+
     const [updated] = await db
       .update(providerAccounts)
       .set({ ...prefs, updatedAt: new Date() })
-      .where(and(eq(providerAccounts.userId, this.userId), eq(providerAccounts.provider, provider)))
+      .where(and(eq(providerAccounts.id, accountId), eq(providerAccounts.userId, this.userId)))
       .returning();
-    if (!updated) throw new ProviderNotConnectedError(provider);
+    if (!updated) throw new ProviderNotConnectedError("google");
     return updated;
   }
 
@@ -104,8 +121,8 @@ export class ProviderAccountService {
    * The event mappings survive on purpose — they key on the provider's own event ids, so
    * reconnecting the same account brings every one of them back.
    */
-  async disconnect(provider: string): Promise<void> {
-    const account = await this.get(provider);
+  async disconnect(accountId: string): Promise<void> {
+    const account = await this.getById(accountId);
     if (!account) return;
     await googleOAuthService.revoke(decryptSecret(account.refreshTokenEnc));
     await db.delete(providerAccounts).where(eq(providerAccounts.id, account.id));

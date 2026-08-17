@@ -7,16 +7,15 @@ import { getDbUserForRequest } from "../../../lib/current-user";
 export default handler(async ({ event }) => {
   const user = await getDbUserForRequest(event);
   try {
-    const account = await new ProviderAccountService(user.id).get("google");
+    const accounts = await new ProviderAccountService(user.id).list("google");
     return {
-      integrations: [
-        {
-          provider: "google",
-          connected: Boolean(account) && !account?.revokedAt,
-          needsReconnect: Boolean(account?.revokedAt),
-          email: account?.email ?? null,
-        },
-      ],
+      integrations: accounts.map((account) => ({
+        accountId: account.id,
+        provider: "google",
+        connected: !account.revokedAt,
+        needsReconnect: Boolean(account.revokedAt),
+        email: account.email,
+      })),
     };
   } catch (e) {
     return handleApiError(event, e);

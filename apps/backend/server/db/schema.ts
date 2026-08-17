@@ -50,8 +50,9 @@ export const activityCategoryWeights = pgTable("activity_category_weights", {
 
 /**
  * A connected external calendar account — the OAuth grant plus which of that account's
- * calendars the app reads and writes. One row per user per provider, so disconnecting
- * forgets the tokens and the preferences together.
+ * calendars the app reads and writes. One row per user per provider per external account, so a
+ * user can connect several Google accounts and disconnecting one forgets only its own tokens
+ * and preferences.
  */
 export const providerAccounts = pgTable(
   "provider_accounts",
@@ -80,7 +81,9 @@ export const providerAccounts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("provider_accounts_user_provider").on(table.userId, table.provider)],
+  (table) => [
+    uniqueIndex("provider_accounts_user_provider_external").on(table.userId, table.provider, table.externalAccountId),
+  ],
 );
 
 /**

@@ -79,9 +79,10 @@ export class GoogleOAuthService {
       response_type: "code",
       scope: SCOPES.join(" "),
       access_type: "offline",
-      // Without this, a user who has already granted access is sent back without a refresh
-      // token, and the connection silently dies an hour later.
-      prompt: "consent",
+      // "consent" alone reuses whichever Google account the browser is already signed into,
+      // without it a returning user is sent back without a refresh token and the connection
+      // silently dies an hour later; "select_account" is what lets a second account be chosen.
+      prompt: "consent select_account",
       include_granted_scopes: "true",
       state,
     });

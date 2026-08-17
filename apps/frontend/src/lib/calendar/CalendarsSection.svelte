@@ -1,13 +1,16 @@
 <script lang="ts">
   import { restColor } from "$lib/colors";
-  import { disconnectGoogle, updateCalendarPrefs } from "$lib/queries";
-  import { invalidate, store } from "$lib/store.svelte";
-  import { Eye, EyeOff } from "lucide-svelte";
+  import { updateCalendarPrefs } from "$lib/queries";
+  import { store } from "$lib/store.svelte";
+  import type { CalendarRef } from "$lib/types";
+  import { Eye, EyeOff, Plus } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
+  import { connectGoogle } from "./connect";
   import ConnectGoogle from "./ConnectGoogle.svelte";
 
   /**
-   * Which of the account's calendars are drawn, and which one new events land in.
+   * Every connected account, grouped by the address it's signed in as, and which of their
+   * calendars are drawn and which one new events land in.
    *
    * Its own component because it is asked for from two places that share nothing else: the rail,
    * beside the week it filters, and settings, where connecting an account belongs. One copy means
@@ -16,13 +19,15 @@
   const data = calendarData;
   const prefs = store.calendars;
 
-  const calendars = $derived(prefs.value?.calendars ?? []);
+  const accounts = $derived(prefs.value?.accounts ?? []);
+  const allCalendars = $derived(accounts.flatMap((a) => a.calendars));
   const visible = $derived(prefs.value?.visibleCalendarIds ?? []);
-  const writeId = $derived(prefs.value?.writeCalendarId ?? "primary");
+  const writeId = $derived(prefs.value?.writeCalendarId ?? "");
 
-  // An empty list isn't "nothing shown" — it's the untouched default, which is the primary calendar.
-  const isVisible = (id: string, primary: boolean) => (visible.length === 0 ? primary : visible.includes(id));
-  const isWriteTarget = (id: string, primary: boolean) => id === writeId || (writeId === "primary" && primary);
+  // An empty list isn't "nothing shown" — it's the untouched default, which is each account's
+  // primary calendar.
+  const isVisible = (calendar: CalendarRef) => (visible.length === 0 ? calendar.primary : visible.includes(calendar.id));
+  const isWriteTarget = (calendar: CalendarRef) => calendar.id === writeId;
 
   $effect(() => {
     if (data.connected) void prefs.ensure();
@@ -39,68 +44,89 @@
     });
   }
 
-  function toggle(id: string, primary: boolean) {
-    const current = visible.length === 0 ? calendars.filter((c) => c.primary).map((c) => c.id) : visible;
-    const next = isVisible(id, primary) ? current.filter((c) => c !== id) : [...current, id];
+  function toggle(calendar: CalendarRef) {
+    const current = visible.length === 0 ? allCalendars.filter((c) => c.primary).map((c) => c.id) : visible;
+    const next = isVisible(calendar) ? current.filter((id) => id !== calendar.id) : [...current, calendar.id];
     save({ visibleCalendarIds: next });
   }
 
-  function selectWrite(id: string) {
-    if (isWriteTarget(id, calendars.find((c) => c.id === id)?.primary ?? false)) return;
-    save({ writeCalendarId: id });
+  function selectWrite(calendar: CalendarRef) {
+    if (isWriteTarget(calendar)) return;
+    save({ writeCalendarId: calendar.id });
   }
 
-  /** The mappings outlive this: they key on Google's own event ids, so reconnecting restores them. */
-  async function disconnect() {
+  let connecting = $state(false);
+
+  /** The same flow the first connection uses — Google's own account chooser is what makes this a
+   *  second account instead of reauthorizing the first. */
+  async function addAccount() {
+    connecting = true;
     try {
-      await disconnectGoogle();
-      invalidate.integrations();
-      await Promise.all([prefs.refresh(), data.refreshWeeks()]);
+      await connectGoogle();
+      await prefs.refresh();
     } catch (e) {
-      data.actionError = e instanceof Error ? e.message : "Couldn't disconnect.";
+      data.actionError = e instanceof Error ? e.message : "Couldn't start the connection.";
+    } finally {
+      connecting = false;
     }
   }
 </script>
 
-{#if !data.connected}
+{#if accounts.length === 0}
   <ConnectGoogle />
 {:else}
-  <div class="flex flex-col gap-0.5">
-    {#each calendars as calendar (calendar.id)}
-      {@const shown = isVisible(calendar.id, calendar.primary)}
-      {@const isWrite = isWriteTarget(calendar.id, calendar.primary)}
-      <div class="hoverable flex items-center gap-1 rounded-md pr-1">
-        <!-- The colour swatch doubles as the write-target picker: click it to make new events land here. -->
-        <button
-          type="button"
-          aria-label="Add new events to {calendar.name}"
-          aria-pressed={isWrite}
-          disabled={calendar.readOnly}
-          onclick={() => selectWrite(calendar.id)}
-          class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left disabled:cursor-default"
-        >
-          <span
-            class="size-3 shrink-0 rounded-full {isWrite ? 'ring-2 ring-fg ring-offset-1 ring-offset-surface' : ''}"
-            style="background:{calendar.color ?? restColor}"
-          ></span>
-          <span class="t-label min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
-            {calendar.name}
-          </span>
-        </button>
-        <button
-          type="button"
-          aria-label={shown ? "Hide {calendar.name}" : "Show {calendar.name}"}
-          aria-pressed={shown}
-          onclick={() => toggle(calendar.id, calendar.primary)}
-          class="press-sm flex size-6 shrink-0 items-center justify-center rounded text-fg-faint hover:text-fg"
-        >
-          {#if shown}<Eye size={14} />{:else}<EyeOff size={14} />{/if}
-        </button>
+  <div class="space-y-3">
+    {#each accounts as account (account.accountId)}
+      <div>
+        <div class="t-micro truncate px-2 pb-1 text-fg-faint">
+          {account.email ?? "Unknown account"}{account.needsReconnect ? " — reconnect" : ""}
+        </div>
+        <div class="flex flex-col gap-0.5">
+          {#each account.calendars as calendar (calendar.id)}
+            {@const shown = isVisible(calendar)}
+            {@const isWrite = isWriteTarget(calendar)}
+            <div class="hoverable flex items-center gap-1 rounded-md pr-1">
+              <!-- The colour swatch doubles as the write-target picker: click it to make new events land here. -->
+              <button
+                type="button"
+                aria-label="Add new events to {calendar.name}"
+                aria-pressed={isWrite}
+                disabled={calendar.readOnly}
+                onclick={() => selectWrite(calendar)}
+                class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left disabled:cursor-default"
+              >
+                <span
+                  class="size-3 shrink-0 rounded-full {isWrite ? 'ring-2 ring-fg ring-offset-1 ring-offset-surface' : ''}"
+                  style="background:{calendar.color ?? restColor}"
+                ></span>
+                <span class="t-label min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
+                  {calendar.name}
+                  {#if calendar.primary}<span class="text-fg-faint">Default</span>{/if}
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-label={shown ? "Hide {calendar.name}" : "Show {calendar.name}"}
+                aria-pressed={shown}
+                onclick={() => toggle(calendar)}
+                class="press-sm flex size-6 shrink-0 items-center justify-center rounded text-fg-faint hover:text-fg"
+              >
+                {#if shown}<Eye size={14} />{:else}<EyeOff size={14} />{/if}
+              </button>
+            </div>
+          {/each}
+        </div>
       </div>
     {/each}
-  </div>
 
-  <button type="button" class="t-micro press-sm mt-2 px-2 py-1 text-fg-faint" onclick={() => void disconnect()}>
-    Disconnect Google
-  </button>
+    <button
+      type="button"
+      disabled={connecting}
+      onclick={() => void addAccount()}
+      class="hoverable press-sm flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-fg-faint disabled:opacity-60"
+    >
+      <Plus size={14} />
+      <span class="t-label">Add calendar account</span>
+    </button>
+  </div>
 {/if}

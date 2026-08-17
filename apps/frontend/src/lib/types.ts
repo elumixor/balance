@@ -55,22 +55,32 @@ export interface CalendarWeek {
 }
 
 export interface CalendarRef {
+  /** Qualified with the account it came from, so two accounts' ids can't collide. */
   id: string;
+  accountId: string;
   name: string;
   color: string | null;
   primary: boolean;
   readOnly: boolean;
 }
 
+export interface CalendarAccount {
+  accountId: string;
+  email: string | null;
+  needsReconnect: boolean;
+  calendars: CalendarRef[];
+}
+
 export interface CalendarPrefs {
   connected: boolean;
   needsReconnect: boolean;
-  calendars: CalendarRef[];
+  accounts: CalendarAccount[];
   visibleCalendarIds: string[];
   writeCalendarId: string;
 }
 
 export interface IntegrationStatus {
+  accountId: string;
   provider: string;
   connected: boolean;
   needsReconnect: boolean;

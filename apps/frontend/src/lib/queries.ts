@@ -39,7 +39,8 @@ export const getIntegrations = () =>
   callApi(api.integrations.$get()).then((r) => unwrapOk(r).integrations as IntegrationStatus[]);
 export const startGoogleConnect = (mode: "app" | "web", origin: string) =>
   callApi(api.integrations.google.start.$post({ mode, origin })).then((r) => unwrapOk(r).url);
-export const disconnectGoogle = () => callApi(api.integrations.google.$delete()).then(unwrapOk);
+export const disconnectGoogle = (accountId: string) =>
+  callApi(api.integrations.google.$delete({ accountId })).then(unwrapOk);
 
 // Calendar
 export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => unwrapOk(r) as CalendarPrefs);

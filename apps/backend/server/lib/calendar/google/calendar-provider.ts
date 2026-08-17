@@ -33,7 +33,10 @@ const SINGLE_EVENT_FIELDS =
 export class GoogleCalendarProvider implements CalendarProvider {
   readonly name = "google";
 
-  constructor(private readonly accounts: ProviderAccountService) {}
+  constructor(
+    private readonly accounts: ProviderAccountService,
+    private readonly accountId: string,
+  ) {}
 
   async listCalendars(): Promise<CalendarRef[]> {
     const response = await this.request<{ items: GoogleCalendarListEntry[] }>(
@@ -162,7 +165,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     path: string,
     options: { method?: string; body?: unknown; allowGone?: boolean; retried?: boolean } = {},
   ): Promise<T> {
-    const token = await this.accounts.accessToken(this.name);
+    const token = await this.accounts.accessToken(this.accountId);
     const response = await fetch(`${BASE_URL}${path}`, {
       method: options.method ?? "GET",
       headers: {
@@ -181,7 +184,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     // An access token can also die before its stated expiry — the account being re-granted,
     // for instance — so one forced refresh is worth trying before giving up on the connection.
     if (response.status === 401 && !options.retried) {
-      const account = await this.accounts.get(this.name);
+      const account = await this.accounts.getById(this.accountId);
       if (account) await this.accounts.refreshAccessToken(account);
       return this.request<T>(path, { ...options, retried: true });
     }

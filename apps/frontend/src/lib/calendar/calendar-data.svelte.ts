@@ -284,7 +284,8 @@ class CalendarData {
     if (preview && previewed) byId.set(preview.id, { ...previewed, start: preview.start, end: preview.end });
     const prefs = store.calendars.value;
     if (!prefs) return [...byId.values()];
-    const primaryIds = new Set(prefs.calendars.filter((c) => c.primary).map((c) => c.id));
+    const allCalendars = prefs.accounts.flatMap((a) => a.calendars);
+    const primaryIds = new Set(allCalendars.filter((c) => c.primary).map((c) => c.id));
     const shownIds = prefs.visibleCalendarIds.length === 0 ? primaryIds : new Set(prefs.visibleCalendarIds);
     return [...byId.values()].filter((event) => shownIds.has(event.calendarId));
   });
@@ -351,7 +352,9 @@ class CalendarData {
    * connect to — the alternative is asking every cold start and taking it back a moment later.
    */
   readonly connectionKnown = $derived(this.weeks.some((week) => week.hasValue) || store.integrations.hasValue);
-  readonly connected = $derived(this.week.value?.connected ?? store.integrations.value?.[0]?.connected ?? false);
+  readonly connected = $derived(
+    this.week.value?.connected ?? store.integrations.value?.some((i) => i.connected) ?? false,
+  );
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(new Date()));
 
@@ -564,6 +567,19 @@ class CalendarData {
   goToToday() {
     this.anchor = startOfWeek(new Date());
     void this.ensureWeeks();
+  }
+
+  /** The month grid jumps straight to whichever week a tapped date falls in. */
+  goToDate(date: Date) {
+    this.anchor = startOfWeek(date);
+    void this.ensureWeeks();
+  }
+
+  /** A month at a time, kept on the same day of the month where the next month has one. */
+  goToMonth(shift: number) {
+    const next = new Date(this.windowStart);
+    next.setMonth(next.getMonth() + shift);
+    this.goToDate(next);
   }
 
   // --- dragging -------------------------------------------------------------

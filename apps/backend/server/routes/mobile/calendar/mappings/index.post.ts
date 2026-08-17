@@ -1,6 +1,7 @@
 import { handler } from "@elumixor/nitro-client/server";
 import { z } from "zod";
 import { handleApiError } from "../../../../lib/api-error";
+import { splitCalendarId } from "../../../../lib/calendar/events-service";
 import { EventMappingService } from "../../../../lib/calendar/mappings-service";
 import { getDbUserForRequest } from "../../../../lib/current-user";
 
@@ -19,7 +20,10 @@ export default handler(
   async ({ body, event }) => {
     const user = await getDbUserForRequest(event);
     try {
-      const mapping = await new EventMappingService(user.id).upsert(body);
+      const mapping = await new EventMappingService(user.id).upsert({
+        ...body,
+        calendarId: splitCalendarId(body.calendarId).calendarId,
+      });
       return { mapping };
     } catch (e) {
       return handleApiError(event, e);

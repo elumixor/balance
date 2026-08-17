@@ -39,7 +39,7 @@
   /** An hour tapped onto the grid is named afterwards, so a block with nothing on it says so. */
   const label = $derived(event.title.trim() || "Untitled");
 
-  const calendars = $derived(store.calendars.value?.calendars ?? []);
+  const calendars = $derived(store.calendars.value?.accounts.flatMap((a) => a.calendars) ?? []);
   const fillColor = $derived(category?.color ?? restColor);
   const borderColor = $derived(calendars.find((c) => c.id === event.calendarId)?.color ?? restColor);
 
