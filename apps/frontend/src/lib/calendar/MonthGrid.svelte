@@ -120,15 +120,16 @@
   <div class="flex items-center justify-between px-0.5">
     <span class="t-micro text-fg-muted">{monthLabel}</span>
     <div class="flex items-center gap-0.5">
-      <button
-        type="button"
-        aria-label="Back to the current month"
-        disabled={onCurrentMonth}
-        onclick={backToToday}
-        class="hoverable press-sm flex size-5 items-center justify-center rounded text-fg-faint disabled:pointer-events-none disabled:opacity-30"
-      >
-        <Undo2 size={12} />
-      </button>
+      {#if !onCurrentMonth}
+        <button
+          type="button"
+          aria-label="Back to the current month"
+          onclick={backToToday}
+          class="hoverable press-sm flex size-5 items-center justify-center rounded text-fg-faint"
+        >
+          <Undo2 size={12} />
+        </button>
+      {/if}
       <button
         type="button"
         aria-label="Previous month"
