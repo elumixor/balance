@@ -101,7 +101,6 @@
                 ></span>
                 <span class="t-label min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
                   {calendar.name}
-                  {#if calendar.primary}<span class="text-fg-faint">Default</span>{/if}
                 </span>
               </button>
               <button
