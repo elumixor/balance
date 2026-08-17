@@ -12,6 +12,7 @@
   import { isActive, NAV_TABS } from "$lib/nav";
   import { settings } from "$lib/settings.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
+  import { startWatchHandoff } from "$lib/watch/handoff";
   import { untrack, type Snippet } from "svelte";
   import { page } from "$app/state";
 
@@ -45,15 +46,19 @@
   // On macOS the app is also the menu bar item, which outlives every screen — so it starts with
   // the session rather than with a route, and stops when the session goes. The Dock icon and the
   // reminders are the same kind of thing, running whether or not anybody is looking at a screen.
+  // The watch handoff belongs to the same list for the same reason: what it hands over is the
+  // session itself, so it can only run while there is one.
   $effect(() => {
     if (!auth.signedIn) return;
     desktopTray.start();
     desktopDock.start();
     desktopReminders.start();
+    const stopWatchHandoff = startWatchHandoff();
     return () => {
       desktopTray.stop();
       desktopDock.stop();
       desktopReminders.stop();
+      stopWatchHandoff();
     };
   });
 

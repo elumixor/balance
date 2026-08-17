@@ -16,15 +16,15 @@ final class WatchRouter {
     }
 }
 
-/// Root view. Clerk's built-in WatchConnectivity session sync means a user who already signed
-/// in on their iPhone is signed in here automatically — there is no watch-native sign-in flow.
-/// If no session has synced yet (fresh install, phone app never opened, or Watch Connectivity
-/// hasn't delivered the context yet), we show a simple prompt instead of building one.
+/// Root view. There is no sign-in on the watch: `WatchPairing` redeems a ticket the phone app
+/// pushes across, and what shows here is whichever side of that has happened — the tracker once
+/// there is a session, and a card asking for the phone until then.
 struct ContentView: View {
     @Environment(Clerk.self) private var clerk
     @Environment(WatchRouter.self) private var router
     @Environment(\.scenePhase) private var scenePhase
 
+    @State private var pairing = WatchPairing()
     @State private var summary = WatchSummaryModel()
     @State private var sessions = SessionController()
     @State private var wheel = WheelGestureModel()
@@ -34,10 +34,19 @@ struct ContentView: View {
     @State private var pendingCategory: WatchCategory?
 
     var body: some View {
-        if clerk.session != nil {
-            tracker
-        } else {
-            NotSignedInView()
+        Group {
+            if clerk.session != nil {
+                tracker
+            } else {
+                NotSignedInView(isPairing: pairing.isPairing)
+            }
+        }
+        // Asked on every appearance and every wrist raise, not only at launch: a session can lapse
+        // while the screen is off, and the ticket that replaces it may already be waiting.
+        .task { pairing.ensureSession() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            pairing.ensureSession()
         }
     }
 

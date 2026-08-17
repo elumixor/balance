@@ -1,16 +1,26 @@
 import SwiftUI
 
-/// Shown only when Clerk's phone-to-watch session sync hasn't delivered a session yet.
+/// Shown until the phone has handed a session across. Opening Balance on the phone is what
+/// produces the ticket this app redeems, so that — rather than anything to do here — is the ask.
 struct NotSignedInView: View {
+    var isPairing = false
+
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: "iphone.gen3")
-                .font(.system(size: 30))
-                .foregroundStyle(.secondary)
-            Text("Open Balance on your iPhone and sign in")
-                .font(.footnote)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+            if isPairing {
+                ProgressView()
+                Text("Signing in…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Image(systemName: "iphone.gen3")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.secondary)
+                Text("Open Balance on your iPhone")
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding()
     }
