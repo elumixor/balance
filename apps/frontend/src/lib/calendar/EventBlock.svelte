@@ -114,7 +114,7 @@
       {@render badge()}{label}</span
     >
     {#if !narrow}
-      <span class="relative z-10 shrink-0 font-sans text-[10px] leading-none text-fg-muted/60"
+      <span class="relative z-10 shrink-0 t-data-nano text-fg-muted/60"
         >{formatClock(new Date(event.start))}</span
       >
     {/if}
@@ -126,7 +126,7 @@
       {@render badge()}{label}</span
     >
     <span
-      class="relative z-10 flex w-full shrink-0 overflow-hidden whitespace-nowrap font-sans text-[10px] leading-none text-fg-muted/60"
+      class="relative z-10 flex w-full shrink-0 overflow-hidden whitespace-nowrap t-data-nano text-fg-muted/60"
     >
       <span>{formatClock(new Date(event.start))}</span
       ><span class="hidden @min-[90px]/evt:inline">–{formatClock(new Date(event.end))}</span>

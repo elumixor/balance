@@ -397,10 +397,10 @@
             ariaLabel="End time"
           />
         {:else}
-          <span class="font-sans text-[14px] leading-[19px] tabular-nums">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
+          <span class="t-data-compact">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
           {#if !event.allDay}
             <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-            <span class="font-sans text-[14px] leading-[19px] tabular-nums">{formatClock(new Date(event.end))}</span>
+            <span class="t-data-compact">{formatClock(new Date(event.end))}</span>
           {/if}
           <span class="t-data-micro text-fg-muted">{span}</span>
         {/if}
@@ -413,7 +413,7 @@
             class="relative flex h-9 items-center rounded-md border border-transparent px-2 transition-colors
               hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
           >
-            <span class="font-sans text-[14px] leading-[19px] tabular-nums">{dateLabel}</span>
+            <span class="t-data-compact">{dateLabel}</span>
             <input
               type="date"
               bind:value={date}
@@ -423,7 +423,7 @@
             />
           </label>
         {:else}
-          <span class="font-sans text-[14px] leading-[19px] tabular-nums px-2">{longDate}</span>
+          <span class="t-data-compact px-2">{longDate}</span>
         {/if}
       </div>
 
