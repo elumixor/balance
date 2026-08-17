@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { emit } from "@tauri-apps/api/event";
+  import { openExternal } from "$lib/desktop/open";
   import { decodeReminder, type ReminderCard } from "$lib/desktop/reminder";
   import { formatClock, formatHoursAndMinutes } from "$lib/format";
   import type { TravelMode } from "$lib/preferences.svelte";
@@ -70,9 +71,12 @@
 
   /** Opened in the browser rather than in here: this window is a card, not a place to work. */
   async function open(url: string) {
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl(url);
-    close();
+    try {
+      await openExternal(url);
+    } finally {
+      // Whether or not the link opened, the card has been acted on and has said its piece.
+      close();
+    }
   }
 </script>
 

@@ -5,6 +5,8 @@
   import SideNav from "$lib/components/nav/SideNav.svelte";
   import TabBar from "$lib/components/nav/TabBar.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
+  import { desktopDock } from "$lib/desktop/dock";
+  import { desktopReminders } from "$lib/desktop/reminders.svelte";
   import { desktopTray } from "$lib/desktop/tray.svelte";
   import { isBareKey, isSettingsKey } from "$lib/keys";
   import { isActive, NAV_TABS } from "$lib/nav";
@@ -41,11 +43,18 @@
   });
 
   // On macOS the app is also the menu bar item, which outlives every screen — so it starts with
-  // the session rather than with a route, and stops when the session goes.
+  // the session rather than with a route, and stops when the session goes. The Dock icon and the
+  // reminders are the same kind of thing, running whether or not anybody is looking at a screen.
   $effect(() => {
     if (!auth.signedIn) return;
     desktopTray.start();
-    return () => desktopTray.stop();
+    desktopDock.start();
+    desktopReminders.start();
+    return () => {
+      desktopTray.stop();
+      desktopDock.stop();
+      desktopReminders.stop();
+    };
   });
 
   /**

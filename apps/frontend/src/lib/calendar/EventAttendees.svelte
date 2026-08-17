@@ -20,13 +20,18 @@
     needsAction: "var(--line-strong)",
   };
 
-  /** The organizer is on their own guest list, and shouldn't be on it twice. */
-  const guests = $derived(attendees.filter((a) => !organizer || keyOf(a) !== keyOf(organizer)));
+  /**
+   * The organizer is on their own guest list, and shouldn't be on it twice — matched on the one
+   * thing a guest is guaranteed to have, since an invitation can carry a nameless address or an
+   * address-less name.
+   */
+  const guests = $derived(attendees.filter((a) => !organizer || !sameAs(a, organizer)));
   const listed = $derived(guests.slice(0, SHOWN));
   const hidden = $derived(guests.length - listed.length);
 
-  function keyOf(attendee: EventAttendee) {
-    return attendee.email ?? attendee.name ?? "";
+  function sameAs(a: EventAttendee, b: EventAttendee) {
+    if (a.email && b.email) return a.email === b.email;
+    return Boolean(a.name) && a.name === b.name;
   }
 
   function nameOf(attendee: EventAttendee) {
@@ -44,7 +49,7 @@
         <span class="t-micro shrink-0 text-fg-faint">organizer</span>
       </div>
     {/if}
-    {#each listed as attendee (keyOf(attendee))}
+    {#each listed as attendee, i (attendee.email ?? attendee.name ?? i)}
       <div class="flex items-center gap-2">
         <Dot color={RESPONSE_COLORS[attendee.response]} size={6} />
         <span class="t-body truncate text-fg-muted">{nameOf(attendee)}</span>

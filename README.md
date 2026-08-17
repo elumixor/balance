@@ -34,7 +34,10 @@ one: `cd apps/backend && bun run dev`, or `cd apps/frontend && bun run dev`.
 Both apps read their own `.env`. The backend needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
 `CLERK_SECRET_KEY`, and for the calendar integration `GOOGLE_OAUTH_CLIENT_ID`,
 `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and
-`OAUTH_STATE_SECRET` (the last two are `openssl rand -base64 32`). The frontend needs `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL`. With
+`OAUTH_STATE_SECRET` (the last two are `openssl rand -base64 32`). `GOOGLE_MAPS_API_KEY` is
+optional and buys travel times to an event's address, through the Google Routes API; without it
+`/mobile/travel` answers `{ available: false }` and the app offers no journeys at all. The frontend
+needs `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL`. With
 no `VITE_API_BASE_URL`, dev falls back to this machine's LAN address (so a phone on the same
 network reaches the backend) and a release build falls back to the empty string, which is what
 makes the deployed web app talk to its own origin.
@@ -104,6 +107,12 @@ that holds a Clerk session and knows what an event counts as, and there is no se
 that logic in Rust. Closing the window hides it rather than quitting, because destroying the
 webview would take both with it.
 
+The Dock icon and the reminders follow the same rule. The webview draws today's date onto a canvas
+and hands the shell the PNG — macOS forgets it on quit, so it is pushed again on every launch. And
+a reminder is a small floating card, a second webview of the app's own `/reminder` route, because a
+macOS notification cannot carry a Join button; the card is given its whole content in the URL and
+asks the server nothing.
+
 The bundle is served over `http://localhost:8123` rather than Tauri's `tauri://` custom protocol
 (`tauri-plugin-localhost`, port pinned in `src-tauri/src/lib.rs`). WebKit gives a custom scheme no
 cookie jar, and Clerk keeps the signed-in client in a cookie — on the custom protocol the app asked
@@ -111,7 +120,9 @@ for a password on every launch. It's the same fix the iOS build makes with `iosS
 The port is fixed because an origin includes its port, and a moving one would lose the session it
 was chosen to keep. That also makes the window a *remote* origin to Tauri's ACL, which is why
 `capabilities/default.json` lists the URLs — without them there is no IPC and the menu bar never
-updates.
+updates. The same trap has a second half: a remote origin is refused every command the app defines
+itself unless `build.rs` declares them in an app manifest *and* the capability grants each one. Miss
+either and the built app fails silently — dev looked fine, and the menu bar simply never moved.
 
 Signing in goes out through the browser: Google won't show a consent screen inside an embedded
 webview, so the OAuth buttons open `/desktop-link` on the deployed web app instead. That page signs

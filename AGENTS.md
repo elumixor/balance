@@ -33,6 +33,12 @@ grant in `provider_accounts` (tokens encrypted, see `lib/crypto.ts`), and `event
 what each event counts as. `CalendarEventsService.resolve` is the single read path — the calendar
 screen and `/mobile/stats` both go through it, so they can't disagree about a week.
 
+An event carries more than its hours — where it is, how to join it, who else is coming, and when
+it wants to remind you — and an invitation can be answered from the app, which writes the reply
+back to the calendar everyone else reads. Travel times are separate and never stored:
+`server/lib/travel/` asks the Google Routes API on demand, and answers `{ available: false }` when
+no `GOOGLE_MAPS_API_KEY` is configured, so every screen has to cope with having no journeys.
+
 Two consequences worth knowing before changing anything here. "Not connected" and "the grant
 expired" are states the screens render, returned as 200 with `connected` / `needsReconnect` — never
 a 401, which the frontend reads as a dead Clerk session and bounces to sign-in. And every write
@@ -42,10 +48,13 @@ must call `eventCache.invalidate(userId)`, or the next read is served a 30-secon
 
 - `apps/frontend/src/lib/api-client/` is generated from the backend's routes (`bunx nitro-client`).
   Never hand-edit it; regenerate and commit.
-- `apps/frontend/src-tauri/` is the macOS shell. It renders the menu bar item and nothing else
-  decides what goes in it: `src/lib/desktop/tray.svelte.ts` computes the whole state and pushes it
-  through `update_tray`. Don't fetch or reason about events in Rust — the session lives in the
-  webview. `target/` and `gen/` are generated; the rest is committed.
+- `apps/frontend/src-tauri/` is the macOS shell. It renders the menu bar item, the Dock icon and
+  the reminder card, and decides the content of none of them: `src/lib/desktop/` computes each
+  state and pushes it down (`update_tray`, `set_dock_icon`, `show_reminder`), with
+  `agenda.svelte.ts` as the one answer to "what is next" that the menu bar and the reminders both
+  read. Don't fetch or reason about events in Rust — the session lives in the webview. A new
+  command has to be named in `build.rs` and in `capabilities/default.json`, or the built app never
+  receives it. `target/` and `gen/` are generated; the rest is committed.
 - `apps/frontend/ios/` is a committed Xcode project, and holds everything Apple: `App/WatchApp`,
   `App/WatchWidget`, the `BalanceKit` package they share, and `fastlane/`. The watch app and widget
   targets are added by `ios/wire_watch_targets.rb`, which is idempotent — change the script, re-run

@@ -6,6 +6,7 @@
   import InlineError from "$lib/components/InlineError.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
   import { restColor } from "$lib/colors";
+  import { openExternal } from "$lib/desktop/open";
   import { isDesktop } from "$lib/desktop/platform";
   import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
   import { DEFAULT_ICON } from "$lib/icons";
@@ -170,10 +171,18 @@
    */
   const reminderText = $derived.by(() => {
     const own = [...new Set(event.reminders.map((r) => r.minutes))].sort((a, b) => b - a);
-    const minutes = own.length > 0 ? own : [preferences.reminders.leadMinutes];
-    const said = minutes.map((m) => (m <= 0 ? "as it starts" : `${formatHoursAndMinutes(m / 60)} before`));
-    return own.length > 0 ? said.join(", ") : `${said[0]} it starts, from this app`;
+    if (own.length > 0) return own.map(lead).join(", ");
+    // Only the macOS app has anywhere to put a reminder, and only the one this app would add is
+    // worth promising — the calendar's own are Google's business, and it says nothing about them
+    // for events it has none on.
+    if (!isDesktop || !preferences.reminders.enabled || event.allDay) return null;
+    return `${lead(preferences.reminders.leadMinutes)}, from this app`;
   });
+
+  /** "10m before", or "as it starts" for the one that fires on the hour itself. */
+  function lead(minutes: number) {
+    return minutes <= 0 ? "as it starts" : `${formatHoursAndMinutes(minutes / 60)} before it starts`;
+  }
 
   /** A pending edit still belongs to the user, so it's written before the card goes away. */
   $effect(() => () => flush());
@@ -269,18 +278,13 @@
     void run(() => data.mapEvent(event, scope, { weights }));
   }
 
-  /**
-   * A link on this card belongs to the meeting, not to the app: the desktop shell hands it to the
-   * browser rather than navigating the window the calendar is in, and everywhere else a new tab
-   * does the same thing.
-   */
+  /** A link that refuses to open says so on the card, rather than doing nothing at all. */
   async function open(url: string) {
-    if (isDesktop) {
-      const { openUrl } = await import("@tauri-apps/plugin-opener");
-      await openUrl(url);
-      return;
+    try {
+      await openExternal(url);
+    } catch (e) {
+      error = e instanceof Error ? e.message : "That link wouldn't open.";
     }
-    window.open(url, "_blank", "noopener");
   }
 
   /**
@@ -533,12 +537,14 @@
       </p>
     {/if}
 
-    <div class="border-t border-line px-3 py-3">
-      <div class="flex items-start gap-3 py-1">
-        <Bell size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-        <span class="t-body min-w-0 flex-1 text-fg-muted">{reminderText}</span>
+    {#if reminderText}
+      <div class="border-t border-line px-3 py-3">
+        <div class="flex items-start gap-3 py-1">
+          <Bell size={16} class="mt-0.5 shrink-0 text-fg-faint" />
+          <span class="t-body min-w-0 flex-1 text-fg-muted">{reminderText}</span>
+        </div>
       </div>
-    </div>
+    {/if}
 </AnchoredPopup>
 
 {#if pickerRect}
