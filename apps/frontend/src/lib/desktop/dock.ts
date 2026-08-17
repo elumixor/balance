@@ -103,24 +103,25 @@ async function render(now: Date): Promise<Uint8Array> {
   context.textAlign = "center";
   context.textBaseline = "middle";
 
-  const line = (text: string, y: number, size: number) => {
-    context.font = `600 ${size}px "Instrument Sans", system-ui, sans-serif`;
+  const line = (text: string, y: number, size: number, weight: number) => {
+    context.font = `${weight} ${size}px "Instrument Sans", system-ui, sans-serif`;
     context.save();
-    // Barely there on purpose: enough to lift the white off the pale part of the ring, not
-    // enough to read as a drop shadow.
-    context.shadowColor = "rgba(0, 0, 0, 0.14)";
-    context.shadowBlur = tile * 0.09;
-    context.shadowOffsetY = tile * 0.006;
-    context.fillStyle = "#ffffff";
+    // Enough to lift the white off the pale part of the ring, and no more — it should read as
+    // depth rather than as a drop shadow.
+    context.shadowColor = "rgba(0, 0, 0, 0.35)";
+    context.shadowBlur = tile * 0.06;
+    context.shadowOffsetY = tile * 0.008;
+    // Slightly short of white, so the artwork behind it comes through and the date sits in the
+    // icon rather than on top of it.
+    context.fillStyle = "rgba(255, 255, 255, 0.9)";
     context.fillText(text, middle, y);
     context.restore();
-    context.fillStyle = "#ffffff";
-    context.fillText(text, middle, y);
   };
 
-  line(now.toLocaleDateString(undefined, { weekday: "short" }), middle - step, tile * 0.17);
-  line(String(now.getDate()), middle, tile * 0.4);
-  line(now.toLocaleDateString(undefined, { month: "short" }), middle + step, tile * 0.17);
+  // The day is the thing being read; the two labels around it only say which day it is.
+  line(now.toLocaleDateString(undefined, { weekday: "short" }), middle - step, tile * 0.17, 400);
+  line(String(now.getDate()), middle, tile * 0.4, 600);
+  line(now.toLocaleDateString(undefined, { month: "short" }), middle + step, tile * 0.17, 400);
 
   const blob = await canvas.convertToBlob({ type: "image/png" });
   return new Uint8Array(await blob.arrayBuffer());
