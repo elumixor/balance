@@ -59,6 +59,9 @@ export default defineConfig(({ mode }) => ({
   plugins: [tailwindcss(), sveltekit()],
   // Rust build artefacts are far too many files to watch, and none of them change the page.
   server: { port: 8081, watch: { ignored: ["**/src-tauri/**"] } },
+  // A release runs two builds of this app side by side (see svelte.config.js); they can't share
+  // one transform cache either.
+  cacheDir: process.env.VITE_CACHE_DIR ?? "node_modules/.vite",
   define: {
     "import.meta.env.VITE_API_BASE_URL": JSON.stringify(resolveApiBaseUrl(mode, process.cwd())),
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion(process.cwd())),

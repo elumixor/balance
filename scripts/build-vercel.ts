@@ -17,8 +17,10 @@ const webDir = join(backend, "public");
 const nitroOutput = join(backend, ".vercel/output");
 const finalOutput = join(root, ".vercel/output");
 
-// The typed client is generated from the route handlers, so it has to exist before the app compiles.
-await $`bunx nitro-client`.cwd(backend);
+// The typed client is generated from the route handlers, so it has to exist before the app
+// compiles — unless a release already did it, in which case regenerating it now would be writing
+// to files the iOS build running alongside is reading.
+if (!process.env.SKIP_CLIENT_GEN) await $`bunx nitro-client`.cwd(backend);
 
 await $`bun run build`.cwd(frontend);
 await rm(webDir, { recursive: true, force: true });

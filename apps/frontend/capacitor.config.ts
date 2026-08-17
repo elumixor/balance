@@ -13,7 +13,9 @@ const liveReload = process.env.CAPACITOR_LIVE_RELOAD === "true";
 const config: CapacitorConfig = {
   appId: "com.elumixor.balance",
   appName: "Balance",
-  webDir: "build",
+  // Follows `BUILD_DIR` so a release can bundle the native web build somewhere of its own while a
+  // web build occupies `build/` — see scripts/deploy-ios.ts.
+  webDir: process.env.BUILD_DIR ?? "build",
   server: liveReload
     ? { url: `http://${localIP()}:8081`, cleartext: true }
     : {

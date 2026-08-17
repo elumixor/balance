@@ -9,6 +9,9 @@ test-results/
 # svelte / vite
 apps/frontend/.svelte-kit/
 apps/frontend/build/
+# the native build a release makes alongside the web one (scripts/deploy-ios.ts)
+apps/frontend/.svelte-kit-ios/
+apps/frontend/build-ios/
 
 # capacitor — the Xcode project is committed, its build products are not.
 # The rest lives in apps/frontend/ios/.gitignore, next to what it ignores.

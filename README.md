@@ -78,8 +78,10 @@ bun run build  # SvelteKit static build -> apps/backend/public, then Nitro's Ver
 
 Both halves ship as one Vercel deployment at
 [balance-app-mauve.vercel.app](https://balance-app-mauve.vercel.app): the static SPA for the app,
-one function for `/mobile/*` and `/health`. Pushing to `main` deploys it. Any path that isn't an
-API prefix answers with the app shell, and the client router takes it from there.
+one function for `/mobile/*` and `/health`. Any path that isn't an API prefix answers with the app
+shell, and the client router takes it from there. `bun run deploy` ships it (see "Releasing");
+pushing to `main` does not — `vercel.json` turns Vercel's git deployments off, so a release is
+something you run, not something a push causes.
 
 ## iOS
 
@@ -177,8 +179,26 @@ bun run test:e2e     # starts both dev servers, then runs Playwright
 The suite signs in as a `+clerk_test` account, so it uses Clerk's fixed `424242` code instead of a
 real email.
 
-## Releasing iOS
+## Releasing
 
 ```bash
-bun run release:ios  # tags the commit; GitHub Actions builds and ships to TestFlight
+bun run deploy         # both of the below, in parallel, with their logs interleaved and labelled
+bun run deploy:vercel  # builds here, uploads the finished output (`vercel deploy --prebuilt --prod`)
+bun run deploy:ios     # web bundle -> Xcode project -> fastlane `beta` -> TestFlight
 ```
+
+Everything is built on this machine — there is no CI doing it, and no tag to push. The iOS half
+needs a working release setup locally: Homebrew Ruby (`brew install ruby`, macOS's own 2.6 is too
+old for fastlane's gems), the "Apple Distribution" certificate in the login keychain, and an App
+Store Connect API key. The key is read from `APP_STORE_CONNECT_API_KEY_PATH`, or
+`~/.appstoreconnect/private_keys/AuthKey_<key id>.p8` by default; its id and issuer id go in the
+repo's `.env` as `APP_STORE_CONNECT_API_KEY_ID` and `APP_STORE_CONNECT_API_KEY_ISSUER_ID`.
+
+The app is bundled against `https://balance-app-mauve.vercel.app` — override with
+`DEPLOY_API_BASE_URL` to point a TestFlight build somewhere else. `fastlane beta` picks the next
+build number from TestFlight itself and writes it into the Xcode project and both watch targets'
+`Info.plist`, so a release leaves those files changed — commit them.
+
+The two halves build the same sources with different settings at the same time, so the native
+build gets its own output directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`); nothing else
+should need them.

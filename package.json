@@ -16,7 +16,9 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test:e2e": "playwright test",
-    "release:ios": "git tag ios-v$(date +%Y%m%d%H%M%S) && git push origin --tags"
+    "deploy": "bun scripts/deploy.ts",
+    "deploy:vercel": "bun scripts/deploy-vercel.ts",
+    "deploy:ios": "bun scripts/deploy-ios.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
