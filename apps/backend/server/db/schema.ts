@@ -128,16 +128,68 @@ export const eventMappingWeights = pgTable("event_mapping_weights", {
   weightPercent: integer("weight_percent").notNull(),
 });
 
+/**
+ * A stretch of time the user started from the watch rather than planned in advance. The hours
+ * still live in the calendar — every session owns a real event, and an instance mapping makes it
+ * count toward one category — so this table holds only what the calendar can't say: which category
+ * was chosen, when the timer was started, and how long it was meant to run. A null `plannedEndAt`
+ * is an open-ended session, and a null `endedAt` is one that is still running.
+ */
+export const trackingSessions = pgTable(
+  "tracking_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("google"),
+    /** Qualified with the account it belongs to — see `qualifyCalendarId`. */
+    calendarId: text("calendar_id").notNull(),
+    externalEventId: text("external_event_id").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    plannedEndAt: timestamp("planned_end_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Two timers running at once would mean two overlapping events nobody asked for, so the
+  // database, and not just the service, holds the "one running session per user" rule.
+  (table) => [
+    uniqueIndex("tracking_sessions_one_running_per_user").on(table.userId).where(sql`${table.endedAt} is null`),
+  ],
+);
+
+/**
+ * How the user wants to be reminded, and how they get around.
+ *
+ * Held as one JSON blob rather than a column per setting: these are the app's own preferences,
+ * they change shape whenever a screen does, and nothing but the app ever reads them — a migration
+ * per checkbox would be all cost and no benefit. Kept on the server rather than on the device so
+ * the settings panel says the same thing everywhere, including on the machines that can't act on
+ * every one of them.
+ */
+export const userPreferences = pgTable("user_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   categories: many(categories),
   activities: many(activities),
   providerAccounts: many(providerAccounts),
   eventMappings: many(eventMappings),
+  trackingSessions: many(trackingSessions),
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
   user: one(users, { fields: [categories.userId], references: [users.id] }),
   weights: many(activityCategoryWeights),
+  trackingSessions: many(trackingSessions),
 }));
 
 export const activitiesRelations = relations(activities, ({ one, many }) => ({
@@ -164,4 +216,9 @@ export const eventMappingsRelations = relations(eventMappings, ({ one, many }) =
 export const eventMappingWeightsRelations = relations(eventMappingWeights, ({ one }) => ({
   mapping: one(eventMappings, { fields: [eventMappingWeights.mappingId], references: [eventMappings.id] }),
   category: one(categories, { fields: [eventMappingWeights.categoryId], references: [categories.id] }),
+}));
+
+export const trackingSessionsRelations = relations(trackingSessions, ({ one }) => ({
+  user: one(users, { fields: [trackingSessions.userId], references: [users.id] }),
+  category: one(categories, { fields: [trackingSessions.categoryId], references: [categories.id] }),
 }));

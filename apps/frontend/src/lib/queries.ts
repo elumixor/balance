@@ -1,4 +1,5 @@
 import { api, apiGet, callApi, unwrapOk } from "./api";
+import type { StoredPreferences } from "./preferences.svelte";
 import type {
   Activity,
   ActivityWeight,
@@ -41,6 +42,14 @@ export const startGoogleConnect = (mode: "app" | "web", origin: string) =>
   callApi(api.integrations.google.start.$post({ mode, origin })).then((r) => unwrapOk(r).url);
 export const disconnectGoogle = (accountId: string) =>
   callApi(api.integrations.google.$delete({ accountId })).then(unwrapOk);
+
+// Preferences
+export const getPreferences = () => callApi(api.preferences.$get()).then((r) => unwrapOk(r) as StoredPreferences);
+/** One section at a time, one setting at a time — the panel has no Save button. */
+export const updatePreferences = (patch: {
+  reminders?: Partial<StoredPreferences["reminders"]>;
+  travel?: Partial<StoredPreferences["travel"]>;
+}) => callApi(api.preferences.$patch(patch)).then(unwrapOk);
 
 // Calendar
 export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => unwrapOk(r) as CalendarPrefs);

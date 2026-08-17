@@ -2,7 +2,14 @@ import { SvelteMap } from "svelte/reactivity";
 import { Cached } from "./cache.svelte";
 import { weekKey, weekRange } from "./dates";
 import * as persist from "./persist";
-import { getActivities, getCalendarPrefs, getCalendarWeek, getCategories, getIntegrations } from "./queries";
+import {
+  getActivities,
+  getCalendarPrefs,
+  getCalendarWeek,
+  getCategories,
+  getIntegrations,
+  getPreferences,
+} from "./queries";
 import type { CalendarWeek } from "./types";
 
 /**
@@ -20,6 +27,7 @@ export const store = {
   activities: new Cached(getActivities, "Couldn't load your activities.", "activities"),
   integrations: new Cached(getIntegrations, "Couldn't check your connected calendars.", "integrations"),
   calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars.", "calendars"),
+  preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences"),
 };
 
 /**
@@ -123,6 +131,7 @@ export function warmStore() {
     store.categories.ensure(),
     store.activities.ensure(),
     store.integrations.ensure(),
+    store.preferences.ensure(),
     calendarWeek(weekKey(new Date())).ensure(),
   ]);
 }
