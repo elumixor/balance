@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { authenticate } from "./auth";
+import { activityRow, authenticate } from "./auth";
 
 test.describe.configure({ mode: "serial" });
 
@@ -51,21 +51,50 @@ test.describe("Balance app", () => {
 
   test("create an activity split across the category", async () => {
     await page.goto("/planning");
+    await expect(page.getByLabel("Add activity")).toBeVisible({ timeout: 10_000 });
+
     // The account is shared across runs, so it can hold more than one activity by this name.
-    const coding = page.getByLabel("Edit Coding").first();
-    if (await coding.isVisible()) {
-      await coding.click();
-    } else {
+    if (!(await page.getByLabel("Archive Coding").first().isVisible())) {
+      // Rows are edited where they sit and save themselves — there is no editor to open and no
+      // Save to press, so adding an activity is a row with a name typed into it.
       await page.getByLabel("Add activity").click();
+      // A new row lands at the top of the list with its name field already focused.
+      await page.getByPlaceholder("Activity name").first().fill("Coding");
+
+      // A fresh activity claims none of its hour, so its first piece is cut out of the
+      // unclaimed remainder and then pointed at the category the ring was just split into.
+      await page.getByText(/^Unclaimed/).first().click({ button: "right" });
+      await page.getByRole("menuitem", { name: "Split" }).click();
+      await page.getByRole("button", { name: /^Change category for / }).first().click();
+      await page.getByRole("button", { name: "Deep Work", exact: true }).click();
     }
 
-    await page.getByPlaceholder("Activity name").fill("Coding");
-    await page.getByLabel("Deep Work share", { exact: true }).fill("60");
-    await page.getByText("Save", { exact: true }).click();
+    const row = activityRow(page, "Coding");
+    // A share can only ever grow into hours nobody has claimed, so the buffer's piece goes back
+    // to being free time before this asks for 60 of it. That leaves the row saying one thing
+    // whatever the last run left behind.
+    const buffer = row.getByRole("button", { name: "Change category for Buffer" });
+    if (await buffer.isVisible()) {
+      await buffer.click({ button: "right" });
+      await page.getByRole("menuitem", { name: "Remove" }).click();
+    }
 
-    const codingRow = page.getByLabel("Edit Coding").first();
-    await expect(codingRow).toBeVisible({ timeout: 10_000 });
-    await expect(codingRow).toContainText("Deep Work 60%");
+    // Enter is what a number field commits on — until then what's typed is only typed.
+    const share = row.getByRole("textbox", { name: "Deep Work percent", exact: true });
+    await share.fill("60");
+    await share.press("Enter");
+
+    // Changes save themselves shortly after the last edit.
+    await page.waitForTimeout(2500);
+    await page.reload();
+
+    const saved = activityRow(page, "Coding");
+    await expect(saved.getByRole("textbox", { name: "Deep Work percent", exact: true })).toHaveValue("60", {
+      timeout: 10_000,
+    });
+    // The 40 nobody claimed is free time, which is the buffer — one piece of it, not one per
+    // edit that left something over.
+    await expect(saved.getByRole("textbox", { name: "Buffer percent", exact: true })).toHaveValue("40");
   });
 
   test("the activity is draggable onto the week from the calendar", async () => {

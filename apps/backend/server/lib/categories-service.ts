@@ -101,6 +101,15 @@ export class ActivityService {
     if (remainder <= 0) return weights;
 
     const buffer = await bufferCategoryService.ensure(this.userId);
+
+    // A split can name the Buffer itself and still leave something over. The two are the same
+    // hours, so they're one row: appending a second one would give the activity that category
+    // twice, which every reader of the list then has to guess how to add up.
+    const explicitBuffer = weights.find((w) => w.categoryId === buffer.id);
+    if (explicitBuffer) {
+      return weights.map((w) => (w === explicitBuffer ? { ...w, weightPercent: w.weightPercent + remainder } : w));
+    }
+
     return [...weights, { categoryId: buffer.id, weightPercent: remainder }];
   }
 

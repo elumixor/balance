@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { authenticate, recordApiCalls } from "./auth";
+import { activityRow, authenticate, recordApiCalls } from "./auth";
 
 test.describe.configure({ mode: "serial" });
 
@@ -27,13 +27,16 @@ test.describe("Moving between tabs", () => {
   test("costs no requests when nothing has changed", async () => {
     const calls = recordApiCalls(page);
 
+    // Each marker is something only that screen's own data can draw: the plan dial's readout of
+    // how much of the week is claimed, the calendar's connect card, and a row of the activities
+    // list. Seeing them means the screen rendered from what the store already held.
     for (const [label, marker] of [
-      ["Planning", /Rest \+ Buffer/],
-      ["Calendar", /Connect Google Calendar/],
-      ["Planning", /Coding/],
+      ["Planning", page.getByText(/of 168h claimed/)],
+      ["Calendar", page.getByLabel("Connect Google Calendar")],
+      ["Planning", page.getByLabel("Archive Coding")],
     ] as const) {
       await page.getByRole("link", { name: label }).first().click();
-      await expect(page.getByText(marker).first()).toBeVisible();
+      await expect(marker.first()).toBeVisible();
     }
 
     expect(calls).toEqual([]);
@@ -41,10 +44,19 @@ test.describe("Moving between tabs", () => {
 
   test("refetches the screens a write left stale", async () => {
     await page.goto("/planning");
-    await page.getByLabel("Edit Coding").first().click();
-    await page.getByPlaceholder("Activity name").fill("Coding");
-    await page.getByText("Save", { exact: true }).click();
-    await expect(page.getByPlaceholder("Activity name")).toHaveCount(0, { timeout: 10_000 });
+
+    // Narrowing a share is the whole write: the rows save themselves, so the edit is the split
+    // itself rather than anything a dialog would have collected first. Giving hours back is
+    // always allowed, and app.spec leaves this row at 60, so the nudge is the same every run.
+    const share = activityRow(page, "Coding").getByRole("textbox", { name: "Deep Work percent", exact: true });
+    await expect(share).toBeVisible({ timeout: 10_000 });
+    const next = String(Number(await share.inputValue()) - 5);
+    const written = page.waitForResponse(
+      (response) => response.request().method() === "PATCH" && response.url().includes("/mobile/activities/"),
+    );
+    await share.fill(next);
+    await share.press("Enter");
+    await written;
 
     // An activity's split changes what its events count toward, so the week is now stale.
     const calls = recordApiCalls(page);

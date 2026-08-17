@@ -119,10 +119,11 @@ class CategoryDrafts {
    * so they win over the cached rows — rebuilding from cache would silently undo them.
    */
   enter = async () => {
-    const dirty = this.dirty;
-    if (!dirty) this.#syncDrafts();
+    if (!this.dirty) this.#syncDrafts();
     await store.categories.ensure();
-    if (!dirty) this.#syncDrafts();
+    // Asked again rather than remembered from before the request: an edit typed while it was out
+    // is exactly what this must not overwrite, and it wasn't there to see when the screen opened.
+    if (!this.dirty) this.#syncDrafts();
   };
 
   load = async () => {
@@ -306,8 +307,12 @@ class CategoryDrafts {
       return;
     }
 
+    // The guard above proved the row exists on the server, but the closures below outlive that
+    // narrowing, so the id is held onto here rather than re-read from the draft.
+    const id = draft.id;
+
     try {
-      await archiveCategory(draft.id);
+      await archiveCategory(id);
       void store.categories.refresh();
       // Only a write that landed is worth taking back — a step for one that failed would undo
       // an archive that never happened.
@@ -316,7 +321,7 @@ class CategoryDrafts {
           this.drafts = before;
           this.#publish();
           try {
-            await restoreCategory(draft.id!);
+            await restoreCategory(id);
             void store.categories.refresh();
           } catch {
             /* best effort — the next load will show the truth */
@@ -326,7 +331,7 @@ class CategoryDrafts {
           this.drafts = after;
           this.#publish();
           try {
-            await archiveCategory(draft.id!);
+            await archiveCategory(id);
             void store.categories.refresh();
           } catch {
             /* best effort — the next load will show the truth */

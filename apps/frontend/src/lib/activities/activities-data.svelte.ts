@@ -37,7 +37,13 @@ function toDraft(activity: Activity): ActivityDraft {
     key: activity.id,
     id: activity.id,
     name: activity.name,
-    pieces: activity.weights.map((w) => ({ key: w.categoryId, categoryId: w.categoryId, percent: w.weightPercent })),
+    // A piece is identified by its place in the split, not by its category: two of them may point
+    // at the same one, and a key that couldn't tell those apart takes the whole screen down.
+    pieces: activity.weights.map((w, i) => ({
+      key: `${w.categoryId}#${i}`,
+      categoryId: w.categoryId,
+      percent: w.weightPercent,
+    })),
     saved: { name: activity.name, weights: activity.weights },
   };
 }
@@ -79,10 +85,11 @@ class ActivitiesData {
 
   /** What the screen calls on mount — edits typed before navigating away outlive the screen. */
   enter = async () => {
-    const dirty = this.dirty;
-    if (!dirty) this.#syncDrafts();
+    if (!this.dirty) this.#syncDrafts();
     await Promise.all([store.activities.ensure(), store.categories.ensure()]);
-    if (!dirty) this.#syncDrafts();
+    // Asked again rather than remembered from before the request: an edit typed while it was out
+    // is exactly what this must not overwrite, and it wasn't there to see when the screen opened.
+    if (!this.dirty) this.#syncDrafts();
   };
 
   load = async () => {
@@ -230,8 +237,12 @@ class ActivitiesData {
       return;
     }
 
+    // The guard above proved the row exists on the server, but the closures below outlive that
+    // narrowing, so the id is held onto here rather than re-read from the draft.
+    const id = draft.id;
+
     try {
-      await archiveActivity(draft.id);
+      await archiveActivity(id);
       void store.activities.refresh();
       // Only a write that landed is worth taking back — a step for one that failed would undo
       // an archive that never happened.
@@ -240,7 +251,7 @@ class ActivitiesData {
           this.drafts = before;
           this.#publish();
           try {
-            await restoreActivity(draft.id!);
+            await restoreActivity(id);
             void store.activities.refresh();
           } catch {
             /* best effort — the next load will show the truth */
@@ -250,7 +261,7 @@ class ActivitiesData {
           this.drafts = after;
           this.#publish();
           try {
-            await archiveActivity(draft.id!);
+            await archiveActivity(id);
             void store.activities.refresh();
           } catch {
             /* best effort — the next load will show the truth */

@@ -35,7 +35,7 @@
   });
 </script>
 
-<div class="space-y-2 py-3">
+<div class="space-y-2 py-3" data-testid="activity-row">
   <div class="flex items-center gap-2">
     <Field
       value={draft.name}

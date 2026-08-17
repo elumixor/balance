@@ -31,6 +31,15 @@ export async function authenticate(page: Page) {
   await expect(page).toHaveURL(/\/calendar/, { timeout: 20_000 });
 }
 
+/**
+ * One row of the Activities list, by the name it carries. Rows are edited in place and every
+ * field in them is a plain input, so the row itself is what tells two activities apart — the
+ * archive button is the only thing in a row that says which one it belongs to.
+ */
+export function activityRow(page: Page, name: string) {
+  return page.getByTestId("activity-row").filter({ has: page.getByLabel(`Archive ${name}`) }).first();
+}
+
 /** Records the API calls a page makes from here on, so a test can assert on what it didn't fetch. */
 export function recordApiCalls(page: Page) {
   const calls: string[] = [];

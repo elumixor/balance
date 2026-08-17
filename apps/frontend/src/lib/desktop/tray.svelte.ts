@@ -7,7 +7,7 @@ import { restColor } from "$lib/colors";
 import { addDays, startOfDay, startOfWeek } from "$lib/dates";
 import { formatClock, formatDayDate, formatHoursAndMinutes } from "$lib/format";
 import { meetingOf } from "$lib/meeting";
-import type { CalendarEvent, Category } from "$lib/types";
+import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
 import { report } from "./report";

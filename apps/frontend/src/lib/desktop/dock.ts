@@ -106,12 +106,17 @@ async function render(now: Date): Promise<Uint8Array> {
   const line = (text: string, y: number, size: number, weight: number) => {
     context.font = `${weight} ${size}px "Instrument Sans", system-ui, sans-serif`;
     context.save();
-    // A white halo instead of a dark drop shadow — it's what keeps black text legible over both
-    // the bright and dark parts of the ring.
-    context.shadowColor = "rgba(255, 255, 255, 0.6)";
-    context.shadowBlur = tile * 0.06;
-    context.shadowOffsetY = 0;
-    context.fillStyle = "#000000";
+    // Enough to lift the white off the pale part of the ring, and no more — it should read as
+    // depth rather than as a drop shadow.
+    context.shadowColor = "rgba(0, 0, 0, 0.8)";
+    context.shadowBlur = 100;
+    context.shadowOffsetY = tile * 0.008;
+    // Slightly short of white, so the artwork behind it comes through and the date sits in the
+    // icon rather than on top of it.
+    context.lineWidth = 2;
+    context.strokeStyle = "#000000";
+    context.strokeText(text, middle, y);
+    context.fillStyle = "rgba(255, 255, 255, 0.9)";
     context.fillText(text, middle, y);
     context.restore();
   };
