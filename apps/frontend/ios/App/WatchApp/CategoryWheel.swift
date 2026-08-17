@@ -23,9 +23,10 @@ enum WheelMetrics {
     static let panTravel: CGFloat = 45
 
     /// How far the camera leans from the finger's own direction towards the middle of the segment it
-    /// has focused. Enough that the focused band ends up centred rather than half off the edge, not
-    /// so much that the ring stops feeling dragged.
-    static let segmentSnap = 0.65
+    /// has focused. Nearly all the way: the close-up parks on the band and stays there, so crossing
+    /// into a segment is a move to it rather than a slide that keeps drifting with the finger. What
+    /// is left is enough to see the ring answer the drag.
+    static let segmentSnap = 0.88
 
     /// Below this a segment is too narrow for a legible glyph, so it goes without one unless it is
     /// the focused segment, which is always drawn large enough.
