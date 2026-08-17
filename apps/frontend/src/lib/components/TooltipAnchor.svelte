@@ -81,7 +81,7 @@
     role="tooltip"
     transition:fly={{ y: 4, duration: 110 }}
     style="left:{position.left}px;top:{position.top}px"
-    class="pointer-events-none fixed z-50 -translate-x-1/2"
+    class="pointer-events-none fixed z-70 -translate-x-1/2"
   >
     {@render bubble()}
   </div>

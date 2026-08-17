@@ -324,7 +324,7 @@
   <!-- The rows Notion fills in for a meeting: drawn, inert, waiting on a backend. -->
   <button type="button" class="press-sm flex w-full items-center gap-3 rounded-md py-1.5 text-left" disabled>
     <Icon size={16} class="shrink-0 text-fg-faint" />
-    <span class="t-body text-fg-faint">{label}</span>
+    <span class="t-label text-fg-faint">{label}</span>
   </button>
 {/snippet}
 
@@ -439,7 +439,7 @@
       {#if meeting.join}
         <div class="flex w-full items-center gap-3 py-1.5">
           <Video size={16} class="shrink-0 text-fg-faint" />
-          <span class="t-body min-w-0 flex-1 truncate">{event.conferenceName ?? meeting.join.label}</span>
+          <span class="t-label min-w-0 flex-1 truncate">{event.conferenceName ?? meeting.join.label}</span>
           <button
             type="button"
             class="press shrink-0 rounded-md bg-ink px-2.5 py-1 text-ink-fg"
@@ -456,7 +456,7 @@
         <div class="flex w-full items-start gap-3 py-1.5">
           <MapPin size={16} class="mt-0.5 shrink-0 text-fg-faint" />
           <div class="min-w-0 flex-1 space-y-1.5">
-            <p class="t-body break-words">{meeting.location}</p>
+            <p class="t-label break-words">{meeting.location}</p>
             {#if travelTo}
               <TravelChips destination={travelTo} arriveBy={event.start} onopen={(url) => void open(url)} />
             {/if}
@@ -525,9 +525,9 @@
           class="bg-transparent px-0"
         />
       {:else if event.description}
-        <p class="t-body whitespace-pre-wrap text-fg-muted">{event.description}</p>
+        <p class="t-label whitespace-pre-wrap text-fg-muted">{event.description}</p>
       {:else}
-        <p class="t-body text-fg-faint">Description</p>
+        <p class="t-label text-fg-faint">Description</p>
       {/if}
     </div>
 
@@ -541,7 +541,7 @@
       <div class="border-t border-line px-3 py-3">
         <div class="flex items-start gap-3 py-1">
           <Bell size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-          <span class="t-body min-w-0 flex-1 text-fg-muted">{reminderText}</span>
+          <span class="t-label min-w-0 flex-1 text-fg-muted">{reminderText}</span>
         </div>
       </div>
     {/if}

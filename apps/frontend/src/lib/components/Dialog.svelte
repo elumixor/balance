@@ -33,7 +33,7 @@
   <!-- The backdrop closes on click; the panel stops the click reaching it, which is what lets a
        drag that starts inside the panel end outside it without closing anything. -->
   <div
-    class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-overlay-strong p-4 pt-[10vh]
+    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay-strong p-4 pt-[10vh]
       backdrop-blur-sm backdrop-saturate-50"
     transition:fade={{ duration: 120 }}
     onclick={onclose}

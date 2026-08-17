@@ -45,14 +45,14 @@
     {#if organizer}
       <div class="flex items-center gap-2">
         <Dot color={RESPONSE_COLORS[organizer.response]} size={6} />
-        <span class="t-body truncate">{nameOf(organizer)}</span>
+        <span class="t-label truncate">{nameOf(organizer)}</span>
         <span class="t-micro shrink-0 text-fg-faint">organizer</span>
       </div>
     {/if}
     {#each listed as attendee, i (attendee.email ?? attendee.name ?? i)}
       <div class="flex items-center gap-2">
         <Dot color={RESPONSE_COLORS[attendee.response]} size={6} />
-        <span class="t-body truncate text-fg-muted">{nameOf(attendee)}</span>
+        <span class="t-label truncate text-fg-muted">{nameOf(attendee)}</span>
         {#if attendee.optional}<span class="t-micro shrink-0 text-fg-faint">optional</span>{/if}
       </div>
     {/each}

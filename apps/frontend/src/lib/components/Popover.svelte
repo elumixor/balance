@@ -97,7 +97,7 @@
   -->
   <div
     use:portal
-    class="fixed inset-0 z-50"
+    class="fixed inset-0 z-60"
     role="presentation"
     onclick={close}
     onkeydown={(e) => e.key === "Escape" && close()}
