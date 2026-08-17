@@ -6,13 +6,20 @@
   import InlineError from "$lib/components/InlineError.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
   import { restColor } from "$lib/colors";
+  import { isDesktop } from "$lib/desktop/platform";
   import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
   import { DEFAULT_ICON } from "$lib/icons";
-  import type { CalendarEvent, Category, MappingScope } from "$lib/types";
+  import { hasAddress, meetingOf } from "$lib/meeting";
+  import { preferences } from "$lib/preferences.svelte";
+  import { respondToCalendarEvent } from "$lib/queries";
+  import { invalidate } from "$lib/store.svelte";
+  import type { CalendarEvent, Category, EventResponse, MappingScope } from "$lib/types";
   import { ArrowRight, Bell, Clock, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
+  import EventAttendees from "./EventAttendees.svelte";
   import TimeField from "./TimeField.svelte";
+  import TravelChips from "./TravelChips.svelte";
 
   /**
    * One event, opened beside the block you tapped: what it says, when it runs, and what it counts
@@ -134,6 +141,40 @@
     return at ? formatDayDate(at) : date;
   });
 
+  /** Where the meeting is and how you get into it, read the same way the reminder card reads it. */
+  const meeting = $derived(meetingOf(event));
+  /**
+   * The address travel times are worked out to, or null. A room name or a link is nowhere to
+   * travel to, and without somewhere to leave from there's nothing to work out either.
+   */
+  const travelTo = $derived(hasAddress(event) && preferences.travel.origin ? meeting.location : null);
+
+  type Answer = Exclude<EventResponse, "needsAction">;
+  const RSVP: { value: Answer; label: string }[] = [
+    { value: "accepted", label: "Yes" },
+    { value: "tentative", label: "Maybe" },
+    { value: "declined", label: "No" },
+  ];
+  /** The answer currently on its way to the calendar, so the row can't be answered twice at once. */
+  let answering = $state<Answer | null>(null);
+  /**
+   * An all-day invitation is still an invitation, so this isn't `editable` — but a calendar you
+   * only have read access to won't take an answer either, and offering one would only fail.
+   */
+  const answerable = $derived(event.invited && !event.readOnly);
+
+  /**
+   * What the app will say about this event and when: the calendar's own reminders where it has
+   * them, and otherwise the one this app adds. Duplicates go — an event reminding you by both
+   * popup and email ten minutes before is one reminder as far as this row is concerned.
+   */
+  const reminderText = $derived.by(() => {
+    const own = [...new Set(event.reminders.map((r) => r.minutes))].sort((a, b) => b - a);
+    const minutes = own.length > 0 ? own : [preferences.reminders.leadMinutes];
+    const said = minutes.map((m) => (m <= 0 ? "as it starts" : `${formatHoursAndMinutes(m / 60)} before`));
+    return own.length > 0 ? said.join(", ") : `${said[0]} it starts, from this app`;
+  });
+
   /** A pending edit still belongs to the user, so it's written before the card goes away. */
   $effect(() => () => flush());
 
@@ -226,6 +267,39 @@
       return;
     }
     void run(() => data.mapEvent(event, scope, { weights }));
+  }
+
+  /**
+   * A link on this card belongs to the meeting, not to the app: the desktop shell hands it to the
+   * browser rather than navigating the window the calendar is in, and everywhere else a new tab
+   * does the same thing.
+   */
+  async function open(url: string) {
+    if (isDesktop) {
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(url);
+      return;
+    }
+    window.open(url, "_blank", "noopener");
+  }
+
+  /**
+   * Answering an invitation isn't an edit, so it doesn't go through the debounce — and the week is
+   * refetched behind it, because the answer changes whether the block counts toward its category.
+   */
+  async function respond(response: Answer) {
+    if (answering) return;
+    answering = response;
+    error = null;
+    try {
+      await respondToCalendarEvent(event.id, event.calendarId, response);
+      invalidate.calendar();
+      await data.refreshWeeks();
+    } catch (e) {
+      error = e instanceof Error ? e.message : "That didn't save.";
+    } finally {
+      answering = null;
+    }
   }
 
   function close() {
@@ -356,15 +430,85 @@
       </div>
     </div>
 
-    <!-- Everything a calendar event can carry that this app doesn't hold yet. -->
+    <!-- The meeting inside the event: where it is, how you get in, and what else it came with. -->
     <div class="border-t border-line px-3 py-2">
-      {@render row("Conferencing", Video)}
-      {@render row("Location", MapPin)}
+      {#if meeting.join}
+        <div class="flex w-full items-center gap-3 py-1.5">
+          <Video size={16} class="shrink-0 text-fg-faint" />
+          <span class="t-body min-w-0 flex-1 truncate">{event.conferenceName ?? meeting.join.label}</span>
+          <button
+            type="button"
+            class="press shrink-0 rounded-md bg-ink px-2.5 py-1 text-ink-fg"
+            onclick={() => void open(meeting.join?.url ?? "")}
+          >
+            <span class="t-label">Join</span>
+          </button>
+        </div>
+      {:else}
+        {@render row("Conferencing", Video)}
+      {/if}
+
+      {#if meeting.location}
+        <div class="flex w-full items-start gap-3 py-1.5">
+          <MapPin size={16} class="mt-0.5 shrink-0 text-fg-faint" />
+          <div class="min-w-0 flex-1 space-y-1.5">
+            <p class="t-body break-words">{meeting.location}</p>
+            {#if travelTo}
+              <TravelChips destination={travelTo} arriveBy={event.start} onopen={(url) => void open(url)} />
+            {/if}
+          </div>
+        </div>
+      {:else}
+        {@render row("Location", MapPin)}
+      {/if}
     </div>
 
     <div class="border-t border-line px-3 py-2">
-      {@render row("Add links and attachments", Link2)}
+      {#if meeting.links.length > 0}
+        <div class="flex w-full items-start gap-3 py-1.5">
+          <Link2 size={16} class="mt-0.5 shrink-0 text-fg-faint" />
+          <div class="flex min-w-0 flex-1 flex-wrap gap-2">
+            {#each meeting.links as link (link.url)}
+              <button
+                type="button"
+                class="press-sm max-w-full rounded-md border border-line px-2 py-1"
+                onclick={() => void open(link.url)}
+              >
+                <span class="t-label block truncate">{link.label}</span>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {:else}
+        {@render row("Add links and attachments", Link2)}
+      {/if}
     </div>
+
+    {#if event.organizer || event.attendees.length > 0 || answerable}
+      <div class="border-t border-line px-3 py-2">
+        {#if event.organizer || event.attendees.length > 0}
+          <EventAttendees attendees={event.attendees} organizer={event.organizer} />
+        {/if}
+        {#if answerable}
+          <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
+          <div class="flex items-center gap-2 py-1.5 pl-7">
+            {#each RSVP as choice (choice.value)}
+              {@const chosen = event.response === choice.value}
+              <button
+                type="button"
+                aria-pressed={chosen}
+                disabled={answering !== null}
+                class="press-sm rounded-md border px-2.5 py-1
+                  {chosen ? 'border-line-strong bg-surface-alt' : 'border-line'}"
+                onclick={() => void respond(choice.value)}
+              >
+                <span class="t-label {chosen ? '' : 'text-fg-muted'}">{choice.label}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
 
     <div class="border-t border-line px-3 py-2">
       {#if editable}
@@ -390,9 +534,9 @@
     {/if}
 
     <div class="border-t border-line px-3 py-3">
-      <div class="flex items-center gap-3 py-1">
-        <Bell size={16} class="shrink-0 text-fg-faint" />
-        <span class="t-body text-fg-faint">Reminders</span>
+      <div class="flex items-start gap-3 py-1">
+        <Bell size={16} class="mt-0.5 shrink-0 text-fg-faint" />
+        <span class="t-body min-w-0 flex-1 text-fg-muted">{reminderText}</span>
       </div>
     </div>
 </AnchoredPopup>
