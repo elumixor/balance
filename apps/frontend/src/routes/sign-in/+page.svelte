@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { auth, authErrorMessage } from "$lib/auth.svelte";
   import AuthShell from "$lib/components/AuthShell.svelte";
+  import BrowserWait from "$lib/components/BrowserWait.svelte";
   import Button from "$lib/components/Button.svelte";
   import Divider from "$lib/components/Divider.svelte";
   import Field from "$lib/components/Field.svelte";
@@ -15,6 +16,8 @@
   let awaitingCode = $state(false);
   let error = $state<string | null>(null);
   let loading = $state(false);
+  /** Only desktop leaves the sign-in screen up while the browser does its thing. */
+  let waitingBrowser = $state(false);
 
   $effect(() => {
     if (auth.loaded && auth.signedIn) void goto("/calendar", { replaceState: true });
@@ -67,6 +70,9 @@
       // around it differently: iOS has the OS's own account picker, macOS has a real browser
       // to send people to. Only the web gets the redirect flow it was written for.
       if (isDesktop) {
+        waitingBrowser = true;
+        // watchDesktopSignIn (registered app-wide) redeems the ticket when the browser sends one
+        // back; auth.signedIn flipping true is what actually moves this screen on.
         await startDesktopSSO(strategy);
         return;
       }
@@ -78,8 +84,14 @@
       }
       await auth.startSSO(strategy, "/calendar");
     } catch (e) {
+      waitingBrowser = false;
       error = authErrorMessage(e, "Sign in didn't finish.");
     }
+  }
+
+  /** Can't close a tab in someone else's browser — this just stops waiting on it. */
+  function cancelBrowserWait() {
+    waitingBrowser = false;
   }
 </script>
 
@@ -106,10 +118,30 @@
       <div class="flex-1"><Divider /></div>
     </div>
 
-    <div class="space-y-2">
-      <Button label="Continue with Google" variant="outline" onclick={() => onSSO("oauth_google")} full />
-      <Button label="Continue with Apple" variant="outline" onclick={() => onSSO("oauth_apple")} full />
-    </div>
+    {#if waitingBrowser}
+      <BrowserWait message="Waiting for you to finish signing in in the browser…" oncancel={cancelBrowserWait} />
+    {:else}
+      <div class="space-y-2">
+        <Button label="Continue with Google" variant="outline" onclick={() => onSSO("oauth_google")} full>
+          {#snippet icon()}
+            <span
+              class="block size-4 shrink-0"
+              style="background-color: currentColor; -webkit-mask: url('/icons/google.png') center / contain no-repeat; mask: url('/icons/google.png') center / contain no-repeat;"
+              aria-hidden="true"
+            ></span>
+          {/snippet}
+        </Button>
+        <Button label="Continue with Apple" variant="outline" onclick={() => onSSO("oauth_apple")} full>
+          {#snippet icon()}
+            <span
+              class="block size-4 shrink-0"
+              style="background-color: currentColor; -webkit-mask: url('/icons/apple.png') center / contain no-repeat; mask: url('/icons/apple.png') center / contain no-repeat;"
+              aria-hidden="true"
+            ></span>
+          {/snippet}
+        </Button>
+      </div>
+    {/if}
 
     <div class="flex justify-center gap-1">
       <span class="t-label text-fg-muted">New here?</span>

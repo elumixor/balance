@@ -1,9 +1,10 @@
 <script lang="ts">
   import Button from "$lib/components/Button.svelte";
+  import BrowserWait from "$lib/components/BrowserWait.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
   import { invalidate, store } from "$lib/store.svelte";
   import { calendarData } from "./calendar-data.svelte";
-  import { connectGoogle } from "./connect";
+  import { ConnectCancelled, connectGoogle } from "./connect";
 
   /**
    * The calendar is the app's source of truth, so with nothing connected there is nothing to
@@ -17,19 +18,26 @@
 
   let connecting = $state(false);
   let error = $state<string | null>(null);
+  let controller: AbortController | null = null;
 
   async function connect() {
     connecting = true;
     error = null;
+    controller = new AbortController();
     try {
-      await connectGoogle();
+      await connectGoogle(controller.signal);
       invalidate.integrations();
       await Promise.all([store.calendars.refresh(), data.refreshWeeks()]);
     } catch (e) {
-      error = e instanceof Error ? e.message : "Couldn't start the connection.";
+      if (!(e instanceof ConnectCancelled)) error = e instanceof Error ? e.message : "Couldn't start the connection.";
     } finally {
       connecting = false;
+      controller = null;
     }
+  }
+
+  function cancel() {
+    controller?.abort();
   }
 </script>
 
@@ -40,11 +48,22 @@
       : "Your week lives in Google Calendar. Balance reads it, and adds to it — nothing else."}
   </p>
   {#if error}<InlineError message={error} />{/if}
-  <Button
-    label={expired ? "Reconnect" : "Connect Google Calendar"}
-    size="sm"
-    full
-    loading={connecting}
-    onclick={() => void connect()}
-  />
+  {#if connecting}
+    <BrowserWait message="Waiting for you to finish in the browser…" oncancel={cancel} />
+  {:else}
+    <Button
+      label={expired ? "Reconnect" : "Connect Google Calendar"}
+      size="sm"
+      full
+      onclick={() => void connect()}
+    >
+      {#snippet icon()}
+        <span
+          class="block size-4 shrink-0"
+          style="background-color: currentColor; -webkit-mask: url('/icons/google.png') center / contain no-repeat; mask: url('/icons/google.png') center / contain no-repeat;"
+          aria-hidden="true"
+        ></span>
+      {/snippet}
+    </Button>
+  {/if}
 </div>
