@@ -44,19 +44,27 @@ const WEEKS_STORED = 12;
  * nothing, so it has nothing to write.
  */
 export function calendarWeek(key: string) {
-  let cached = weeks.get(key);
-  if (!cached) {
-    const { from, to } = weekRange(key);
-    cached = new Cached(() => getCalendarWeek(from, to), "Couldn't load that week.", `week:${key}`);
-    weeks.set(key, cached);
-    persist.prune("week:", WEEKS_STORED);
-    while (weeks.size > WEEKS_KEPT) {
-      const oldest = weeks.keys().next().value;
-      if (oldest === undefined) break;
-      weeks.delete(oldest);
+  const cached = weeks.get(key);
+  if (cached) {
+    // Asking for a week again makes it the newest, so the map drops the weeks nobody has come back
+    // to rather than the ones scrolled over most. Dropping a week that's still on screen costs it
+    // its cache: the one made in its place is stale by definition and refetches under the blocks.
+    if (weeks.size > 1) {
+      weeks.delete(key);
+      weeks.set(key, cached);
     }
+    return cached;
   }
-  return cached;
+  const { from, to } = weekRange(key);
+  const made = new Cached(() => getCalendarWeek(from, to), "Couldn't load that week.", `week:${key}`);
+  weeks.set(key, made);
+  persist.prune("week:", WEEKS_STORED);
+  while (weeks.size > WEEKS_KEPT) {
+    const oldest = weeks.keys().next().value;
+    if (oldest === undefined) break;
+    weeks.delete(oldest);
+  }
+  return made;
 }
 
 /**

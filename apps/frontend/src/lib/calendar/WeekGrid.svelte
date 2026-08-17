@@ -105,6 +105,24 @@
   const lastDrawn = $derived(Math.min(STRIP_DAYS - 1, liveDayOffset + VISIBLE_DAYS - 1 + DRAW_MARGIN_DAYS));
   const isDrawn = (index: number) => index >= firstDrawn && index <= lastDrawn;
 
+  /**
+   * Blocks that have been on screen at least once. A column's blocks are only built while it is near
+   * the window and are thrown away behind it, and the strip re-buckets every one of them each time
+   * it rebuilds a week over — so scrolling makes and unmakes the same events again and again.
+   */
+  const seen = new Set<string>();
+
+  /**
+   * Fades a block in the first time that event is drawn — arriving from the calendar, or made by a
+   * drag — and never again. Fading them all in on the way past is what made the week look like it
+   * was refetching itself every time it was scrolled.
+   */
+  function appear(node: Element, { id }: { id: string }) {
+    const first = !seen.has(id);
+    seen.add(id);
+    return first && !theme.reduceMotion ? fade(node, { duration: 150 }) : {};
+  }
+
   /** Bucketed in one pass rather than a filter per column, which would walk the whole strip's
    *  segments once per column for every change to the events behind them. */
   const placedByDay = $derived.by(() => {
@@ -532,7 +550,7 @@
               <div
                 class="relative py-0.5"
                 style="grid-row:{span.row + 1};grid-column:{span.dayIndex + 1} / span {span.days}"
-                in:fade={{ duration: theme.reduceMotion ? 0 : 150 }}
+                in:appear={{ id: span.event.id }}
                 onclick={(e) =>
                   data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
                 oncontextmenu={(e) => {
@@ -587,7 +605,7 @@
                   ? 'z-30'
                   : ''} {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
                 style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - 10px)"
-                in:fade={{ duration: theme.reduceMotion ? 0 : 150 }}
+                in:appear={{ id: segment.event.id }}
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
                 onpointerup={(e) => data.endDrag(e)}
