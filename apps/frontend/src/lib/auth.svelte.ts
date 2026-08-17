@@ -1,3 +1,5 @@
+import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Clerk } from "@clerk/clerk-js";
 import { API_BASE_URL } from "./api";
@@ -8,6 +10,16 @@ const PUBLISHABLE_KEY =
 
 /** Written the moment there's a session, read before Clerk has had a chance to confirm one. */
 const SIGNED_IN_KEY = "balance:signed-in";
+
+const isNativeApp = Capacitor.isNativePlatform();
+
+/**
+ * Everything Clerk keeps about this device lives under its own prefix in local storage. Which of
+ * those keys exist is Clerk's business and changes between versions, so the whole prefix is
+ * mirrored rather than any one name.
+ */
+const CLERK_STORAGE_PREFIX = "__clerk";
+const MIRRORED_CLERK_STATE = "balance:clerk-state";
 
 class Auth {
   /** False until Clerk has replayed any stored session, so screens can hold their first frame. */
@@ -43,10 +55,15 @@ class Auth {
 
   async #load() {
     const clerk = new Clerk(PUBLISHABLE_KEY);
-    // The webview is a standard browser as far as Clerk is concerned — `capacitor.config.ts`
-    // serves the app from `https://localhost` precisely so that stays true on device.
+    // A webview is not a browser that keeps things. `capacitor.config.ts` serves the app from
+    // `https://localhost` so Clerk recognises the origin, but WKWebView still treats Clerk's own
+    // domain as third party and may drop what it left behind, which is why the app used to ask
+    // for a sign-in every launch. On the phone, then, Clerk is told it isn't in a standard
+    // browser — it keeps the device's client in local storage rather than in cookies — and that
+    // storage is mirrored into the native side, where nothing prunes it.
     try {
-      await clerk.load();
+      if (isNativeApp) await restoreClerkState();
+      await clerk.load(isNativeApp ? { standardBrowser: false } : {});
     } catch (e) {
       // A signed-out app is still usable enough to show what went wrong; hanging on the
       // splash tells the person holding the phone nothing at all.
@@ -55,7 +72,10 @@ class Auth {
       throw e;
     }
     this.#clerk = clerk;
-    clerk.addListener(() => this.#sync());
+    clerk.addListener(() => {
+      this.#sync();
+      if (isNativeApp) void rememberClerkState();
+    });
     this.#sync();
     this.loaded = true;
     return clerk;
@@ -165,11 +185,54 @@ class Auth {
   async signOut() {
     const clerk = await this.load();
     await clerk.signOut();
+    // Signing out has to clear the mirror too, or the next launch restores the device Clerk was
+    // just told to forget.
+    if (isNativeApp) await forgetClerkState();
     this.#sync();
   }
 }
 
 export const auth = new Auth();
+
+/**
+ * Clerk's device state, put back before Clerk looks for it. Native storage outlives the webview's
+ * own, so this is what turns "signed in yesterday" into a session today rather than a sign-in
+ * screen. A device with nothing mirrored yet — a fresh install — restores nothing and signs in
+ * the ordinary way.
+ */
+async function restoreClerkState() {
+  try {
+    const { value } = await Preferences.get({ key: MIRRORED_CLERK_STATE });
+    if (!value) return;
+    for (const [key, item] of Object.entries(JSON.parse(value) as Record<string, string>)) {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, item);
+    }
+  } catch {
+    // A mirror that can't be read is a sign-in screen, not an error worth showing.
+  }
+}
+
+async function rememberClerkState() {
+  try {
+    const kept: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(CLERK_STORAGE_PREFIX)) continue;
+      kept[key] = localStorage.getItem(key) ?? "";
+    }
+    await Preferences.set({ key: MIRRORED_CLERK_STATE, value: JSON.stringify(kept) });
+  } catch {
+    // Same: the cost of failing here is one more sign-in, later.
+  }
+}
+
+async function forgetClerkState() {
+  try {
+    await Preferences.remove({ key: MIRRORED_CLERK_STATE });
+  } catch {
+    /* nothing to forget */
+  }
+}
 
 function readSignedIn() {
   try {

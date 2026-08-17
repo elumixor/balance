@@ -86,6 +86,13 @@ public final class APIClient {
             throw APIError.server("Request failed with status \(http.statusCode)")
         }
 
+        // Anything that isn't an API path answers with the web app's own shell — a 200 full of
+        // HTML — so a wrong path reads as a decoding failure rather than a 404. Saying which it
+        // was is the difference between an afternoon and a minute.
+        guard (http.value(forHTTPHeaderField: "content-type") ?? "").contains("json") else {
+            throw APIError.server("\(path) answered with a page, not JSON — check the API path")
+        }
+
         return try decoder.decode(Response.self, from: data)
     }
 
@@ -102,7 +109,7 @@ public final class APIClient {
     /// boundary travels with the request: see ``Week/localStart(of:calendar:)``.
     public func fetchWatchSummary(weekStart: Date = Week.localStart()) async throws -> WatchSummary {
         try await send(
-            path: "/api/mobile/watch/summary",
+            path: "/mobile/watch/summary",
             method: "GET",
             query: ["weekStart": ISO8601.string(from: weekStart)]
         )
@@ -112,7 +119,7 @@ public final class APIClient {
 
     public func fetchCurrentSession() async throws -> ActiveSession? {
         struct Response: Decodable { let active: ActiveSession? }
-        let response: Response = try await send(path: "/api/mobile/tracking/current", method: "GET")
+        let response: Response = try await send(path: "/mobile/tracking/current", method: "GET")
         return response.active
     }
 
@@ -128,7 +135,7 @@ public final class APIClient {
         }
         struct Response: Decodable { let active: ActiveSession }
         let response: Response = try await send(
-            path: "/api/mobile/tracking/start",
+            path: "/mobile/tracking/start",
             method: "POST",
             body: Body(categoryId: categoryId, durationMinutes: durationMinutes, title: title)
         )
@@ -140,7 +147,7 @@ public final class APIClient {
     @discardableResult
     public func stopTracking() async throws -> ActiveSession? {
         struct Response: Decodable { let stopped: ActiveSession? }
-        let response: Response = try await send(path: "/api/mobile/tracking/stop", method: "POST")
+        let response: Response = try await send(path: "/mobile/tracking/stop", method: "POST")
         return response.stopped
     }
 
@@ -150,7 +157,7 @@ public final class APIClient {
         struct Body: Encodable { let durationMinutes: Int }
         struct Response: Decodable { let active: ActiveSession }
         let response: Response = try await send(
-            path: "/api/mobile/tracking/extend", method: "POST", body: Body(durationMinutes: durationMinutes)
+            path: "/mobile/tracking/extend", method: "POST", body: Body(durationMinutes: durationMinutes)
         )
         return response.active
     }
@@ -158,12 +165,12 @@ public final class APIClient {
     // MARK: Calendars
 
     public func fetchCalendars() async throws -> CalendarsResponse {
-        try await send(path: "/api/mobile/calendar/calendars", method: "GET")
+        try await send(path: "/mobile/calendar/calendars", method: "GET")
     }
 
     /// Points new events at a calendar. `id` is the qualified `accountId::calendarId` form.
     public func setWriteCalendar(id: String) async throws {
         struct Body: Encodable { let writeCalendarId: String }
-        try await send(path: "/api/mobile/calendar/prefs", method: "PATCH", body: Body(writeCalendarId: id))
+        try await send(path: "/mobile/calendar/prefs", method: "PATCH", body: Body(writeCalendarId: id))
     }
 }
