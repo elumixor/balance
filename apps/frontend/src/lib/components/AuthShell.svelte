@@ -6,14 +6,18 @@
 </script>
 
 <!--
-  On a phone this is one centred column. Given a wide window it becomes a two-part page: the
-  week itself, already divided, on the left, and the form on the right — the same ring that
-  runs the app, used once at poster scale.
+  On a phone this is one centred column: mark, name and form are a single group the page
+  centres as a whole, so neither half drifts to an edge. The safe insets sit on the outer
+  wrapper rather than the panels, because on a wide window this becomes a two-part page —
+  the week itself, already divided, on the left, and the form on the right — and there the
+  surface has to reach the edges of the screen.
 -->
-<div class="flex min-h-dvh flex-col bg-bg lg:flex-row">
+<div
+  class="flex min-h-dvh flex-col justify-center bg-bg max-lg:safe-top max-lg:safe-bottom lg:flex-row"
+>
   <div
-    class="flex flex-col items-center justify-center gap-6 border-line px-5 pt-12 pb-6 text-center
-      lg:flex-1 lg:border-r lg:bg-surface lg:px-12 lg:py-12"
+    class="flex flex-col items-center border-line px-5 pt-6 pb-8 text-center
+      lg:flex-1 lg:justify-center lg:border-r lg:bg-surface lg:px-12 lg:py-12"
   >
     <div class="space-y-4 lg:max-w-sm lg:space-y-8">
       <div class="lg:hidden"><BrandMark size={44} /></div>
@@ -25,7 +29,7 @@
     </div>
   </div>
 
-  <div class="flex flex-1 flex-col justify-center px-5 pt-2 pb-10 lg:px-12 lg:py-12">
+  <div class="flex flex-col px-5 pb-6 lg:flex-1 lg:justify-center lg:px-12 lg:py-12">
     <div class="w-full space-y-6 lg:mx-auto lg:max-w-sm">
       {@render children()}
     </div>
