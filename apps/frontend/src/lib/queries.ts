@@ -73,6 +73,13 @@ export const updateCalendarEvent = (
 ) => callApi(api.calendar.events(id).$patch(input)).then((r) => unwrapOk(r).event as CalendarEvent);
 export const deleteCalendarEvent = (id: string, calendarId: string) =>
   callApi(api.calendar.events(id).$delete({ calendarId })).then(unwrapOk);
+/** Yes, no or maybe to an invitation — written to the calendar the other guests are reading. */
+export const respondToCalendarEvent = (
+  id: string,
+  calendarId: string,
+  response: "accepted" | "declined" | "tentative",
+) =>
+  callApi(api.calendar.events(id).rsvp.$post({ calendarId, response })).then((r) => unwrapOk(r).event as CalendarEvent);
 export const saveEventMapping = (input: {
   calendarId: string;
   externalEventId: string;

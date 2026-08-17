@@ -1,0 +1,223 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { eventCategory } from "$lib/calendar/event-category";
+import { restColor } from "$lib/colors";
+import { hasAddress, meetingOf } from "$lib/meeting";
+import { preferences } from "$lib/preferences.svelte";
+import { getTravelTimes, type TravelLeg } from "$lib/travel";
+import type { CalendarEvent } from "$lib/types";
+import { desktopAgenda } from "./agenda.svelte";
+import { isDesktop } from "./platform";
+import { encodeReminder, type ReminderCard, type ReminderKind } from "./reminder";
+
+/**
+ * The reminders themselves: what is about to start, and when to set off for it.
+ *
+ * macOS notifications can't carry a button, and a reminder about a meeting is mostly buttons —
+ * join it, open the agenda, see the route. So a reminder shows the app's own card (see
+ * `src-tauri/src/reminder.rs`), and the system notification is only there to make a sound and
+ * leave a trace in Notification Center.
+ *
+ * Nothing is scheduled ahead: every tick asks "did anything become due since the last one",
+ * which is the same answer without a table of timers to keep in step with a calendar that moves.
+ */
+
+/** A reminder for something that came due while the Mac was asleep is noise, not a reminder. */
+const LATE_MS = 3 * 60_000;
+/** How far ahead a journey is worth asking about. Traffic an hour out isn't today's traffic. */
+const TRAVEL_HORIZON_MS = 45 * 60_000;
+/** What "snooze" means. */
+const SNOOZE_MS = 5 * 60_000;
+
+const FIRED_KEY = "balance.reminders-fired";
+
+class DesktopReminders {
+  #stop: (() => void) | null = null;
+  /** `${eventId}|${kind}` for everything already shown, so a tick never repeats one. */
+  #fired = new Map<string, number>();
+  /** Pushed back by the card's Snooze, keyed the same way. */
+  #snoozed = new Map<string, number>();
+  /** The journey to an event, once asked about. */
+  #travel = new Map<string, TravelLeg[]>();
+  #asking = new Set<string>();
+
+  /** Idempotent, and a no-op anywhere but the desktop build. */
+  start() {
+    if (!isDesktop || this.#stop) return;
+
+    desktopAgenda.start();
+    this.#fired = read();
+
+    // The card is its own window with its own copy of the app, so Snooze can only come back as
+    // an event — this side is where the schedule lives.
+    const unlisten = listen<{ id: string; kind: ReminderKind }>("reminder://snooze", (event) =>
+      this.snooze(event.payload.id, event.payload.kind),
+    );
+
+    const dispose = $effect.root(() => {
+      // Reading the agenda's clock is what makes this run every tick; reading its events is what
+      // makes it run again when the calendar changes under it.
+      $effect(() => {
+        const now = desktopAgenda.now.getTime();
+        const events = desktopAgenda.upcoming;
+        void this.#sweep(events, now);
+      });
+    });
+
+    this.#stop = () => {
+      void unlisten.then((off) => off());
+      dispose();
+    };
+  }
+
+  stop() {
+    this.#stop?.();
+    this.#stop = null;
+  }
+
+  /** The card's Snooze: the same reminder, five minutes from now. */
+  snooze(eventId: string, kind: ReminderKind) {
+    const key = `${eventId}|${kind}`;
+    this.#snoozed.set(key, Date.now() + SNOOZE_MS);
+    this.#fired.delete(key);
+    write(this.#fired);
+  }
+
+  async #sweep(events: CalendarEvent[], now: number) {
+    prune(this.#fired, now);
+    for (const event of events) {
+      const start = new Date(event.start).getTime();
+      if (start <= now) continue;
+
+      // Asked for a little before it's needed, so the card doesn't open on an empty route.
+      if (start - now < TRAVEL_HORIZON_MS) void this.#askTravel(event);
+
+      for (const kind of ["leave", "starts"] as const) {
+        const due = this.#dueAt(event, kind, start);
+        if (due === null) continue;
+        const key = `${event.id}|${kind}`;
+        const snoozed = this.#snoozed.get(key);
+        const at = snoozed && snoozed > due ? snoozed : due;
+        if (at > now || now - at > LATE_MS || this.#fired.has(key)) continue;
+
+        this.#fired.set(key, start);
+        write(this.#fired);
+        await this.#show(event, kind);
+      }
+    }
+  }
+
+  /**
+   * When a reminder is due, or null when it isn't wanted. What's about to start uses the event's
+   * own reminder if the calendar carries one, and the preference otherwise; setting off is timed
+   * off the journey the app just looked up.
+   */
+  #dueAt(event: CalendarEvent, kind: ReminderKind, start: number) {
+    if (!preferences.reminders.enabled || event.allDay) return null;
+
+    if (kind === "starts") {
+      const own = preferences.reminders.useCalendarReminders ? popupMinutes(event) : null;
+      return start - (own ?? preferences.reminders.leadMinutes) * 60_000;
+    }
+
+    if (!preferences.reminders.leaveInTime) return null;
+    const journey = this.#travel.get(event.id)?.[0];
+    if (!journey) return null;
+    return start - journey.seconds * 1000 - preferences.travel.bufferMinutes * 60_000;
+  }
+
+  /** One question per event: a journey doesn't change enough between two ticks to re-ask. */
+  async #askTravel(event: CalendarEvent) {
+    const origin = preferences.travel.origin.trim();
+    const modes = preferences.travel.modes;
+    if (!origin || modes.length === 0 || this.#travel.has(event.id) || this.#asking.has(event.id)) return;
+    const meeting = meetingOf(event);
+    if (!meeting.location || !hasAddress(event)) return;
+
+    this.#asking.add(event.id);
+    try {
+      const answer = await getTravelTimes({ origin, destination: meeting.location, modes, arriveBy: event.start });
+      this.#travel.set(event.id, answer.legs);
+    } catch (e) {
+      // A route that can't be worked out costs the leave-in-time card, not the reminder itself.
+      console.error("Couldn't work out how long it takes to get there", e);
+      this.#travel.set(event.id, []);
+    } finally {
+      this.#asking.delete(event.id);
+    }
+  }
+
+  async #show(event: CalendarEvent, kind: ReminderKind) {
+    const meeting = meetingOf(event);
+    const card: ReminderCard = {
+      id: event.id,
+      kind,
+      title: event.title.trim() || "Untitled",
+      start: event.start,
+      end: event.end,
+      color: eventCategory(event, desktopAgenda.categories)?.color ?? restColor,
+      location: meeting.location,
+      join: meeting.join ? { url: meeting.join.url, label: meeting.join.label } : null,
+      links: meeting.links.slice(0, 4),
+      travel: this.#travel.get(event.id) ?? [],
+    };
+
+    try {
+      await invoke("show_reminder", { payload: encodeReminder(card) });
+    } catch (e) {
+      console.error("The reminder card wouldn't open", e);
+    }
+
+    if (!preferences.reminders.sound) return;
+    try {
+      // Only for the sound and the entry in Notification Center — everything you can act on is
+      // on the card, because a macOS notification can't hold a button.
+      const { sendNotification } = await import("@tauri-apps/plugin-notification");
+      sendNotification({ title: card.title, body: bodyOf(card), sound: "Ping" });
+    } catch (e) {
+      console.error("The notification didn't go out", e);
+    }
+  }
+}
+
+export const desktopReminders = new DesktopReminders();
+
+function bodyOf(card: ReminderCard) {
+  const at = new Date(card.start).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return card.kind === "leave" ? `Time to leave for ${at}` : `Starts at ${at}`;
+}
+
+/** The soonest popup reminder the calendar itself carries, in minutes. */
+function popupMinutes(event: CalendarEvent) {
+  const overrides = event.reminders?.filter((reminder) => reminder.method === "popup") ?? [];
+  if (overrides.length === 0) return null;
+  return Math.min(...overrides.map((reminder) => reminder.minutes));
+}
+
+/**
+ * What's already been shown, kept on the device: reopening the app an hour later must not replay
+ * the morning. Keyed by reminder, holding the event's start so the entry can be dropped once the
+ * event is behind us.
+ */
+function read(): Map<string, number> {
+  try {
+    const stored = JSON.parse(localStorage.getItem(FIRED_KEY) ?? "{}") as Record<string, number>;
+    return new Map(Object.entries(stored));
+  } catch {
+    return new Map();
+  }
+}
+
+function write(fired: Map<string, number>) {
+  try {
+    localStorage.setItem(FIRED_KEY, JSON.stringify(Object.fromEntries(fired)));
+  } catch {
+    // Storage full or blocked: the worst case is a reminder shown twice.
+  }
+}
+
+function prune(fired: Map<string, number>, now: number) {
+  for (const [key, start] of fired) {
+    if (start < now - 24 * 60 * 60_000) fired.delete(key);
+  }
+}

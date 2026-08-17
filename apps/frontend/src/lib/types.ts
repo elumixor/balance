@@ -43,6 +43,47 @@ export interface CalendarEvent {
   activityId: string | null;
   activityName: string | null;
   weights: ActivityWeight[];
+  /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
+  location: string | null;
+  /** The link that means "you are in the call". */
+  conferenceUrl: string | null;
+  /** What the call is: "Google Meet", "Zoom". */
+  conferenceName: string | null;
+  attendees: EventAttendee[];
+  organizer: EventAttendee | null;
+  /** Whether you're on the guest list, and can therefore answer the invitation. */
+  invited: boolean;
+  response: EventResponse | null;
+  /** What the calendar itself would say something about, and how long before. */
+  reminders: { method: "popup" | "email"; minutes: number }[];
+}
+
+/**
+ * What a block drawn before the calendar has ever seen it knows about being a meeting: nothing.
+ * Drafts and drag ghosts are events on the grid without being events in anyone's calendar yet.
+ */
+export const NOT_A_MEETING = {
+  location: null,
+  conferenceUrl: null,
+  conferenceName: null,
+  attendees: [],
+  organizer: null,
+  invited: false,
+  response: null,
+  reminders: [],
+} satisfies Pick<
+  CalendarEvent,
+  "location" | "conferenceUrl" | "conferenceName" | "attendees" | "organizer" | "invited" | "response" | "reminders"
+>;
+
+export type EventResponse = "accepted" | "declined" | "tentative" | "needsAction";
+
+export interface EventAttendee {
+  email: string | null;
+  name: string | null;
+  self: boolean;
+  response: EventResponse;
+  optional: boolean;
 }
 
 export interface CalendarWeek {

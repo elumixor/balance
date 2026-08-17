@@ -50,6 +50,15 @@ pub struct TraySection {
     pub rows: Vec<TrayEventRow>,
 }
 
+/// The call the menu bar offers to walk into, when the next thing is one.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrayJoin {
+    /// The whole row: "Join Google Meet".
+    pub label: String,
+    pub url: String,
+}
+
 /// Everything the menu bar shows, in one push.
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +68,8 @@ pub struct TrayState {
     /// The colour of the bar beside it, "#RRGGBB". Absent means nothing is happening.
     pub color: Option<String>,
     pub tooltip: Option<String>,
+    #[serde(default)]
+    pub join: Option<TrayJoin>,
     pub sections: Vec<TraySection>,
 }
 
@@ -115,6 +126,19 @@ fn truncated(title: &str) -> String {
 pub fn build_menu(app: &AppHandle, state: &TrayState) -> tauri::Result<Menu<Wry>> {
     // Every item has to outlive `Menu::with_items`, so they're owned here and borrowed after.
     let mut items: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
+
+    // Above the day, because it's the one row with a deadline on it. The link rides in the id:
+    // a menu event carries nothing else, and the alternative is a second copy of the state here.
+    if let Some(join) = &state.join {
+        items.push(Box::new(MenuItem::with_id(
+            app,
+            format!("join:{}", join.url),
+            &join.label,
+            true,
+            Some("Cmd+J"),
+        )?));
+        items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    }
 
     for section in &state.sections {
         if section.rows.is_empty() {

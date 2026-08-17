@@ -7,7 +7,13 @@ import { ProviderNotConnectedError } from "./errors";
 import { eventCache } from "./event-cache";
 import { EventMappingService, type ResolvedMapping } from "./mappings-service";
 import { type CalendarConnection, calendarConnections } from "./registry";
-import { type ExternalEvent, type MappingScope, PRIMARY_CALENDAR_ID, type UpdateEventInput } from "./types";
+import {
+  type ExternalEvent,
+  type MappingScope,
+  PRIMARY_CALENDAR_ID,
+  type SelfResponse,
+  type UpdateEventInput,
+} from "./types";
 
 export interface ResolvedEvent extends ExternalEvent {
   readonly mapping: {
@@ -189,6 +195,18 @@ export class CalendarEventsService {
     }
 
     const updated = await connection.provider.updateEvent(calendarId, targetId, targetPatch);
+    eventCache.invalidate(this.userId);
+    const mappings = await new EventMappingService(this.userId).all();
+    return { ...this.attachMappings([updated], mappings)[0], accountId: connection.accountId };
+  }
+
+  /**
+   * Answering an invitation. Yes or no changes what the hour counts as — a declined event moves
+   * no category's total — so the cache goes with it and the week is asked again.
+   */
+  async respond(qualifiedCalendarId: string, eventId: string, response: SelfResponse): Promise<ResolvedEvent> {
+    const { connection, calendarId } = await this.targetFor(qualifiedCalendarId);
+    const updated = await connection.provider.respondToEvent(calendarId, eventId, response);
     eventCache.invalidate(this.userId);
     const mappings = await new EventMappingService(this.userId).all();
     return { ...this.attachMappings([updated], mappings)[0], accountId: connection.accountId };

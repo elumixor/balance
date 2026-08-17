@@ -17,10 +17,27 @@ tauri-build = { version = "2.6.3", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 log = "0.4"
-tauri = { version = "2.11.5", features = ["tray-icon"] }
+# `macos-private-api` is what lets the reminder card be a floating rounded card rather than a
+# rectangle with a system background behind its corners.
+tauri = { version = "2.11.5", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-log = "2"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-localhost = "2.3.2"
+tauri-plugin-notification = "2.3.3"
+
+# The Dock icon and the reminder card's window level are AppKit's, and Tauri exposes neither.
+# Unpinned minors on purpose: these are the versions tao and wry already resolve to, and a second
+# objc2 in the binary would mean a second registration of the same Objective-C classes.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSImage",
+  "NSResponder",
+  "NSWindow",
+] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-deep-link = "2.4.9"

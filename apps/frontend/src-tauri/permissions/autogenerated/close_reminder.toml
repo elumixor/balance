@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-reminder"
+description = "Enables the close_reminder command without any pre-configured scope."
+commands.allow = ["close_reminder"]
+
+[[permission]]
+identifier = "deny-close-reminder"
+description = "Denies the close_reminder command without any pre-configured scope."
+commands.deny = ["close_reminder"]

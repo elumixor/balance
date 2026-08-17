@@ -1,6 +1,6 @@
 import type { activityCategoryWeights, categories } from "../db/schema";
 import { qualifyCalendarId, type ResolvedEvent } from "./calendar/events-service";
-import type { CalendarRef, MappingScope } from "./calendar/types";
+import type { CalendarRef, MappingScope, SelfResponse } from "./calendar/types";
 
 /** Serializes a `categories` row into the shape the mobile app expects. */
 export class CategoryDTO {
@@ -90,6 +90,15 @@ export class CalendarEventDTO {
   readonly activityId: string | null;
   readonly activityName: string | null;
   readonly weights: ActivityWeightDTO[];
+  readonly location: string | null;
+  readonly conferenceUrl: string | null;
+  readonly conferenceName: string | null;
+  readonly attendees: EventAttendeeDTO[];
+  readonly organizer: EventAttendeeDTO | null;
+  /** Whether the signed-in user is on the guest list, and can therefore answer the invitation. */
+  readonly invited: boolean;
+  readonly response: SelfResponse | null;
+  readonly reminders: { method: "popup" | "email"; minutes: number }[];
 
   constructor(e: ResolvedEvent) {
     this.id = e.id;
@@ -109,5 +118,32 @@ export class CalendarEventDTO {
     this.activityId = e.mapping?.activityId ?? null;
     this.activityName = e.mapping?.activityName ?? null;
     this.weights = e.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent }));
+    this.location = e.location;
+    this.conferenceUrl = e.conferenceUrl;
+    this.conferenceName = e.conferenceName;
+    // Rooms and projectors are on the guest list too, and nobody wants to see them there.
+    this.attendees = e.attendees.filter((a) => !a.resource).map(person);
+    this.organizer = e.organizer ? { ...person({ ...e.organizer, response: "accepted", optional: false }) } : null;
+    this.invited = e.attendees.some((a) => a.self);
+    this.response = e.selfResponse;
+    this.reminders = e.reminders.map((r) => ({ method: r.method, minutes: r.minutes }));
   }
+}
+
+export interface EventAttendeeDTO {
+  email: string | null;
+  name: string | null;
+  self: boolean;
+  response: SelfResponse;
+  optional: boolean;
+}
+
+function person(a: {
+  email: string | null;
+  name: string | null;
+  self: boolean;
+  response: SelfResponse;
+  optional: boolean;
+}): EventAttendeeDTO {
+  return { email: a.email, name: a.name, self: a.self, response: a.response, optional: a.optional };
 }

@@ -1,3 +1,5 @@
+mod dock;
+mod reminder;
 mod tray;
 
 use tauri::{
@@ -32,15 +34,21 @@ fn open_window(app: AppHandle) {
     show_window(&app);
 }
 
-fn build_main_window(app: &AppHandle) -> tauri::Result<()> {
-    // In development the Vite server is already a real origin, so it plays the part the localhost
-    // server plays in a release build — same storage rules, same redirect URLs, no second case.
-    let url = if cfg!(dev) {
+/// A path in the app, as the origin every window is loaded from.
+///
+/// In development the Vite server is already a real origin, so it plays the part the localhost
+/// server plays in a release build — same storage rules, same redirect URLs, no second case.
+pub fn app_url(path: &str) -> String {
+    let origin = if cfg!(dev) {
         "http://localhost:8081".to_string()
     } else {
         format!("http://localhost:{PORT}")
     };
-    let url = url.parse().expect("the window URL is built from a constant port");
+    format!("{origin}{path}")
+}
+
+fn build_main_window(app: &AppHandle) -> tauri::Result<()> {
+    let url = app_url("/").parse().expect("the window URL is built from a constant port");
 
     let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
         .title("Balance")
@@ -80,7 +88,15 @@ pub fn run() {
         // `balance-desktop://auth?ticket=…`, sent back by the browser that did the OAuth. The webview
         // listens for it and redeems it; all this side has to do is be there to receive it.
         .plugin(tauri_plugin_deep_link::init())
-        .invoke_handler(tauri::generate_handler![tray::update_tray, open_window])
+        .plugin(tauri_plugin_notification::init())
+        .invoke_handler(tauri::generate_handler![
+            tray::update_tray,
+            dock::set_dock_icon,
+            reminder::show_reminder,
+            reminder::close_reminder,
+            reminder::resize_reminder,
+            open_window
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -115,7 +131,10 @@ pub fn run() {
                         let _ = app.emit(tray::REFRESH_EVENT, ());
                     }
                     id => {
-                        if let Some(event_id) = id.strip_prefix("event:") {
+                        if let Some(url) = id.strip_prefix("join:") {
+                            use tauri_plugin_opener::OpenerExt;
+                            let _ = app.opener().open_url(url, None::<&str>);
+                        } else if let Some(event_id) = id.strip_prefix("event:") {
                             let _ = app.emit(tray::OPEN_EVENT, event_id);
                             show_window(app);
                         }
@@ -135,7 +154,7 @@ pub fn run() {
             event: WindowEvent::CloseRequested { api, .. },
             label,
             ..
-        } => {
+        } if label == "main" => {
             api.prevent_close();
             if let Some(window) = app.get_webview_window(&label) {
                 let _ = window.hide();

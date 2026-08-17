@@ -9,7 +9,7 @@ import {
   updateCalendarEvent,
 } from "$lib/queries";
 import { calendarWeek, invalidate, store } from "$lib/store.svelte";
-import type { Activity, ActivityWeight, CalendarEvent, MappingScope } from "$lib/types";
+import { type Activity, type ActivityWeight, type CalendarEvent, type MappingScope, NOT_A_MEETING } from "$lib/types";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
 import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
@@ -1101,6 +1101,7 @@ class CalendarData {
       activityId,
       activityName: activity?.name ?? null,
       weights: activity?.weights ?? [],
+      ...NOT_A_MEETING,
     };
     // The handle is taken on the draft, so the editor's writes queue up behind the create against
     // a made-up id and land on the real one — nothing here waits on Google to be usable.

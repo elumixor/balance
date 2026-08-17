@@ -36,6 +36,34 @@ export interface ExternalEvent {
   readonly selfResponse: SelfResponse | null;
   readonly readOnly: boolean;
   readonly url: string | null;
+  /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
+  readonly location: string | null;
+  /** The one link that means "you are in the call", when the provider knows of one. */
+  readonly conferenceUrl: string | null;
+  /** What the call is: "Google Meet", "Zoom". Null when there's no conferencing on the event. */
+  readonly conferenceName: string | null;
+  readonly attendees: readonly EventAttendee[];
+  readonly organizer: EventPerson | null;
+  /** How long before it starts the calendar itself would say something, in minutes. */
+  readonly reminders: readonly EventReminder[];
+}
+
+export interface EventPerson {
+  readonly email: string | null;
+  readonly name: string | null;
+  readonly self: boolean;
+}
+
+export interface EventAttendee extends EventPerson {
+  readonly response: SelfResponse;
+  readonly optional: boolean;
+  /** A room or a projector rather than a person — drawn differently, and never chased. */
+  readonly resource: boolean;
+}
+
+export interface EventReminder {
+  readonly method: "popup" | "email";
+  readonly minutes: number;
 }
 
 export interface CreateEventInput {
@@ -63,4 +91,6 @@ export interface CalendarProvider {
   createEvent(input: CreateEventInput): Promise<ExternalEvent>;
   updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent>;
   deleteEvent(calendarId: string, eventId: string): Promise<void>;
+  /** Answers an invitation as the signed-in user. */
+  respondToEvent(calendarId: string, eventId: string, response: SelfResponse): Promise<ExternalEvent>;
 }

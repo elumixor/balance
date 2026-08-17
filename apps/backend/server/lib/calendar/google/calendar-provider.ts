@@ -18,6 +18,16 @@ import type {
 } from "./api-types";
 import { zonedDateToInstant } from "./zoned-date";
 
+/**
+ * The link that means "you are in the call". The conferencing block is the reliable answer — it
+ * is where Google puts a Zoom or a Teams call added through an add-on, not just its own Meet —
+ * and `hangoutLink` is the older field kept for events that only carry that.
+ */
+function conferenceUrl(event: GoogleEvent) {
+  const video = event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === "video");
+  return video?.uri ?? event.hangoutLink ?? null;
+}
+
 const BASE_URL = "https://www.googleapis.com/calendar/v3";
 const PAGE_SIZE = 250;
 const RATE_LIMIT_RETRY_MS = 500;
@@ -25,10 +35,17 @@ const RATE_LIMIT_RETRY_MS = 500;
 /** Google's own noise: neither belongs on a time grid, and both arrive as all-day events. */
 const IGNORED_EVENT_TYPES = new Set(["workingLocation", "birthday"]);
 
-const EVENT_FIELDS =
-  "nextPageToken,timeZone,accessRole,items(id,status,summary,description,start,end,recurringEventId,eventType,htmlLink,attendees(self,responseStatus))";
-const SINGLE_EVENT_FIELDS =
-  "id,status,summary,description,start,end,recurringEventId,eventType,htmlLink,attendees(self,responseStatus)";
+/**
+ * Everything the app reads off an event, asked for by name. Google returns the whole event
+ * otherwise, and a week of them is a lot of JSON for fields nothing draws.
+ */
+const ITEM_FIELDS =
+  "id,status,summary,description,location,start,end,recurringEventId,eventType,htmlLink,hangoutLink," +
+  "conferenceData(entryPoints(entryPointType,uri,label,meetingCode),conferenceSolution(name,key/type))," +
+  "organizer(email,displayName,self),attendees(email,displayName,self,organizer,optional,resource,responseStatus)," +
+  "reminders(useDefault,overrides(method,minutes))";
+const EVENT_FIELDS = `nextPageToken,timeZone,accessRole,items(${ITEM_FIELDS})`;
+const SINGLE_EVENT_FIELDS = ITEM_FIELDS;
 
 export class GoogleCalendarProvider implements CalendarProvider {
   readonly name = "google";
@@ -158,7 +175,52 @@ export class GoogleCalendarProvider implements CalendarProvider {
       selfResponse: (self?.responseStatus as SelfResponse | undefined) ?? null,
       readOnly,
       url: event.htmlLink ?? null,
+      location: event.location ?? null,
+      conferenceUrl: conferenceUrl(event),
+      conferenceName: event.conferenceData?.conferenceSolution?.name ?? (event.hangoutLink ? "Google Meet" : null),
+      attendees: (event.attendees ?? []).map((attendee) => ({
+        email: attendee.email ?? null,
+        name: attendee.displayName ?? null,
+        self: attendee.self === true,
+        response: (attendee.responseStatus as SelfResponse | undefined) ?? "needsAction",
+        optional: attendee.optional === true,
+        resource: attendee.resource === true,
+      })),
+      organizer: event.organizer
+        ? {
+            email: event.organizer.email ?? null,
+            name: event.organizer.displayName ?? null,
+            self: event.organizer.self === true,
+          }
+        : null,
+      // Only the event's own reminders. `useDefault` means "whatever the calendar says", which is
+      // a question about the calendar rather than the event — and the app has its own answer.
+      reminders: (event.reminders?.overrides ?? [])
+        .filter((reminder) => reminder.method === "popup" || reminder.method === "email")
+        .map((reminder) => ({ method: reminder.method as "popup" | "email", minutes: reminder.minutes ?? 0 })),
     };
+  }
+
+  /**
+   * Answering an invitation is a patch to your own line of the guest list — and Google replaces
+   * the whole list rather than merging it, so the others have to be sent back untouched. The
+   * event is read first for exactly that reason.
+   */
+  async respondToEvent(calendarId: string, eventId: string, response: SelfResponse): Promise<ExternalEvent> {
+    const path = `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
+    const current = await this.request<GoogleEvent>(`${path}?fields=attendees(email,self,responseStatus)`);
+    const attendees = current.attendees ?? [];
+    if (!attendees.some((attendee) => attendee.self)) {
+      throw new ApiError("You're not on the guest list for that event", 409);
+    }
+
+    const updated = await this.request<GoogleEvent>(`${path}?sendUpdates=all&fields=${SINGLE_EVENT_FIELDS}`, {
+      method: "PATCH",
+      body: {
+        attendees: attendees.map((attendee) => (attendee.self ? { ...attendee, responseStatus: response } : attendee)),
+      },
+    });
+    return this.toExternalEvent(updated, calendarId, "UTC", false);
   }
 
   private async request<T>(

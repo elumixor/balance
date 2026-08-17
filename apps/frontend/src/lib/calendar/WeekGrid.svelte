@@ -1,6 +1,6 @@
 <script lang="ts">
   import { addDays, minutesIntoDay, startOfDay } from "$lib/dates";
-  import type { CalendarEvent, Category } from "$lib/types";
+  import { type CalendarEvent, type Category, NOT_A_MEETING } from "$lib/types";
   import { calendarData, STRIP_DAYS } from "./calendar-data.svelte";
   import Button from "$lib/components/Button.svelte";
   import EventBlock from "./EventBlock.svelte";
@@ -217,6 +217,7 @@
       activityId: drag.activityId,
       activityName: null,
       weights: drag.weights,
+      ...NOT_A_MEETING,
     };
   });
 
