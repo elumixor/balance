@@ -5,6 +5,7 @@
   import Button from "$lib/components/Button.svelte";
   import EventBlock from "./EventBlock.svelte";
   import { fade, fly } from "svelte/transition";
+  import { untrack } from "svelte";
   import EventContextMenu from "./EventContextMenu.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { freeScroll, onWheelGesture, wheelGestureActive } from "./free-scroll";
@@ -251,40 +252,57 @@
     // Days the window moved, signed. A jump that lands on the week already on screen moves nothing,
     // and has nothing to animate — see `#jumpTo`, which is why that shouldn't happen at all.
     const moved = windowAt === null ? 0 : Math.round((windowDay - windowAt) / MS_PER_DAY);
-    const shouldAnimate = data.animateNextJump && moved !== 0;
-    if (shouldAnimate) {
-      // The jump outranks whatever the last gesture left behind: an ease still running towards an
-      // old column, and the settle that would have moved the window on to it.
+    // Read without subscribing, and cleared however this run ends: the flag belongs to the window
+    // move that raised it, and re-running this effect for the clearing alone would only re-place a
+    // scroll that is already where it belongs.
+    const jump = untrack(() => data.animateNextJump) && moved !== 0;
+    data.animateNextJump = false;
+
+    if (jump) {
+      // Everything here is synchronous, and that is the point. The strip has just moved a whole
+      // number of weeks under the scroll, and the effect below is about to walk `scrollLeft` back by
+      // exactly that much to keep the columns still — which is right for a swipe and wrong for a
+      // jump, whose whole business is landing on a different week. Claiming `stripAt` now, in this
+      // same flush, is what tells it this shift has already been accounted for. Deferring any of it
+      // to a frame from now is what put the week one column-run out.
       cancelAnimation();
       if (settle) clearTimeout(settle);
       settle = null;
       jumping = true;
+      scroller.scrollLeft = offset * width;
+      liveDayOffset = offset;
+      followingScroll = false;
+      stripAt = start;
+      windowAt = windowDay;
+      // The strip often recentres on the same offset, so there may be no distance here for
+      // `scrollLeft` itself to ease across — see the note by `easing` above.
+      if (theme.reduceMotion) {
+        jumping = false;
+        return;
+      }
+      easeDirection = moved < 0 ? -1 : 1;
+      easeDistance = Math.min(Math.abs(moved), VISIBLE_DAYS) * width;
+      easing = true;
+      const slide = requestAnimationFrame(() => (easing = false));
+      // The jump owns the grid until the slide is over, not just for the frame that starts it: the
+      // scroll it wrote is still being reported — a snap container re-snaps after every programmatic
+      // write — and a settle taking one of those late ticks for a gesture would move the window off
+      // the week that was asked for.
+      const held = setTimeout(() => (jumping = false), JUMP_ANIMATE_MS);
+      return () => {
+        cancelAnimationFrame(slide);
+        clearTimeout(held);
+        easing = false;
+        jumping = false;
+      };
     }
+
     // Next frame: the columns have to be laid out at their new width before an offset into them
     // means anything — set it too early and the browser clamps it to a scroll range of zero.
     const frame = requestAnimationFrame(() => {
       if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
       opened = true;
-      // Cleared however this run ends: the flag belongs to the window move that raised it, and
-      // carrying it into the next one would animate a scroll nobody asked to be animated.
-      data.animateNextJump = false;
-      if (shouldAnimate) {
-        scroller.scrollLeft = offset * width;
-        liveDayOffset = offset;
-        // The strip often recentres on the same offset, so there may be no distance here for
-        // `scrollLeft` itself to ease across — see the note by `easing` above.
-        if (!theme.reduceMotion) {
-          easeDirection = moved < 0 ? -1 : 1;
-          easeDistance = Math.min(Math.abs(moved), VISIBLE_DAYS) * width;
-          easing = true;
-          requestAnimationFrame(() => {
-            easing = false;
-            jumping = false;
-          });
-        } else {
-          jumping = false;
-        }
-      } else if (!jumping && !followingScroll) {
+      if (!jumping && !followingScroll) {
         // Only when the scroll isn't already on the column: a settle that landed dead-on would
         // otherwise take a second, redundant write a frame later.
         if (Math.abs(scroller.scrollLeft - offset * width) >= 1) scroller.scrollLeft = offset * width;
@@ -331,9 +349,9 @@
   $effect(() => {
     const start = data.stripStart.getTime();
     const scroller = data.scrollerEl;
-    // A programmatic jump lands `scrollLeft` on its own canonical offset a frame from now (see the
-    // effect above) — walking it back here first would only flash the wrong columns in between.
-    if (!scroller || stripAt === null || start === stripAt || jumping) return;
+    // A jump has already placed the scroll for this shift and moved `stripAt` on to it, so there's
+    // nothing here to walk back — see the effect above.
+    if (!scroller || stripAt === null || start === stripAt) return;
     scroller.scrollLeft -= Math.round((start - stripAt) / MS_PER_DAY) * dayWidth;
     if (dayWidth > 0) liveDayOffset = Math.round(scroller.scrollLeft / dayWidth);
     stripAt = start;
@@ -442,12 +460,19 @@
     </div>
   {/if}
 
+  <!-- Snapping is off for the length of a jump. The slide below moves the columns with a transform,
+       and a snap container measures its snap points off the transformed boxes: left on, it would
+       take the days' displaced positions for the real ones and re-snap the scroll a whole week away
+       from the one that was asked for. It comes back on once the slide is over, on the column the
+       jump landed on. -->
   <div
     bind:this={data.scrollerEl}
     bind:clientWidth={viewWidth}
     use:freeScroll
     {onscroll}
-    class="no-scrollbar h-full snap-x snap-proximity overflow-auto overscroll-none scroll-pl-14 bg-surface"
+    class="no-scrollbar h-full overflow-auto overscroll-none scroll-pl-14 bg-surface"
+    class:snap-x={!jumping}
+    class:snap-proximity={!jumping}
   >
   <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
     <!-- The hours stay put while the days slide past them. -->
