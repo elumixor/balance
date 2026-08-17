@@ -82,75 +82,75 @@ html.dark {
 @utility t-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 30px;
-  line-height: 34px;
-  letter-spacing: -0.8px;
+  font-size: 33px;
+  line-height: 37px;
+  letter-spacing: -0.9px;
   /* A wide screen gets a bigger voice; the scale steps up once, at the side-rail breakpoint. */
   @media (width >= 48rem) {
-    font-size: 40px;
-    line-height: 44px;
-    letter-spacing: -1.4px;
+    font-size: 44px;
+    line-height: 48px;
+    letter-spacing: -1.5px;
   }
 }
 @utility t-heading {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 19px;
-  line-height: 24px;
-  letter-spacing: -0.3px;
+  font-size: 21px;
+  line-height: 26px;
+  letter-spacing: -0.35px;
 }
 @utility t-body {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 15px;
-  line-height: 21px;
+  font-size: 16.5px;
+  line-height: 23px;
 }
 @utility t-body-strong {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 15px;
-  line-height: 21px;
+  font-size: 16.5px;
+  line-height: 23px;
 }
 @utility t-label {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14.5px;
+  line-height: 20px;
 }
 @utility t-micro {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 11px;
-  line-height: 15px;
+  font-size: 12px;
+  line-height: 16.5px;
   letter-spacing: 0.2px;
 }
 @utility t-data {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 14px;
-  line-height: 19px;
+  font-size: 15.5px;
+  line-height: 21px;
   font-variant-numeric: tabular-nums;
 }
 @utility t-data-strong {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 18px;
-  line-height: 23px;
+  font-size: 20px;
+  line-height: 25.5px;
   font-variant-numeric: tabular-nums;
 }
 @utility t-data-micro {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 11px;
-  line-height: 15px;
+  font-size: 12px;
+  line-height: 16.5px;
   font-variant-numeric: tabular-nums;
 }
 @utility t-readout {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 32px;
-  line-height: 38px;
-  letter-spacing: -1px;
+  font-size: 35px;
+  line-height: 42px;
+  letter-spacing: -1.1px;
   font-variant-numeric: tabular-nums;
 }
 

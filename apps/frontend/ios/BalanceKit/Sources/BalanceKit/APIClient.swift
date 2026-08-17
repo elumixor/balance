@@ -25,7 +25,16 @@ public final class APIClient {
     private let session = URLSession.shared
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
-        d.dateDecodingStrategy = .iso8601
+        // Not `.iso8601`: the backend's timestamps carry milliseconds, which that strategy refuses.
+        d.dateDecodingStrategy = .custom { decoder in
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            guard let date = ISO8601.date(from: raw) else {
+                throw DecodingError.dataCorrupted(
+                    .init(codingPath: decoder.codingPath, debugDescription: "Not an ISO 8601 date: \(raw)")
+                )
+            }
+            return date
+        }
         return d
     }()
     private let encoder: JSONEncoder = {
@@ -36,11 +45,13 @@ public final class APIClient {
 
     private init() {}
 
-    private func authorizedRequest(path: String, method: String, body: (any Encodable)? = nil) async throws -> URLRequest {
+    private func authorizedRequest(
+        path: String, method: String, query: [String: String] = [:], body: (any Encodable)? = nil
+    ) async throws -> URLRequest {
         guard let token = try await Clerk.shared.session?.getToken() else {
             throw APIError.notAuthenticated
         }
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        var request = URLRequest(url: url(path: path, query: query))
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -50,8 +61,21 @@ public final class APIClient {
         return request
     }
 
-    private func send<Response: Decodable>(path: String, method: String, body: (any Encodable)? = nil) async throws -> Response {
-        let request = try await authorizedRequest(path: path, method: method, body: body)
+    /// A query string is appended by hand rather than through `appendingPathComponent`, which would
+    /// percent-encode the `?` and turn the whole thing into one very strange path.
+    private func url(path: String, query: [String: String]) -> URL {
+        let base = baseURL.appendingPathComponent(path)
+        guard !query.isEmpty else { return base }
+        let encoded = query
+            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")" }
+            .joined(separator: "&")
+        return URL(string: "\(base.absoluteString)?\(encoded)") ?? base
+    }
+
+    private func send<Response: Decodable>(
+        path: String, method: String, query: [String: String] = [:], body: (any Encodable)? = nil
+    ) async throws -> Response {
+        let request = try await authorizedRequest(path: path, method: method, query: query, body: body)
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
 
@@ -72,72 +96,74 @@ public final class APIClient {
         let _: Empty = try await send(path: path, method: method, body: body)
     }
 
-    // MARK: Categories
+    // MARK: Watch
 
-    public func fetchCategories() async throws -> [Category] {
-        struct Response: Decodable { let categories: [Category] }
-        let response: Response = try await send(path: "/api/mobile/categories", method: "GET")
-        return response.categories
+    /// The whole watch face in one call — the week, what's next, and any running timer. The week
+    /// boundary travels with the request: see ``Week/localStart(of:calendar:)``.
+    public func fetchWatchSummary(weekStart: Date = Week.localStart()) async throws -> WatchSummary {
+        try await send(
+            path: "/api/mobile/watch/summary",
+            method: "GET",
+            query: ["weekStart": ISO8601.string(from: weekStart)]
+        )
     }
 
-    public struct CategoryInput: Encodable {
-        public var name: String
-        public var color: String
-        public var targetHoursPerWeek: Double
+    // MARK: Tracking
 
-        public init(name: String, color: String, targetHoursPerWeek: Double) {
-            self.name = name
-            self.color = color
-            self.targetHoursPerWeek = targetHoursPerWeek
+    public func fetchCurrentSession() async throws -> ActiveSession? {
+        struct Response: Decodable { let active: ActiveSession? }
+        let response: Response = try await send(path: "/api/mobile/tracking/current", method: "GET")
+        return response.active
+    }
+
+    /// Starts a timer, replacing whatever was running. A nil `durationMinutes` is open-ended: the
+    /// session runs until it is stopped, and the calendar event it writes is only provisional.
+    public func startTracking(
+        categoryId: String, durationMinutes: Int? = nil, title: String? = nil
+    ) async throws -> ActiveSession {
+        struct Body: Encodable {
+            let categoryId: String
+            let durationMinutes: Int?
+            let title: String?
         }
+        struct Response: Decodable { let active: ActiveSession }
+        let response: Response = try await send(
+            path: "/api/mobile/tracking/start",
+            method: "POST",
+            body: Body(categoryId: categoryId, durationMinutes: durationMinutes, title: title)
+        )
+        return response.active
     }
 
-    public func createCategory(_ input: CategoryInput) async throws {
-        try await send(path: "/api/mobile/categories", method: "POST", body: input)
+    /// Stops the running timer and returns what was stopped, or nil if nothing was running —
+    /// asking twice is not an error, only a watch face that was a moment behind.
+    @discardableResult
+    public func stopTracking() async throws -> ActiveSession? {
+        struct Response: Decodable { let stopped: ActiveSession? }
+        let response: Response = try await send(path: "/api/mobile/tracking/stop", method: "POST")
+        return response.stopped
     }
 
-    public func updateCategory(id: String, _ input: CategoryInput) async throws {
-        try await send(path: "/api/mobile/categories/\(id)", method: "PATCH", body: input)
+    /// Re-lengthens the running session, measured from when it started rather than from now.
+    @discardableResult
+    public func extendTracking(durationMinutes: Int) async throws -> ActiveSession {
+        struct Body: Encodable { let durationMinutes: Int }
+        struct Response: Decodable { let active: ActiveSession }
+        let response: Response = try await send(
+            path: "/api/mobile/tracking/extend", method: "POST", body: Body(durationMinutes: durationMinutes)
+        )
+        return response.active
     }
 
-    public func archiveCategory(id: String) async throws {
-        try await send(path: "/api/mobile/categories/\(id)/archive", method: "POST")
+    // MARK: Calendars
+
+    public func fetchCalendars() async throws -> CalendarsResponse {
+        try await send(path: "/api/mobile/calendar/calendars", method: "GET")
     }
 
-    // MARK: Activities
-
-    public func fetchActivities() async throws -> [Activity] {
-        struct Response: Decodable { let activities: [Activity] }
-        let response: Response = try await send(path: "/api/mobile/activities", method: "GET")
-        return response.activities
-    }
-
-    public struct ActivityInput: Encodable {
-        public var name: String
-        public var weights: [ActivityWeight]
-
-        public init(name: String, weights: [ActivityWeight]) {
-            self.name = name
-            self.weights = weights
-        }
-    }
-
-    public func createActivity(_ input: ActivityInput) async throws {
-        try await send(path: "/api/mobile/activities", method: "POST", body: input)
-    }
-
-    public func updateActivity(id: String, _ input: ActivityInput) async throws {
-        try await send(path: "/api/mobile/activities/\(id)", method: "PATCH", body: input)
-    }
-
-    public func archiveActivity(id: String) async throws {
-        try await send(path: "/api/mobile/activities/\(id)/archive", method: "POST")
-    }
-
-    // MARK: Stats
-
-    public func fetchStats(period: String, date: Date = Date()) async throws -> StatsResponse {
-        let iso = ISO8601DateFormatter().string(from: date)
-        return try await send(path: "/api/mobile/stats?period=\(period)&date=\(iso)", method: "GET")
+    /// Points new events at a calendar. `id` is the qualified `accountId::calendarId` form.
+    public func setWriteCalendar(id: String) async throws {
+        struct Body: Encodable { let writeCalendarId: String }
+        try await send(path: "/api/mobile/calendar/prefs", method: "PATCH", body: Body(writeCalendarId: id))
     }
 }

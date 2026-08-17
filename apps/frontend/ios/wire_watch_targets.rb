@@ -97,11 +97,16 @@ widget_group = project.main_group.new_group(WIDGET_NAME, "App/WatchWidget")
 widget.add_file_references(
   Dir[File.join(src_root, "WatchWidget/*.swift")].sort.map { |f| widget_group.new_reference(f) },
 )
+# The entitlements are not compiled, but keeping them visible in the group is how anyone opening
+# the project finds out the widget reads a shared container.
+widget_group.new_reference(File.join(src_root, "WatchWidget/#{WIDGET_NAME}.entitlements"))
 link_package_product(project, widget, package_ref, "BalanceKit")
 
 add_settings(widget, COMMON.merge(
   "PRODUCT_BUNDLE_IDENTIFIER" => WIDGET_BUNDLE,
   "INFOPLIST_FILE" => "WatchWidget/Info.plist",
+  # The widget renders from the App Group blob the watch app writes, so both ends need the group.
+  "CODE_SIGN_ENTITLEMENTS" => "WatchWidget/#{WIDGET_NAME}.entitlements",
   "SKIP_INSTALL" => "YES",
   "LD_RUNPATH_SEARCH_PATHS" => "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks",
 ))
@@ -115,12 +120,16 @@ watch.add_file_references(
   Dir[File.join(src_root, "WatchApp/*.swift")].sort.map { |f| watch_group.new_reference(f) },
 )
 watch.add_resources([watch_group.new_reference(File.join(src_root, "WatchApp/Assets.xcassets"))])
+watch_group.new_reference(File.join(src_root, "WatchApp/#{WATCH_NAME}.entitlements"))
 link_package_product(project, watch, package_ref, "BalanceKit")
 link_package_product(project, watch, package_ref, "ClerkKit")
 
 add_settings(watch, COMMON.merge(
   "PRODUCT_BUNDLE_IDENTIFIER" => WATCH_BUNDLE,
   "INFOPLIST_FILE" => "WatchApp/Info.plist",
+  # The App Group is the widget's only source of data, and a fixed session's end is announced with
+  # a time-sensitive local notification — both are entitlements, not plist keys.
+  "CODE_SIGN_ENTITLEMENTS" => "WatchApp/#{WATCH_NAME}.entitlements",
   "SKIP_INSTALL" => "NO",
   # Without CFBundleIconName the App Store rejects the upload, and that key comes from here.
   "ASSETCATALOG_COMPILER_APPICON_NAME" => "AppIcon",
@@ -142,5 +151,17 @@ embed_watch.dst_path = "$(CONTENTS_FOLDER_PATH)/Watch"
 embed_watch.add_file_reference(watch.product_reference, true).settings = { "ATTRIBUTES" => ["RemoveHeadersOnCopy"] }
 
 project.save
+
+# --- schemes ----------------------------------------------------------------
+# Without shared schemes, Xcode invents one per target, and the invented scheme for an app
+# extension also builds the extension's containing app — which here means building the Capacitor
+# iOS app for watchOS, something it can never do. These build exactly one target each.
+[[WATCH_NAME, watch], [WIDGET_NAME, widget]].each do |name, target|
+  scheme = Xcodeproj::XCScheme.new
+  scheme.add_build_target(target)
+  scheme.set_launch_target(target) if target == watch
+  scheme.save_as(PROJ, name, true)
+end
+
 puts "Wired #{WATCH_NAME} + #{WIDGET_NAME} into #{File.basename(PROJ)}"
 project.targets.each { |t| puts "  target: #{t.name} (#{t.product_type})" }

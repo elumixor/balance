@@ -38,6 +38,7 @@ export default handler({ query: { period: z.string(), date: z.string().optional(
         categoryId: s.categoryId,
         name: s.name,
         color: s.color,
+        icon: s.icon,
         targetHours: s.targetHours,
         actualHours: s.actualHours,
         diffHours: s.diffHours,

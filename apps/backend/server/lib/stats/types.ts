@@ -30,7 +30,11 @@ export interface CategoryInput {
   id: string;
   name: string;
   color: string;
+  /** Lucide icon name, carried through so a screen showing only stats still draws the category. */
+  icon: string;
   targetHoursPerWeek: number;
+  /** The buffer category is real time, but a screen with no room for it leaves it out. */
+  isBuffer: boolean;
 }
 
 export interface CategoryBreakdownItem {
@@ -43,6 +47,8 @@ export interface CategoryStat {
   categoryId: string;
   name: string;
   color: string;
+  icon: string;
+  isBuffer: boolean;
   targetHours: number;
   actualHours: number;
   diffHours: number;

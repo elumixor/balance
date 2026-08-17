@@ -37,7 +37,9 @@ function resolveApiBaseUrl(mode: string, cwd: string) {
 function buildStamp() {
   const git = (command: string) => {
     try {
-      return execSync(command, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+      return execSync(command, { stdio: ["ignore", "pipe", "ignore"] })
+        .toString()
+        .trim();
     } catch {
       return "";
     }

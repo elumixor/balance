@@ -37,7 +37,9 @@ export class StatsRepository {
         id: c.id,
         name: c.name,
         color: c.color,
+        icon: c.icon,
         targetHoursPerWeek: Number(c.targetHoursPerWeek),
+        isBuffer: c.isBuffer,
       })),
       // An event mapped straight to categories has no activity to name it, so it stands for
       // itself in the breakdown — which reads better than "Other" anyway.

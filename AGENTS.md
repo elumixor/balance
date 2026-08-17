@@ -59,3 +59,8 @@ must call `eventCache.invalidate(userId)`, or the next read is served a 30-secon
   `App/WatchWidget`, the `BalanceKit` package they share, and `fastlane/`. The watch app and widget
   targets are added by `ios/wire_watch_targets.rb`, which is idempotent — change the script, re-run
   it, and commit the resulting `project.pbxproj` rather than editing the project by hand.
+  Anything both watch targets draw or compute belongs in `BalanceKit` — the ring's geometry
+  (`DialLayout`), the hours formatting, the Lucide-to-SF-Symbols map — because the widget runs in
+  its own process and a second copy of that maths is a second, quietly different answer. The watch
+  reads `/mobile/watch/summary` and writes through `/mobile/tracking/*`; `SessionController` is the
+  one place that knows what is running, and the only writer of the App Group snapshot.

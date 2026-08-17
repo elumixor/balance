@@ -42,6 +42,18 @@ no `VITE_API_BASE_URL`, dev falls back to this machine's LAN address (so a phone
 network reaches the backend) and a release build falls back to the empty string, which is what
 makes the deployed web app talk to its own origin.
 
+### The database
+
+Drizzle owns the schema (`apps/backend/server/db/schema.ts`) and `server/db/migrations/` is
+generated from it: `cd apps/backend && bun run db:generate` after changing a table, then
+`bun run db:migrate` to apply it. `bun run db:studio` opens a browser over the data.
+
+Migrations arrived after the deployed database did — it was built with `drizzle-kit push`, so it
+already has every table the baseline migration creates and `db:migrate` would fail on the first
+`CREATE TABLE`. An existing database has to be baselined once: apply anything new with
+`bunx drizzle-kit push`, then insert the baseline's hash into `drizzle.__drizzle_migrations` so it
+counts as applied. A database created from scratch needs none of this — `db:migrate` builds it.
+
 ### Connecting Google Calendar
 
 The OAuth client is a **web** client (the iOS sign-in client has no secret and can't do a
@@ -84,12 +96,24 @@ share, and the fastlane lane. Capacitor only knows about the single iOS target, 
 and widget are wired in by `ios/wire_watch_targets.rb` — re-run it (it is idempotent) if Capacitor
 ever regenerates the project, and commit the resulting `project.pbxproj`.
 
-The watch app writes a snapshot of the week's most off-target category that the widget reads
-through the
-`group.com.elumixor.balance` App Group. That group has to be ticked on all three bundle IDs in the
-Apple Developer portal — the App Store Connect API can't do it — and the entitlement added to both
-watch targets. Until then the widget falls back to its placeholder, which is where it has been
-since before the Capacitor move.
+The watch app is a tracker, not a second dashboard. `GET /mobile/watch/summary` answers the whole
+screen in one call — the week by category, the next calendar event, and any timer already running —
+and the ring it draws is a picker: press, drag out to a category, let go, choose a duration.
+Starting a timer is `POST /mobile/tracking/start`, which writes a real calendar event and maps it
+wholly to that category, so a session and a planned event are the same kind of thing by the time
+anything reads the week back. `stop` and `extend` move that event's end. The one setting the watch
+owns is where those events are written, on `CalendarSettingsView`.
+
+Every screen goes through `SessionController`, the single answer to "what is running", and the week
+plus the running session are written to the `group.com.elumixor.balance` App Group as a
+`WatchSnapshot` — the widget reads that blob and never makes a call of its own. The entitlements
+are committed on both watch targets and wired in by `wire_watch_targets.rb`; the group still has to
+be ticked on all three bundle IDs in the Apple Developer portal, which the App Store Connect API
+can't do, or the blob is written to a container nothing else can see and the widget shows its
+placeholder.
+
+The ring's geometry is `DialLayout` in BalanceKit, not a shape in either target: the app's wheel and
+the widget's dial are the same week drawn at two sizes, and they used to disagree about it.
 
 ## macOS
 

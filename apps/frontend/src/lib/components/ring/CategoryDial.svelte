@@ -38,15 +38,16 @@
 <script lang="ts">
   import { formatHoursDecimal } from "$lib/format";
   import { iconFor } from "$lib/icons";
-  import Arc from "./Arc.svelte";
+  import { theme } from "$lib/theme.svelte";
   import { MIN_ICON_FRACTION, ringRadius } from "./WeekRing.svelte";
 
   /**
    * The week as one dial instead of a row of small rings: every category is a segment whose width
-   * is the share of the week it was promised, outlined in its own colour and filled from its
-   * leading edge as the hours are actually spent. A full band means the plan was met; past that
-   * the segment turns the same red an overrun bar does, so the ring can be read at a glance
-   * without a legend beside it.
+   * is the share of the week it was promised, outlined in its own colour and filled outward from
+   * the middle of the dial as the hours are actually spent — the segment thickens rather than
+   * creeping around, so a glance down the ring compares depths and not arc lengths. A band filled
+   * to its outer edge means the plan was met; past that the segment turns the same red an overrun
+   * bar does, so the ring can be read at a glance without a legend beside it.
    *
    * The readout lives in the middle rather than in a bubble, because this sits in a rail barely
    * wider than the dial itself — a tooltip would cover the very segment it describes.
@@ -76,7 +77,20 @@
   const r = $derived(ringRadius(size, thickness));
   const outerR = $derived(r + thickness / 2 - OUTLINE_WIDTH / 2);
   const innerR = $derived(r - thickness / 2 + OUTLINE_WIDTH / 2);
-  const fillThickness = $derived(Math.max(2, thickness - 2 * (OUTLINE_WIDTH + FILL_INSET)));
+  /** The room the fill has between the two edges, kept off both so the outline stays a hairline. */
+  const fillInnerR = $derived(innerR + OUTLINE_WIDTH / 2 + FILL_INSET);
+  const fillOuterR = $derived(outerR - OUTLINE_WIDTH / 2 - FILL_INSET);
+
+  /** The dial rises out of its outlines once, on mount, unless motion is unwelcome. */
+  let grown = $state(0);
+  $effect(() => {
+    if (theme.reduceMotion) {
+      grown = 1;
+      return;
+    }
+    const id = requestAnimationFrame(() => (grown = 1));
+    return () => cancelAnimationFrame(id);
+  });
 
   const planned = $derived(segments.reduce((sum, s) => sum + s.plannedHours, 0) || 1);
   const tracked = $derived(segments.reduce((sum, s) => sum + (s.muted ? 0 : s.actualHours), 0));
@@ -127,18 +141,31 @@
           stroke-opacity={slice.segment.muted ? 0.5 : 0.85}
           stroke-linejoin="round"
         />
-        <!-- And the hours that landed in it, growing from the segment's own leading edge. -->
-        <Arc
-          cx={c}
-          cy={c}
-          {r}
-          thickness={fillThickness}
-          color={slice.color}
-          start={slice.start}
-          sweep={slice.sweep * slice.fill}
-          opacity={slice.segment.muted ? 0.45 : 0.92}
-          delay={i * 55}
-        />
+        <!--
+          And the hours that landed in it: the same wedge, thickening from the inner edge outward.
+          Drawn as a stroked arc rather than a filled wedge because a stroke's radius and width are
+          both animatable, which is what lets the band rise on mount instead of appearing.
+        -->
+        {#if slice.fill > 0}
+          {@const depth = (fillOuterR - fillInnerR) * slice.fill * grown}
+          {@const fr = fillInnerR + depth / 2}
+          {@const circumference = 2 * Math.PI * fr}
+          <circle
+            cx={c}
+            cy={c}
+            r={fr}
+            fill="none"
+            stroke={slice.color}
+            stroke-width={Math.max(0.001, depth)}
+            stroke-opacity={slice.segment.muted ? 0.45 : 0.92}
+            stroke-dasharray="{slice.sweep * circumference} {circumference}"
+            stroke-dashoffset={-slice.start * circumference}
+            transform="rotate(-90 {c} {c})"
+            style={theme.reduceMotion
+              ? undefined
+              : "transition: r 620ms ease {i * 55}ms, stroke-width 620ms ease {i * 55}ms"}
+          />
+        {/if}
       </g>
     {/each}
 

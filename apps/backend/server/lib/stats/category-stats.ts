@@ -24,6 +24,8 @@ export class CategoryStatsCalculator {
         categoryId: category.id,
         name: category.name,
         color: category.color,
+        icon: category.icon,
+        isBuffer: category.isBuffer,
         targetHours,
         actualHours,
         diffHours,

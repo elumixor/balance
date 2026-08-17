@@ -145,7 +145,6 @@ export const trackingSessions = pgTable(
     categoryId: uuid("category_id")
       .notNull()
       .references(() => categories.id, { onDelete: "cascade" }),
-    provider: text("provider").notNull().default("google"),
     /** Qualified with the account it belongs to — see `qualifyCalendarId`. */
     calendarId: text("calendar_id").notNull(),
     externalEventId: text("external_event_id").notNull(),
