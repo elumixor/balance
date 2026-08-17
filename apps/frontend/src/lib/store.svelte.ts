@@ -32,6 +32,17 @@ const WEEKS_KEPT = 9;
 /** A few more than memory holds: paging back to last week shouldn't have to ask the server. */
 const WEEKS_STORED = 12;
 
+/**
+ * The cache for one week, made on the spot the first time anything asks for that Monday.
+ *
+ * Imperative callers only — never from a `$derived`, an `$effect` or a template expression.
+ * Making a week writes the map, and writing a source that the running reaction didn't create is
+ * exactly what Svelte refuses inside a derived, so paging onto a week nobody has asked for yet
+ * would throw where it should draw. Screens resolve their caches on the way through — the paths
+ * that change which week is on show — and let their reactive side read only what that left
+ * behind. Reading the map, as `syncing.calendar` does below, is fine from anywhere: it makes
+ * nothing, so it has nothing to write.
+ */
 export function calendarWeek(key: string) {
   let cached = weeks.get(key);
   if (!cached) {

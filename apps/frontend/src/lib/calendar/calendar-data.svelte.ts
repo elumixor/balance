@@ -165,7 +165,22 @@ interface PendingDrag {
  */
 class CalendarData {
   /** Opens on the current week; scrolling moves it off a Monday and that's fine. */
-  anchor = $state(startOfWeek(new Date()));
+  #anchor = $state(startOfWeek(new Date()));
+
+  get anchor() {
+    return this.#anchor;
+  }
+
+  /**
+   * Assigned rather than only stepped, from the menu bar as well as from this screen — so this is
+   * the one place that knows the window has moved, and the place the caches behind it are
+   * resolved from. See `#resolveWeeks` for why that can't be left to the deriveds below.
+   */
+  set anchor(value: Date) {
+    this.#anchor = value;
+    this.#resolveWeeks();
+  }
+
   /**
    * The open event, by id rather than by value: a write replaces every event object, and the
    * editor has to show what the week now holds — a category set from inside it lands on the row
@@ -260,9 +275,14 @@ class CalendarData {
    */
   readonly stripStart = $derived(addDays(startOfWeek(this.windowStart), -SIDE_WEEKS * DAYS_PER_WEEK));
   readonly dayOffset = $derived(daysBetween(this.stripStart, this.windowStart));
-  readonly weeks = $derived(
-    Array.from({ length: STRIP_WEEKS }, (_, i) => calendarWeek(weekKey(addDays(this.stripStart, i * DAYS_PER_WEEK)))),
-  );
+
+  /**
+   * The strip's caches, put here by `#resolveWeeks` rather than worked out on demand: making a
+   * week is a write, and a write is the one thing a `$derived` may not do. The derived below is
+   * only the reading half, which is what every screen and every meter actually wants.
+   */
+  #stripWeeks = $state(stripWeeksFrom(this.stripStart));
+  readonly weeks = $derived(this.#stripWeeks);
 
   /**
    * One copy of each event — the ones that straddle Sunday night come back in two weeks'
@@ -343,7 +363,9 @@ class CalendarData {
    */
   readonly weekStart = $derived(startOfWeek(addDays(this.windowStart, 3)));
   readonly key = $derived(weekKey(this.weekStart));
-  readonly week = $derived(calendarWeek(this.key));
+  /** The focused week's cache, resolved alongside the strip's and read the same way. */
+  #focusedWeek = $state(calendarWeek(this.key));
+  readonly week = $derived(this.#focusedWeek);
 
   /**
    * Whether the account's calendar connection is a settled question. Days, hours and today's line
@@ -551,11 +573,34 @@ class CalendarData {
   }
 
   ensureWeeks() {
-    return Promise.all(this.weeks.map((week) => week.ensure()));
+    this.#resolveWeeks();
+    return Promise.all(this.#stripWeeks.map((week) => week.ensure()));
   }
 
   refreshWeeks() {
-    return Promise.all(this.weeks.map((week) => week.refresh()));
+    this.#resolveWeeks();
+    return Promise.all(this.#stripWeeks.map((week) => week.refresh()));
+  }
+
+  /**
+   * Which caches the strip and the meters are reading, taken from the store by hand. `calendarWeek`
+   * makes the week if the map hasn't got it, and making it writes the map — which is why this runs
+   * on the imperative paths, where a write is only a write, and never from the deriveds that read
+   * the result. Paging is what makes weeks: every path that moves the window comes through here.
+   *
+   * The arrays are replaced only when the set has actually changed, so scrolling within the three
+   * weeks already on the strip, or a write's refetch, costs nothing downstream.
+   */
+  #resolveWeeks() {
+    const strip = stripWeeksFrom(this.stripStart);
+    if (strip.some((week, i) => week !== this.#stripWeeks[i])) {
+      // Paging can push a week out of the store's map, and coming back to it makes a new, empty
+      // cache. Nothing else knows it's empty, so the request that fills it starts here.
+      for (const week of strip) if (!this.#stripWeeks.includes(week)) void week.ensure();
+      this.#stripWeeks = strip;
+    }
+    const focused = calendarWeek(this.key);
+    if (focused !== this.#focusedWeek) this.#focusedWeek = focused;
   }
 
   /** Scrolling sideways moves the window a day at a time. */
@@ -1500,6 +1545,11 @@ function sameTimes(a: CalendarEvent, b: CalendarEvent) {
     new Date(a.start).getTime() === new Date(b.start).getTime() &&
     new Date(a.end).getTime() === new Date(b.end).getTime()
   );
+}
+
+/** The caches for the three weeks drawn from `start`, made if the store hasn't got them yet. */
+function stripWeeksFrom(start: Date) {
+  return Array.from({ length: STRIP_WEEKS }, (_, i) => calendarWeek(weekKey(addDays(start, i * DAYS_PER_WEEK))));
 }
 
 function daysBetween(from: Date, to: Date): number {
