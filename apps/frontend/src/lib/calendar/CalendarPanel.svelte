@@ -21,11 +21,16 @@
     <MonthGrid />
   {/if}
 
-  <CalendarsSection />
+  <br />
 
   {#if data.connected}
     <section>
       <WeekMeters events={data.eventsForTotals} {categories} weekStart={data.weekStart} />
     </section>
   {/if}
+
+  <br>
+
+  <CalendarsSection />
+
 </div>

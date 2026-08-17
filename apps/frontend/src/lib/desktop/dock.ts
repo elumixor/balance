@@ -100,6 +100,18 @@ async function render(now: Date): Promise<Uint8Array> {
   // holds it against the bright part of the artwork.
   const middle = SIZE / 2;
   const step = tile * 0.29;
+
+  // A dark pool behind the date, so the text has something steady to sit on regardless of what
+  // the artwork underneath looks like.
+  const glowRadius = tile * 0.45;
+  const glow = context.createRadialGradient(middle, middle, 0, middle, middle, glowRadius);
+  glow.addColorStop(0, "rgba(0, 0, 0, 0.7)");
+  glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+  context.fillStyle = glow;
+  context.beginPath();
+  context.arc(middle, middle, glowRadius, 0, Math.PI * 2);
+  context.fill();
+
   context.textAlign = "center";
   context.textBaseline = "middle";
 
