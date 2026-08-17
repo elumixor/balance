@@ -15,14 +15,13 @@ import { CalendarHistory } from "./history.svelte";
 import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
 
 /**
- * Five weeks of columns, so there are two to scroll into on either side of the seven shown — far
- * enough that a fast fling reaches the end of a week's events long before it reaches the end of the
- * loaded strip, and the strip only has to be rebuilt once the scroll has come to rest.
+ * Three weeks of columns, so there's a week to scroll into on either side of the seven shown.
  *
- * The columns beyond the visible ones aren't drawn (see `WeekGrid`), so the width costs requests,
- * not DOM — and those requests are the ones the next swipe was going to make anyway.
+ * A wider strip would be a week's worth of requests spent on days nobody has asked for. Scrolling
+ * into a week that hasn't arrived draws its columns empty and fills them a moment later, which is
+ * the right way round: the grid is the screen, and the events are what lands in it.
  */
-const SIDE_WEEKS = 2;
+const SIDE_WEEKS = 1;
 export const STRIP_WEEKS = 2 * SIDE_WEEKS + 1;
 export const STRIP_DAYS = STRIP_WEEKS * DAYS_PER_WEEK;
 
