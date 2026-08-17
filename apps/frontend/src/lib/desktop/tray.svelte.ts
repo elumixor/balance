@@ -6,11 +6,13 @@ import { eventCategory } from "$lib/calendar/event-category";
 import { restColor } from "$lib/colors";
 import { addDays, startOfDay, startOfWeek } from "$lib/dates";
 import { formatClock, formatDayDate, formatHoursAndMinutes } from "$lib/format";
+import { DEFAULT_ICON } from "$lib/icons";
 import { meetingOf } from "$lib/meeting";
 import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
 import { report } from "./report";
+import { trayIcons, type RasterIcon } from "./tray-icons.svelte";
 
 /** A macOS menu that runs past the bottom of the screen scrolls, which nobody wants. */
 const MAX_ROWS = 16;
@@ -24,7 +26,7 @@ interface TrayState {
   tooltip: string | null;
   /** The call you're about to be late for, as a row that opens it. */
   join: { label: string; url: string } | null;
-  sections: { heading: string; rows: { id: string; label: string; color: string }[] }[];
+  sections: { heading: string; rows: { id: string; label: string; icon: RasterIcon }[] }[];
 }
 
 /**
@@ -74,6 +76,8 @@ class DesktopTray {
     const categories = desktopAgenda.categories;
     const upcoming = desktopAgenda.upcoming;
     const color = (event: CalendarEvent) => eventCategory(event, categories)?.color ?? restColor;
+    const icon = (event: CalendarEvent) =>
+      trayIcons.get(eventCategory(event, categories)?.icon ?? DEFAULT_ICON, color(event));
 
     // A timed block wins over an all-day one: "Sprint Start, 40m left" is the more useful of the
     // two things true at 16:20 on a day that also happens to be somebody's birthday.
@@ -87,7 +91,7 @@ class DesktopTray {
       const rows = events.slice(0, budget).map((event) => ({
         id: event.id,
         label: `${event.allDay ? "All-day" : formatClock(new Date(event.start))} · ${label(event)}`,
-        color: color(event),
+        icon: icon(event),
       }));
       if (rows.length === 0) return;
       budget -= rows.length;

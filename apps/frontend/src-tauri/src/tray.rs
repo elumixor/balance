@@ -26,10 +26,18 @@ const MAX_TITLE_CHARS: usize = 34;
 /// The bar drawn left of the title. 18 points tall once macOS scales it, so the pixels only set
 /// the aspect ratio and how smooth the ends look.
 const TRAY_BAR: (u32, u32) = (12, 44);
-/// Menu row bars are drawn at their natural size in points, so these are the points.
-const MENU_BAR: (u32, u32) = (4, 15);
 
 const NEUTRAL: [u8; 3] = [0x8A, 0x90, 0x97];
+
+/// A Lucide glyph, rasterized by the webview — see `desktop/tray-icons.svelte.ts`. Rust has no
+/// idea what a category's icon looks like, only how many pixels it came back as.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrayRowIcon {
+    pub width: u32,
+    pub height: u32,
+    pub rgba: Vec<u8>,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,8 +46,8 @@ pub struct TrayEventRow {
     pub id: String,
     /// The whole row as it should read, e.g. "07:30 · Sadhana - Morning".
     pub label: String,
-    /// The event's category colour as "#RRGGBB".
-    pub color: String,
+    /// The event's category, already drawn in its colour.
+    pub icon: TrayRowIcon,
 }
 
 #[derive(Deserialize)]
@@ -152,12 +160,13 @@ pub fn build_menu(app: &AppHandle, state: &TrayState) -> tauri::Result<Menu<Wry>
             None::<&str>,
         )?));
         for row in &section.rows {
+            let icon = Image::new_owned(row.icon.rgba.clone(), row.icon.width, row.icon.height);
             items.push(Box::new(IconMenuItem::with_id(
                 app,
                 format!("event:{}", row.id),
                 &row.label,
                 true,
-                Some(bar(rgb(&Some(row.color.clone())), MENU_BAR)),
+                Some(icon),
                 None::<&str>,
             )?));
         }
