@@ -106,12 +106,12 @@ async function render(now: Date): Promise<Uint8Array> {
   const line = (text: string, y: number, size: number) => {
     context.font = `600 ${size}px "Instrument Sans", system-ui, sans-serif`;
     context.save();
-    context.shadowColor = "rgba(0, 0, 0, 0.7)";
-    context.shadowBlur = tile * 0.045;
-    context.shadowOffsetY = tile * 0.01;
+    // Barely there on purpose: enough to lift the white off the pale part of the ring, not
+    // enough to read as a drop shadow.
+    context.shadowColor = "rgba(0, 0, 0, 0.14)";
+    context.shadowBlur = tile * 0.09;
+    context.shadowOffsetY = tile * 0.006;
     context.fillStyle = "#ffffff";
-    // Drawn twice through the same shadow: one pass is too faint to carry the thin labels.
-    context.fillText(text, middle, y);
     context.fillText(text, middle, y);
     context.restore();
     context.fillStyle = "#ffffff";
