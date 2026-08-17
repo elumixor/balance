@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/auth.svelte";
+  import { buildInfo } from "$lib/build-info";
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
   import { settings } from "$lib/settings.svelte";
   import { clearStore } from "$lib/store.svelte";
@@ -59,4 +60,8 @@
     <SectionHeader title="Calendars" />
     <CalendarsSection />
   </section>
+
+  <!-- Which build this is: the native shells carry their own copy of the frontend, and this is the
+       only thing on screen that says how old it is. -->
+  <p class="t-data-micro select-text text-center text-fg-faint">{buildInfo.label}</p>
 </Dialog>
