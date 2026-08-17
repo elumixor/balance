@@ -2,6 +2,46 @@ import { isDesktop } from "$lib/desktop/platform";
 
 /** A wheel notch in line units is worth about a line of text; a page is the viewport. */
 const LINE_PX = 16;
+/**
+ * How long after the last wheel event the gesture counts as over. A trackpad fling keeps emitting
+ * wheel events through its whole momentum tail, so the gap between two of them stays well under
+ * this even at the very end of a slow drift.
+ */
+const GESTURE_END_MS = 140;
+
+type GestureListener = { start?: () => void; end?: () => void };
+
+const listeners = new Set<GestureListener>();
+let gestureTimer: ReturnType<typeof setTimeout> | null = null;
+let active = false;
+
+/**
+ * Whether a wheel gesture — the drag and the momentum after it — is still going.
+ *
+ * Anything that writes `scrollLeft` has to ask: a write lands as an absolute position and throws
+ * away everything the fling has queued behind it, so the week stops dead mid-flight. Wait for
+ * `end` instead.
+ */
+export const wheelGestureActive = () => active;
+
+/** Subscribes to the start and end of wheel gestures. Returns the unsubscribe. */
+export function onWheelGesture(listener: GestureListener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function keepAlive() {
+  if (!active) {
+    active = true;
+    for (const listener of listeners) listener.start?.();
+  }
+  if (gestureTimer) clearTimeout(gestureTimer);
+  gestureTimer = setTimeout(() => {
+    gestureTimer = null;
+    active = false;
+    for (const listener of listeners) listener.end?.();
+  }, GESTURE_END_MS);
+}
 
 /**
  * Lets the week scroll in both directions at once.
@@ -38,6 +78,7 @@ export function freeScroll(node: HTMLElement) {
           : 1;
 
     event.preventDefault();
+    keepAlive();
     node.scrollLeft += event.deltaX * scale;
     node.scrollTop += event.deltaY * scale;
   }

@@ -7,7 +7,7 @@
   import { fade, fly } from "svelte/transition";
   import EventContextMenu from "./EventContextMenu.svelte";
   import { isDesktop } from "$lib/desktop/platform";
-  import { freeScroll } from "./free-scroll";
+  import { freeScroll, onWheelGesture, wheelGestureActive } from "./free-scroll";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import {
     allDaySpansForRange,
@@ -64,6 +64,13 @@
   /** True for the whole today-button jump, so the button stays hidden through the intermediate
    *  scroll states (strip recentre snap, then the eased animation) instead of flickering back in. */
   let jumping = $state(false);
+  /** True while the grid is easing itself onto a column after a gesture. Deliberately not `$state`:
+   *  it's a courtesy nudge of a few pixels, not a jump, and nothing on screen should react to it —
+   *  the today button used to share `jumping` and so blinked off after every scroll. */
+  let snapping = false;
+  /** Set when the window is only catching up to where the scroll already is, so the effect below
+   *  leaves the scroll alone instead of writing the position it's already at. */
+  let followingScroll = false;
 
   const dayWidth = $derived(Math.max(0, viewWidth - GUTTER_PX) / VISIBLE_DAYS);
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
@@ -124,11 +131,15 @@
 
   const todayStart = $derived(startOfDay(new Date()).getTime());
   const nowTop = $derived((minutesIntoDay(new Date()) / 60) * HOUR_PX);
-  /** Whether today's column sits outside the seven days currently on screen — tracks the live
-   *  scroll position, so it updates mid-drag rather than only once the scroll settles. */
+  /**
+   * Whether today's column sits outside the seven days currently on screen. Measured against the
+   * settled window rather than the live scroll: a fling crosses columns by the handful, and a
+   * button that answered each one would blink through the whole gesture. It waits for the week to
+   * land, which is also the only moment its answer can still be true a second later.
+   */
   const todayOutOfView = $derived.by(() => {
     const todayDayIndex = Math.round((todayStart - data.stripStart.getTime()) / MS_PER_DAY);
-    return todayDayIndex < liveDayOffset || todayDayIndex >= liveDayOffset + VISIBLE_DAYS;
+    return todayDayIndex < data.dayOffset || todayDayIndex >= data.dayOffset + VISIBLE_DAYS;
   });
 
   /** The gathering box, in pixels down the grid rather than the grid's own day-and-minute units. */
@@ -225,42 +236,46 @@
       opened = true;
       if (animateNextJump) {
         animateNextJump = false;
-        animateScrollLeft(scroller, offset * width);
-      } else if (!jumping) {
+        animateScrollLeft(scroller, offset * width, JUMP_ANIMATE_MS, () => {
+          jumping = false;
+        });
+      } else if (!jumping && !followingScroll) {
         // Only when the scroll isn't already on the column: a settle that landed dead-on would
-        // otherwise take a second, redundant write a frame later, which CSS snapping then answers.
-        if (Math.abs(scroller.scrollLeft - offset * width) >= 1) {
-          // The desktop shell has no CSS snapping to ease this for it (see `freeScroll`), so the
-          // last few pixels onto the column are eased here instead of arriving between two frames.
-          if (isDesktop) {
-            jumping = true;
-            animateScrollLeft(scroller, offset * width, SNAP_ANIMATE_MS);
-          } else {
-            scroller.scrollLeft = offset * width;
-          }
-        }
+        // otherwise take a second, redundant write a frame later.
+        if (Math.abs(scroller.scrollLeft - offset * width) >= 1) scroller.scrollLeft = offset * width;
         liveDayOffset = offset;
       }
+      followingScroll = false;
       stripAt = start;
     });
     return () => cancelAnimationFrame(frame);
   });
 
   /** Eases the scroller to `target` rather than snapping straight there. */
-  function animateScrollLeft(scroller: HTMLElement, target: number, duration = JUMP_ANIMATE_MS) {
-    if (jumpFrame !== null) cancelAnimationFrame(jumpFrame);
+  function animateScrollLeft(scroller: HTMLElement, target: number, duration: number, done: () => void) {
+    cancelAnimation();
     const from = scroller.scrollLeft;
     const delta = target - from;
-    if (delta === 0) return;
+    if (delta === 0) return done();
     const t0 = performance.now();
     const tick = (now: number) => {
       const t = Math.min(1, (now - t0) / duration);
       const eased = 1 - (1 - t) ** 3;
       scroller.scrollLeft = from + delta * eased;
-      if (t >= 1) jumping = false;
       jumpFrame = t < 1 ? requestAnimationFrame(tick) : null;
+      if (t >= 1) done();
     };
     jumpFrame = requestAnimationFrame(tick);
+  }
+
+  /** Drops whatever the grid was easing towards. A new gesture outranks it: the hand is on the
+   *  week, and writing a position mid-fling is what kills the fling. */
+  function cancelAnimation() {
+    if (jumpFrame === null) return;
+    cancelAnimationFrame(jumpFrame);
+    jumpFrame = null;
+    snapping = false;
+    jumping = false;
   }
 
   /**
@@ -293,14 +308,39 @@
     // edge changes rather than on every frame of the scroll that gets there.
     const column = Math.round(offset);
     if (column !== liveDayOffset) liveDayOffset = column;
-    // A jump drives the scroll itself and ends by landing on its own column; letting these ticks
-    // schedule a settle would have `land` cut the animation short from underneath it.
-    if (jumping) return;
+    // A jump or a settle drives the scroll itself and ends on its own column; letting these ticks
+    // schedule another settle would have it cut the animation short from underneath.
+    if (jumping || snapping) return;
     if (settle) clearTimeout(settle);
-    settle = setTimeout(land, SETTLE_MS);
+    settle = setTimeout(rest, SETTLE_MS);
     if (data.drag) return;
     const maxOffset = STRIP_DAYS - VISIBLE_DAYS;
     if (offset < EDGE_DAYS || offset > maxOffset - EDGE_DAYS) land();
+  }
+
+  /** The scroll has stopped moving. On the desktop shell that's only true if the gesture behind it
+   *  is over too — a fling has quiet frames in it, and easing onto a column during one would eat
+   *  the momentum still queued behind it. The gesture's own end takes over in that case. */
+  function rest() {
+    if (isDesktop && wheelGestureActive()) return;
+    settleOnColumn();
+  }
+
+  /** Eases the last few pixels onto the nearest column, then moves the window to it. Only the
+   *  desktop shell needs the easing — a browser has CSS snapping to land it (see `freeScroll`). */
+  function settleOnColumn() {
+    const scroller = data.scrollerEl;
+    if (!scroller || dayWidth === 0 || data.drag || jumping) return land();
+    const target = Math.round(scroller.scrollLeft / dayWidth) * dayWidth;
+    if (isDesktop && Math.abs(scroller.scrollLeft - target) >= 1) {
+      snapping = true;
+      animateScrollLeft(scroller, target, SNAP_ANIMATE_MS, () => {
+        snapping = false;
+        land();
+      });
+      return;
+    }
+    land();
   }
 
   /** The column the scroll came to rest on becomes the first day on screen. Recentring keeps the
@@ -310,8 +350,24 @@
     const scroller = data.scrollerEl;
     if (!scroller || dayWidth === 0 || data.drag) return;
     const shift = Math.round(scroller.scrollLeft / dayWidth) - data.dayOffset;
-    if (shift !== 0) data.goToDay(shift);
+    if (shift === 0) return;
+    // The window is following the scroll, not leading it: the effect above must leave the position
+    // alone, or a mid-fling recentre would write the scroll back and stop the week dead.
+    followingScroll = true;
+    data.goToDay(shift);
   }
+
+  // A new gesture cancels whatever the grid was easing towards, and its end — not the gaps inside
+  // it — is what lands the week on a column.
+  $effect(() =>
+    onWheelGesture({
+      start: () => {
+        if (settle) clearTimeout(settle);
+        cancelAnimation();
+      },
+      end: settleOnColumn,
+    }),
+  );
 
   function goToToday() {
     jumping = true;
