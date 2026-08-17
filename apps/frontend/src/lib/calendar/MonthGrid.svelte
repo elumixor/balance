@@ -2,43 +2,59 @@
   import { addDays, startOfWeek } from "$lib/dates";
   import { theme } from "$lib/theme.svelte";
   import { ChevronDown, ChevronUp, Undo2 } from "lucide-svelte";
-  import { fly } from "svelte/transition";
+  import { untrack } from "svelte";
   import { calendarData } from "./calendar-data.svelte";
 
   /**
-   * The month as a picker: six weeks, the currently visible seven days washed with a plate, today
-   * in red. Tapping any day jumps the grid to the week it falls in, same as the strip's own
-   * scrolling would — as does a vertical scroll here, one week at a time, and the month arrows.
+   * The month as a picker: one continuous column of weeks that scrolls like any other list, six of
+   * them in view at a time, the currently visible seven days washed with a plate and today in red.
+   * Tapping a day jumps the main grid to the week it falls in; scrolling here only browses, so a
+   * flick through the year doesn't drag the week grid along behind it.
    *
-   * The displayed month is its own state rather than read off the focused week — a swipe-scrolled,
-   * non-Monday window can straddle two months, and a month arrow always has to land on a whole one
-   * regardless of which day of it the grid happened to be showing before.
+   * The month named above the grid is read back off the scroll position rather than held as its
+   * own state — with a single strip of weeks there is no "displayed month" to keep in sync, only
+   * whichever month the rows in view mostly belong to.
    */
   const data = calendarData;
 
   const VISIBLE_DAYS = 7;
+  const VISIBLE_ROWS = 6;
   const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-  /** A wheel notch in line units is worth about a line of text — same scale the grid's own wheel
-   *  handling uses. Divided into steps so a slow scroll still snaps a whole week at a time. */
-  const LINE_PX = 16;
-  const STEP_PX = 42;
+  /** Row geometry has to be known here, not just in CSS: the scroll position is what says which
+   *  month is on screen, and the arrows scroll by whole rows. */
+  const ROW_PX = 28;
+  const GAP_PX = 2;
+  const STRIDE_PX = ROW_PX + GAP_PX;
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+  /** How far the strip reaches either side of the week it was built around — two years each way,
+   *  far enough that scrolling never hits an end in a session. */
+  const WEEKS_EITHER_SIDE = 52;
 
   const monthStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
   const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
   const today = dayKey(new Date());
 
-  let displayedMonth = $state(monthStart(data.weekStart));
-  /** Which way the plate last moved, so the slide between months leaves in that direction. */
-  let direction = $state(1);
-  /** Bumped by every jump this component itself starts, so the slide plays for those and only
-   *  those — a swipe on the main grid moves the same state without asking for one. */
-  let jumpToken = $state(0);
-
-  const monthLabel = $derived(displayedMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" }));
-  const gridStart = $derived(startOfWeek(displayedMonth));
-  const rows = $derived(
-    Array.from({ length: 6 }, (_, week) => Array.from({ length: 7 }, (_, day) => addDays(gridStart, week * 7 + day))),
+  /** The strip is laid out once around the week it opened on; every position is an offset from it. */
+  const baseWeek = startOfWeek(data.weekStart);
+  const weeks = Array.from({ length: WEEKS_EITHER_SIDE * 2 + 1 }, (_, i) =>
+    addDays(baseWeek, (i - WEEKS_EITHER_SIDE) * 7),
   );
+
+  const daysOf = (row: Date) => Array.from({ length: VISIBLE_DAYS }, (_, offset) => addDays(row, offset));
+
+  const weekIndex = (date: Date) =>
+    Math.round((startOfWeek(date).getTime() - baseWeek.getTime()) / MS_PER_WEEK) + WEEKS_EITHER_SIDE;
+
+  let viewport = $state<HTMLElement>();
+  let scrollTop = $state(0);
+
+  /** The month of the row a third of the way down the viewport — the one the eye reads as "the"
+   *  month when a boundary is on screen. */
+  const displayedMonth = $derived.by(() => {
+    const row = weeks[Math.min(weeks.length - 1, Math.round(scrollTop / STRIDE_PX) + 2)] ?? baseWeek;
+    return monthStart(addDays(row, 3));
+  });
+  const monthLabel = $derived(displayedMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" }));
   const onCurrentMonth = $derived(displayedMonth.getTime() === monthStart(new Date()).getTime());
 
   // The strip always shows exactly seven consecutive days, but a swipe can land that window on
@@ -46,11 +62,11 @@
   const visibleStart = $derived(data.windowStart);
   const visibleEnd = $derived(addDays(visibleStart, VISIBLE_DAYS - 1));
 
-  function visibleSpan(row: readonly Date[]): { start: number; end: number } | null {
+  function visibleSpan(row: Date): { start: number; end: number } | null {
     let start = -1;
     let end = -1;
-    for (let i = 0; i < row.length; i++) {
-      const time = row[i].getTime();
+    for (let i = 0; i < VISIBLE_DAYS; i++) {
+      const time = addDays(row, i).getTime();
       if (time < visibleStart.getTime() || time > visibleEnd.getTime()) continue;
       if (start === -1) start = i;
       end = i;
@@ -58,62 +74,38 @@
     return start === -1 ? null : { start, end };
   }
 
-  // A swipe on the main grid moves `windowStart` on its own, without going through `jumpTo` — if
-  // that drifts the visible days off the currently displayed month entirely, follow it, or the
-  // plate above would just vanish instead of showing where the week went. No slide of its own:
-  // this is the grid catching up to a scroll already in progress elsewhere, not a jump.
+  function scrollToRow(index: number, smooth = true) {
+    viewport?.scrollTo({
+      top: Math.max(0, index * STRIDE_PX),
+      behavior: smooth && !theme.reduceMotion ? "smooth" : "auto",
+    });
+  }
+
+  /** Follow the week grid only when it has moved out of sight — scrolling here is browsing, and
+   *  yanking the strip back on every swipe elsewhere would fight the person doing it. The scroll
+   *  position is read untracked, or scrolling away from the current week would pull it right back. */
   $effect(() => {
-    const start = visibleStart.getTime();
-    const end = visibleEnd.getTime();
-    const first = gridStart.getTime();
-    const last = addDays(gridStart, 41).getTime();
-    if (start >= first && end <= last) return;
-    displayedMonth = monthStart(visibleStart);
+    const index = weekIndex(data.weekStart);
+    untrack(() => {
+      const first = Math.round((viewport?.scrollTop ?? 0) / STRIDE_PX);
+      if (index >= first && index < first + VISIBLE_ROWS) return;
+      scrollToRow(index - 1);
+    });
   });
 
-  /** Every jump this grid starts goes through here: which way it moved, and the month it lands on. */
-  function jumpTo(date: Date, dir: number) {
-    direction = dir;
-    displayedMonth = monthStart(date);
-    jumpToken++;
-    data.goToDate(date);
-  }
-
-  function selectDay(day: Date) {
-    jumpTo(day, day.getTime() >= visibleStart.getTime() ? 1 : -1);
-  }
+  $effect(() => {
+    // The opening position: the current week one row down, so last week is still on screen.
+    scrollToRow(WEEKS_EITHER_SIDE - 1, false);
+  });
 
   function shiftMonth(delta: number) {
-    jumpTo(new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + delta, 1), delta);
+    const target = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + delta, 1);
+    scrollToRow(weekIndex(target));
   }
 
   function backToToday() {
-    const now = new Date();
-    jumpTo(now, monthStart(now).getTime() >= displayedMonth.getTime() ? 1 : -1);
+    scrollToRow(weekIndex(new Date()) - 1);
   }
-
-  /** A vertical scroll here pages through weeks — and the months they fall into — one at a time,
-   *  the same discrete step a wheel notch is anywhere else in the app. */
-  function verticalScroll(node: HTMLElement) {
-    let accumulated = 0;
-
-    function onwheel(event: WheelEvent) {
-      if (event.ctrlKey || event.deltaY === 0) return;
-      event.preventDefault();
-      const scale = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? LINE_PX : 1;
-      accumulated += event.deltaY * scale;
-      while (Math.abs(accumulated) >= STEP_PX) {
-        const dir = accumulated > 0 ? 1 : -1;
-        accumulated -= dir * STEP_PX;
-        jumpTo(addDays(data.anchor, dir * 7), dir);
-      }
-    }
-
-    node.addEventListener("wheel", onwheel, { passive: false });
-    return { destroy: () => node.removeEventListener("wheel", onwheel) };
-  }
-
-  const flyDuration = $derived(theme.reduceMotion ? 0 : 200);
 </script>
 
 <div class="space-y-1.5">
@@ -155,40 +147,40 @@
     {/each}
   </div>
 
-  <div class="overflow-hidden" use:verticalScroll>
-    {#key jumpToken}
+  <div
+    bind:this={viewport}
+    onscroll={(event) => (scrollTop = event.currentTarget.scrollTop)}
+    class="no-scrollbar flex flex-col overflow-y-auto overscroll-contain"
+    style="height:{VISIBLE_ROWS * ROW_PX + (VISIBLE_ROWS - 1) * GAP_PX}px;gap:{GAP_PX}px;scroll-snap-type:y proximity"
+  >
+    {#each weeks as row (row.getTime())}
+      {@const span = visibleSpan(row)}
       <div
-        class="flex flex-col gap-0.5"
-        in:fly={{ y: direction * 14, duration: flyDuration }}
-        out:fly={{ y: -direction * 14, duration: flyDuration }}
+        class="relative grid shrink-0 grid-cols-7"
+        style="height:{ROW_PX}px;scroll-snap-align:start"
       >
-        {#each rows as row (row[0].getTime())}
-          {@const span = visibleSpan(row)}
-          <div class="relative grid grid-cols-7">
-            {#if span}
-              <div
-                class="absolute inset-y-0 rounded-md bg-surface-alt"
-                style="left:calc({span.start} * 100% / 7);width:calc({(span.end - span.start + 1) * 100}% / 7)"
-              ></div>
-            {/if}
-            {#each row as day (day.getTime())}
-              {@const inMonth = day.getMonth() === displayedMonth.getMonth()}
-              {@const isToday = dayKey(day) === today}
-              <button
-                type="button"
-                onclick={() => selectDay(day)}
-                class="t-label press-sm relative flex items-center justify-center rounded-md py-1 {isToday
-                  ? 'bg-danger text-white'
-                  : inMonth
-                    ? 'text-fg hoverable'
-                    : 'text-fg-faint hoverable'}"
-              >
-                {day.getDate()}
-              </button>
-            {/each}
-          </div>
+        {#if span}
+          <div
+            class="absolute inset-y-0 rounded-md bg-surface-alt"
+            style="left:calc({span.start} * 100% / 7);width:calc({(span.end - span.start + 1) * 100}% / 7)"
+          ></div>
+        {/if}
+        {#each daysOf(row) as day (day.getTime())}
+          {@const inMonth = day.getMonth() === displayedMonth.getMonth()}
+          {@const isToday = dayKey(day) === today}
+          <button
+            type="button"
+            onclick={() => data.goToDate(day)}
+            class="t-label press-sm relative flex items-center justify-center rounded-md {isToday
+              ? 'bg-danger text-white'
+              : inMonth
+                ? 'text-fg hoverable'
+                : 'text-fg-faint hoverable'}"
+          >
+            {day.getDate()}
+          </button>
         {/each}
       </div>
-    {/key}
+    {/each}
   </div>
 </div>
