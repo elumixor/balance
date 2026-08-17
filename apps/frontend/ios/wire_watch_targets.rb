@@ -156,10 +156,14 @@ project.save
 # Without shared schemes, Xcode invents one per target, and the invented scheme for an app
 # extension also builds the extension's containing app — which here means building the Capacitor
 # iOS app for watchOS, something it can never do. These build exactly one target each.
-[[WATCH_NAME, watch], [WIDGET_NAME, widget]].each do |name, target|
+#
+# The host app is shared here too, and has to be: the moment this project holds any shared scheme
+# at all, Xcode stops inventing the rest, and a release build that asks for the `App` scheme by
+# name — which is what fastlane's `beta` lane does — finds nothing.
+[[APP_TARGET, app_target], [WATCH_NAME, watch], [WIDGET_NAME, widget]].each do |name, target|
   scheme = Xcodeproj::XCScheme.new
   scheme.add_build_target(target)
-  scheme.set_launch_target(target) if target == watch
+  scheme.set_launch_target(target) unless target == widget
   scheme.save_as(PROJ, name, true)
 end
 
