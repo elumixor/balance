@@ -19,6 +19,7 @@
     OPENING_HOUR,
     placeDay,
     resizeBands,
+    type PlacedSegment,
     type Segment,
     segmentsForRange,
   } from "./week-grid";
@@ -66,7 +67,9 @@
    * mid-drag. Whole days rather than pixels: everything reading it only cares which columns are on
    * screen, and a pixel-accurate copy would re-run all of it on every frame of every scroll.
    */
-  let liveDayOffset = $state(0);
+  // Starts where the window already is, not at zero: the first paint happens before the effect that
+  // places the scroll, and a zero here would have it draw the columns behind the ones on screen.
+  let liveDayOffset = $state(data.dayOffset);
   let jumpFrame: number | null = null;
   /** True for the whole today-button jump, so the button stays hidden through the intermediate
    *  scroll states (strip recentre snap, then the eased animation) instead of flickering back in. */
@@ -104,18 +107,32 @@
   const firstDrawn = $derived(Math.max(0, liveDayOffset - DRAW_MARGIN_DAYS));
   const lastDrawn = $derived(Math.min(STRIP_DAYS - 1, liveDayOffset + VISIBLE_DAYS - 1 + DRAW_MARGIN_DAYS));
   const isDrawn = (index: number) => index >= firstDrawn && index <= lastDrawn;
+  /** The seven columns the window is actually over, as against the runway either side of them. */
+  const inWindow = (index: number) => index >= liveDayOffset && index < liveDayOffset + VISIBLE_DAYS;
 
   /**
    * Blocks that have been on screen at least once. A column's blocks are only built while it is near
    * the window and are thrown away behind it, and the strip re-buckets every one of them each time
-   * it rebuilds a week over — so scrolling makes and unmakes the same events again and again.
+   * it rebuilds a week over — so scrolling makes and unmakes the same events again and again, and
+   * fading each of those in is what made the week look like it was refetching itself.
    */
   const seen = new Set<string>();
 
   /**
+   * A column's blocks. The runway — the days built ahead of the window so a fling has something to
+   * scroll onto — carries only blocks that have already had their moment: an event nobody has seen
+   * yet waits until its column is really on screen, so that its fade happens where it can be
+   * watched instead of three days out of view.
+   */
+  function blocksFor(index: number): PlacedSegment[] {
+    if (!isDrawn(index)) return [];
+    const placed = placedByDay[index] ?? [];
+    return inWindow(index) ? placed : placed.filter((segment) => seen.has(segment.event.id));
+  }
+
+  /**
    * Fades a block in the first time that event is drawn — arriving from the calendar, or made by a
-   * drag — and never again. Fading them all in on the way past is what made the week look like it
-   * was refetching itself every time it was scrolled.
+   * drag — and never again, so scrolling back over a week costs no animation.
    */
   function appear(node: Element, { id }: { id: string }) {
     const first = !seen.has(id);
@@ -149,7 +166,15 @@
   /** Rows are reserved for the whole strip, so a banner keeps its row as it scrolls in — but only
    *  the banners near the window are built, the same way the blocks below them are. */
   const drawnAllDay = $derived(
-    allDay.filter((span) => span.dayIndex + span.days > firstDrawn && span.dayIndex <= lastDrawn),
+    allDay.filter(
+      (span) =>
+        span.dayIndex + span.days > firstDrawn &&
+        span.dayIndex <= lastDrawn &&
+        // Same rule as the blocks below: a banner nobody has seen waits for the window rather than
+        // spending its fade on the runway.
+        (seen.has(span.event.id) ||
+          (span.dayIndex + span.days > liveDayOffset && span.dayIndex < liveDayOffset + VISIBLE_DAYS)),
+    ),
   );
   /** Row count reserved by the header only counts spans touching the days actually on screen —
    *  tracks the live scroll position so it grows/shrinks while scrolling, not just once settled. */
@@ -585,7 +610,7 @@
           <div class="relative snap-start border-line border-l {weekend ? 'bg-fg/[0.02]' : ''}">
             <!-- The column itself is a fixed slot that always exists — it's what the scroll offset
                  is measured in. Only its blocks come and go with the window. -->
-            {#each isDrawn(index) ? placedByDay[index] : [] as segment (segment.event.id)}
+            {#each blocksFor(index) as segment (segment.event.id)}
               <!-- Alt held: the original stays put in full, since the pointer is dragging a copy. -->
               {@const dragging = data.drag?.event?.id === segment.event.id && !data.drag?.copy}
               <!-- The rest of a dragged batch stays where it is, faded, with its target outlined. -->
