@@ -73,8 +73,8 @@ pub struct TrayJoin {
 pub struct TrayState {
     /// The text beside the icon, already formatted ("Sprint Start · in 25m"). Empty for icon only.
     pub title: String,
-    /// The colour of the bar beside it, "#RRGGBB". Absent means nothing is happening.
-    pub color: Option<String>,
+    /// The headline event's category, rasterized. Absent means nothing is happening.
+    pub icon: Option<TrayRowIcon>,
     pub tooltip: Option<String>,
     #[serde(default)]
     pub join: Option<TrayJoin>,
@@ -106,20 +106,6 @@ fn bar(color: [u8; 3], (width, height): (u32, u32)) -> Image<'static> {
     }
 
     Image::new_owned(rgba, width, height)
-}
-
-/// "#40966F" → `[0x40, 0x96, 0x6F]`, falling back to the neutral the app uses for untracked time.
-fn rgb(hex: &Option<String>) -> [u8; 3] {
-    let Some(hex) = hex else { return NEUTRAL };
-    let digits = hex.trim_start_matches('#');
-    if digits.len() != 6 {
-        return NEUTRAL;
-    }
-    let channel = |i: usize| u8::from_str_radix(&digits[i..i + 2], 16);
-    match (channel(0), channel(2), channel(4)) {
-        (Ok(r), Ok(g), Ok(b)) => [r, g, b],
-        _ => NEUTRAL,
-    }
 }
 
 fn truncated(title: &str) -> String {
@@ -220,7 +206,11 @@ pub fn update_tray(app: AppHandle, state: TrayState) -> Result<(), String> {
     tray.set_tooltip(Some(state.tooltip.as_deref().unwrap_or("Balance")))
         .map_err(|e| e.to_string())?;
     // Atomic, and it leaves the template flag alone — `set_icon` would quietly reset it.
-    tray.set_icon_with_as_template(Some(bar(rgb(&state.color), TRAY_BAR)), false)
+    let icon = match &state.icon {
+        Some(icon) => Image::new_owned(icon.rgba.clone(), icon.width, icon.height),
+        None => bar(NEUTRAL, TRAY_BAR),
+    };
+    tray.set_icon_with_as_template(Some(icon), false)
         .map_err(|e| e.to_string())?;
     let menu = build_menu(&app, &state).map_err(|e| e.to_string())?;
     tray.set_menu(Some(menu)).map_err(|e| e.to_string())?;

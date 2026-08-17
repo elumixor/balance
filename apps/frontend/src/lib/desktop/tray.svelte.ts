@@ -22,7 +22,8 @@ const MAX_TITLE_CHARS = 26;
 /** The shape `update_tray` in `src-tauri/src/tray.rs` deserializes. */
 interface TrayState {
   title: string;
-  color: string | null;
+  /** The headline event's category, rasterized. Absent means nothing is happening. */
+  icon: RasterIcon | null;
   tooltip: string | null;
   /** The call you're about to be late for, as a row that opens it. */
   join: { label: string; url: string } | null;
@@ -107,7 +108,7 @@ class DesktopTray {
     const headline = current ?? next;
     return {
       title: headline ? `${clip(label(headline))} · ${when(headline, current === headline, now)}` : "",
-      color: headline ? color(headline) : null,
+      icon: headline ? icon(headline) : null,
       tooltip: headline ? `${label(headline)} — ${when(headline, current === headline, now)}` : "Balance",
       join: join(current ?? null) ?? join(next),
       sections,

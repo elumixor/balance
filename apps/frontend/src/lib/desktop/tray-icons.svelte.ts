@@ -12,6 +12,8 @@ import { iconFor } from "$lib/icons";
 
 /** Raster px per glyph. Big enough to stay sharp once macOS scales it down to a menu row. */
 const SIZE = 36;
+/** The glyph itself, as a fraction of `SIZE` — the rest is transparent padding around it. */
+const SCALE = 0.7;
 
 export interface RasterIcon {
   width: number;
@@ -66,7 +68,9 @@ async function rasterize(icon: string, color: string): Promise<RasterIcon> {
   const canvas = new OffscreenCanvas(SIZE, SIZE);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("no canvas to draw the tray icon on");
-  context.drawImage(image, 0, 0, SIZE, SIZE);
+  const drawn = SIZE * SCALE;
+  const inset = (SIZE - drawn) / 2;
+  context.drawImage(image, inset, inset, drawn, drawn);
   return { width: SIZE, height: SIZE, rgba: [...context.getImageData(0, 0, SIZE, SIZE).data] };
 }
 
