@@ -177,7 +177,11 @@ class CalendarData {
    * resolved from. See `#resolveWeeks` for why that can't be left to the deriveds below.
    */
   set anchor(value: Date) {
-    this.#anchor = value;
+    const day = startOfDay(value);
+    // Same day, new `Date` — the grid's deriveds are all objects, so an assignment that changes
+    // nothing would still invalidate every one of them and have the grid re-place its whole strip.
+    if (day.getTime() === this.#anchor.getTime()) return;
+    this.#anchor = day;
     this.#resolveWeeks();
   }
 
@@ -620,15 +624,24 @@ class CalendarData {
   }
 
   goToToday() {
-    this.animateNextJump = true;
-    this.anchor = startOfWeek(new Date());
-    void this.ensureWeeks();
+    this.#jumpTo(new Date());
   }
 
   /** The month grid jumps straight to whichever week a tapped date falls in. */
   goToDate(date: Date) {
+    this.#jumpTo(date);
+  }
+
+  /**
+   * A jump to a week, from a button rather than a swipe. The flag is only raised when the window
+   * actually moves: raising it for a tap on the week already on screen would have the grid play a
+   * slide over columns that never changed, and the grid clears it only when it animates.
+   */
+  #jumpTo(date: Date) {
+    const target = startOfWeek(date);
+    if (target.getTime() === this.#anchor.getTime()) return;
     this.animateNextJump = true;
-    this.anchor = startOfWeek(date);
+    this.anchor = target;
     void this.ensureWeeks();
   }
 

@@ -52,6 +52,13 @@
   let settle: ReturnType<typeof setTimeout> | null = null;
   /** Which strip the current scroll offset was measured against, and whether it's been placed yet. */
   let stripAt: number | null = null;
+  /**
+   * The first day on screen as of the last placement. The scroll offset can't stand in for it: the
+   * strip recentres on every week change, so a jump of one day and a jump of six weeks can both
+   * leave `scrollLeft` exactly where it was. This is the only thing that knows which way the window
+   * went, and how far.
+   */
+  let windowAt: number | null = null;
   let opened = false;
   /**
    * The leftmost column the scroll is over, updated as it moves — unlike `data.dayOffset`, live
@@ -78,6 +85,9 @@
    */
   let easing = $state(false);
   let easeDirection = $state(1);
+  /** How far the days start out of place, in pixels: the distance the window actually moved, capped
+   *  at a week — past that the columns are all new anyway and further would only slide for longer. */
+  let easeDistance = $state(0);
 
   const dayWidth = $derived(Math.max(0, viewWidth - GUTTER_PX) / VISIBLE_DAYS);
   const columns = $derived(`repeat(${STRIP_DAYS},${dayWidth}px)`);
@@ -236,25 +246,36 @@
     const width = dayWidth;
     const offset = data.dayOffset;
     const start = data.stripStart.getTime();
+    const windowDay = data.windowStart.getTime();
     if (!scroller || width === 0) return;
-    // Captured before the strip-rebase effect below gets a turn in this same flush and moves
-    // `stripAt` on to `start` itself — this is the one place that still remembers where it was.
-    const previousStripAt = stripAt;
-    const shouldAnimate = data.animateNextJump;
-    if (shouldAnimate) jumping = true;
+    // Days the window moved, signed. A jump that lands on the week already on screen moves nothing,
+    // and has nothing to animate — see `#jumpTo`, which is why that shouldn't happen at all.
+    const moved = windowAt === null ? 0 : Math.round((windowDay - windowAt) / MS_PER_DAY);
+    const shouldAnimate = data.animateNextJump && moved !== 0;
+    if (shouldAnimate) {
+      // The jump outranks whatever the last gesture left behind: an ease still running towards an
+      // old column, and the settle that would have moved the window on to it.
+      cancelAnimation();
+      if (settle) clearTimeout(settle);
+      settle = null;
+      jumping = true;
+    }
     // Next frame: the columns have to be laid out at their new width before an offset into them
     // means anything — set it too early and the browser clamps it to a scroll range of zero.
     const frame = requestAnimationFrame(() => {
       if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
       opened = true;
+      // Cleared however this run ends: the flag belongs to the window move that raised it, and
+      // carrying it into the next one would animate a scroll nobody asked to be animated.
+      data.animateNextJump = false;
       if (shouldAnimate) {
-        data.animateNextJump = false;
         scroller.scrollLeft = offset * width;
         liveDayOffset = offset;
-        // The strip always recentres on the same offset, so there's no distance here for
+        // The strip often recentres on the same offset, so there may be no distance here for
         // `scrollLeft` itself to ease across — see the note by `easing` above.
         if (!theme.reduceMotion) {
-          easeDirection = previousStripAt !== null && start < previousStripAt ? -1 : 1;
+          easeDirection = moved < 0 ? -1 : 1;
+          easeDistance = Math.min(Math.abs(moved), VISIBLE_DAYS) * width;
           easing = true;
           requestAnimationFrame(() => {
             easing = false;
@@ -271,6 +292,7 @@
       }
       followingScroll = false;
       stripAt = start;
+      windowAt = windowDay;
     });
     return () => cancelAnimationFrame(frame);
   });
@@ -356,7 +378,10 @@
    *  desktop shell needs the easing — a browser has CSS snapping to land it (see `freeScroll`). */
   function settleOnColumn() {
     const scroller = data.scrollerEl;
-    if (!scroller || dayWidth === 0 || data.drag || jumping) return land();
+    // A jump is already driving the scroll to a column of its own. Landing here would read the
+    // position it is on its way from and move the window back to it, undoing the jump.
+    if (jumping) return;
+    if (!scroller || dayWidth === 0 || data.drag) return land();
     const target = Math.round(scroller.scrollLeft / dayWidth) * dayWidth;
     if (isDesktop && Math.abs(scroller.scrollLeft - target) >= 1) {
       snapping = true;
@@ -374,7 +399,7 @@
    *  near an edge doesn't jump anything — it just makes more columns appear to scroll into. */
   function land() {
     const scroller = data.scrollerEl;
-    if (!scroller || dayWidth === 0 || data.drag) return;
+    if (!scroller || dayWidth === 0 || data.drag || jumping) return;
     const shift = Math.round(scroller.scrollLeft / dayWidth) - data.dayOffset;
     if (shift === 0) return;
     // The window is following the scroll, not leading it: the effect above must leave the position
@@ -445,7 +470,7 @@
     <div
       class="min-w-0"
       style="transition:{easing ? 'none' : `transform ${JUMP_ANIMATE_MS}ms ease-out`};transform:translateX({easing
-        ? easeDirection * Math.max(0, viewWidth - GUTTER_PX)
+        ? easeDirection * easeDistance
         : 0}px)"
     >
       <div class="sticky top-0 z-20 border-line border-b bg-surface transition-[height] duration-150" style="height:{headerPx}px">

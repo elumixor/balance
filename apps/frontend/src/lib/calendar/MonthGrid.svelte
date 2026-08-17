@@ -55,7 +55,17 @@
     return monthStart(addDays(row, 3));
   });
   const monthLabel = $derived(displayedMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" }));
-  const onCurrentMonth = $derived(displayedMonth.getTime() === monthStart(new Date()).getTime());
+  /**
+   * Whether today's row is one of the six on screen — which is what the button puts back, so it is
+   * also what decides whether the button is there at all. The displayed month can't answer that:
+   * scrolling to today's week leaves the month read off two rows further down, so a week at the end
+   * of a month would land on the next one and leave the button offering a journey it just made.
+   */
+  const todayInView = $derived.by(() => {
+    const first = Math.round(scrollTop / STRIDE_PX);
+    const index = weekIndex(new Date());
+    return index >= first && index < first + VISIBLE_ROWS;
+  });
 
   // The strip always shows exactly seven consecutive days, but a swipe can land that window on
   // any weekday — not just a Monday — so it can cut across two of the grid's own Monday-start rows.
@@ -112,10 +122,10 @@
   <div class="flex items-center justify-between px-0.5">
     <span class="t-micro text-fg-muted">{monthLabel}</span>
     <div class="flex items-center gap-0.5">
-      {#if !onCurrentMonth}
+      {#if !todayInView}
         <button
           type="button"
-          aria-label="Back to the current month"
+          aria-label="Back to today"
           onclick={backToToday}
           class="hoverable press-sm flex size-5 items-center justify-center rounded text-fg-faint"
         >
