@@ -181,7 +181,7 @@
           <button
             type="button"
             onclick={() => data.goToDate(day)}
-            class="t-label press-sm relative flex items-center justify-center rounded-md {isToday
+            class="t-micro press-sm relative flex items-center justify-center rounded-md tabular-nums {isToday
               ? 'bg-danger text-white'
               : inMonth
                 ? 'text-fg hoverable'
