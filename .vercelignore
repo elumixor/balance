@@ -1,0 +1,7 @@
+# Everything Apple, and the second web build a release makes for it. `vercel build` walks the
+# project before it builds, and a release runs the iOS build at the same time — it would be
+# stat-ing files the other half is rewriting, which fails the build for no reason at all.
+apps/frontend/ios
+apps/frontend/build-ios
+apps/frontend/.svelte-kit-ios
+apps/frontend/src-tauri/target

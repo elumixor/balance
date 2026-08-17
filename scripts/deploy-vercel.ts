@@ -7,4 +7,19 @@ import { $ } from "bun";
 const root = new URL("..", import.meta.url).pathname;
 
 await $`bunx vercel build --prod --yes`.cwd(root);
-await $`bunx vercel deploy --prebuilt --prod --yes`.cwd(root);
+
+// The upload is the one part of a release that a flaky minute of home internet can end — the CLI
+// waits on the deployment over the network and gives up when the connection does, whatever the
+// deployment itself went on to do.
+await retry(() => $`bunx vercel deploy --prebuilt --prod --yes`.cwd(root));
+
+async function retry<T>(attempt: () => Promise<T>, times = 3) {
+  for (let remaining = times - 1; ; remaining--) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (remaining <= 0) throw error;
+      console.log(`Deploy failed, retrying (${remaining} left)`);
+    }
+  }
+}
