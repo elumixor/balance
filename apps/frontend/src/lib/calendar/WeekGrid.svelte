@@ -6,6 +6,7 @@
   import EventBlock from "./EventBlock.svelte";
   import { fade, fly } from "svelte/transition";
   import EventContextMenu from "./EventContextMenu.svelte";
+  import { isDesktop } from "$lib/desktop/platform";
   import { freeScroll } from "./free-scroll";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import {
@@ -41,6 +42,8 @@
   const SETTLE_MS = 120;
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const JUMP_ANIMATE_MS = 300;
+  /** A settle is a nudge onto the nearest column, not a journey across the strip. */
+  const SNAP_ANIMATE_MS = 200;
 
   const data = calendarData;
 
@@ -226,7 +229,16 @@
       } else if (!jumping) {
         // Only when the scroll isn't already on the column: a settle that landed dead-on would
         // otherwise take a second, redundant write a frame later, which CSS snapping then answers.
-        if (Math.abs(scroller.scrollLeft - offset * width) >= 1) scroller.scrollLeft = offset * width;
+        if (Math.abs(scroller.scrollLeft - offset * width) >= 1) {
+          // The desktop shell has no CSS snapping to ease this for it (see `freeScroll`), so the
+          // last few pixels onto the column are eased here instead of arriving between two frames.
+          if (isDesktop) {
+            jumping = true;
+            animateScrollLeft(scroller, offset * width, SNAP_ANIMATE_MS);
+          } else {
+            scroller.scrollLeft = offset * width;
+          }
+        }
         liveDayOffset = offset;
       }
       stripAt = start;
@@ -234,15 +246,15 @@
     return () => cancelAnimationFrame(frame);
   });
 
-  /** Eases the scroller to `target` over `JUMP_ANIMATE_MS` rather than snapping straight there. */
-  function animateScrollLeft(scroller: HTMLElement, target: number) {
+  /** Eases the scroller to `target` rather than snapping straight there. */
+  function animateScrollLeft(scroller: HTMLElement, target: number, duration = JUMP_ANIMATE_MS) {
     if (jumpFrame !== null) cancelAnimationFrame(jumpFrame);
     const from = scroller.scrollLeft;
     const delta = target - from;
     if (delta === 0) return;
     const t0 = performance.now();
     const tick = (now: number) => {
-      const t = Math.min(1, (now - t0) / JUMP_ANIMATE_MS);
+      const t = Math.min(1, (now - t0) / duration);
       const eased = 1 - (1 - t) ** 3;
       scroller.scrollLeft = from + delta * eased;
       if (t >= 1) jumping = false;
@@ -266,10 +278,10 @@
 
   /**
    * How close to either end of the loaded strip forces a recentre mid-scroll rather than waiting
-   * for the scroll to settle — the last resort against running into the physical edge of the DOM
-   * and stopping dead. It costs the momentum of the fling that triggered it (setting `scrollLeft`
-   * ends a fling), which is why the strip is two weeks wide either side: eleven days of runway
-   * means an ordinary swipe, however fast, settles long before it gets here.
+   * for the scroll to settle, so a fast continuous scroll always has columns ahead of it instead of
+   * running into the physical edge of the DOM and stopping dead. It costs the momentum of the fling
+   * that triggered it — setting `scrollLeft` ends a fling — which is why it waits until the runway
+   * is nearly gone rather than recentring on every column.
    */
   const EDGE_DAYS = 3;
 
