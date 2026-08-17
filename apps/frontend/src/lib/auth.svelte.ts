@@ -14,12 +14,14 @@ const SIGNED_IN_KEY = "balance:signed-in";
 const isNativeApp = Capacitor.isNativePlatform();
 
 /**
- * Everything Clerk keeps about this device lives under its own prefix in local storage. Which of
- * those keys exist is Clerk's business and changes between versions, so the whole prefix is
- * mirrored rather than any one name.
+ * Everything Clerk keeps about this device lives under its own prefix, split between local
+ * storage and a cookie. Which of those keys exist is Clerk's business and changes between
+ * versions, so the whole prefix is mirrored rather than any one name.
  */
 const CLERK_STORAGE_PREFIX = "__clerk";
 const MIRRORED_CLERK_STATE = "balance:clerk-state";
+/** Clerk's own cookie lifetime for the dev-browser token. */
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 class Auth {
   /** False until Clerk has replayed any stored session, so screens can hold their first frame. */
@@ -57,9 +59,10 @@ class Auth {
     const clerk = new Clerk(PUBLISHABLE_KEY);
     // A webview is not a browser that keeps things. `capacitor.config.ts` serves the app from
     // `https://localhost` so Clerk recognises the origin, but WKWebView still prunes what Clerk
-    // leaves behind, which is why the app asked for a sign-in every launch. What it leaves behind
-    // on a development instance is the browser's own token, in local storage — so that is mirrored
-    // into native storage, where nothing prunes it, and put back before Clerk goes looking.
+    // leaves behind, which is why the app asked for a sign-in every launch. On a development
+    // instance, what actually re-authenticates the browser is `__clerk_db_jwt` — set as a
+    // *cookie*, not local storage — so both are mirrored into native storage, where nothing
+    // prunes them, and put back before Clerk goes looking.
     //
     // Telling Clerk it isn't a standard browser is not the fix, however tempting it reads: a
     // development instance then can't run its browser handshake at all, and every launch fails
@@ -207,8 +210,13 @@ async function restoreClerkState() {
   try {
     const { value } = await Preferences.get({ key: MIRRORED_CLERK_STATE });
     if (!value) return;
-    for (const [key, item] of Object.entries(JSON.parse(value) as Record<string, string>)) {
+    const state = JSON.parse(value) as { localStorage?: Record<string, string>; cookies?: Record<string, string> };
+    for (const [key, item] of Object.entries(state.localStorage ?? {})) {
       if (localStorage.getItem(key) === null) localStorage.setItem(key, item);
+    }
+    const existing = readClerkCookies();
+    for (const [key, item] of Object.entries(state.cookies ?? {})) {
+      if (!(key in existing)) writeClerkCookie(key, item);
     }
   } catch {
     // A mirror that can't be read is a sign-in screen, not an error worth showing.
@@ -217,16 +225,32 @@ async function restoreClerkState() {
 
 async function rememberClerkState() {
   try {
-    const kept: Record<string, string> = {};
+    const localStorageState: Record<string, string> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key?.startsWith(CLERK_STORAGE_PREFIX)) continue;
-      kept[key] = localStorage.getItem(key) ?? "";
+      localStorageState[key] = localStorage.getItem(key) ?? "";
     }
-    await Preferences.set({ key: MIRRORED_CLERK_STATE, value: JSON.stringify(kept) });
+    const state = { localStorage: localStorageState, cookies: readClerkCookies() };
+    await Preferences.set({ key: MIRRORED_CLERK_STATE, value: JSON.stringify(state) });
   } catch {
     // Same: the cost of failing here is one more sign-in, later.
   }
+}
+
+function readClerkCookies() {
+  const cookies: Record<string, string> = {};
+  for (const pair of document.cookie.split("; ")) {
+    const eq = pair.indexOf("=");
+    if (eq === -1) continue;
+    const key = pair.slice(0, eq);
+    if (key.startsWith(CLERK_STORAGE_PREFIX)) cookies[key] = decodeURIComponent(pair.slice(eq + 1));
+  }
+  return cookies;
+}
+
+function writeClerkCookie(key: string, value: string) {
+  document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
 }
 
 async function forgetClerkState() {
