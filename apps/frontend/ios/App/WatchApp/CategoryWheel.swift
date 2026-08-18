@@ -46,8 +46,10 @@ enum WheelMetrics {
     /// being replaced by it, so the choice and what is being set with it are visibly the same ring.
     static let dialThickness: CGFloat = 11
 
-    /// The collapse, and everything that rides on it.
-    static let collapse = Animation.spring(response: 0.42, dampingFraction: 0.85)
+    /// The collapse, and everything that rides on it. Slow on purpose: it is the one moment the
+    /// screen explains itself, showing the week's arcs closing into the single lap a session is
+    /// dialled on, and at a glanceable speed there is nothing to read.
+    static let collapse = Animation.spring(response: 1.26, dampingFraction: 0.85)
 
     /// The id a category's glyph travels under, from its band on the ring to the label under the
     /// clock. One per category, so the glyph that leaves the ring and the glyph that appears in the
@@ -164,10 +166,10 @@ struct CategoryWheel: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
             .scaleEffect(scale)
             .offset(chosenIndex == nil ? cameraOffset(radius: radius) : .zero)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: focusedIndex)
-            .animation(.spring(response: 0.28, dampingFraction: 0.8), value: isPressing)
-            .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.9), value: pan)
-            .animation(WheelMetrics.collapse, value: chosenIndex)
+            // One animation for the whole ring rather than one per value: the collapse changes the
+            // focus, the pan and the choice in a single frame, and chained `animation(_:value:)`
+            // modifiers would leave the fastest of them deciding how the slowest one looks.
+            .animation(ringAnimation, value: ringState)
 
             // What the middle says, which is one of three things: an invitation to press before a
             // finger has landed, what to do with the press once one has, and nothing at all from the
@@ -180,6 +182,30 @@ struct CategoryWheel: View {
                 .allowsHitTesting(false)
         }
         .aspectRatio(1, contentMode: .fit)
+    }
+
+    /// Everything about the ring that is worth animating, in one value, so a frame that changes
+    /// several of them at once is still one animation.
+    private var ringState: RingState {
+        RingState(focused: focusedIndex, pan: pan, pressing: isPressing, chosen: chosenIndex)
+    }
+
+    private struct RingState: Equatable {
+        var focused: Int?
+        var pan: CGSize
+        var pressing: Bool
+        var chosen: Int?
+    }
+
+    /// Which animation that change gets. Aiming — the close-up sliding under the finger — has to
+    /// keep up with the hand, so it is the quick one. Everything that settles the ring into or out
+    /// of a lap is the slow collapse, including cancelling back to the week.
+    private var ringAnimation: Animation {
+        guard chosenIndex == nil else { return WheelMetrics.collapse }
+        guard isPressing else { return WheelMetrics.collapse }
+        return focusedIndex == nil
+            ? .spring(response: 0.28, dampingFraction: 0.8)
+            : .interactiveSpring(response: 0.18, dampingFraction: 0.9)
     }
 
     /// How big the ring is drawn: its own size at rest, a little up while a finger is down and

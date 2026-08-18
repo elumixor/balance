@@ -147,6 +147,9 @@ struct RingFace: View {
     let isFree: Bool
     /// Where nudges fall, as fractions of a lap.
     let tickTurns: [Double]
+    /// How the arc travels when the length changes. Quick by default, because that is the crown
+    /// being turned; the dial hands it something slower for the one sweep it opens with.
+    var sweep: Animation = .easeOut(duration: 0.16)
 
     static let lap = 60.0
 
@@ -179,7 +182,7 @@ struct RingFace: View {
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
-            .animation(.easeOut(duration: 0.16), value: minutes)
+            .animation(sweep, value: minutes)
         }
         .aspectRatio(1, contentMode: .fit)
     }
@@ -312,6 +315,12 @@ struct DurationDialView: View {
     /// opening into the lap it is drawn on, so the two arcs read as one move rather than as a length
     /// that was already decided before the ring got there.
     @State private var arcShown = false
+    /// Once that opening sweep is over the arc goes back to answering the crown at the crown's own
+    /// speed; a length being dialled must not take a second to catch up.
+    @State private var opened = false
+
+    /// The opening sweep: it waits for the week's arcs to finish closing, then draws the length.
+    private static let intro = Animation.easeOut(duration: 0.9).delay(0.48)
 
     private var color: Color { Color(hex: planner.category.color) }
 
@@ -321,6 +330,7 @@ struct DurationDialView: View {
             minutes: arcShown ? planner.minutes : 0,
             isFree: planner.isFree,
             tickTurns: arcShown ? tickTurns : [],
+            sweep: opened ? .easeOut(duration: 0.16) : Self.intro
         )
             .overlay {
                 DialReadout(
@@ -337,7 +347,11 @@ struct DurationDialView: View {
             .modifier(CrownControl(planner: planner, focused: $crownFocused))
             .onAppear {
                 crownFocused = true
-                withAnimation(.easeOut(duration: 0.3).delay(0.16)) { arcShown = true }
+                arcShown = true
+            }
+            .task {
+                try? await Task.sleep(for: .seconds(1.5))
+                opened = true
             }
     }
 
