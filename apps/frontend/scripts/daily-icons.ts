@@ -8,12 +8,40 @@
 // past what's worth shipping, so the phone gets the day-of-month only; `DailyIconManager.swift`
 // picks the matching file each launch and foreground.
 //
-//   bun run scripts/daily-icons.ts
+// Each day becomes its own `.appiconset` in the asset catalog rather than a loose 1024px PNG:
+// App Store validation wants every icon — alternates included — present at 120x120 for iPhone and
+// at 152x152 / 167x167 for iPad, and the catalog is what produces those. `wire_daily_icons.rb`
+// lists the set names in ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES so the build compiles them.
+//
+//   bun run scripts/daily-icons.ts && (cd ios && ruby wire_daily_icons.rb)
+import { mkdir, rm } from "node:fs/promises";
 import sharp from "sharp";
 
-const BASE_ICON = "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png";
-const OUT_DIR = "ios/App/App/AlternateIcons";
+const CATALOG = "ios/App/App/Assets.xcassets";
+const BASE_ICON = `${CATALOG}/AppIcon.appiconset/AppIcon-ios-marketing-1024x1024@1x.png`;
 const SIZE = 1024;
+
+// The full device set, minus the 1024 marketing icon — the App Store only asks that of the
+// primary icon, and shipping 31 more copies of it would only grow the bundle.
+const VARIANTS = [
+  { idiom: "iphone", size: 20, scale: 2 },
+  { idiom: "iphone", size: 20, scale: 3 },
+  { idiom: "iphone", size: 29, scale: 2 },
+  { idiom: "iphone", size: 29, scale: 3 },
+  { idiom: "iphone", size: 40, scale: 2 },
+  { idiom: "iphone", size: 40, scale: 3 },
+  { idiom: "iphone", size: 60, scale: 2 },
+  { idiom: "iphone", size: 60, scale: 3 },
+  { idiom: "ipad", size: 20, scale: 1 },
+  { idiom: "ipad", size: 20, scale: 2 },
+  { idiom: "ipad", size: 29, scale: 1 },
+  { idiom: "ipad", size: 29, scale: 2 },
+  { idiom: "ipad", size: 40, scale: 1 },
+  { idiom: "ipad", size: 40, scale: 2 },
+  { idiom: "ipad", size: 76, scale: 1 },
+  { idiom: "ipad", size: 76, scale: 2 },
+  { idiom: "ipad", size: 83.5, scale: 2 },
+] as const;
 
 function overlay(day: number): string {
   const n = String(day);
@@ -43,15 +71,31 @@ function overlay(day: number): string {
 </svg>`;
 }
 
-await Bun.write(`${OUT_DIR}/.gitkeep`, "");
-const base = sharp(BASE_ICON).resize(SIZE, SIZE).toBuffer();
+const base = await sharp(BASE_ICON).resize(SIZE, SIZE).toBuffer();
 
 for (let day = 1; day <= 31; day++) {
   const name = `AppIcon-Day${String(day).padStart(2, "0")}`;
-  await sharp(await base)
+  const dir = `${CATALOG}/${name}.appiconset`;
+  await rm(dir, { recursive: true, force: true });
+  await mkdir(dir, { recursive: true });
+
+  const full = await sharp(base)
     .composite([{ input: Buffer.from(overlay(day)) }])
     .flatten({ background: "#0e1013" })
     .png()
-    .toFile(`${OUT_DIR}/${name}.png`);
+    .toBuffer();
+
+  const images = [];
+  for (const { idiom, size, scale } of VARIANTS) {
+    const pixels = Math.round(size * scale);
+    const filename = `${name}-${idiom}-${size}x${size}@${scale}x.png`;
+    await sharp(full).resize(pixels, pixels).png().toFile(`${dir}/${filename}`);
+    images.push({ idiom, size: `${size}x${size}`, scale: `${scale}x`, filename });
+  }
+
+  await Bun.write(
+    `${dir}/Contents.json`,
+    `${JSON.stringify({ images, info: { author: "xcode", version: 1 } }, null, 2)}\n`,
+  );
   console.log(name);
 }

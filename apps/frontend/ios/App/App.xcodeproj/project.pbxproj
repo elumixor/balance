@@ -7,24 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		015812123802BD406C80704B /* AppIcon-Day16.png in Resources */ = {isa = PBXBuildFile; fileRef = 2110DC98B75A925F544A905A /* AppIcon-Day16.png */; };
 		026EBE77F09309F8D8217AB5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B93CBA30416D3ACA0983CA /* ContentView.swift */; };
-		043E7F3ACF60C025ECD656F1 /* AppIcon-Day26.png in Resources */ = {isa = PBXBuildFile; fileRef = F0645E5DC23DBC22E668C4A1 /* AppIcon-Day26.png */; };
-		10D5A8CB2CEA854C04365BFD /* AppIcon-Day12.png in Resources */ = {isa = PBXBuildFile; fileRef = B716C17F154045691786ED5A /* AppIcon-Day12.png */; };
-		135854E916855FB6AA825047 /* AppIcon-Day10.png in Resources */ = {isa = PBXBuildFile; fileRef = 368D99B5C26F852DAA30DF50 /* AppIcon-Day10.png */; };
 		1AB7BED8022A14D821A96B61 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
 		1FE46E00635D75256EE12444 /* WatchPairing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F862CEFC7C8361E64CF985E /* WatchPairing.swift */; };
-		20364FE398C259871FA6A6DF /* AppIcon-Day20.png in Resources */ = {isa = PBXBuildFile; fileRef = 009E65ECFE5B893B1074F632 /* AppIcon-Day20.png */; };
 		21F339892D050846D136A3AC /* CategoryFocusReadout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774299AFE5E45034FDFCAF2C /* CategoryFocusReadout.swift */; };
 		231FD1CC6A90BA6EF60A6553 /* NotSignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0072B8692BD86555B079E552 /* NotSignedInView.swift */; };
-		235ED37CD2B809B99B7B15B2 /* AppIcon-Day24.png in Resources */ = {isa = PBXBuildFile; fileRef = 9C9EAA66437085CB87BB95D0 /* AppIcon-Day24.png */; };
 		266D239934A2FF5540FA19CE /* WheelGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ECEFD0A6E930DC8D8CD4F88 /* WheelGesture.swift */; };
-		26E39B1F832A1CC95A2C467A /* AppIcon-Day01.png in Resources */ = {isa = PBXBuildFile; fileRef = 5ACDA8F00280956FBFCCFAB4 /* AppIcon-Day01.png */; };
-		2C48D5097ABBBBA8F640DC2D /* AppIcon-Day06.png in Resources */ = {isa = PBXBuildFile; fileRef = 698EA45FF1FD5EE4620E2330 /* AppIcon-Day06.png */; };
-		2E882BD1033F036A1D0C3F70 /* AppIcon-Day03.png in Resources */ = {isa = PBXBuildFile; fileRef = 04DB8CA2F8D264FF0AE6D3D9 /* AppIcon-Day03.png */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
-		35BBA4B50E0B978F17125B68 /* AppIcon-Day30.png in Resources */ = {isa = PBXBuildFile; fileRef = A3A78BA6357883DAEFC975F6 /* AppIcon-Day30.png */; };
-		40EE10568A486A22DD1563C5 /* AppIcon-Day23.png in Resources */ = {isa = PBXBuildFile; fileRef = F789D82F9475F9FD618885A9 /* AppIcon-Day23.png */; };
 		4A7077E3F4E851FFE1D2B807 /* WatchSummaryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B53C922DA52B4E655C2B6FF8 /* WatchSummaryModel.swift */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -33,44 +22,24 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
-		513B58BEF03C0FBF441AEF48 /* AppIcon-Day29.png in Resources */ = {isa = PBXBuildFile; fileRef = 5988C2E4C14EEEAAE90DD5BC /* AppIcon-Day29.png */; };
-		51855137EC24A96ADEF682D2 /* AppIcon-Day31.png in Resources */ = {isa = PBXBuildFile; fileRef = A797BD5EE8FEC5512095D6F7 /* AppIcon-Day31.png */; };
 		53730F794BE0EC0D8D9C42EE /* CalendarSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E58C59D39C94381775AA5648 /* CalendarSettingsView.swift */; };
 		55E296346CC048C543208D04 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
 		57CDB2CA4D5E5755925C1918 /* SessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADF83EB947E6B9FA4FF73AA5 /* SessionController.swift */; };
 		59BCA8B8A827DE0D616C67A9 /* WatchHandoffPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8449D48ECD66DBF260EDFB8 /* WatchHandoffPlugin.swift */; };
 		5B3052E531CC03F201E2885C /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 134AC3333AE9D07069A55C40 /* ClerkKit */; };
-		5BD221A044FD9A1B376EA8FE /* AppIcon-Day07.png in Resources */ = {isa = PBXBuildFile; fileRef = 9148CB75B3B64CFC6B02E4B9 /* AppIcon-Day07.png */; };
-		5CA49D1EBDD283DBE4E0C1F7 /* AppIcon-Day25.png in Resources */ = {isa = PBXBuildFile; fileRef = B0C676878F3A9656E85D8F0A /* AppIcon-Day25.png */; };
 		5D2E9FF5FB9400A8011ACF48 /* BalanceWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0040D1FDF20D333E235612B1 /* BalanceWatchApp.swift */; };
-		66AD63F44D3D67860D8C236C /* AppIcon-Day14.png in Resources */ = {isa = PBXBuildFile; fileRef = 1DCC5499675D44EE21C58B46 /* AppIcon-Day14.png */; };
-		66EB785E2FD1E46E6F7510F9 /* AppIcon-Day22.png in Resources */ = {isa = PBXBuildFile; fileRef = 441E1DF3F2395FBD42848A78 /* AppIcon-Day22.png */; };
-		7265D066948A114AFDDC9D2D /* AppIcon-Day27.png in Resources */ = {isa = PBXBuildFile; fileRef = 80A2C863A0DFBF33AA3BC510 /* AppIcon-Day27.png */; };
 		8997EF846DBC928529BBDA78 /* DailyIconManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF375AB4C7EDF6D303767AB7 /* DailyIconManager.swift */; };
 		8D28AA0E61B9918923235594 /* BalanceWatchWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C893EC64C8D457166D6B9718 /* BalanceWatchWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		91A90EE77463ED6F381B5CF9 /* AppIcon-Day05.png in Resources */ = {isa = PBXBuildFile; fileRef = B28E042D81119CC2483B5060 /* AppIcon-Day05.png */; };
 		92EF7718F024D34447B1AF1E /* BalanceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C8B84C0659A56C2D59C1230 /* BalanceWidget.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		95BCCE26D0311BA21AF42954 /* BalanceWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222A9A81C994FC32E08F7746 /* BalanceWidgetBundle.swift */; };
-		994741B6CBC07DC14ED71CF7 /* AppIcon-Day02.png in Resources */ = {isa = PBXBuildFile; fileRef = 50EBB17ABB928843FC2320D8 /* AppIcon-Day02.png */; };
-		9A299C18ED98182B9F6932C0 /* AppIcon-Day11.png in Resources */ = {isa = PBXBuildFile; fileRef = 53B518FE0F4F2369B3C78431 /* AppIcon-Day11.png */; };
 		A6156943AA72615A3C1D41EF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AE379E86A73E4ED306EC6C18 /* Assets.xcassets */; };
-		A888518CC8734535603B7C53 /* AppIcon-Day21.png in Resources */ = {isa = PBXBuildFile; fileRef = 2A04A9F3541795EE6347D72D /* AppIcon-Day21.png */; };
-		AA7101F0DAF70DF8503A9ECA /* AppIcon-Day04.png in Resources */ = {isa = PBXBuildFile; fileRef = 8CF7ADFF86678D33592F0557 /* AppIcon-Day04.png */; };
 		ADBD1A2A8C1E7828A9EA6883 /* CategoryWheel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16A09BE7B1317037CC97727 /* CategoryWheel.swift */; };
 		B39F5CF16B166BFD9B8B5690 /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 357279BB45FAD3C799A3E50D /* BalanceKit */; };
-		B96B7536CD7C95F90B162CCA /* AppIcon-Day09.png in Resources */ = {isa = PBXBuildFile; fileRef = B6D97B742F5563390963EBDB /* AppIcon-Day09.png */; };
-		B9E54D3044B6615B39F11755 /* AppIcon-Day13.png in Resources */ = {isa = PBXBuildFile; fileRef = C5C0DC05CF8C740F4B672E41 /* AppIcon-Day13.png */; };
 		C0D7150B87EB99EF066BB087 /* WatchPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A70A6E354C2F418C18DFD4 /* WatchPreview.swift */; };
-		C4EDE2CA335402FB7FC73D35 /* AppIcon-Day17.png in Resources */ = {isa = PBXBuildFile; fileRef = CCBAF3CE35A056235D7B3AF9 /* AppIcon-Day17.png */; };
 		C9E62C78022A2D68338E4690 /* BalanceWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 76FB2EF153B2B0AA10EBE161 /* BalanceWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		CA4B28846AE6AC34E122A7E4 /* AppIcon-Day08.png in Resources */ = {isa = PBXBuildFile; fileRef = 22C029B156A2D829681D68B2 /* AppIcon-Day08.png */; };
 		CBCEB02F922BCD2F3A809956 /* ActiveSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96EFD44DAFF906830F85D322 /* ActiveSessionView.swift */; };
-		D08F21D921532661B42B3DB3 /* AppIcon-Day19.png in Resources */ = {isa = PBXBuildFile; fileRef = 513D55F69E14565E3FED009D /* AppIcon-Day19.png */; };
 		D5D3C513B993D345F2747FA7 /* TrackingAlarm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F085147E201088FA26C15C2 /* TrackingAlarm.swift */; };
-		D99BBF5473A6F0CD54566A6B /* AppIcon-Day28.png in Resources */ = {isa = PBXBuildFile; fileRef = 56A0EDD087A12C7E7AC447C2 /* AppIcon-Day28.png */; };
-		E1FBA7923B4A28AEA87B2201 /* AppIcon-Day18.png in Resources */ = {isa = PBXBuildFile; fileRef = D23E0F13EAA0AA8ABDB6D99A /* AppIcon-Day18.png */; };
-		E629778726081E9815EFAA12 /* AppIcon-Day15.png in Resources */ = {isa = PBXBuildFile; fileRef = 2D0311F9D9675BD71626C374 /* AppIcon-Day15.png */; };
 		E644EAB53A0F095A788FB349 /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 088B5D6B0ADBB1C7EAE81194 /* BalanceKit */; };
 		EB77BD04C479DCA73E3665AB /* DurationDial.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECF22219EDAF2C5FADED9F79 /* DurationDial.swift */; };
 /* End PBXBuildFile section */
@@ -241,19 +210,10 @@
 		0040D1FDF20D333E235612B1 /* BalanceWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BalanceWatchApp.swift; path = ../../WatchApp/BalanceWatchApp.swift; sourceTree = "<group>"; };
 		0072B8692BD86555B079E552 /* NotSignedInView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NotSignedInView.swift; path = ../../WatchApp/NotSignedInView.swift; sourceTree = "<group>"; };
 		007F95FAAA3993F6A3659554 /* BalanceWatch.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = BalanceWatch.entitlements; path = ../../WatchApp/BalanceWatch.entitlements; sourceTree = "<group>"; };
-		009E65ECFE5B893B1074F632 /* AppIcon-Day20.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day20.png"; sourceTree = "<group>"; };
 		01B93CBA30416D3ACA0983CA /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = ../../WatchApp/ContentView.swift; sourceTree = "<group>"; };
-		04DB8CA2F8D264FF0AE6D3D9 /* AppIcon-Day03.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day03.png"; sourceTree = "<group>"; };
-		1DCC5499675D44EE21C58B46 /* AppIcon-Day14.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day14.png"; sourceTree = "<group>"; };
-		2110DC98B75A925F544A905A /* AppIcon-Day16.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day16.png"; sourceTree = "<group>"; };
 		222A9A81C994FC32E08F7746 /* BalanceWidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BalanceWidgetBundle.swift; path = ../../WatchWidget/BalanceWidgetBundle.swift; sourceTree = "<group>"; };
-		22C029B156A2D829681D68B2 /* AppIcon-Day08.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day08.png"; sourceTree = "<group>"; };
-		2A04A9F3541795EE6347D72D /* AppIcon-Day21.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day21.png"; sourceTree = "<group>"; };
-		2D0311F9D9675BD71626C374 /* AppIcon-Day15.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day15.png"; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
-		368D99B5C26F852DAA30DF50 /* AppIcon-Day10.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day10.png"; sourceTree = "<group>"; };
 		3C8B84C0659A56C2D59C1230 /* BalanceWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BalanceWidget.swift; path = ../../WatchWidget/BalanceWidget.swift; sourceTree = "<group>"; };
-		441E1DF3F2395FBD42848A78 /* AppIcon-Day22.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day22.png"; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -262,47 +222,25 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
-		50EBB17ABB928843FC2320D8 /* AppIcon-Day02.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day02.png"; sourceTree = "<group>"; };
-		513D55F69E14565E3FED009D /* AppIcon-Day19.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day19.png"; sourceTree = "<group>"; };
-		53B518FE0F4F2369B3C78431 /* AppIcon-Day11.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day11.png"; sourceTree = "<group>"; };
-		56A0EDD087A12C7E7AC447C2 /* AppIcon-Day28.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day28.png"; sourceTree = "<group>"; };
-		5988C2E4C14EEEAAE90DD5BC /* AppIcon-Day29.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day29.png"; sourceTree = "<group>"; };
-		5ACDA8F00280956FBFCCFAB4 /* AppIcon-Day01.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day01.png"; sourceTree = "<group>"; };
 		5F085147E201088FA26C15C2 /* TrackingAlarm.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrackingAlarm.swift; path = ../../WatchApp/TrackingAlarm.swift; sourceTree = "<group>"; };
-		698EA45FF1FD5EE4620E2330 /* AppIcon-Day06.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day06.png"; sourceTree = "<group>"; };
 		76FB2EF153B2B0AA10EBE161 /* BalanceWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BalanceWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		774299AFE5E45034FDFCAF2C /* CategoryFocusReadout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryFocusReadout.swift; path = ../../WatchApp/CategoryFocusReadout.swift; sourceTree = "<group>"; };
-		80A2C863A0DFBF33AA3BC510 /* AppIcon-Day27.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day27.png"; sourceTree = "<group>"; };
-		8CF7ADFF86678D33592F0557 /* AppIcon-Day04.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day04.png"; sourceTree = "<group>"; };
 		8ECEFD0A6E930DC8D8CD4F88 /* WheelGesture.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WheelGesture.swift; path = ../../WatchApp/WheelGesture.swift; sourceTree = "<group>"; };
 		8F862CEFC7C8361E64CF985E /* WatchPairing.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WatchPairing.swift; path = ../../WatchApp/WatchPairing.swift; sourceTree = "<group>"; };
-		9148CB75B3B64CFC6B02E4B9 /* AppIcon-Day07.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day07.png"; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		96EFD44DAFF906830F85D322 /* ActiveSessionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ActiveSessionView.swift; path = ../../WatchApp/ActiveSessionView.swift; sourceTree = "<group>"; };
-		9C9EAA66437085CB87BB95D0 /* AppIcon-Day24.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day24.png"; sourceTree = "<group>"; };
-		A3A78BA6357883DAEFC975F6 /* AppIcon-Day30.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day30.png"; sourceTree = "<group>"; };
-		A797BD5EE8FEC5512095D6F7 /* AppIcon-Day31.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day31.png"; sourceTree = "<group>"; };
 		ADF83EB947E6B9FA4FF73AA5 /* SessionController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SessionController.swift; path = ../../WatchApp/SessionController.swift; sourceTree = "<group>"; };
 		AE379E86A73E4ED306EC6C18 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../../WatchApp/Assets.xcassets; sourceTree = "<group>"; };
-		B0C676878F3A9656E85D8F0A /* AppIcon-Day25.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day25.png"; sourceTree = "<group>"; };
 		B16A09BE7B1317037CC97727 /* CategoryWheel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryWheel.swift; path = ../../WatchApp/CategoryWheel.swift; sourceTree = "<group>"; };
-		B28E042D81119CC2483B5060 /* AppIcon-Day05.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day05.png"; sourceTree = "<group>"; };
 		B53C922DA52B4E655C2B6FF8 /* WatchSummaryModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WatchSummaryModel.swift; path = ../../WatchApp/WatchSummaryModel.swift; sourceTree = "<group>"; };
-		B6D97B742F5563390963EBDB /* AppIcon-Day09.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day09.png"; sourceTree = "<group>"; };
-		B716C17F154045691786ED5A /* AppIcon-Day12.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day12.png"; sourceTree = "<group>"; };
-		C5C0DC05CF8C740F4B672E41 /* AppIcon-Day13.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day13.png"; sourceTree = "<group>"; };
 		C5D2CE248DE896A6E678B01C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		C8449D48ECD66DBF260EDFB8 /* WatchHandoffPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchHandoffPlugin.swift; sourceTree = "<group>"; };
 		C893EC64C8D457166D6B9718 /* BalanceWatchWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BalanceWatchWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		CCBAF3CE35A056235D7B3AF9 /* AppIcon-Day17.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day17.png"; sourceTree = "<group>"; };
 		CF375AB4C7EDF6D303767AB7 /* DailyIconManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DailyIconManager.swift; sourceTree = "<group>"; };
-		D23E0F13EAA0AA8ABDB6D99A /* AppIcon-Day18.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day18.png"; sourceTree = "<group>"; };
 		E4FD703013B3002A3B204362 /* BalanceWatchWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = BalanceWatchWidget.entitlements; path = ../../WatchWidget/BalanceWatchWidget.entitlements; sourceTree = "<group>"; };
 		E58C59D39C94381775AA5648 /* CalendarSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CalendarSettingsView.swift; path = ../../WatchApp/CalendarSettingsView.swift; sourceTree = "<group>"; };
 		ECF22219EDAF2C5FADED9F79 /* DurationDial.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DurationDial.swift; path = ../../WatchApp/DurationDial.swift; sourceTree = "<group>"; };
-		F0645E5DC23DBC22E668C4A1 /* AppIcon-Day26.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day26.png"; sourceTree = "<group>"; };
-		F789D82F9475F9FD618885A9 /* AppIcon-Day23.png */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.png; path = "AppIcon-Day23.png"; sourceTree = "<group>"; };
 		F7A70A6E354C2F418C18DFD4 /* WatchPreview.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WatchPreview.swift; path = ../../WatchApp/WatchPreview.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -337,45 +275,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		01D6CAE24DF1C70C94656B07 /* AlternateIcons */ = {
-			isa = PBXGroup;
-			children = (
-				5ACDA8F00280956FBFCCFAB4 /* AppIcon-Day01.png */,
-				50EBB17ABB928843FC2320D8 /* AppIcon-Day02.png */,
-				04DB8CA2F8D264FF0AE6D3D9 /* AppIcon-Day03.png */,
-				8CF7ADFF86678D33592F0557 /* AppIcon-Day04.png */,
-				B28E042D81119CC2483B5060 /* AppIcon-Day05.png */,
-				698EA45FF1FD5EE4620E2330 /* AppIcon-Day06.png */,
-				9148CB75B3B64CFC6B02E4B9 /* AppIcon-Day07.png */,
-				22C029B156A2D829681D68B2 /* AppIcon-Day08.png */,
-				B6D97B742F5563390963EBDB /* AppIcon-Day09.png */,
-				368D99B5C26F852DAA30DF50 /* AppIcon-Day10.png */,
-				53B518FE0F4F2369B3C78431 /* AppIcon-Day11.png */,
-				B716C17F154045691786ED5A /* AppIcon-Day12.png */,
-				C5C0DC05CF8C740F4B672E41 /* AppIcon-Day13.png */,
-				1DCC5499675D44EE21C58B46 /* AppIcon-Day14.png */,
-				2D0311F9D9675BD71626C374 /* AppIcon-Day15.png */,
-				2110DC98B75A925F544A905A /* AppIcon-Day16.png */,
-				CCBAF3CE35A056235D7B3AF9 /* AppIcon-Day17.png */,
-				D23E0F13EAA0AA8ABDB6D99A /* AppIcon-Day18.png */,
-				513D55F69E14565E3FED009D /* AppIcon-Day19.png */,
-				009E65ECFE5B893B1074F632 /* AppIcon-Day20.png */,
-				2A04A9F3541795EE6347D72D /* AppIcon-Day21.png */,
-				441E1DF3F2395FBD42848A78 /* AppIcon-Day22.png */,
-				F789D82F9475F9FD618885A9 /* AppIcon-Day23.png */,
-				9C9EAA66437085CB87BB95D0 /* AppIcon-Day24.png */,
-				B0C676878F3A9656E85D8F0A /* AppIcon-Day25.png */,
-				F0645E5DC23DBC22E668C4A1 /* AppIcon-Day26.png */,
-				80A2C863A0DFBF33AA3BC510 /* AppIcon-Day27.png */,
-				56A0EDD087A12C7E7AC447C2 /* AppIcon-Day28.png */,
-				5988C2E4C14EEEAAE90DD5BC /* AppIcon-Day29.png */,
-				A3A78BA6357883DAEFC975F6 /* AppIcon-Day30.png */,
-				A797BD5EE8FEC5512095D6F7 /* AppIcon-Day31.png */,
-			);
-			name = AlternateIcons;
-			path = AlternateIcons;
-			sourceTree = "<group>";
-		};
 		0D85408B17B5B11C358E9B3A /* BalanceWatch */ = {
 			isa = PBXGroup;
 			children = (
@@ -435,7 +334,6 @@
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
 				C8449D48ECD66DBF260EDFB8 /* WatchHandoffPlugin.swift */,
-				01D6CAE24DF1C70C94656B07 /* AlternateIcons */,
 				CF375AB4C7EDF6D303767AB7 /* DailyIconManager.swift */,
 			);
 			path = App;
@@ -606,37 +504,6 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
-				26E39B1F832A1CC95A2C467A /* AppIcon-Day01.png in Resources */,
-				994741B6CBC07DC14ED71CF7 /* AppIcon-Day02.png in Resources */,
-				2E882BD1033F036A1D0C3F70 /* AppIcon-Day03.png in Resources */,
-				AA7101F0DAF70DF8503A9ECA /* AppIcon-Day04.png in Resources */,
-				91A90EE77463ED6F381B5CF9 /* AppIcon-Day05.png in Resources */,
-				2C48D5097ABBBBA8F640DC2D /* AppIcon-Day06.png in Resources */,
-				5BD221A044FD9A1B376EA8FE /* AppIcon-Day07.png in Resources */,
-				CA4B28846AE6AC34E122A7E4 /* AppIcon-Day08.png in Resources */,
-				B96B7536CD7C95F90B162CCA /* AppIcon-Day09.png in Resources */,
-				135854E916855FB6AA825047 /* AppIcon-Day10.png in Resources */,
-				9A299C18ED98182B9F6932C0 /* AppIcon-Day11.png in Resources */,
-				10D5A8CB2CEA854C04365BFD /* AppIcon-Day12.png in Resources */,
-				B9E54D3044B6615B39F11755 /* AppIcon-Day13.png in Resources */,
-				66AD63F44D3D67860D8C236C /* AppIcon-Day14.png in Resources */,
-				E629778726081E9815EFAA12 /* AppIcon-Day15.png in Resources */,
-				015812123802BD406C80704B /* AppIcon-Day16.png in Resources */,
-				C4EDE2CA335402FB7FC73D35 /* AppIcon-Day17.png in Resources */,
-				E1FBA7923B4A28AEA87B2201 /* AppIcon-Day18.png in Resources */,
-				D08F21D921532661B42B3DB3 /* AppIcon-Day19.png in Resources */,
-				20364FE398C259871FA6A6DF /* AppIcon-Day20.png in Resources */,
-				A888518CC8734535603B7C53 /* AppIcon-Day21.png in Resources */,
-				66EB785E2FD1E46E6F7510F9 /* AppIcon-Day22.png in Resources */,
-				40EE10568A486A22DD1563C5 /* AppIcon-Day23.png in Resources */,
-				235ED37CD2B809B99B7B15B2 /* AppIcon-Day24.png in Resources */,
-				5CA49D1EBDD283DBE4E0C1F7 /* AppIcon-Day25.png in Resources */,
-				043E7F3ACF60C025ECD656F1 /* AppIcon-Day26.png in Resources */,
-				7265D066948A114AFDDC9D2D /* AppIcon-Day27.png in Resources */,
-				D99BBF5473A6F0CD54566A6B /* AppIcon-Day28.png in Resources */,
-				513B58BEF03C0FBF441AEF48 /* AppIcon-Day29.png in Resources */,
-				35BBA4B50E0B978F17125B68 /* AppIcon-Day30.png in Resources */,
-				51855137EC24A96ADEF682D2 /* AppIcon-Day31.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -846,6 +713,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Day01 AppIcon-Day02 AppIcon-Day03 AppIcon-Day04 AppIcon-Day05 AppIcon-Day06 AppIcon-Day07 AppIcon-Day08 AppIcon-Day09 AppIcon-Day10 AppIcon-Day11 AppIcon-Day12 AppIcon-Day13 AppIcon-Day14 AppIcon-Day15 AppIcon-Day16 AppIcon-Day17 AppIcon-Day18 AppIcon-Day19 AppIcon-Day20 AppIcon-Day21 AppIcon-Day22 AppIcon-Day23 AppIcon-Day24 AppIcon-Day25 AppIcon-Day26 AppIcon-Day27 AppIcon-Day28 AppIcon-Day29 AppIcon-Day30 AppIcon-Day31";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -870,6 +738,7 @@
 		504EC3181FED79650016851F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Day01 AppIcon-Day02 AppIcon-Day03 AppIcon-Day04 AppIcon-Day05 AppIcon-Day06 AppIcon-Day07 AppIcon-Day08 AppIcon-Day09 AppIcon-Day10 AppIcon-Day11 AppIcon-Day12 AppIcon-Day13 AppIcon-Day14 AppIcon-Day15 AppIcon-Day16 AppIcon-Day17 AppIcon-Day18 AppIcon-Day19 AppIcon-Day20 AppIcon-Day21 AppIcon-Day22 AppIcon-Day23 AppIcon-Day24 AppIcon-Day25 AppIcon-Day26 AppIcon-Day27 AppIcon-Day28 AppIcon-Day29 AppIcon-Day30 AppIcon-Day31";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
