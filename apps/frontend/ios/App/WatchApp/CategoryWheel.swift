@@ -101,6 +101,11 @@ struct CategoryWheel: View {
     /// The space the chosen glyph flies through on its way to the label under the clock.
     let glyphs: Namespace.ID
 
+    /// Whether the chosen sector has finished filling itself into a whole lap. Until it has, the lap
+    /// is the brightest thing on screen, because it is the thing moving; after, it dims to the track
+    /// the dial's minutes are drawn on.
+    @State private var lapSettled = false
+
     init(
         categories: [WatchCategory],
         focusedIndex: Int?,
@@ -141,7 +146,8 @@ struct CategoryWheel: View {
                     SegmentBand(
                         segment: segment,
                         isFocused: segment.index == focusedIndex && chosenIndex == nil,
-                        collapse: collapse(for: segment)
+                        collapse: collapse(for: segment),
+                        settled: lapSettled
                     )
                     .opacity(opacity(for: segment))
                 }
@@ -186,6 +192,13 @@ struct CategoryWheel: View {
                 .allowsHitTesting(false)
         }
         .aspectRatio(1, contentMode: .fit)
+        .task(id: chosenIndex) {
+            lapSettled = false
+            guard chosenIndex != nil else { return }
+            try? await Task.sleep(for: .seconds(0.55))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.8)) { lapSettled = true }
+        }
     }
 
     /// Everything about the ring that is worth animating, in one value, so a frame that changes
@@ -305,16 +318,31 @@ struct CategoryWheel: View {
 /// A single category's band: the outline is the plan, and the week so far fills it from the middle
 /// of the ring outward — the band deepens rather than creeping around its own arc, so the segments
 /// can be compared by how far each has risen toward the rim.
+///
+/// Nothing here fades while the ring collapses. A segment that was not chosen leaves by being
+/// squeezed to no width at all, and the one that was leaves by filling: its week rises to the brim
+/// and its outline and its background both come up to meet the fill, until outline, background and
+/// week are one colour and the band is simply a solid lap. That lap is the dial's track, and only
+/// once it is whole does it dim — as one uniform ring, which reads as a light going down rather than
+/// as parts of the ring dissolving at different rates.
 private struct SegmentBand: View {
     let segment: WheelSegment
     let isFocused: Bool
     /// Where this segment is going once a category has been chosen, if one has been — and whether
     /// it is the one that was chosen, since the two travel in opposite directions.
     let collapse: (start: Angle, sweep: Angle, chosen: Bool)?
+    /// The lap has finished opening and is now the track the dial draws minutes on.
+    let settled: Bool
+
+    /// What the chosen sector reads at while it fills, and what the finished lap reads at once it is
+    /// only a track — bright enough to be the thing moving, then quiet enough to be drawn over.
+    private static let brimmed = 0.8
+    private static let track = 0.2
 
     private var color: Color { Color(hex: segment.category.color) }
     private var fill: Double { segment.category.dialFill }
     private var overflow: Double { segment.category.dialOverflow }
+    private var chosen: Bool { collapse?.chosen == true }
 
     var body: some View {
         let start = collapse?.start ?? segment.startAngle
@@ -323,20 +351,21 @@ private struct SegmentBand: View {
         let thickness = collapse != nil
             ? WheelMetrics.dialThickness
             : WheelMetrics.bandThickness + (isFocused ? 5 : 0)
-        // How much of the band is the bright part. It is the week so far while the ring is a week;
-        // the chosen one takes the whole of its band as it opens, so what sweeps around to the full
-        // lap is a solid arc rather than a hairline of whatever happened to be spent already.
-        let solid = collapse.map { $0.chosen ? 1 : fill } ?? fill
+        // How much of the band is filled: the week so far, or the whole of it for the sector that
+        // was chosen, which is what makes it stop being a reading of the week and start being a lap.
+        let solid = chosen ? 1 : fill
         let gap: Angle = collapse == nil ? WheelMetrics.gap : .zero
+        let level = chosen ? (settled ? Self.track : Self.brimmed) : (isFocused ? 0.95 : 0.7)
+        // Background and outline are the fill's own colour for the chosen sector, so there is
+        // nothing left to tell them apart from it by the time the lap is closed.
+        let backing = chosen ? level : 0.14
+        let outline = chosen ? level : (isFocused ? 0.95 : 0.55)
 
         ZStack {
             Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gap: gap)
-                .fill(color.opacity(0.14))
-            // The outline says "this much was planned", which is a thing only the week's ring has to
-            // say — but it fades rather than being taken away, or the ring's brightest edge would
-            // vanish on the frame the collapse starts and there would be nothing left to watch move.
+                .fill(color.opacity(backing))
             Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gap: gap)
-                .stroke(color.opacity(strokeOpacity), lineWidth: 1.5)
+                .stroke(color.opacity(outline), lineWidth: 1.5)
             Band(
                 start: start,
                 sweep: sweep,
@@ -344,8 +373,10 @@ private struct SegmentBand: View {
                 thickness: thickness * solid,
                 gap: gap
             )
-            .fill(color.opacity(solidOpacity))
+            .fill(color.opacity(level))
 
+            // Going over the plan is a thing to know about a week, and the lap being opened is not a
+            // week any more — so it goes at once rather than being swept round the whole circle.
             if overflow > 0 {
                 Band(
                     start: start,
@@ -354,21 +385,11 @@ private struct SegmentBand: View {
                     thickness: 2.5,
                     gap: gap
                 )
-                .fill(color.opacity(collapse == nil ? 1 : 0))
+                .fill(color)
+                .opacity(chosen ? 0 : 1)
+                .animation(.easeOut(duration: 0.2), value: chosen)
             }
         }
-    }
-
-    private var strokeOpacity: Double {
-        guard collapse == nil else { return 0 }
-        return isFocused ? 0.95 : 0.55
-    }
-
-    /// The bright arc dims as it opens: it arrives as the dial's own track, which has an arc of
-    /// minutes drawn over it and must not compete with it.
-    private var solidOpacity: Double {
-        guard let collapse else { return isFocused ? 0.95 : 0.7 }
-        return collapse.chosen ? 0.16 : 0.7
     }
 }
 
