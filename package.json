@@ -45,6 +45,26 @@
         "color": "magenta",
         "open": true
       }
+    ],
+    "deploy": [
+      {
+        "name": "desktop",
+        "command": "bun scripts/deploy-desktop.ts",
+        "color": "yellow"
+      },
+      {
+        "name": "vercel",
+        "command": "bun scripts/deploy-vercel.ts",
+        "color": "magenta",
+        "needs": [
+          "desktop"
+        ]
+      },
+      {
+        "name": "ios",
+        "command": "bun scripts/deploy-ios.ts",
+        "color": "cyan"
+      }
     ]
   }
 }
