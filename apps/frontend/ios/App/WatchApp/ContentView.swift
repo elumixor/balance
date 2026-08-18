@@ -222,7 +222,7 @@ struct ContentView: View {
     /// How far above the finger the readout floats, as a multiple of how far the finger has already
     /// travelled: it starts close to the touch and rises out of the way as the drag reaches for the
     /// rim, which is exactly when the hand is covering the most of the ring.
-    private let readoutRise: CGFloat = 1.5
+    private let readoutRise: CGFloat = 2.2
     /// How much of the finger's distance from the middle the readout copies, sideways.
     private let readoutDrift: CGFloat = 0.5
     private let readoutMargin: CGFloat = 6
