@@ -203,7 +203,10 @@ struct CategoryWheel: View {
     /// undecided, and the close-up once the drag has picked a direction. A chosen category has no
     /// zoom at all — the ring is a clock face by then, and the whole of it has to be on screen.
     private var ringScale: CGFloat {
-        guard !leaving else { return 1 }
+        // The close-up is held while the ring leaves. Letting it fall back to its resting size would
+        // have the ring shrinking from 1.5 towards 1 at the same moment the exit is pushing it out
+        // past 1 — the two cancel, and what should read as the week receding ends up barely moving.
+        guard !leaving else { return WheelMetrics.focusScale }
         if focusedIndex != nil { return WheelMetrics.focusScale }
         return isPressing ? WheelMetrics.pressScale : 1
     }

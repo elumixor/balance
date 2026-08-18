@@ -68,6 +68,34 @@ enum DialMode: Equatable {
     case tickParts
 }
 
+/// The lengths the crown stops at. Not a constant step, because a constant step can only be right
+/// for one end of the range: five minutes is far too coarse to set a short session with and far too
+/// fine to reach four hours through. So the ladder is dense where sessions actually are — every
+/// minute up to ten, then every five to the hour — and opens out past that.
+enum DurationLadder {
+    static let steps: [Int] = {
+        var values = [0]
+        values += Array(1...10)
+        values += stride(from: 15, through: 60, by: 5)
+        values += stride(from: 75, through: 240, by: 15)
+        return values
+    }()
+
+    static var topRung: Double { Double(steps.count - 1) }
+
+    /// The length a rung of the ladder means. The crown hands back fractions while it is being
+    /// turned, so this rounds rather than trusting the index.
+    static func minutes(atRung rung: Double) -> Int {
+        let index = Int(rung.rounded())
+        return steps[min(max(index, 0), steps.count - 1)]
+    }
+
+    /// Which rung a length sits on, for anything that has to set the dial rather than read it.
+    static func rung(forMinutes minutes: Int) -> Double {
+        Double(steps.firstIndex(where: { $0 >= minutes }) ?? steps.count - 1)
+    }
+}
+
 /// The dial's state, held outside the view because the ticks button lives in the navigation bar and
 /// the crown lives in the middle of the screen, and both are setting the same thing.
 @MainActor
@@ -76,10 +104,13 @@ final class TrackingPlanner {
     let category: WatchCategory
     let index: Int
 
-    /// Minutes, in five-minute steps, with zero meaning open-ended. Half an hour is where the dial
-    /// opens because that is what most sessions turn out to be.
-    var minutes: Double = 30
+    /// Which rung of ``DurationLadder`` the crown is parked on. Half an hour is where the dial opens
+    /// because that is what most sessions turn out to be.
+    var rung: Double = DurationLadder.rung(forMinutes: 30)
     var mode: DialMode = .duration
+
+    /// The length that rung means, with zero meaning open-ended.
+    var minutes: Double { Double(DurationLadder.minutes(atRung: rung)) }
 
     /// Kept across mode changes so switching the ticks off and on again doesn't forget the rhythm.
     var tickEvery: Double = 10
@@ -90,7 +121,7 @@ final class TrackingPlanner {
         self.index = index
     }
 
-    var isFree: Bool { minutes < 2.5 }
+    var isFree: Bool { minutes < 1 }
 
     var ticks: TickPlan {
         switch mode {
@@ -126,7 +157,7 @@ final class TrackingPlanner {
     /// than the rhythm it was given has to pull the rhythm down with it. As fine as a minute, so a
     /// short session can still be nudged more than once.
     var tickEveryRange: ClosedRange<Double> {
-        let top = isFree ? 60.0 : max(1, (minutes - 5).rounded())
+        let top = isFree ? 60.0 : max(1, (minutes / 2).rounded(.down))
         return 1...max(top, 1)
     }
 }
@@ -369,8 +400,11 @@ private struct CrownControl: ViewModifier {
         Group {
             switch planner.mode {
             case .duration:
+                // The crown counts rungs, not minutes: the ladder decides what each one is worth,
+                // so a single detent is a minute down at the short end and a quarter of an hour up
+                // at the long one, without the crown having to be turned any differently.
                 focusable(content).digitalCrownRotation(
-                    $planner.minutes, from: 0, through: 240, by: 5,
+                    $planner.rung, from: 0, through: DurationLadder.topRung, by: 1,
                     sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
                 )
             case .tickEvery:
@@ -395,7 +429,7 @@ private struct CrownControl: ViewModifier {
         .onChange(of: planner.mode) { _, _ in focused = true }
         // A session dialled shorter than its own rhythm would tick once at the very end, which is
         // the alarm's job, so the rhythm follows the length down.
-        .onChange(of: planner.minutes) { _, _ in
+        .onChange(of: planner.rung) { _, _ in
             planner.tickEvery = min(planner.tickEvery, planner.tickEveryRange.upperBound)
         }
     }
