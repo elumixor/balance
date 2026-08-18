@@ -160,8 +160,6 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             } else {
                 CategoryWheel(model: wheel, chosenIndex: planner?.index)
-                    .opacity(wheel.isPressing || planner != nil ? 1 : 0.3)
-                    .animation(.easeOut(duration: 0.18), value: wheel.isPressing)
                     .contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 0)

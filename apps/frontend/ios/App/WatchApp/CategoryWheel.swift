@@ -28,6 +28,9 @@ enum WheelMetrics {
     /// keeps drifting. What is left is enough to see the ring answer the drag.
     static let segmentSnap = 0.88
 
+    /// What the segments that were not picked fall back to while one of them is focused.
+    static let unfocusedOpacity = 0.35
+
     /// Below this a segment is too narrow for a legible glyph, so it goes without one unless it is
     /// the focused segment, which is always drawn large enough.
     static let iconMinimumSweep = Angle.degrees(26)
@@ -111,6 +114,7 @@ struct CategoryWheel: View {
                         isFocused: segment.index == focusedIndex && chosenIndex == nil,
                         collapse: collapse(for: segment)
                     )
+                    .opacity(opacity(for: segment))
                 }
                 ForEach(layout.segments) { segment in
                     SegmentIcon(
@@ -121,7 +125,7 @@ struct CategoryWheel: View {
                     )
                     // The glyphs belong to picking a category. Once one is picked the ring is a
                     // clock face, and its own ticks say what it means.
-                    .opacity(chosenIndex == nil ? 1 : 0)
+                    .opacity(chosenIndex == nil ? opacity(for: segment) : 0)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -132,6 +136,14 @@ struct CategoryWheel: View {
             .animation(WheelMetrics.collapse, value: chosenIndex)
         }
         .aspectRatio(1, contentMode: .fit)
+    }
+
+    /// The ring is fully drawn whenever nothing is focused — it is the screen's one piece of
+    /// content, and dimming it at rest would only make the week harder to read. A focused segment
+    /// keeps that weight while the rest step back, so the drag has something to have picked out.
+    private func opacity(for segment: WheelSegment) -> Double {
+        guard let focusedIndex, chosenIndex == nil else { return 1 }
+        return segment.index == focusedIndex ? 1 : WheelMetrics.unfocusedOpacity
     }
 
     /// Where a segment is heading once a category has been chosen: the chosen one to a full lap
