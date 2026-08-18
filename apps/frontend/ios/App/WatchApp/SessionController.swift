@@ -54,7 +54,8 @@ final class SessionController {
     /// taken either way, since nothing else is racing for it.
     func apply(summary: WatchSummary) {
         week = summary
-        if !isBusy {
+        // Sample data never carries a session, so a preview run keeps whatever it started itself.
+        if !isBusy, !(WatchPreview.isEnabled && active != nil) {
             confirmed = summary.active
             active = summary.active
         }
@@ -133,6 +134,14 @@ final class SessionController {
     // MARK: - Plumbing
 
     private func perform(_ work: @escaping () async throws -> ActiveSession?) async {
+        // Nothing is written while the app is running on sample data: the optimistic state it just
+        // set is the whole truth, and the server would only answer that nobody is signed in.
+        if WatchPreview.isEnabled {
+            confirmed = active
+            publish()
+            return
+        }
+
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }

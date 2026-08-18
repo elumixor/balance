@@ -29,6 +29,10 @@ final class WatchSummaryModel {
     var hasLoaded: Bool { summary != nil }
 
     func refresh() async {
+        if let preview = WatchPreview.summary {
+            summary = preview
+            return
+        }
         do {
             summary = try await APIClient.shared.fetchWatchSummary()
             errorMessage = nil
