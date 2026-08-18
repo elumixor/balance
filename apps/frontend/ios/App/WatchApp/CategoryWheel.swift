@@ -18,6 +18,11 @@ enum WheelMetrics {
     /// towards fills the middle instead of sitting on the rim.
     static let focusScale: CGFloat = 1.5
 
+    /// What the ring does the instant a finger lands, before it has been dragged anywhere: it comes
+    /// up a little, so the press is answered before the choice is. Small on purpose — this is the
+    /// ring acknowledging the touch, not the close-up, which is what crossing the dead zone buys.
+    static let pressScale: CGFloat = 1.15
+
     /// How much further than the dead zone the finger travels before the ring has slid the whole
     /// way, putting the focused band under the middle of the screen.
     static let panTravel: CGFloat = 45
@@ -127,7 +132,7 @@ struct CategoryWheel: View {
         GeometryReader { proxy in
             let size = min(proxy.size.width, proxy.size.height)
             let radius = size / 2 - WheelMetrics.ringInset
-            let scale: CGFloat = focusedIndex == nil || chosenIndex != nil ? 1 : WheelMetrics.focusScale
+            let scale = ringScale
 
             ZStack {
                 ForEach(layout.segments) { segment in
@@ -148,6 +153,7 @@ struct CategoryWheel: View {
                             segment: segment,
                             isFocused: segment.index == focusedIndex,
                             radius: radius - WheelMetrics.bandThickness / 2,
+                            centre: CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2),
                             scale: scale,
                             glyphs: glyphs
                         )
@@ -159,22 +165,49 @@ struct CategoryWheel: View {
             .scaleEffect(scale)
             .offset(chosenIndex == nil ? cameraOffset(radius: radius) : .zero)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: focusedIndex)
+            .animation(.spring(response: 0.28, dampingFraction: 0.8), value: isPressing)
             .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.9), value: pan)
             .animation(WheelMetrics.collapse, value: chosenIndex)
 
-            // The invitation to start tracking, sitting where a press begins. It only makes sense
-            // before one has: it steps out for the whole of the drag and comes back once the finger
-            // has lifted into the empty ring rather than onto a chosen category.
-            Image(systemName: "play.fill")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
+            // What the middle says, which is one of three things: an invitation to press before a
+            // finger has landed, what to do with the press once one has, and nothing at all from the
+            // moment the drag picks a segment — the readout on the finger says it better from there.
+            centre
                 .frame(width: proxy.size.width, height: proxy.size.height)
-                .opacity(!isPressing && chosenIndex == nil ? 1 : 0)
                 .animation(.easeOut(duration: 0.15), value: isPressing)
+                .animation(.easeOut(duration: 0.15), value: focusedIndex == nil)
                 .animation(WheelMetrics.collapse, value: chosenIndex)
                 .allowsHitTesting(false)
         }
         .aspectRatio(1, contentMode: .fit)
+    }
+
+    /// How big the ring is drawn: its own size at rest, a little up while a finger is down and
+    /// undecided, and the close-up once the drag has picked a direction. A chosen category has no
+    /// zoom at all — the ring is a clock face by then, and the whole of it has to be on screen.
+    private var ringScale: CGFloat {
+        guard chosenIndex == nil else { return 1 }
+        if focusedIndex != nil { return WheelMetrics.focusScale }
+        return isPressing ? WheelMetrics.pressScale : 1
+    }
+
+    /// The hole in the middle of the ring, and the one thing it says at a time.
+    @ViewBuilder
+    private var centre: some View {
+        if chosenIndex == nil {
+            if !isPressing {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+            } else if focusedIndex == nil {
+                Text("Drag to a category")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 92)
+                    .transition(.opacity)
+            }
+        }
     }
 
     /// The ring is fully drawn whenever nothing is focused — it is the screen's one piece of
@@ -288,6 +321,8 @@ private struct SegmentIcon: View {
     let segment: WheelSegment
     let isFocused: Bool
     let radius: CGFloat
+    /// The middle of the ring, in the space the glyph is placed in.
+    let centre: CGPoint
     let scale: CGFloat
     let glyphs: Namespace.ID
 
@@ -298,10 +333,12 @@ private struct SegmentIcon: View {
         Image(systemName: Icons.symbol(for: segment.category.icon))
             .font(.system(size: size, weight: .semibold))
             .foregroundStyle(Color.white.opacity(isFocused ? 1 : 0.85))
-            .offset(x: radius * cos(placement), y: radius * sin(placement))
-            // Read after the offset, so the frame recorded for the flight is where the glyph is
-            // drawn on the band rather than the middle of the ring it was laid out in.
+            // Recorded before the glyph is placed, but `position` is a layout modifier rather than a
+            // drawing one, so what the flight reads is the glyph's real place on the band. An
+            // `offset` here would leave every glyph reporting the middle of the ring, and a flight
+            // from the middle of the ring to a label just under it is a crossfade with extra steps.
             .matchedGeometryEffect(id: WheelMetrics.glyphID(segment.category.id), in: glyphs)
+            .position(x: centre.x + radius * cos(placement), y: centre.y + radius * sin(placement))
     }
 }
 
