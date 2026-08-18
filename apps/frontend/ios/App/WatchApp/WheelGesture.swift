@@ -45,6 +45,13 @@ final class WheelGestureModel {
     private var layout: WheelLayout
     private var origin: CGPoint = .zero
 
+    /// Where the finger currently is, in the coordinate space the drag gesture reports — nil while
+    /// nothing is pressed. The readout that follows the finger is positioned from this.
+    var location: CGPoint? {
+        guard isPressing else { return nil }
+        return CGPoint(x: origin.x + pan.width, y: origin.y + pan.height)
+    }
+
     init(categories: [WatchCategory] = []) {
         self.categories = categories
         self.layout = WheelLayout(categories: categories)

@@ -119,13 +119,6 @@ struct ContentView: View {
                 )
             } else {
                 gestureSurface
-                    // The readout is an overlay rather than a band of its own, so the name appearing
-                    // under the finger costs the ring no height.
-                    .overlay(alignment: .bottom) {
-                        if planner == nil {
-                            CategoryFocusReadout(category: wheel.focusedCategory)
-                        }
-                    }
             }
 
             if let message = errorMessage {
@@ -148,40 +141,67 @@ struct ContentView: View {
     /// The middle band. The ring rests dim until a finger is on it, then comes up to full while the
     /// drag decides which segment it points at.
     private var gestureSurface: some View {
-        ZStack {
-            if summary.needsCalendar {
-                Text("Connect a calendar in Balance on your iPhone")
-                    .font(.caption2)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-            } else if summary.categories.isEmpty {
-                Text(summary.hasLoaded ? "No categories yet" : "")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            } else {
-                CategoryWheel(model: wheel, chosenIndex: planner?.index)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                if !wheel.isPressing { wheel.began(at: value.startLocation) }
-                                wheel.moved(to: value.location)
-                            }
-                            .onEnded { _ in choose() }
-                    )
-                    // The ring stops being a picker the moment it becomes a dial — the crown takes
-                    // over, and a stray touch must not start a second choice on top of the first.
-                    .allowsHitTesting(planner == nil)
+        GeometryReader { proxy in
+            ZStack {
+                if summary.needsCalendar {
+                    Text("Connect a calendar in Balance on your iPhone")
+                        .font(.caption2)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                } else if summary.categories.isEmpty {
+                    Text(summary.hasLoaded ? "No categories yet" : "")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    CategoryWheel(model: wheel, chosenIndex: planner?.index)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    if !wheel.isPressing { wheel.began(at: value.startLocation) }
+                                    wheel.moved(to: value.location)
+                                }
+                                .onEnded { _ in choose() }
+                        )
+                        // The ring stops being a picker the moment it becomes a dial — the crown
+                        // takes over, and a stray touch must not start a second choice on top of
+                        // the first.
+                        .allowsHitTesting(planner == nil)
 
-                if let planner {
-                    DurationDialView(planner: planner) { plan in
-                        Task { await start(plan: plan, planner: planner) }
+                    if let planner {
+                        DurationDialView(planner: planner) { plan in
+                            Task { await start(plan: plan, planner: planner) }
+                        }
+                        .transition(.opacity)
                     }
-                    .transition(.opacity)
+
+                    // The readout follows the finger rather than sitting in a fixed band, so it
+                    // never costs the ring height and is always where the eye already is.
+                    if planner == nil, let location = wheel.location {
+                        CategoryFocusReadout(category: wheel.focusedCategory)
+                            .frame(maxWidth: readoutWidth)
+                            .position(readoutPosition(for: location, in: proxy.size))
+                            .animation(.easeOut(duration: 0.15), value: wheel.focusedCategory)
+                    }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private let readoutWidth: CGFloat = 130
+    /// How far above the finger the readout sits, and how close it is allowed to get to the top
+    /// edge before that would start clipping it instead.
+    private let readoutRise: CGFloat = 34
+    private let readoutTopMargin: CGFloat = 16
+
+    /// Where the readout sits for a given finger location: above the touch and shifted horizontally
+    /// only as far as keeping it fully inside the screen requires.
+    private func readoutPosition(for location: CGPoint, in size: CGSize) -> CGPoint {
+        let halfWidth = readoutWidth / 2
+        let x = min(max(location.x, halfWidth), size.width - halfWidth)
+        let y = max(location.y - readoutRise, readoutTopMargin)
+        return CGPoint(x: x, y: y)
     }
 
     private var errorMessage: String? { sessions.errorMessage ?? summary.errorMessage }

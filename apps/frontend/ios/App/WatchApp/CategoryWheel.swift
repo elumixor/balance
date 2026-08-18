@@ -36,10 +36,6 @@ enum WheelMetrics {
     /// What the segments that were not picked fall back to while one of them is focused.
     static let unfocusedOpacity = 0.35
 
-    /// Below this a segment is too narrow for a legible glyph, so it goes without one unless it is
-    /// the focused segment, which is always drawn large enough.
-    static let iconMinimumSweep = Angle.degrees(26)
-
     /// What the ring becomes once a category is chosen: one thinner lap of the clock face, which the
     /// duration dial then reads its minutes off. The week's segments collapse into it rather than
     /// being replaced by it, so the choice and what is being set with it are visibly the same ring.
@@ -83,15 +79,25 @@ struct CategoryWheel: View {
     let focusedIndex: Int?
     /// The finger's travel since the press began, in screen coordinates.
     let pan: CGSize
+    /// A finger is down on the ring. The centre's start glyph is only an invitation to press, so it
+    /// steps out of the way for as long as one already has.
+    let isPressing: Bool
     /// The category that has been chosen, once the finger has lifted. The ring gives the whole
     /// circle to it and takes it away from everything else, ending up as the clock face the
     /// duration is dialled on.
     let chosenIndex: Int?
 
-    init(categories: [WatchCategory], focusedIndex: Int?, pan: CGSize = .zero, chosenIndex: Int? = nil) {
+    init(
+        categories: [WatchCategory],
+        focusedIndex: Int?,
+        pan: CGSize = .zero,
+        isPressing: Bool = false,
+        chosenIndex: Int? = nil
+    ) {
         self.categories = categories
         self.focusedIndex = focusedIndex
         self.pan = pan
+        self.isPressing = isPressing
         self.chosenIndex = chosenIndex
     }
 
@@ -100,6 +106,7 @@ struct CategoryWheel: View {
             categories: model.categories,
             focusedIndex: model.focusedIndex,
             pan: model.pan,
+            isPressing: model.isPressing,
             chosenIndex: chosenIndex
         )
     }
@@ -139,6 +146,18 @@ struct CategoryWheel: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: focusedIndex)
             .animation(.interactiveSpring(response: 0.18, dampingFraction: 0.9), value: pan)
             .animation(WheelMetrics.collapse, value: chosenIndex)
+
+            // The invitation to start tracking, sitting where a press begins. It only makes sense
+            // before one has: it steps out for the whole of the drag and comes back once the finger
+            // has lifted into the empty ring rather than onto a chosen category.
+            Image(systemName: "play.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .opacity(!isPressing && chosenIndex == nil ? 1 : 0)
+                .animation(.easeOut(duration: 0.15), value: isPressing)
+                .animation(WheelMetrics.collapse, value: chosenIndex)
+                .allowsHitTesting(false)
         }
         .aspectRatio(1, contentMode: .fit)
     }
@@ -253,15 +272,13 @@ private struct SegmentIcon: View {
     let scale: CGFloat
 
     var body: some View {
-        let visible = isFocused || segment.sweep.radians >= WheelMetrics.iconMinimumSweep.radians
         let placement = segment.midAngle.radians - .pi / 2
         let size = (isFocused ? 15 : 12) / max(scale, 1) * 1.35
 
         Image(systemName: Icons.symbol(for: segment.category.icon))
             .font(.system(size: size, weight: .semibold))
-            .foregroundStyle(isFocused ? Color.black : Color.white.opacity(0.85))
+            .foregroundStyle(Color.white.opacity(isFocused ? 1 : 0.85))
             .offset(x: radius * cos(placement), y: radius * sin(placement))
-            .opacity(visible ? 1 : 0)
     }
 }
 
