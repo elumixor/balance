@@ -26,7 +26,7 @@ enum WheelMetrics {
     /// the direction it looks in and how far out it goes. Nearly all of it: the close-up parks on
     /// the band and stays there, so crossing into a segment is a move to it rather than a slide that
     /// keeps drifting. What is left is enough to see the ring answer the drag.
-    static let segmentSnap = 0.88
+    static let segmentSnap = 0.6
 
     /// What the segments that were not picked fall back to while one of them is focused.
     static let unfocusedOpacity = 0.35
