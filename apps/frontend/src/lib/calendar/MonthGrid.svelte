@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clock } from "$lib/clock.svelte";
   import { addDays, startOfWeek } from "$lib/dates";
   import { theme } from "$lib/theme.svelte";
   import { ChevronDown, ChevronUp, Undo2 } from "lucide-svelte";
@@ -32,7 +33,7 @@
 
   const monthStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
   const dayKey = (date: Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-  const today = dayKey(new Date());
+  const today = $derived(dayKey(clock.now));
 
   /** The strip is laid out once around the week it opened on; every position is an offset from it. */
   const baseWeek = startOfWeek(data.weekStart);

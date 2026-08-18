@@ -1,5 +1,6 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
+import { clock } from "$lib/clock.svelte";
 import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "$lib/dates";
 import {
   createCalendarEvent,
@@ -392,7 +393,7 @@ class CalendarData {
     this.week.value?.connected ?? store.integrations.value?.some((i) => i.connected) ?? false,
   );
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
-  readonly isThisWeek = $derived(this.key === weekKey(new Date()));
+  readonly isThisWeek = $derived(this.key === weekKey(clock.now));
 
   /** "August 2026", or "Jul – Aug 2026" for the weeks that straddle two. */
   readonly monthLabel = $derived.by(() => {

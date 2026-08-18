@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clock } from "$lib/clock.svelte";
   import { addDays, minutesIntoDay, startOfDay } from "$lib/dates";
   import { type CalendarEvent, type Category, NOT_A_MEETING } from "$lib/types";
   import { calendarData, STRIP_DAYS } from "./calendar-data.svelte";
@@ -190,8 +191,8 @@
   });
   const headerPx = $derived(DAY_HEAD_PX + allDayRows * ALL_DAY_PX);
 
-  const todayStart = $derived(startOfDay(new Date()).getTime());
-  const nowTop = $derived((minutesIntoDay(new Date()) / 60) * HOUR_PX);
+  const todayStart = $derived(clock.todayStart);
+  const nowTop = $derived((minutesIntoDay(clock.now) / 60) * HOUR_PX);
   /**
    * Whether today's column sits outside the seven days currently on screen. Measured against the
    * settled window rather than the live scroll: a fling crosses columns by the handful, and a

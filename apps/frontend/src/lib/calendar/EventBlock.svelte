@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clock } from "$lib/clock.svelte";
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import { restColor } from "$lib/colors";
   import { formatClock } from "$lib/format";
@@ -48,7 +49,7 @@
   const selected = $derived(data.selected?.id === event.id);
   /** One of the blocks a box or a ⌘-click gathered, and so one a batch write is about. */
   const picked = $derived(!ghost && data.picked.has(event.id));
-  const isPast = $derived(new Date(event.end) < new Date());
+  const isPast = $derived(new Date(event.end) < clock.now);
 
   const durationMinutes = $derived((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60_000);
   /** Under 45 minutes there's only room for one line: icon, title and start time together. */
