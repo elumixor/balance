@@ -1,6 +1,6 @@
 {
   "name": "balance-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -19,6 +19,7 @@
     "deploy": "bun scripts/deploy.ts",
     "deploy:vercel": "bun scripts/deploy-vercel.ts",
     "deploy:ios": "bun scripts/deploy-ios.ts",
+    "deploy:desktop": "bun scripts/deploy-desktop.ts",
     "release:ios": "git tag ios-v$(date +%Y%m%d%H%M%S) && git push origin --tags"
   },
   "devDependencies": {

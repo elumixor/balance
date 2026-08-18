@@ -1,4 +1,5 @@
 require "fileutils"
+require "json"
 
 default_platform(:ios)
 
@@ -65,8 +66,9 @@ platform :ios do
     increment_build_number(xcodeproj: PROJECT, build_number: next_build)
 
     # Keep the embedded watch app + widget version-locked to the host app, or
-    # App Store validation rejects the upload.
-    app_version = get_info_plist_value(path: "App/App/Info.plist", key: "CFBundleShortVersionString")
+    # App Store validation rejects the upload. The number itself comes from the macOS shell's
+    # config, which is where the whole product declares its version — see scripts/sync-version.ts.
+    app_version = JSON.parse(File.read(File.expand_path("../../src-tauri/tauri.conf.json", __dir__)))["version"]
     ["App/WatchApp/Info.plist", "App/WatchWidget/Info.plist"].each do |plist|
       set_info_plist_value(path: plist, key: "CFBundleShortVersionString", value: app_version)
       set_info_plist_value(path: plist, key: "CFBundleVersion", value: next_build.to_s)

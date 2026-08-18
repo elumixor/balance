@@ -182,10 +182,14 @@ real email.
 ## Releasing
 
 ```bash
-bun run deploy         # both of the below, in parallel, with their logs interleaved and labelled
-bun run deploy:vercel  # builds here, uploads the finished output (`vercel deploy --prebuilt --prod`)
-bun run deploy:ios     # web bundle -> Xcode project -> fastlane `beta` -> TestFlight
+bun run deploy          # all of the below, with their logs interleaved and labelled
+bun run deploy:vercel   # builds here, uploads the finished output (`vercel deploy --prebuilt --prod`)
+bun run deploy:ios      # web bundle -> Xcode project -> fastlane `beta` -> TestFlight
+bun run deploy:desktop  # macOS app -> `dist/download`, which the web deployment then serves
 ```
+
+The iOS half runs alongside the other two. The macOS app doesn't: the website hands it out, so the
+DMG has to exist before Vercel packages the site, and a web deploy builds it first.
 
 Everything is built on this machine — there is no CI doing it, and no tag to push. The iOS half
 needs a working release setup locally: Homebrew Ruby (`brew install ruby`, macOS's own 2.6 is too
@@ -199,9 +203,25 @@ The app is bundled against `https://balance-app-mauve.vercel.app` — override w
 build number from TestFlight itself and writes it into the Xcode project and both watch targets'
 `Info.plist`, so a release leaves those files changed — commit them.
 
-The two halves build the same sources with different settings at the same time, so the native
-build gets its own output directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`); nothing else
-should need them.
+The builds run over the same sources with different settings at the same time, so the iOS one gets
+its own output directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`) and `.vercelignore` keeps
+Vercel's file scan out of them; nothing else should need any of it.
+
+Every version number in the repo is stamped from one place — `version` in
+`apps/frontend/src-tauri/tauri.conf.json` — by `scripts/sync-version.ts`, which a deploy runs
+first. It writes both `package.json`s, the Rust crate, `MARKETING_VERSION` in the Xcode project and
+the watch/widget plists, so the App Store, the DMG and the line at the bottom of settings can't
+disagree. Bump that one field to release a new version.
+
+### The Mac app, from the website
+
+`bun run deploy` builds the macOS bundle and stages `dist/download/` (the DMG plus a small
+`desktop.json`), and the web build copies it next to the app, at `/download/Balance.dmg`. Settings
+offers it — in a browser only, since the two app shells are already what it would install — and
+draws the button from `desktop.json`, so a deployment that carries no DMG simply doesn't offer one.
+
+The bundle is unsigned (there is no Developer ID certificate on this account yet), so the first
+launch of a downloaded copy needs a right-click → Open. The panel says so.
 
 ### Shipping without this machine
 

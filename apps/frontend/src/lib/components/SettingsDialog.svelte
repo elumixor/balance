@@ -3,13 +3,14 @@
   import { auth } from "$lib/auth.svelte";
   import { buildInfo } from "$lib/build-info";
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
-  import { isDesktop } from "$lib/desktop/platform";
+  import { isDesktop, isNativeShell } from "$lib/desktop/platform";
   import { preferences, TRAVEL_MODES } from "$lib/preferences.svelte";
   import { settings } from "$lib/settings.svelte";
   import { clearStore } from "$lib/store.svelte";
   import { theme, type ThemeMode } from "$lib/theme.svelte";
   import Button from "./Button.svelte";
   import Chip from "./Chip.svelte";
+  import DesktopDownload from "./DesktopDownload.svelte";
   import Dialog from "./Dialog.svelte";
   import Field from "./Field.svelte";
   import NumberField from "./NumberField.svelte";
@@ -204,6 +205,11 @@
     <SectionHeader title="Calendars" />
     <CalendarsSection />
   </section>
+
+  <!-- Only in a browser: the two app shells are already what it would install. -->
+  {#if !isNativeShell}
+    <DesktopDownload />
+  {/if}
 
   <!-- Which build this is: the native shells carry their own copy of the frontend, and this is the
        only thing on screen that says how old it is. The parts are spaced well apart, because at

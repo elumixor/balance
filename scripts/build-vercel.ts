@@ -25,6 +25,7 @@ if (!process.env.SKIP_CLIENT_GEN) await $`bunx nitro-client`.cwd(backend);
 await $`bun run build`.cwd(frontend);
 await rm(webDir, { recursive: true, force: true });
 await cp(join(frontend, "build"), webDir, { recursive: true });
+await includeDesktopDownload();
 
 await rm(nitroOutput, { recursive: true, force: true });
 await $`bunx nitro build --preset vercel`.cwd(backend);
@@ -33,6 +34,18 @@ await rm(finalOutput, { recursive: true, force: true });
 await rename(nitroOutput, finalOutput);
 
 await routeUnmatchedPathsToTheApp();
+
+/**
+ * The macOS app, if a release built one (scripts/deploy-desktop.ts). It rides along with the web
+ * files rather than living in the frontend's `static/`, because the iOS bundle copies that folder
+ * wholesale and has no business carrying a Mac installer around.
+ */
+async function includeDesktopDownload() {
+  const staged = join(root, "dist/download");
+  if (!existsSync(staged)) return console.log("No macOS build staged — the site will offer no download");
+  await cp(staged, join(webDir, "download"), { recursive: true });
+  console.log("Serving the macOS app at /download/Balance.dmg");
+}
 
 /**
  * The app is one client-rendered bundle, so every path it owns has to answer with `index.html`

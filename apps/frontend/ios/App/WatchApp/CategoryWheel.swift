@@ -22,10 +22,10 @@ enum WheelMetrics {
     /// way, putting the focused band under the middle of the screen.
     static let panTravel: CGFloat = 45
 
-    /// How far the camera leans from the finger's own direction towards the middle of the segment it
-    /// has focused. Nearly all the way: the close-up parks on the band and stays there, so crossing
-    /// into a segment is a move to it rather than a slide that keeps drifting with the finger. What
-    /// is left is enough to see the ring answer the drag.
+    /// How much of the camera is decided by the focused segment rather than by the finger — of both
+    /// the direction it looks in and how far out it goes. Nearly all of it: the close-up parks on
+    /// the band and stays there, so crossing into a segment is a move to it rather than a slide that
+    /// keeps drifting. What is left is enough to see the ring answer the drag.
     static let segmentSnap = 0.88
 
     /// Below this a segment is too narrow for a legible glyph, so it goes without one unless it is
@@ -158,9 +158,15 @@ struct CategoryWheel: View {
 
         let aim = Angle.radians(atan2(Double(pan.width), Double(-pan.height)))
             .leaning(towards: segment.midAngle, by: WheelMetrics.segmentSnap)
+
+        // How far out is snapped the same way the direction is: crossing the dead zone puts the band
+        // under the middle of the screen at once, and reaching further only creeps the last of the
+        // way. Otherwise a segment could be focused while still being drawn half off the edge, which
+        // is the same "aimed at one thing, looking at another" the angle snap exists to prevent.
         let bandCentre = (radius - WheelMetrics.bandThickness / 2) * WheelMetrics.focusScale
         let progress = min(max((travel - WheelGestureModel.deadZone) / WheelMetrics.panTravel, 0), 1)
-        let distance = bandCentre * progress
+        let reached = bandCentre * progress
+        let distance = reached + (bandCentre - reached) * WheelMetrics.segmentSnap
 
         // Angles are measured clockwise from twelve o'clock; screen coordinates run downward.
         return CGSize(
