@@ -16,6 +16,15 @@ final class WatchRouter {
     }
 }
 
+/// What the ring is currently being used for. There is one screen, not three: the same ring picks a
+/// category, then sets a length, then counts a session down, and this says which of those it is
+/// doing so every part of the screen can animate between them off a single value.
+enum TrackingPhase: Equatable {
+    case idle
+    case planning
+    case running
+}
+
 /// Root view. There is no sign-in on the watch: `WatchPairing` redeems a ticket the phone app
 /// pushes across, and what shows here is whichever side of that has happened — the tracker once
 /// there is a session, and a card asking for the phone until then.
@@ -33,6 +42,15 @@ struct ContentView: View {
     /// this is non-nil — the drag has only nominated a category, and the ring it was picked off is
     /// now the dial its length is set on.
     @State private var planner: TrackingPlanner?
+
+    /// The one thing that travels between the ring and the readouts below it: the chosen category's
+    /// glyph, which flies from its band into the label under the clock instead of one fading out
+    /// while a copy fades in somewhere else.
+    @Namespace private var glyphs
+
+    /// How wide the drag readout turned out to be, so it can be kept on screen without being pinned
+    /// to a fixed width it rarely needs.
+    @State private var readoutSize: CGSize = .zero
 
     var body: some View {
         Group {
@@ -71,7 +89,7 @@ struct ContentView: View {
                             Button { planner.cycleTicks() } label: {
                                 Image(systemName: planner.tickGlyph)
                             }
-                        } else {
+                        } else if phase == .idle {
                             NavigationLink(value: Route.calendar) {
                                 Image(systemName: "gearshape")
                             }
@@ -105,21 +123,29 @@ struct ContentView: View {
         }
     }
 
-    /// Two bands: the ring takes everything it can get, and the next thing on the calendar sits
-    /// under it. Nothing else is drawn while idle — a wrist-sized screen buys a bigger target to
-    /// aim at by spending the words it could have printed above it.
+    // MARK: - Phase
+
+    private var phase: TrackingPhase {
+        if planner != nil { return .planning }
+        return sessions.active == nil ? .idle : .running
+    }
+
+    /// The band the ring has committed to, whether it is being dialled or already running. It is
+    /// what turns the week into a single lap: everything else collapses to nothing around it.
+    private var chosenIndex: Int? {
+        if let planner { return planner.index }
+        guard let active = sessions.active else { return nil }
+        return summary.categories.firstIndex { $0.id == active.categoryId }
+    }
+
+    /// The whole screen: the ring takes everything above a band of its own height at the bottom,
+    /// which carries whatever the current phase has to say — what is coming up while idle, and the
+    /// session's controls once one is being set up or run. The band is a band rather than an
+    /// overlay because a control sitting on the ring's lower arc reads as part of it, and the arc
+    /// is the one thing on this screen that has to be read at a glance.
     private var screen: some View {
         VStack(spacing: 0) {
-            if let active = sessions.active {
-                RunningSessionView(
-                    session: active,
-                    isBusy: sessions.isBusy,
-                    onFinish: { Task { await sessions.stop() } },
-                    onExtend: { minutes in Task { await sessions.extendBy(minutes: minutes) } }
-                )
-            } else {
-                gestureSurface
-            }
+            ring
 
             if let message = errorMessage {
                 Text(message)
@@ -129,18 +155,22 @@ struct ContentView: View {
                     .multilineTextAlignment(.center)
             }
 
-            // What is coming up is a thing to know at a glance, not while aiming: a finger on the
-            // ring is halfway through a decision, and the line below it only competes for the eye.
-            NextEventLine(event: wheel.isPressing || planner != nil ? nil : summary.nextEvent)
-                .animation(.easeOut(duration: 0.15), value: wheel.isPressing)
+            bottomBand
+                .frame(height: Self.bandHeight)
         }
+        .animation(WheelMetrics.collapse, value: phase)
     }
 
-    // MARK: - Idle bands
+    /// How much of the screen's bottom the band keeps for itself, in every phase, so the ring above
+    /// it is the same size whatever is down there.
+    private static let bandHeight: CGFloat = 30
 
-    /// The middle band. The ring rests dim until a finger is on it, then comes up to full while the
-    /// drag decides which segment it points at.
-    private var gestureSurface: some View {
+    // MARK: - The ring
+
+    /// The middle of the screen, all of it. The week's ring, the dial it collapses into and the
+    /// session it becomes are the same stack of shapes — nothing is pushed on top of anything, so
+    /// the parts that carry over can travel instead of being swapped.
+    private var ring: some View {
         GeometryReader { proxy in
             ZStack {
                 if summary.needsCalendar {
@@ -153,7 +183,8 @@ struct ContentView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 } else {
-                    CategoryWheel(model: wheel, chosenIndex: planner?.index)
+                    CategoryWheel(model: wheel, chosenIndex: chosenIndex, glyphs: glyphs)
+                        .opacity(phase == .running && chosenIndex == nil ? 0 : 1)
                         .contentShape(Rectangle())
                         .gesture(
                             DragGesture(minimumDistance: 0)
@@ -166,20 +197,19 @@ struct ContentView: View {
                         // The ring stops being a picker the moment it becomes a dial — the crown
                         // takes over, and a stray touch must not start a second choice on top of
                         // the first.
-                        .allowsHitTesting(planner == nil)
+                        .allowsHitTesting(phase == .idle)
 
                     if let planner {
-                        DurationDialView(planner: planner) { plan in
-                            Task { await start(plan: plan, planner: planner) }
-                        }
-                        .transition(.opacity)
+                        DurationDialView(planner: planner, glyphs: glyphs)
+                    } else if let active = sessions.active {
+                        RunningSessionView(session: active, glyphs: glyphs)
                     }
 
                     // The readout follows the finger rather than sitting in a fixed band, so it
                     // never costs the ring height and is always where the eye already is.
-                    if planner == nil, let location = wheel.location {
+                    if phase == .idle, let location = wheel.location {
                         CategoryFocusReadout(category: wheel.focusedCategory)
-                            .frame(maxWidth: readoutWidth)
+                            .measured(into: $readoutSize)
                             .position(readoutPosition(for: location, in: proxy.size))
                             .animation(.easeOut(duration: 0.15), value: wheel.focusedCategory)
                     }
@@ -189,19 +219,58 @@ struct ContentView: View {
         }
     }
 
-    private let readoutWidth: CGFloat = 130
-    /// How far above the finger the readout sits, and how close it is allowed to get to the top
-    /// edge before that would start clipping it instead.
-    private let readoutRise: CGFloat = 34
-    private let readoutTopMargin: CGFloat = 16
+    /// How far above the finger the readout floats, as a multiple of how far the finger has already
+    /// travelled: it starts close to the touch and rises out of the way as the drag reaches for the
+    /// rim, which is exactly when the hand is covering the most of the ring.
+    private let readoutRise: CGFloat = 1.5
+    /// How much of the finger's distance from the middle the readout copies, sideways.
+    private let readoutDrift: CGFloat = 0.5
+    private let readoutMargin: CGFloat = 6
 
-    /// Where the readout sits for a given finger location: above the touch and shifted horizontally
-    /// only as far as keeping it fully inside the screen requires.
+    /// Where the readout sits: lifted above the finger, and pulled half of the way back towards the
+    /// middle of the ring horizontally. Following the finger's x exactly would push a line this wide
+    /// against the edge on every reach outwards; half of it keeps the readout under the eye without
+    /// ever needing to be shoved back on screen.
     private func readoutPosition(for location: CGPoint, in size: CGSize) -> CGPoint {
-        let halfWidth = readoutWidth / 2
-        let x = min(max(location.x, halfWidth), size.width - halfWidth)
-        let y = max(location.y - readoutRise, readoutTopMargin)
+        let halfWidth = max(readoutSize.width, 40) / 2
+        let halfHeight = max(readoutSize.height, 20) / 2
+        let travel = hypot(wheel.pan.width, wheel.pan.height)
+        let centre = size.width / 2
+        let aimed = centre + (location.x - centre) * readoutDrift
+        let x = min(max(aimed, halfWidth + readoutMargin), size.width - halfWidth - readoutMargin)
+        let y = max(location.y - travel * readoutRise, halfHeight + readoutMargin)
         return CGPoint(x: x, y: y)
+    }
+
+    // MARK: - The band underneath
+
+    @ViewBuilder
+    private var bottomBand: some View {
+        switch phase {
+        case .idle:
+            // What is coming up is a thing to know at a glance, not while aiming: a finger on the
+            // ring is halfway through a decision, and the line below it only competes for the eye.
+            NextEventLine(event: wheel.isPressing ? nil : summary.nextEvent)
+                .animation(.easeOut(duration: 0.15), value: wheel.isPressing)
+                .transition(.opacity)
+        case .planning:
+            if let planner {
+                RingButton(symbol: "play.fill", tint: Color(hex: planner.category.color)) {
+                    Task { await start(plan: planner.plan, planner: planner) }
+                }
+                .transition(.opacity)
+            }
+        case .running:
+            if let active = sessions.active {
+                RunningControls(
+                    session: active,
+                    isBusy: sessions.isBusy,
+                    onFinish: { Task { await sessions.stop() } },
+                    onExtend: { minutes in Task { await sessions.extendBy(minutes: minutes) } }
+                )
+                .transition(.opacity)
+            }
+        }
     }
 
     private var errorMessage: String? { sessions.errorMessage ?? summary.errorMessage }
@@ -216,20 +285,25 @@ struct ContentView: View {
     }
 
     /// The drag has landed on a segment: the ring keeps it and becomes the dial its length is set
-    /// on. The index has to be read before `ended()`, which clears the gesture behind it.
+    /// on. The gesture is always ended, even when it picked nothing — a press released in the dead
+    /// zone still has to put the ring back the way it found it.
     private func choose() {
         let index = wheel.focusedIndex
-        guard let index, let category = wheel.ended() else { return }
+        let category = wheel.ended()
+        guard let index, let category else { return }
         withAnimation(WheelMetrics.collapse) {
             planner = TrackingPlanner(category: category, index: index)
         }
     }
 
     private func start(plan: TrackingPlan, planner: TrackingPlanner) async {
-        withAnimation(WheelMetrics.collapse) { self.planner = nil }
         if plan.duration.minutes != nil || plan.ticks != .off {
             await TrackingAlarm.requestAuthorizationIfNeeded()
         }
+        // The controller sets its optimistic session before it reaches the network, so clearing the
+        // planner first means the running ring is already there in the same frame the dial leaves —
+        // the lap never blinks back to a week in between.
+        self.planner = nil
         await sessions.start(category: planner.category, plan: plan)
         // Starting a session writes an event into the week the ring is drawn from, so the numbers
         // under the finger are stale the moment it lands.
@@ -239,6 +313,53 @@ struct ContentView: View {
 
 private enum Route: Hashable {
     case calendar
+}
+
+/// The one action under the ring, sitting in the screen's bottom margin with enough shadow under it
+/// that the arc it overlaps reads as being behind it rather than running through it.
+struct RingButton: View {
+    let symbol: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(width: 54, height: 28)
+                .background(tint, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .ringButtonShadow()
+    }
+}
+
+extension View {
+    /// What keeps a control legible over the ring: a hard black halo that fades the arc out right
+    /// around the control, without a panel that would cut the ring in half.
+    func ringButtonShadow() -> some View {
+        shadow(color: .black.opacity(0.9), radius: 5)
+            .shadow(color: .black.opacity(0.8), radius: 10)
+    }
+
+    /// Reports this view's own size, so something positioned by hand can be kept on screen without
+    /// being given a width it does not need.
+    func measured(into size: Binding<CGSize>) -> some View {
+        background(
+            GeometryReader { proxy in
+                Color.clear.preference(key: MeasuredSizeKey.self, value: proxy.size)
+            }
+        )
+        .onPreferenceChange(MeasuredSizeKey.self) { new in
+            Task { @MainActor in size.wrappedValue = new }
+        }
+    }
+}
+
+private struct MeasuredSizeKey: PreferenceKey {
+    static let defaultValue = CGSize.zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
 }
 
 /// The bottom band: the next thing on the calendar, its title on one line and how far away it is on
@@ -268,12 +389,12 @@ private struct NextEventLine: View {
                 }
                 .font(.caption2)
                 .minimumScaleFactor(0.7)
+                .ringButtonShadow()
             } else {
                 Color.clear
             }
         }
-        .frame(height: 30)
-        .padding(.bottom, -8)
+        .padding(.bottom, -6)
     }
 
     /// The category's glyph when the event counts towards one, and the calendar's own otherwise —

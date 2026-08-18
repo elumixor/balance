@@ -43,6 +43,11 @@ enum WheelMetrics {
 
     /// The collapse, and everything that rides on it.
     static let collapse = Animation.spring(response: 0.42, dampingFraction: 0.85)
+
+    /// The id a category's glyph travels under, from its band on the ring to the label under the
+    /// clock. One per category, so the glyph that leaves the ring and the glyph that appears in the
+    /// label are the same view moving rather than two views crossfading.
+    static func glyphID(_ categoryID: String) -> String { "category-glyph-\(categoryID)" }
 }
 
 /// The ring is a ``DialLayout`` — shares of the circle worked out from planned hours, the same way
@@ -86,28 +91,33 @@ struct CategoryWheel: View {
     /// circle to it and takes it away from everything else, ending up as the clock face the
     /// duration is dialled on.
     let chosenIndex: Int?
+    /// The space the chosen glyph flies through on its way to the label under the clock.
+    let glyphs: Namespace.ID
 
     init(
         categories: [WatchCategory],
         focusedIndex: Int?,
         pan: CGSize = .zero,
         isPressing: Bool = false,
-        chosenIndex: Int? = nil
+        chosenIndex: Int? = nil,
+        glyphs: Namespace.ID
     ) {
         self.categories = categories
         self.focusedIndex = focusedIndex
         self.pan = pan
         self.isPressing = isPressing
         self.chosenIndex = chosenIndex
+        self.glyphs = glyphs
     }
 
-    init(model: WheelGestureModel, chosenIndex: Int? = nil) {
+    init(model: WheelGestureModel, chosenIndex: Int? = nil, glyphs: Namespace.ID) {
         self.init(
             categories: model.categories,
             focusedIndex: model.focusedIndex,
             pan: model.pan,
             isPressing: model.isPressing,
-            chosenIndex: chosenIndex
+            chosenIndex: chosenIndex,
+            glyphs: glyphs
         )
     }
 
@@ -129,15 +139,20 @@ struct CategoryWheel: View {
                     .opacity(opacity(for: segment))
                 }
                 ForEach(layout.segments) { segment in
-                    SegmentIcon(
-                        segment: segment,
-                        isFocused: segment.index == focusedIndex,
-                        radius: radius - WheelMetrics.bandThickness / 2,
-                        scale: scale
-                    )
                     // The glyphs belong to picking a category. Once one is picked the ring is a
-                    // clock face, and its own ticks say what it means.
-                    .opacity(chosenIndex == nil ? opacity(for: segment) : 0)
+                    // clock face and its own marks say what it means, so the rest fade where they
+                    // stand — and the chosen one leaves the ring entirely, to reappear as the label
+                    // under the clock it flies into.
+                    if segment.index != chosenIndex {
+                        SegmentIcon(
+                            segment: segment,
+                            isFocused: segment.index == focusedIndex,
+                            radius: radius - WheelMetrics.bandThickness / 2,
+                            scale: scale,
+                            glyphs: glyphs
+                        )
+                        .opacity(chosenIndex == nil ? opacity(for: segment) : 0)
+                    }
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -237,10 +252,14 @@ private struct SegmentBand: View {
         let weekFill = collapse == nil ? fill : 0
 
         ZStack {
-            Band(start: start, sweep: sweep, inset: inset, thickness: thickness)
-                .fill(color.opacity(0.12))
-            Band(start: start, sweep: sweep, inset: inset, thickness: thickness)
-                .stroke(color.opacity(isFocused ? 0.95 : 0.55), lineWidth: 1.5)
+            Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gapped: collapse == nil)
+                .fill(color.opacity(collapse == nil ? 0.12 : 0.2))
+            // The outline says "this much was planned", which is a thing only the week's ring has to
+            // say. Once the lap is the dial's own track, an outline on it is a second ring to read.
+            if collapse == nil {
+                Band(start: start, sweep: sweep, inset: inset, thickness: thickness)
+                    .stroke(color.opacity(isFocused ? 0.95 : 0.55), lineWidth: 1.5)
+            }
             Band(
                 start: start,
                 sweep: sweep,
@@ -270,6 +289,7 @@ private struct SegmentIcon: View {
     let isFocused: Bool
     let radius: CGFloat
     let scale: CGFloat
+    let glyphs: Namespace.ID
 
     var body: some View {
         let placement = segment.midAngle.radians - .pi / 2
@@ -279,6 +299,9 @@ private struct SegmentIcon: View {
             .font(.system(size: size, weight: .semibold))
             .foregroundStyle(Color.white.opacity(isFocused ? 1 : 0.85))
             .offset(x: radius * cos(placement), y: radius * sin(placement))
+            // Read after the offset, so the frame recorded for the flight is where the glyph is
+            // drawn on the band rather than the middle of the ring it was laid out in.
+            .matchedGeometryEffect(id: WheelMetrics.glyphID(segment.category.id), in: glyphs)
     }
 }
 

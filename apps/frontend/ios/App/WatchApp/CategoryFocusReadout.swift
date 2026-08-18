@@ -27,15 +27,15 @@ struct CategoryFocusReadout: View {
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        .minimumScaleFactor(0.6)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(.black.opacity(0.65), in: Capsule())
+                .background(.black.opacity(0.75), in: Capsule())
+                .frame(maxWidth: 165)
                 .transition(.opacity)
             }
         }
-        .frame(maxWidth: .infinity)
         .animation(.easeOut(duration: 0.15), value: category)
     }
 

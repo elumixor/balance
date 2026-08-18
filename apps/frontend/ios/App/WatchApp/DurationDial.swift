@@ -131,34 +131,48 @@ final class TrackingPlanner {
     }
 }
 
-/// The clock face shared by the duration dial and a running session: rim marks for scale, one lap
-/// of arc per hour so a length reads as stacked layers rather than a line that has quietly wrapped
-/// around, and — while a rhythm is being set or shown — marks crossing the band itself rather than
-/// floating outside it, the way the system's own sleep dial marks time directly on its arc.
+/// The clock face shared by the duration dial and a running session: one lap of arc per hour, so a
+/// length reads as stacked layers rather than as a line that has quietly wrapped around, with a
+/// scale of marks tucked just inside the band and — while a rhythm is being set or shown — marks
+/// crossing the band itself, the way the system's own sleep dial marks time directly on its arc.
+///
+/// It draws no track of its own. The track is the week's ring, collapsed into a single lap by
+/// choosing a category, and drawing a second one over it is what made this face read as two rings
+/// that never quite lined up.
 struct RingFace: View {
     let color: Color
     /// The length being drawn, in minutes — dialled while setting up, elapsed while running.
     let minutes: Double
-    /// An open-ended length draws no laps at all; there is nothing yet to measure it against.
+    /// An open-ended length draws no laps and no scale; there is nothing yet to measure against.
     let isFree: Bool
     /// Where nudges fall, as fractions of a lap.
     let tickTurns: [Double]
 
     static let lap = 60.0
+
+    /// How far in from the ring's outer edge each part of the face sits. The scale hangs just inside
+    /// the band, and the hours a long session stacks up hang inside the scale, so nothing has to
+    /// move aside to make room for anything else.
+    static let bandInner = WheelMetrics.ringInset + WheelMetrics.dialThickness
+    static let scaleDepth: CGFloat = 6
+    static let hollow = bandInner + 3 + scaleDepth + 5
+    /// How much of the width the lines under the number may have. They sit close to the middle of
+    /// the hole, where the circle is at its widest, so they can reach further out than the ring's
+    /// own thickness would suggest.
+    static let labelInset = bandInner + 4
+
     private static let tickStep = 5.0
     private static let majorTickStep = 15.0
 
     var body: some View {
         GeometryReader { proxy in
             let size = min(proxy.size.width, proxy.size.height)
-            // The marks give way to the laps a long session stacks under the ring, so the two never
-            // have to share a radius.
-            let lapDepth = CGFloat(max(laps.count - 1, 0)) * 7
-            let outer = size / 2 - WheelMetrics.ringInset - WheelMetrics.dialThickness - 3 - lapDepth
             let bandMid = size / 2 - WheelMetrics.ringInset - WheelMetrics.dialThickness / 2
 
             ZStack {
-                marks(outer: outer)
+                if !isFree {
+                    marks(outer: size / 2 - Self.bandInner - 3)
+                }
                 arcs
                 if !tickTurns.isEmpty {
                     tickMarks(radius: bandMid)
@@ -170,24 +184,25 @@ struct RingFace: View {
         .aspectRatio(1, contentMode: .fit)
     }
 
-    /// Five minutes to a mark, a quarter of an hour to a long one.
+    /// Five minutes to a hairline, a quarter of an hour to a real mark. Faint on purpose: it is a
+    /// scale to read the arc against, not a second ring competing with it.
     private func marks(outer: CGFloat) -> some View {
         ZStack {
             ForEach(Array(stride(from: 0.0, to: Self.lap, by: Self.tickStep)), id: \.self) { minute in
                 let major = minute.truncatingRemainder(dividingBy: Self.majorTickStep) == 0
                 Capsule()
-                    .fill(Color.white.opacity(major ? 0.5 : 0.25))
-                    .frame(width: major ? 2 : 1.5, height: major ? 7 : 4)
-                    .offset(y: -(outer - (major ? 3.5 : 2)))
+                    .fill(Color.white.opacity(major ? 0.4 : 0.14))
+                    .frame(width: major ? 1.5 : 1, height: major ? Self.scaleDepth : 3)
+                    .offset(y: -(outer - (major ? Self.scaleDepth : 3) / 2))
                     .rotationEffect(.degrees(minute / Self.lap * 360))
             }
         }
     }
 
     /// The length itself. The first hour is the ring; every hour after it is another lap drawn
-    /// inside the one before, thinner and darker, so a long length reads as layers rather than as
-    /// an arc that has quietly wrapped around and started lying. Never gapped — a lap has no
-    /// neighbour to be kept apart from, and a full lap must read as one unbroken circle.
+    /// inside the scale, thinner and darker, so a long length reads as layers rather than as an arc
+    /// that has quietly wrapped around and started lying. Never gapped — a lap has no neighbour to
+    /// be kept apart from, and a full lap must read as one unbroken circle.
     private var arcs: some View {
         ForEach(laps, id: \.index) { lap in
             Band(start: .zero, sweep: .degrees(lap.turn * 360), inset: lap.inset, thickness: lap.thickness, gapped: false)
@@ -199,15 +214,15 @@ struct RingFace: View {
     private func tickMarks(radius: CGFloat) -> some View {
         ForEach(tickTurns, id: \.self) { turn in
             Capsule()
-                .fill(Color.black.opacity(0.55))
-                .frame(width: 2, height: WheelMetrics.dialThickness + 3)
+                .fill(Color.black.opacity(0.7))
+                .frame(width: 2, height: WheelMetrics.dialThickness + 2)
                 .offset(y: -radius)
                 .rotationEffect(.degrees(turn * 360))
         }
     }
 
     /// One entry per hour the length runs for. The first is the ring itself; the rest are thinner,
-    /// darker laps stacked inside the marks, each obviously a layer above the last rather than more
+    /// darker laps stacked inside the scale, each obviously a layer above the last rather than more
     /// of the same arc.
     private var laps: [(index: Int, turn: Double, inset: CGFloat, thickness: CGFloat, opacity: Double)] {
         guard !isFree else { return [] }
@@ -221,23 +236,75 @@ struct RingFace: View {
             guard index > 0 else {
                 return (0, turn, WheelMetrics.ringInset, WheelMetrics.dialThickness, 0.95)
             }
-            let inset = WheelMetrics.ringInset + WheelMetrics.dialThickness + 2 + CGFloat(index - 1) * 7
-            return (index, turn, inset, 4.5, max(0.75 - Double(index - 1) * 0.15, 0.35))
+            let inset = Self.bandInner + 3 + Self.scaleDepth + CGFloat(index - 1) * 6
+            return (index, turn, inset, 3.5, max(0.7 - Double(index - 1) * 0.15, 0.3))
         }
     }
 }
 
-/// The screen a category collapses into: the ring becomes a clock face, one lap of it an hour, and
-/// the crown sets how much of it this session gets. The ring is drawn a fifth larger than the space
-/// it is given, bleeding past its own edge the way a watch face's dial usually does; the length sits
-/// in the hole at its middle, and the category and the button that starts it sit below the ring
-/// rather than crowded into that same hole.
+/// What sits in the hole in the middle of the ring, for both the dial and a running session: the
+/// number the ring is showing, the category under it, and one quiet line of detail under that.
+///
+/// The category's glyph is not drawn here so much as landed here — it is the same glyph that was on
+/// the band a moment ago, flown in by `matchedGeometryEffect`, which is what makes choosing a
+/// category read as the ring folding down into a timer rather than as one screen replacing another.
+struct DialReadout: View {
+    let tint: Color
+    let categoryID: String
+    let categoryName: String
+    let categoryIcon: String
+    /// The big number in the middle — minutes being dialled, or the clock of a running session.
+    let value: String
+    let note: String?
+    let noteColor: Color
+    let glyphs: Namespace.ID
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(value)
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                // The number sits dead centre, where the hole is at its narrowest between the laps
+                // a long session stacks up; the lines under it are lower down, where it is wider.
+                .padding(.horizontal, RingFace.hollow - RingFace.labelInset)
+
+            HStack(spacing: 4) {
+                Image(systemName: Icons.symbol(for: categoryIcon))
+                    .font(.system(size: 11, weight: .semibold))
+                    .matchedGeometryEffect(id: WheelMetrics.glyphID(categoryID), in: glyphs)
+                Text(categoryName)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(tint)
+
+            if let note {
+                Text(note)
+                    .font(.system(size: 10))
+                    .foregroundStyle(noteColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        // Everything here has to live inside the hole in the middle of the ring. The lines sit
+        // near its middle, where it is widest, so they are given more of it than the number above
+        // them, which has the stacked laps of a long session to clear.
+        .padding(.vertical, RingFace.hollow)
+        .padding(.horizontal, RingFace.labelInset)
+    }
+}
+
+/// The screen a category collapses into: the ring it was picked off becomes a clock face, one lap of
+/// it an hour, and the crown sets how much of it this session gets. The length and the category sit
+/// in the hole at its middle; the button that starts it lives in the screen's bottom margin, out of
+/// the ring's way.
 struct DurationDialView: View {
     @Bindable var planner: TrackingPlanner
-    let onStart: (TrackingPlan) -> Void
-
-    /// How much bigger than the space it is offered the ring draws itself.
-    private static let overscale: CGFloat = 1.2
+    let glyphs: Namespace.ID
 
     @FocusState private var crownFocused: Bool
 
@@ -245,65 +312,20 @@ struct DurationDialView: View {
 
     var body: some View {
         RingFace(color: color, minutes: planner.minutes, isFree: planner.isFree, tickTurns: tickTurns)
-            .scaleEffect(Self.overscale)
-            .overlay { lengthReadout }
-            .overlay(alignment: .bottom) { bottomControls }
+            .overlay {
+                DialReadout(
+                    tint: color,
+                    categoryID: planner.category.id,
+                    categoryName: planner.category.name,
+                    categoryIcon: planner.category.icon,
+                    value: lengthText,
+                    note: ticksText,
+                    noteColor: color,
+                    glyphs: glyphs
+                )
+            }
             .modifier(CrownControl(planner: planner, focused: $crownFocused))
             .onAppear { crownFocused = true }
-    }
-
-    // MARK: - The middle
-
-    private var lengthReadout: some View {
-        VStack(spacing: 2) {
-            Text(lengthText)
-                .font(.system(size: 25, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .contentTransition(.numericText())
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                // Kept clear of the inner laps a long session stacks up behind it.
-                .frame(maxWidth: 92)
-
-            if let ticksText {
-                Text(ticksText)
-                    .font(.system(size: 10))
-                    .foregroundStyle(color)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-        }
-        // Everything here has to live inside the hole in the middle of the ring, which is what this
-        // inset is measuring out — the ring's thickness plus the room its marks take.
-        .padding(WheelMetrics.ringInset + WheelMetrics.dialThickness + 12)
-    }
-
-    // MARK: - Below the ring
-
-    private var bottomControls: some View {
-        VStack(spacing: 5) {
-            HStack(spacing: 4) {
-                Image(systemName: Icons.symbol(for: planner.category.icon))
-                    .font(.system(size: 11, weight: .semibold))
-                Text(planner.category.name)
-                    .font(.caption2.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .foregroundStyle(color)
-
-            Button {
-                onStart(planner.plan)
-            } label: {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(width: 48, height: 25)
-                    .background(color, in: Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.bottom, 2)
     }
 
     private var tickTurns: [Double] {
