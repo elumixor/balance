@@ -316,6 +316,10 @@ struct DurationDialView: View {
 /// The crown, pointed at whichever value the mode names. It is a modifier rather than a call on the
 /// view because each mode needs its own range and step, and the only way to change those is to hand
 /// SwiftUI a fresh view for them.
+///
+/// The crown only turns a view that was already focusable when it was handed the binding, so
+/// `focusable()` is applied underneath `digitalCrownRotation` in every branch rather than once
+/// around the outside — the other way round leaves the dial focusable and deaf.
 private struct CrownControl: ViewModifier {
     @Bindable var planner: TrackingPlanner
     @FocusState.Binding var focused: Bool
@@ -324,12 +328,12 @@ private struct CrownControl: ViewModifier {
         Group {
             switch planner.mode {
             case .duration:
-                content.digitalCrownRotation(
+                focusable(content).digitalCrownRotation(
                     $planner.minutes, from: 0, through: 240, by: 5,
                     sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
                 )
             case .tickEvery:
-                content.digitalCrownRotation(
+                focusable(content).digitalCrownRotation(
                     $planner.tickEvery,
                     from: planner.tickEveryRange.lowerBound,
                     through: planner.tickEveryRange.upperBound,
@@ -337,20 +341,25 @@ private struct CrownControl: ViewModifier {
                     sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
                 )
             case .tickParts:
-                content.digitalCrownRotation(
+                focusable(content).digitalCrownRotation(
                     $planner.tickParts, from: 2, through: 12, by: 1,
                     sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true
                 )
             }
         }
-        .focusable()
-        .focused($focused)
         .id(planner.mode)
+        // The `id` above rebuilds the view for every mode, and a rebuilt view has lost its focus —
+        // so the crown is claimed on each appearance, not only when the mode changes.
+        .onAppear { focused = true }
         .onChange(of: planner.mode) { _, _ in focused = true }
         // A session dialled shorter than its own rhythm would tick once at the very end, which is
         // the alarm's job, so the rhythm follows the length down.
         .onChange(of: planner.minutes) { _, _ in
             planner.tickEvery = min(planner.tickEvery, planner.tickEveryRange.upperBound)
         }
+    }
+
+    private func focusable(_ content: Content) -> some View {
+        content.focusable().focused($focused)
     }
 }

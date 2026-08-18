@@ -266,9 +266,15 @@ private struct NextEventLine: View {
         event.categoryColor.map { Color(hex: $0) } ?? .secondary
     }
 
+    /// How long until it matters: until it starts while it is still coming, and until it is over
+    /// once it has begun — "now" says the event is happening and nothing about how much of it is
+    /// left, which is the part worth glancing at.
+    ///
     /// `.relative` keeps counting down without this view being redrawn, which matters on a screen
     /// the system stops updating the moment the wrist drops.
     private func timing(for event: NextEvent) -> Text {
-        event.inProgress ? Text("now") : Text("in ") + Text(event.start, style: .relative)
+        guard event.inProgress else { return Text("in ") + Text(event.start, style: .relative) }
+        guard event.end > event.start else { return Text("now") }
+        return Text(event.end, style: .relative) + Text(" left")
     }
 }

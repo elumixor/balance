@@ -36,6 +36,10 @@ struct BalanceProvider: TimelineProvider {
         if let start = snapshot?.nextEvent?.start, start > now {
             dates.append(start)
         }
+        // The moment a running event stops having time left is a wording change of its own.
+        if let end = snapshot?.nextEvent?.end, end > now {
+            dates.append(end)
+        }
         if let end = snapshot?.active?.plannedEndAt, end > now {
             dates.append(end)
         }
@@ -64,7 +68,11 @@ extension WatchSnapshot {
                 targetHours: 10, actualHours: 3
             ),
         ],
-        nextEvent: SnapshotEvent(title: "Standup", start: Date().addingTimeInterval(5 * 60)),
+        nextEvent: SnapshotEvent(
+            title: "Standup",
+            start: Date().addingTimeInterval(5 * 60),
+            end: Date().addingTimeInterval(20 * 60)
+        ),
         active: nil,
         updatedAt: Date()
     )
@@ -173,7 +181,7 @@ struct BalanceWidgetView: View {
             ZStack {
                 CategoryDial(categories: snapshot.categories)
                 if let event = upcoming {
-                    minutesUntil(event.start)
+                    minutesUntil(event)
                         .font(.system(size: 13, design: .rounded))
                         .monospacedDigit()
                         .minimumScaleFactor(0.5)
@@ -228,7 +236,7 @@ struct BalanceWidgetView: View {
             }
         } else if let event = upcoming {
             Label {
-                Text("\(event.title) · ") + relative(event.start)
+                Text("\(event.title) · ") + relative(event)
             } icon: {
                 Image(systemName: "calendar")
             }
@@ -266,7 +274,7 @@ struct BalanceWidgetView: View {
                 Text(event.title)
                     .font(.headline)
                     .lineLimit(2)
-                relative(event.start)
+                relative(event)
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -303,14 +311,19 @@ struct BalanceWidgetView: View {
         return Text(session.startedAt, style: .timer)
     }
 
-    /// The menu bar's phrasing: "in 5 min" until it starts, then simply "now".
-    private func relative(_ date: Date) -> Text {
-        date <= entry.date ? Text("now") : Text("in ") + Text(date, style: .relative)
+    /// The menu bar's phrasing: "in 5 min" until it starts, then how much of it is left. "Now" is
+    /// only reached by an event whose end the snapshot doesn't know, or one already over.
+    private func relative(_ event: SnapshotEvent) -> Text {
+        if let end = event.remaining(at: entry.date) {
+            return Text(end, style: .relative) + Text(" left")
+        }
+        return event.start <= entry.date ? Text("now") : Text("in ") + Text(event.start, style: .relative)
     }
 
-    /// The same countdown with no room for the word "in".
-    private func minutesUntil(_ date: Date) -> Text {
-        date <= entry.date ? Text("now") : Text(date, style: .relative)
+    /// The same countdown with no room for a word beside it.
+    private func minutesUntil(_ event: SnapshotEvent) -> Text {
+        if let end = event.remaining(at: entry.date) { return Text(end, style: .relative) }
+        return event.start <= entry.date ? Text("now") : Text(event.start, style: .relative)
     }
 
     private func hours(_ category: SnapshotCategory) -> String {

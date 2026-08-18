@@ -21,14 +21,28 @@ public struct SnapshotCategory: Codable, Sendable, Equatable, Identifiable, Dial
     }
 }
 
-/// The next thing in the calendar, flattened to the two fields a widget has room for.
+/// The next thing in the calendar, flattened to the few fields a widget has room for. The end is
+/// carried as well as the start because an event that has already begun has nothing to count down
+/// to but its own finish, and the widget has no way to ask for it.
+///
+/// It is optional only so a snapshot written by an older build still decodes: a widget reading one
+/// falls back to saying the event is on, rather than losing the whole blob and drawing nothing.
 public struct SnapshotEvent: Codable, Sendable, Equatable {
     public let title: String
     public let start: Date
+    public let end: Date?
 
-    public init(title: String, start: Date) {
+    public init(title: String, start: Date, end: Date? = nil) {
         self.title = title
         self.start = start
+        self.end = end
+    }
+
+    /// How long this event still has to run, from `now`, or nil when it hasn't started or its end
+    /// is unknown or already past.
+    public func remaining(at now: Date) -> Date? {
+        guard start <= now, let end, end > now else { return nil }
+        return end
     }
 }
 
@@ -101,7 +115,9 @@ extension WatchSnapshot {
                     targetHours: $0.targetHours, actualHours: $0.actualHours
                 )
             },
-            nextEvent: summary.nextEvent.map { SnapshotEvent(title: $0.title, start: $0.start) },
+            nextEvent: summary.nextEvent.map {
+                SnapshotEvent(title: $0.title, start: $0.start, end: $0.end)
+            },
             active: summary.active.map(SnapshotSession.init(session:)),
             updatedAt: summary.now
         )
