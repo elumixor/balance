@@ -10,44 +10,46 @@ import BalanceKit
 /// by a timer that would keep firing into a suspended app.
 struct RunningSessionView: View {
     let session: ActiveSession
+    /// The clock the screen is being drawn at. It comes from the one `TimelineView` around the whole
+    /// ring, because the ring's own arc is the session's elapsed time — the arc and the numbers have
+    /// to be told what time it is by the same tick, or they can disagree about the second.
+    let now: Date
     let glyphs: Namespace.ID
 
     private var tint: Color { Color(hex: session.categoryColor) }
 
     var body: some View {
-        TimelineView(.periodic(from: session.startedAt, by: 1)) { context in
-            let elapsed = max(context.date.timeIntervalSince(session.startedAt), 0)
+        let elapsed = max(now.timeIntervalSince(session.startedAt), 0)
 
-            RingFace(
-                color: tint,
-                minutes: elapsed / 60,
-                isFree: session.plannedEndAt == nil,
-                tickTurns: []
+        RingFace(
+            color: tint,
+            minutes: elapsed / 60,
+            isFree: session.plannedEndAt == nil,
+            tickTurns: []
+        )
+        .overlay {
+            DialReadout(
+                tint: tint,
+                categoryID: session.categoryId,
+                categoryName: session.categoryName,
+                categoryIcon: session.categoryIcon,
+                value: RunningSessionView.clock(elapsed),
+                note: note,
+                noteColor: isOverrun ? .orange : .secondary,
+                glyphs: glyphs
             )
-            .overlay {
-                DialReadout(
-                    tint: tint,
-                    categoryID: session.categoryId,
-                    categoryName: session.categoryName,
-                    categoryIcon: session.categoryIcon,
-                    value: RunningSessionView.clock(elapsed),
-                    note: note(now: context.date),
-                    noteColor: isOverrun(now: context.date) ? .orange : .secondary,
-                    glyphs: glyphs
-                )
-            }
         }
     }
 
     /// Once the planned end passes the session keeps running and the line says so — the alarm has
     /// already fired, and overrunning is not an error.
-    private func note(now: Date) -> String? {
+    private var note: String? {
         guard let end = session.plannedEndAt else { return nil }
         let left = end.timeIntervalSince(now)
         return left >= 0 ? "\(Self.clock(left)) left" : "over \(Self.clock(-left))"
     }
 
-    private func isOverrun(now: Date) -> Bool {
+    private var isOverrun: Bool {
         guard let end = session.plannedEndAt else { return false }
         return end.timeIntervalSince(now) < 0
     }

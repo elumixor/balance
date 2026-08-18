@@ -98,13 +98,18 @@ struct CategoryWheel: View {
     /// circle to it and takes it away from everything else, ending up as the clock face the
     /// duration is dialled on.
     let chosenIndex: Int?
+    /// How much of one lap the chosen sector settles at, as a fraction of a turn — the length being
+    /// dialled, or how far a running session has got. This is the whole trick behind there being one
+    /// ring on this screen instead of two: the sector that was picked does not collapse into a track
+    /// for some other view to draw an arc on, it *is* the arc, and it gets there by opening out from
+    /// its own wedge of the week.
+    let lapTurn: Double?
     /// The space the chosen glyph flies through on its way to the label under the clock.
     let glyphs: Namespace.ID
 
-    /// Whether the chosen sector has finished filling itself into a whole lap. Until it has, the lap
-    /// is the brightest thing on screen, because it is the thing moving; after, it dims to the track
-    /// the dial's minutes are drawn on.
-    @State private var lapSettled = false
+    /// Whether the ring has finished folding into a lap. Until it has, everything moves on the slow
+    /// collapse; after, the arc belongs to the crown and has to keep up with it.
+    @State private var settled = false
 
     init(
         categories: [WatchCategory],
@@ -112,6 +117,7 @@ struct CategoryWheel: View {
         pan: CGSize = .zero,
         isPressing: Bool = false,
         chosenIndex: Int? = nil,
+        lapTurn: Double? = nil,
         glyphs: Namespace.ID
     ) {
         self.categories = categories
@@ -119,16 +125,18 @@ struct CategoryWheel: View {
         self.pan = pan
         self.isPressing = isPressing
         self.chosenIndex = chosenIndex
+        self.lapTurn = lapTurn
         self.glyphs = glyphs
     }
 
-    init(model: WheelGestureModel, chosenIndex: Int? = nil, glyphs: Namespace.ID) {
+    init(model: WheelGestureModel, chosenIndex: Int? = nil, lapTurn: Double? = nil, glyphs: Namespace.ID) {
         self.init(
             categories: model.categories,
             focusedIndex: model.focusedIndex,
             pan: model.pan,
             isPressing: model.isPressing,
             chosenIndex: chosenIndex,
+            lapTurn: lapTurn,
             glyphs: glyphs
         )
     }
@@ -142,12 +150,24 @@ struct CategoryWheel: View {
             let scale = ringScale
 
             ZStack {
+                // The ring itself, under everything: one lap that is always there and never changes
+                // colour, so the screen never has to fade a second ring in behind the first. All it
+                // does is thin down when the week's sectors fold into the single lap a session is
+                // dialled on — the radius moves, nothing else.
+                Band(
+                    start: .zero,
+                    sweep: .degrees(360),
+                    inset: WheelMetrics.ringInset,
+                    thickness: ringThickness,
+                    gap: .zero
+                )
+                .fill(Color.white.opacity(0.07))
+
                 ForEach(layout.segments) { segment in
                     SegmentBand(
                         segment: segment,
                         isFocused: segment.index == focusedIndex && chosenIndex == nil,
-                        collapse: collapse(for: segment),
-                        settled: lapSettled
+                        collapse: collapse(for: segment)
                     )
                     .opacity(opacity(for: segment))
                 }
@@ -193,18 +213,24 @@ struct CategoryWheel: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .task(id: chosenIndex) {
-            lapSettled = false
+            settled = false
             guard chosenIndex != nil else { return }
-            try? await Task.sleep(for: .seconds(0.55))
+            try? await Task.sleep(for: .seconds(1.1))
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.8)) { lapSettled = true }
+            settled = true
         }
+    }
+
+    /// How thick the ring is drawn: a week's worth of bands, or the thinner lap a session is dialled
+    /// on. The focus bump belongs to a single sector, not to the ring behind them all.
+    private var ringThickness: CGFloat {
+        chosenIndex == nil ? WheelMetrics.bandThickness : WheelMetrics.dialThickness
     }
 
     /// Everything about the ring that is worth animating, in one value, so a frame that changes
     /// several of them at once is still one animation.
     private var ringState: RingState {
-        RingState(focused: focusedIndex, pan: pan, pressing: isPressing, chosen: chosenIndex)
+        RingState(focused: focusedIndex, pan: pan, pressing: isPressing, chosen: chosenIndex, lap: lapTurn)
     }
 
     private struct RingState: Equatable {
@@ -212,13 +238,16 @@ struct CategoryWheel: View {
         var pan: CGSize
         var pressing: Bool
         var chosen: Int?
+        var lap: Double?
     }
 
     /// Which animation that change gets. Aiming — the close-up sliding under the finger — has to
     /// keep up with the hand, so it is the quick one. Everything that settles the ring into or out
     /// of a lap is the slow collapse, including cancelling back to the week.
     private var ringAnimation: Animation {
-        guard chosenIndex == nil else { return WheelMetrics.collapse }
+        // A ring that is already a lap is answering the crown, not collapsing into one, and the
+        // crown has to be answered at the speed it is turned.
+        if chosenIndex != nil { return settled ? .easeOut(duration: 0.16) : WheelMetrics.collapse }
         guard isPressing else { return WheelMetrics.collapse }
         return focusedIndex == nil
             ? .spring(response: 0.28, dampingFraction: 0.8)
@@ -272,8 +301,9 @@ struct CategoryWheel: View {
     /// collapse, rather than one arc growing through five others that are shrinking into themselves.
     private func collapse(for segment: WheelSegment) -> (start: Angle, sweep: Angle, chosen: Bool)? {
         guard let chosenIndex else { return nil }
-        let opens: Double = segment.index <= chosenIndex ? 0 : 1
-        let closes: Double = segment.index < chosenIndex ? 0 : 1
+        let lap = min(max(lapTurn ?? 1, 0), 1)
+        let opens: Double = segment.index <= chosenIndex ? 0 : lap
+        let closes: Double = segment.index < chosenIndex ? 0 : lap
         return (
             .radians(opens * 2 * .pi),
             .radians((closes - opens) * 2 * .pi),
@@ -319,25 +349,16 @@ struct CategoryWheel: View {
 /// of the ring outward — the band deepens rather than creeping around its own arc, so the segments
 /// can be compared by how far each has risen toward the rim.
 ///
-/// Nothing here fades while the ring collapses. A segment that was not chosen leaves by being
-/// squeezed to no width at all, and the one that was leaves by filling: its week rises to the brim
-/// and its outline and its background both come up to meet the fill, until outline, background and
-/// week are one colour and the band is simply a solid lap. That lap is the dial's track, and only
-/// once it is whole does it dim — as one uniform ring, which reads as a light going down rather than
-/// as parts of the ring dissolving at different rates.
+/// Not one opacity in here changes, ever. A segment that was not chosen leaves by being squeezed to
+/// no width by the seams moving past it, and the one that was chosen leaves by filling to the brim
+/// and opening out into the arc a session is dialled on. Everything that happens between a week and
+/// a timer is angles and radii; nothing dissolves into anything.
 private struct SegmentBand: View {
     let segment: WheelSegment
     let isFocused: Bool
     /// Where this segment is going once a category has been chosen, if one has been — and whether
     /// it is the one that was chosen, since the two travel in opposite directions.
     let collapse: (start: Angle, sweep: Angle, chosen: Bool)?
-    /// The lap has finished opening and is now the track the dial draws minutes on.
-    let settled: Bool
-
-    /// What the chosen sector reads at while it fills, and what the finished lap reads at once it is
-    /// only a track — bright enough to be the thing moving, then quiet enough to be drawn over.
-    private static let brimmed = 0.8
-    private static let track = 0.2
 
     private var color: Color { Color(hex: segment.category.color) }
     private var fill: Double { segment.category.dialFill }
@@ -352,20 +373,15 @@ private struct SegmentBand: View {
             ? WheelMetrics.dialThickness
             : WheelMetrics.bandThickness + (isFocused ? 5 : 0)
         // How much of the band is filled: the week so far, or the whole of it for the sector that
-        // was chosen, which is what makes it stop being a reading of the week and start being a lap.
+        // was chosen — which is what stops it being a reading of the week and makes it an arc.
         let solid = chosen ? 1 : fill
         let gap: Angle = collapse == nil ? WheelMetrics.gap : .zero
-        let level = chosen ? (settled ? Self.track : Self.brimmed) : (isFocused ? 0.95 : 0.7)
-        // Background and outline are the fill's own colour for the chosen sector, so there is
-        // nothing left to tell them apart from it by the time the lap is closed.
-        let backing = chosen ? level : 0.14
-        let outline = chosen ? level : (isFocused ? 0.95 : 0.55)
 
         ZStack {
             Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gap: gap)
-                .fill(color.opacity(backing))
+                .fill(color.opacity(0.14))
             Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gap: gap)
-                .stroke(color.opacity(outline), lineWidth: 1.5)
+                .stroke(color.opacity(isFocused ? 0.95 : 0.55), lineWidth: 1.5)
             Band(
                 start: start,
                 sweep: sweep,
@@ -373,10 +389,10 @@ private struct SegmentBand: View {
                 thickness: thickness * solid,
                 gap: gap
             )
-            .fill(color.opacity(level))
+            .fill(color.opacity(isFocused ? 0.95 : 0.75))
 
-            // Going over the plan is a thing to know about a week, and the lap being opened is not a
-            // week any more — so it goes at once rather than being swept round the whole circle.
+            // Going over the plan is a thing to know about a week, and an arc of minutes is not a
+            // week — so it goes at once rather than being swept along with the sector.
             if overflow > 0 {
                 Band(
                     start: start,

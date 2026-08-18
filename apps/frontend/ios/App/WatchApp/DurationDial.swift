@@ -136,9 +136,11 @@ final class TrackingPlanner {
 /// scale of marks tucked just inside the band and — while a rhythm is being set or shown — marks
 /// crossing the band itself, the way the system's own sleep dial marks time directly on its arc.
 ///
-/// It draws no track of its own. The track is the week's ring, collapsed into a single lap by
-/// choosing a category, and drawing a second one over it is what made this face read as two rings
-/// that never quite lined up.
+/// It draws no arc of its own for the first hour, and no track. Both of those are the week's ring:
+/// the sector that was chosen fills to the brim and opens out into exactly the arc a session is
+/// dialled on, so there is one ring on this screen, not a track with somebody else's arc laid over
+/// it. What is left here is the scale that arc is read against, the extra laps an hour-plus session
+/// stacks up inside it, and the marks a rhythm puts across it.
 struct RingFace: View {
     let color: Color
     /// The length being drawn, in minutes — dialled while setting up, elapsed while running.
@@ -224,21 +226,19 @@ struct RingFace: View {
         }
     }
 
-    /// One entry per hour the length runs for. The first is the ring itself; the rest are thinner,
-    /// darker laps stacked inside the scale, each obviously a layer above the last rather than more
-    /// of the same arc.
+    /// One entry per hour past the first. The first hour is the ring itself, which the week's
+    /// sectors opened out into; the rest are thinner, darker laps stacked inside the scale, each
+    /// obviously a layer above the last rather than more of the same arc.
     private var laps: [(index: Int, turn: Double, inset: CGFloat, thickness: CGFloat, opacity: Double)] {
         guard !isFree else { return [] }
         let minutes = self.minutes.rounded()
         let full = Int(minutes / Self.lap)
         let remainder = minutes.truncatingRemainder(dividingBy: Self.lap) / Self.lap
 
-        return (0...full).compactMap { index in
+        return (1...max(full, 1)).compactMap { index in
+            guard index <= full else { return nil }
             let turn = index < full ? 1 : remainder
             guard turn > 0 else { return nil }
-            guard index > 0 else {
-                return (0, turn, WheelMetrics.ringInset, WheelMetrics.dialThickness, 0.95)
-            }
             let inset = Self.bandInner + 3 + Self.scaleDepth + CGFloat(index - 1) * 6
             return (index, turn, inset, 3.5, max(0.7 - Double(index - 1) * 0.15, 0.3))
         }
@@ -311,27 +311,10 @@ struct DurationDialView: View {
 
     @FocusState private var crownFocused: Bool
 
-    /// The arc is not there when the dial arrives — it sweeps out once the week's ring has finished
-    /// opening into the lap it is drawn on, so the two arcs read as one move rather than as a length
-    /// that was already decided before the ring got there.
-    @State private var arcShown = false
-    /// Once that opening sweep is over the arc goes back to answering the crown at the crown's own
-    /// speed; a length being dialled must not take a second to catch up.
-    @State private var opened = false
-
-    /// The opening sweep: it waits for the week's arcs to finish closing, then draws the length.
-    private static let intro = Animation.easeOut(duration: 0.9).delay(0.48)
-
     private var color: Color { Color(hex: planner.category.color) }
 
     var body: some View {
-        RingFace(
-            color: color,
-            minutes: arcShown ? planner.minutes : 0,
-            isFree: planner.isFree,
-            tickTurns: arcShown ? tickTurns : [],
-            sweep: opened ? .easeOut(duration: 0.16) : Self.intro
-        )
+        RingFace(color: color, minutes: planner.minutes, isFree: planner.isFree, tickTurns: tickTurns)
             .overlay {
                 DialReadout(
                     tint: color,
@@ -345,14 +328,7 @@ struct DurationDialView: View {
                 )
             }
             .modifier(CrownControl(planner: planner, focused: $crownFocused))
-            .onAppear {
-                crownFocused = true
-                arcShown = true
-            }
-            .task {
-                try? await Task.sleep(for: .seconds(1.5))
-                opened = true
-            }
+            .onAppear { crownFocused = true }
     }
 
     private var tickTurns: [Double] {

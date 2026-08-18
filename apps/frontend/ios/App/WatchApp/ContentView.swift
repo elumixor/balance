@@ -172,51 +172,81 @@ struct ContentView: View {
     /// the parts that carry over can travel instead of being swapped.
     private var ring: some View {
         GeometryReader { proxy in
-            ZStack {
-                if summary.needsCalendar {
-                    Text("Connect a calendar in Balance on your iPhone")
-                        .font(.caption2)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                } else if summary.categories.isEmpty {
-                    Text(summary.hasLoaded ? "No categories yet" : "")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                } else {
-                    CategoryWheel(model: wheel, chosenIndex: chosenIndex, glyphs: glyphs)
-                        .opacity(phase == .running && chosenIndex == nil ? 0 : 1)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    if !wheel.isPressing { wheel.began(at: value.startLocation) }
-                                    wheel.moved(to: value.location)
-                                }
-                                .onEnded { _ in choose() }
-                        )
-                        // The ring stops being a picker the moment it becomes a dial — the crown
-                        // takes over, and a stray touch must not start a second choice on top of
-                        // the first.
-                        .allowsHitTesting(phase == .idle)
+            // One clock for the whole ring while a session runs: the arc is the elapsed time, and
+            // the arc and the numbers inside it must not be told the time by two different ticks.
+            if let active = sessions.active, planner == nil {
+                TimelineView(.periodic(from: active.startedAt, by: 1)) { context in
+                    stack(in: proxy.size, now: context.date, active: active)
+                }
+            } else {
+                stack(in: proxy.size, now: .distantPast, active: nil)
+            }
+        }
+    }
 
-                    if let planner {
-                        DurationDialView(planner: planner, glyphs: glyphs)
-                    } else if let active = sessions.active {
-                        RunningSessionView(session: active, glyphs: glyphs)
-                    }
+    @ViewBuilder
+    private func stack(in size: CGSize, now: Date, active: ActiveSession?) -> some View {
+        ZStack {
+            if summary.needsCalendar {
+                Text("Connect a calendar in Balance on your iPhone")
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            } else if summary.categories.isEmpty {
+                Text(summary.hasLoaded ? "No categories yet" : "")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                CategoryWheel(
+                    model: wheel,
+                    chosenIndex: chosenIndex,
+                    lapTurn: lapTurn(now: now, active: active),
+                    glyphs: glyphs
+                )
+                .opacity(phase == .running && chosenIndex == nil ? 0 : 1)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            if !wheel.isPressing { wheel.began(at: value.startLocation) }
+                            wheel.moved(to: value.location)
+                        }
+                        .onEnded { _ in choose() }
+                )
+                // The ring stops being a picker the moment it becomes a dial — the crown takes
+                // over, and a stray touch must not start a second choice on top of the first.
+                .allowsHitTesting(phase == .idle)
 
-                    // The readout follows the finger rather than sitting in a fixed band, so it
-                    // never costs the ring height and is always where the eye already is.
-                    if phase == .idle, let location = wheel.location {
-                        CategoryFocusReadout(category: wheel.focusedCategory)
-                            .measured(into: $readoutSize)
-                            .position(readoutPosition(for: location, in: proxy.size))
-                            .animation(.easeOut(duration: 0.15), value: wheel.focusedCategory)
-                    }
+                if let planner {
+                    DurationDialView(planner: planner, glyphs: glyphs)
+                } else if let active {
+                    RunningSessionView(session: active, now: now, glyphs: glyphs)
+                }
+
+                // The readout follows the finger rather than sitting in a fixed band, so it never
+                // costs the ring height and is always where the eye already is.
+                if phase == .idle, let location = wheel.location {
+                    CategoryFocusReadout(category: wheel.focusedCategory)
+                        .measured(into: $readoutSize)
+                        .position(readoutPosition(for: location, in: size))
+                        .animation(.easeOut(duration: 0.15), value: wheel.focusedCategory)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// How far round the lap the chosen sector opens: the length being dialled, or how much of the
+    /// current hour a running session has used. The ring draws this itself — it is the same sector
+    /// that was picked off the week, opened out — so nothing else on the screen draws an arc.
+    private func lapTurn(now: Date, active: ActiveSession?) -> Double? {
+        if let planner {
+            guard !planner.isFree else { return 1 }
+            return min(planner.minutes / RingFace.lap, 1)
+        }
+        guard let active else { return nil }
+        let elapsed = max(now.timeIntervalSince(active.startedAt), 0) / 60
+        return min(elapsed / RingFace.lap, 1)
     }
 
     /// How far above the finger the readout floats, as a multiple of how far the finger has already
