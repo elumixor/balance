@@ -1,109 +1,109 @@
 import SwiftUI
 import BalanceKit
 
-/// The screen while something is being tracked. It answers two questions at a glance — what am I
-/// doing, and how long has it been — and offers the only two things that can happen next: finish
-/// it, or give a fixed session more time.
+/// The screen while something is being tracked. It is the same ring the duration was dialled on,
+/// left in place rather than swapped for a different screen: the length becomes an elapsed clock,
+/// the arc fills as the minutes pass, and the button underneath turns from starting the session to
+/// finishing it.
 ///
 /// The clock is a `TimelineView` rather than a `Timer`: watchOS decides when this view is on screen
 /// and how often it may redraw, so the schedule is handed to the system instead of being guessed at
 /// by a timer that would keep firing into a suspended app.
-struct ActiveSessionView: View {
+struct RunningSessionView: View {
     let session: ActiveSession
     let isBusy: Bool
     let onFinish: () -> Void
     let onExtend: (Int) -> Void
 
+    /// How much bigger than the space it is offered the ring draws itself — matches the dial it
+    /// continues from.
+    private static let overscale: CGFloat = 1.2
     /// What "+ more time" adds. Small enough to tap twice, large enough to be worth the tap.
     private static let extendStep = 15
 
-    var body: some View {
-        TimelineView(.periodic(from: session.startedAt, by: 1)) { context in
-            ScrollView {
-                VStack(spacing: 8) {
-                    category
-                    elapsed(now: context.date)
-                    if let end = session.plannedEndAt {
-                        remaining(until: end, now: context.date)
-                    } else {
-                        Text("Free session")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    actions
-                }
-                .padding(.horizontal, 2)
-            }
-        }
-    }
-
     private var tint: Color { Color(hex: session.categoryColor) }
 
-    private var category: some View {
-        HStack(spacing: 5) {
-            Image(systemName: Icons.symbol(for: session.categoryIcon))
-                .font(.system(size: 13, weight: .semibold))
-            Text(session.categoryName)
-                .font(.footnote.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+    var body: some View {
+        TimelineView(.periodic(from: session.startedAt, by: 1)) { context in
+            let elapsed = max(context.date.timeIntervalSince(session.startedAt), 0)
+
+            RingFace(color: tint, minutes: elapsed / 60, isFree: session.plannedEndAt == nil, tickTurns: [])
+                .scaleEffect(Self.overscale)
+                .overlay { readout(elapsed: elapsed, now: context.date) }
+                .overlay(alignment: .bottom) { bottomControls }
         }
-        .foregroundStyle(tint)
     }
 
-    private func elapsed(now: Date) -> some View {
-        Text(clock(max(now.timeIntervalSince(session.startedAt), 0)))
-            .font(.system(size: 38, weight: .medium, design: .monospaced))
-            .minimumScaleFactor(0.5)
-            .lineLimit(1)
-            .contentTransition(.numericText())
-    }
+    // MARK: - The middle
 
-    /// A fixed session also shows how much of it is left, and a progress bar so the answer can be
-    /// read without reading numbers. Once the planned end passes, the session keeps running and the
-    /// line says so — the alarm has already fired, and overrunning is not an error.
-    private func remaining(until end: Date, now: Date) -> some View {
-        let left = end.timeIntervalSince(now)
-        let planned = max(end.timeIntervalSince(session.startedAt), 1)
-        let progress = min(max(now.timeIntervalSince(session.startedAt) / planned, 0), 1)
-
-        return VStack(spacing: 4) {
-            ProgressView(value: progress)
-                .tint(tint)
-            Text(left >= 0 ? "\(clock(left)) left" : "over by \(clock(-left))")
-                .font(.caption2)
+    private func readout(elapsed: TimeInterval, now: Date) -> some View {
+        VStack(spacing: 2) {
+            Text(clock(elapsed))
+                .font(.system(size: 21, weight: .semibold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(left >= 0 ? .secondary : Color.orange)
+                .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(maxWidth: 92)
+
+            // Once the planned end passes the session keeps running and the line says so — the
+            // alarm has already fired, and overrunning is not an error.
+            if let end = session.plannedEndAt {
+                let left = end.timeIntervalSince(now)
+                Text(left >= 0 ? "\(clock(left)) left" : "over \(clock(-left))")
+                    .font(.system(size: 10))
+                    .foregroundStyle(left >= 0 ? Color.secondary : Color.orange)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
         }
+        .padding(WheelMetrics.ringInset + WheelMetrics.dialThickness + 12)
     }
 
-    private var actions: some View {
-        VStack(spacing: 6) {
-            Button(action: onFinish) {
-                Label("Finish", systemImage: "stop.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(tint)
-            .disabled(isBusy)
+    // MARK: - Below the ring
 
-            if session.plannedEndAt != nil {
-                Button {
-                    onExtend(Self.extendStep)
-                } label: {
-                    Label("+\(Self.extendStep) min", systemImage: "plus")
-                        .font(.footnote)
-                        .frame(maxWidth: .infinity)
+    private var bottomControls: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 4) {
+                Image(systemName: Icons.symbol(for: session.categoryIcon))
+                    .font(.system(size: 11, weight: .semibold))
+                Text(session.categoryName)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(tint)
+
+            HStack(spacing: 6) {
+                Button(action: onFinish) {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .frame(width: 48, height: 25)
+                        .background(tint, in: Capsule())
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
                 .disabled(isBusy)
+
+                if session.plannedEndAt != nil {
+                    Button {
+                        onExtend(Self.extendStep)
+                    } label: {
+                        Text("+\(Self.extendStep)m")
+                            .font(.system(size: 10, weight: .semibold))
+                            .frame(width: 38, height: 25)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isBusy)
+                }
+            }
+            .overlay(alignment: .top) {
+                if isBusy {
+                    ProgressView().controlSize(.mini).offset(y: -12)
+                }
             }
         }
-        .overlay(alignment: .top) {
-            if isBusy {
-                ProgressView().controlSize(.mini).offset(y: -14)
-            }
-        }
+        .padding(.bottom, 2)
     }
 
     /// h:mm:ss once an hour has passed, mm:ss before that — the leading zeros of a full clock are

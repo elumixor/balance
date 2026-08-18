@@ -123,110 +123,95 @@ final class TrackingPlanner {
     }
 
     /// The tick rhythm can't be longer than the session it divides, and a session dialled shorter
-    /// than the rhythm it was given has to pull the rhythm down with it.
+    /// than the rhythm it was given has to pull the rhythm down with it. As fine as a minute, so a
+    /// short session can still be nudged more than once.
     var tickEveryRange: ClosedRange<Double> {
-        let top = isFree ? 60.0 : max(5, (minutes - 5).rounded())
-        return 5...max(top, 5)
+        let top = isFree ? 60.0 : max(1, (minutes - 5).rounded())
+        return 1...max(top, 1)
     }
 }
 
-/// The screen a category collapses into: the ring becomes a clock face, one lap of it an hour, and
-/// the crown sets how much of it this session gets. The middle carries the answer and the button
-/// that acts on it, so the whole decision is one screen with nothing to scroll.
-struct DurationDialView: View {
-    @Bindable var planner: TrackingPlanner
-    let onStart: (TrackingPlan) -> Void
+/// The clock face shared by the duration dial and a running session: rim marks for scale, one lap
+/// of arc per hour so a length reads as stacked layers rather than a line that has quietly wrapped
+/// around, and — while a rhythm is being set or shown — marks crossing the band itself rather than
+/// floating outside it, the way the system's own sleep dial marks time directly on its arc.
+struct RingFace: View {
+    let color: Color
+    /// The length being drawn, in minutes — dialled while setting up, elapsed while running.
+    let minutes: Double
+    /// An open-ended length draws no laps at all; there is nothing yet to measure it against.
+    let isFree: Bool
+    /// Where nudges fall, as fractions of a lap.
+    let tickTurns: [Double]
 
-    /// How many minutes one lap of the dial is worth.
-    private static let lap = 60.0
-
-    /// The steps the dial is marked in, and the longer marks that make it countable at a glance.
+    static let lap = 60.0
     private static let tickStep = 5.0
     private static let majorTickStep = 15.0
 
-    @FocusState private var crownFocused: Bool
-
-    private var color: Color { Color(hex: planner.category.color) }
-
     var body: some View {
-        ZStack {
-            marks
-            arcs
-        }
-        // The middle is laid out inside the ring rather than beside it, so what it holds can never
-        // push the dial itself smaller.
-        .overlay { centre }
-        // The crown drives whichever value the ticks button has pointed it at; the view is rebuilt
-        // per mode so each one brings its own range and step with it.
-        .modifier(CrownControl(planner: planner, focused: $crownFocused))
-        .onAppear { crownFocused = true }
-    }
-
-    // MARK: - The face
-
-    /// Five minutes to a mark, a quarter of an hour to a long one. They sit inside the ring so the
-    /// arc stays the outermost thing on screen and the dial still reads as one object.
-    private var marks: some View {
         GeometryReader { proxy in
             let size = min(proxy.size.width, proxy.size.height)
             // The marks give way to the laps a long session stacks under the ring, so the two never
             // have to share a radius.
+            let lapDepth = CGFloat(max(laps.count - 1, 0)) * 7
             let outer = size / 2 - WheelMetrics.ringInset - WheelMetrics.dialThickness - 3 - lapDepth
+            let bandMid = size / 2 - WheelMetrics.ringInset - WheelMetrics.dialThickness / 2
 
             ZStack {
-                ForEach(Array(stride(from: 0.0, to: Self.lap, by: Self.tickStep)), id: \.self) { minute in
-                    let major = minute.truncatingRemainder(dividingBy: Self.majorTickStep) == 0
-                    Capsule()
-                        .fill(Color.white.opacity(major ? 0.5 : 0.25))
-                        .frame(width: major ? 2 : 1.5, height: major ? 7 : 4)
-                        .offset(y: -(outer - (major ? 3.5 : 2)))
-                        .rotationEffect(.degrees(minute / Self.lap * 360))
+                marks(outer: outer)
+                arcs
+                if !tickTurns.isEmpty {
+                    tickMarks(radius: bandMid)
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+            .animation(.easeOut(duration: 0.16), value: minutes)
         }
         .aspectRatio(1, contentMode: .fit)
+    }
+
+    /// Five minutes to a mark, a quarter of an hour to a long one.
+    private func marks(outer: CGFloat) -> some View {
+        ZStack {
+            ForEach(Array(stride(from: 0.0, to: Self.lap, by: Self.tickStep)), id: \.self) { minute in
+                let major = minute.truncatingRemainder(dividingBy: Self.majorTickStep) == 0
+                Capsule()
+                    .fill(Color.white.opacity(major ? 0.5 : 0.25))
+                    .frame(width: major ? 2 : 1.5, height: major ? 7 : 4)
+                    .offset(y: -(outer - (major ? 3.5 : 2)))
+                    .rotationEffect(.degrees(minute / Self.lap * 360))
+            }
+        }
     }
 
     /// The length itself. The first hour is the ring; every hour after it is another lap drawn
-    /// inside the one before, thinner and darker, so a long session reads as layers rather than as
-    /// an arc that has quietly wrapped around and started lying.
+    /// inside the one before, thinner and darker, so a long length reads as layers rather than as
+    /// an arc that has quietly wrapped around and started lying. Never gapped — a lap has no
+    /// neighbour to be kept apart from, and a full lap must read as one unbroken circle.
     private var arcs: some View {
-        GeometryReader { proxy in
-            ZStack {
-                ForEach(laps, id: \.index) { lap in
-                    Band(
-                        start: .zero,
-                        sweep: .degrees(lap.turn * 360),
-                        inset: lap.inset,
-                        thickness: lap.thickness
-                    )
-                    .fill(color.opacity(lap.opacity))
-                }
-
-                if planner.mode != .duration {
-                    ForEach(tickTurns, id: \.self) { turn in
-                        Circle()
-                            .fill(Color.white.opacity(0.9))
-                            .frame(width: 3, height: 3)
-                            .offset(y: -(min(proxy.size.width, proxy.size.height) / 2
-                                - WheelMetrics.ringInset - WheelMetrics.dialThickness / 2))
-                            .rotationEffect(.degrees(turn * 360))
-                    }
-                }
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-            .animation(.easeOut(duration: 0.16), value: planner.minutes)
+        ForEach(laps, id: \.index) { lap in
+            Band(start: .zero, sweep: .degrees(lap.turn * 360), inset: lap.inset, thickness: lap.thickness, gapped: false)
+                .fill(color.opacity(lap.opacity))
         }
-        .aspectRatio(1, contentMode: .fit)
     }
 
-    /// One entry per hour the session runs for. The first is the ring itself; the rest are thinner,
+    /// The rhythm, drawn straight across the band rather than as a dot floating outside it.
+    private func tickMarks(radius: CGFloat) -> some View {
+        ForEach(tickTurns, id: \.self) { turn in
+            Capsule()
+                .fill(Color.black.opacity(0.55))
+                .frame(width: 2, height: WheelMetrics.dialThickness + 3)
+                .offset(y: -radius)
+                .rotationEffect(.degrees(turn * 360))
+        }
+    }
+
+    /// One entry per hour the length runs for. The first is the ring itself; the rest are thinner,
     /// darker laps stacked inside the marks, each obviously a layer above the last rather than more
     /// of the same arc.
     private var laps: [(index: Int, turn: Double, inset: CGFloat, thickness: CGFloat, opacity: Double)] {
-        guard !planner.isFree else { return [] }
-        let minutes = planner.minutes.rounded()
+        guard !isFree else { return [] }
+        let minutes = self.minutes.rounded()
         let full = Int(minutes / Self.lap)
         let remainder = minutes.truncatingRemainder(dividingBy: Self.lap) / Self.lap
 
@@ -240,26 +225,37 @@ struct DurationDialView: View {
             return (index, turn, inset, 4.5, max(0.75 - Double(index - 1) * 0.15, 0.35))
         }
     }
+}
 
-    /// How far the extra laps reach in from under the ring, which is how much room the marks lose.
-    private var lapDepth: CGFloat {
-        CGFloat(max(laps.count - 1, 0)) * 7
-    }
+/// The screen a category collapses into: the ring becomes a clock face, one lap of it an hour, and
+/// the crown sets how much of it this session gets. The ring is drawn a fifth larger than the space
+/// it is given, bleeding past its own edge the way a watch face's dial usually does; the length sits
+/// in the hole at its middle, and the category and the button that starts it sit below the ring
+/// rather than crowded into that same hole.
+struct DurationDialView: View {
+    @Bindable var planner: TrackingPlanner
+    let onStart: (TrackingPlan) -> Void
 
-    /// Where the nudges fall, as fractions of a lap, so they can be seen sitting on the arc while
-    /// the rhythm is being set.
-    private var tickTurns: [Double] {
-        planner.plan.tickOffsets.map { $0 / 60 / Self.lap }
+    /// How much bigger than the space it is offered the ring draws itself.
+    private static let overscale: CGFloat = 1.2
+
+    @FocusState private var crownFocused: Bool
+
+    private var color: Color { Color(hex: planner.category.color) }
+
+    var body: some View {
+        RingFace(color: color, minutes: planner.minutes, isFree: planner.isFree, tickTurns: tickTurns)
+            .scaleEffect(Self.overscale)
+            .overlay { lengthReadout }
+            .overlay(alignment: .bottom) { bottomControls }
+            .modifier(CrownControl(planner: planner, focused: $crownFocused))
+            .onAppear { crownFocused = true }
     }
 
     // MARK: - The middle
 
-    private var centre: some View {
-        VStack(spacing: 0) {
-            Image(systemName: Icons.symbol(for: planner.category.icon))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(color)
-
+    private var lengthReadout: some View {
+        VStack(spacing: 2) {
             Text(lengthText)
                 .font(.system(size: 25, weight: .semibold, design: .rounded))
                 .monospacedDigit()
@@ -276,28 +272,48 @@ struct DurationDialView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-
-            Button {
-                onStart(planner.plan)
-            } label: {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(width: 42, height: 22)
-                    .background(color, in: Capsule())
-            }
-            // The bordered styles bring padding of their own, which is more than the hole in the
-            // middle of the dial has to give.
-            .buttonStyle(.plain)
-            .padding(.top, 3)
         }
         // Everything here has to live inside the hole in the middle of the ring, which is what this
         // inset is measuring out — the ring's thickness plus the room its marks take.
         .padding(WheelMetrics.ringInset + WheelMetrics.dialThickness + 12)
     }
 
+    // MARK: - Below the ring
+
+    private var bottomControls: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 4) {
+                Image(systemName: Icons.symbol(for: planner.category.icon))
+                    .font(.system(size: 11, weight: .semibold))
+                Text(planner.category.name)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(color)
+
+            Button {
+                onStart(planner.plan)
+            } label: {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(width: 48, height: 25)
+                    .background(color, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.bottom, 2)
+    }
+
+    private var tickTurns: [Double] {
+        planner.plan.tickOffsets.map { $0 / 60 / RingFace.lap }
+    }
+
     private var lengthText: String {
-        guard !planner.isFree else { return "Free" }
+        // An open-ended length has no number to show — the infinity sign says the same thing a
+        // clock face can't: there is nothing here to count down.
+        guard !planner.isFree else { return "∞" }
         let minutes = Int(planner.minutes.rounded())
         guard minutes >= 60 else { return "\(minutes)m" }
         let rest = minutes % 60
@@ -337,8 +353,8 @@ private struct CrownControl: ViewModifier {
                     $planner.tickEvery,
                     from: planner.tickEveryRange.lowerBound,
                     through: planner.tickEveryRange.upperBound,
-                    by: 5,
-                    sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
+                    by: 1,
+                    sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true
                 )
             case .tickParts:
                 focusable(content).digitalCrownRotation(

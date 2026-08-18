@@ -111,7 +111,7 @@ struct ContentView: View {
     private var screen: some View {
         VStack(spacing: 0) {
             if let active = sessions.active {
-                ActiveSessionView(
+                RunningSessionView(
                     session: active,
                     isBusy: sessions.isBusy,
                     onFinish: { Task { await sessions.stop() } },

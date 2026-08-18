@@ -271,6 +271,11 @@ struct Band: Shape {
     var sweep: Angle
     var inset: CGFloat
     var thickness: CGFloat
+    /// Whether a sliver is trimmed off both ends to keep this band apart from a neighbour. A lap
+    /// with no neighbour — the duration dial's arc, a running session's elapsed ring — turns this
+    /// off, since a full sweep trimmed by a gap on both ends is a circle with a seam in it rather
+    /// than the unbroken one it is meant to be.
+    var gapped: Bool = true
 
     var animatableData: AnimatablePair<AnimatablePair<Double, Double>, AnimatablePair<CGFloat, CGFloat>> {
         get { .init(.init(start.radians, sweep.radians), .init(inset, thickness)) }
@@ -289,7 +294,7 @@ struct Band: Shape {
 
         // The gap keeps neighbouring bands apart, but a sliver of a segment must not be eaten
         // entirely by it, so it never takes more than two thirds of the sweep.
-        let gap = min(WheelMetrics.gap.radians, sweep.radians * 0.66)
+        let gap = gapped ? min(WheelMetrics.gap.radians, sweep.radians * 0.66) : 0
         let from = Angle.radians(start.radians + gap / 2 - .pi / 2)
         let to = Angle.radians(start.radians + sweep.radians - gap / 2 - .pi / 2)
 
