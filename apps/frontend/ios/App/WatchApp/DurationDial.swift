@@ -308,10 +308,20 @@ struct DurationDialView: View {
 
     @FocusState private var crownFocused: Bool
 
+    /// The arc is not there when the dial arrives — it sweeps out once the week's ring has finished
+    /// opening into the lap it is drawn on, so the two arcs read as one move rather than as a length
+    /// that was already decided before the ring got there.
+    @State private var arcShown = false
+
     private var color: Color { Color(hex: planner.category.color) }
 
     var body: some View {
-        RingFace(color: color, minutes: planner.minutes, isFree: planner.isFree, tickTurns: tickTurns)
+        RingFace(
+            color: color,
+            minutes: arcShown ? planner.minutes : 0,
+            isFree: planner.isFree,
+            tickTurns: arcShown ? tickTurns : [],
+        )
             .overlay {
                 DialReadout(
                     tint: color,
@@ -325,7 +335,10 @@ struct DurationDialView: View {
                 )
             }
             .modifier(CrownControl(planner: planner, focused: $crownFocused))
-            .onAppear { crownFocused = true }
+            .onAppear {
+                crownFocused = true
+                withAnimation(.easeOut(duration: 0.3).delay(0.16)) { arcShown = true }
+            }
     }
 
     private var tickTurns: [Double] {
