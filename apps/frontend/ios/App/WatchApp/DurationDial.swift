@@ -136,11 +136,9 @@ final class TrackingPlanner {
 /// scale of marks tucked just inside the band and — while a rhythm is being set or shown — marks
 /// crossing the band itself, the way the system's own sleep dial marks time directly on its arc.
 ///
-/// It draws no arc of its own for the first hour, and no track. Both of those are the week's ring:
-/// the sector that was chosen fills to the brim and opens out into exactly the arc a session is
-/// dialled on, so there is one ring on this screen, not a track with somebody else's arc laid over
-/// it. What is left here is the scale that arc is read against, the extra laps an hour-plus session
-/// stacks up inside it, and the marks a rhythm puts across it.
+/// This is the whole of the session's ring — its track, its arc, the scale the arc is read against
+/// and the marks a rhythm puts across it. The week's ring is a separate view and a separate thing:
+/// it steps out of the way as this one arrives rather than trying to become it.
 struct RingFace: View {
     let color: Color
     /// The length being drawn, in minutes — dialled while setting up, elapsed while running.
@@ -175,6 +173,15 @@ struct RingFace: View {
             let bandMid = size / 2 - WheelMetrics.ringInset - WheelMetrics.dialThickness / 2
 
             ZStack {
+                Band(
+                    start: .zero,
+                    sweep: .degrees(360),
+                    inset: WheelMetrics.ringInset,
+                    thickness: WheelMetrics.dialThickness,
+                    gap: .zero
+                )
+                .fill(color.opacity(0.18))
+
                 if !isFree {
                     marks(outer: size / 2 - Self.bandInner - 3)
                 }
@@ -226,19 +233,21 @@ struct RingFace: View {
         }
     }
 
-    /// One entry per hour past the first. The first hour is the ring itself, which the week's
-    /// sectors opened out into; the rest are thinner, darker laps stacked inside the scale, each
-    /// obviously a layer above the last rather than more of the same arc.
+    /// One entry per hour the length runs for. The first is the ring itself; the rest are thinner,
+    /// darker laps stacked inside the scale, each obviously a layer above the last rather than more
+    /// of the same arc.
     private var laps: [(index: Int, turn: Double, inset: CGFloat, thickness: CGFloat, opacity: Double)] {
         guard !isFree else { return [] }
         let minutes = self.minutes.rounded()
         let full = Int(minutes / Self.lap)
         let remainder = minutes.truncatingRemainder(dividingBy: Self.lap) / Self.lap
 
-        return (1...max(full, 1)).compactMap { index in
-            guard index <= full else { return nil }
+        return (0...full).compactMap { index in
             let turn = index < full ? 1 : remainder
             guard turn > 0 else { return nil }
+            guard index > 0 else {
+                return (0, turn, WheelMetrics.ringInset, WheelMetrics.dialThickness, 0.95)
+            }
             let inset = Self.bandInner + 3 + Self.scaleDepth + CGFloat(index - 1) * 6
             return (index, turn, inset, 3.5, max(0.7 - Double(index - 1) * 0.15, 0.3))
         }

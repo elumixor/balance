@@ -197,30 +197,28 @@ struct ContentView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             } else {
-                CategoryWheel(
-                    model: wheel,
-                    chosenIndex: chosenIndex,
-                    lapTurn: lapTurn(now: now, active: active),
-                    glyphs: glyphs
-                )
-                .opacity(phase == .running && chosenIndex == nil ? 0 : 1)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            if !wheel.isPressing { wheel.began(at: value.startLocation) }
-                            wheel.moved(to: value.location)
-                        }
-                        .onEnded { _ in choose() }
-                )
-                // The ring stops being a picker the moment it becomes a dial — the crown takes
-                // over, and a stray touch must not start a second choice on top of the first.
-                .allowsHitTesting(phase == .idle)
+                CategoryWheel(model: wheel, chosenIndex: ringLeaving ? (chosenIndex ?? 0) : nil, glyphs: glyphs)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                if !wheel.isPressing { wheel.began(at: value.startLocation) }
+                                wheel.moved(to: value.location)
+                            }
+                            .onEnded { _ in choose() }
+                    )
+                    // The ring stops being a picker the moment it becomes a dial — the crown takes
+                    // over, and a stray touch must not start a second choice on top of the first.
+                    .allowsHitTesting(phase == .idle)
 
+                // The session's ring arrives from behind the week's, which is on its way out towards
+                // the viewer. They cross rather than one becoming the other.
                 if let planner {
                     DurationDialView(planner: planner, glyphs: glyphs)
+                        .transition(sessionRing)
                 } else if let active {
                     RunningSessionView(session: active, now: now, glyphs: glyphs)
+                        .transition(sessionRing)
                 }
 
                 // The readout follows the finger rather than sitting in a fixed band, so it never
@@ -236,17 +234,12 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// How far round the lap the chosen sector opens: the length being dialled, or how much of the
-    /// current hour a running session has used. The ring draws this itself — it is the same sector
-    /// that was picked off the week, opened out — so nothing else on the screen draws an arc.
-    private func lapTurn(now: Date, active: ActiveSession?) -> Double? {
-        if let planner {
-            guard !planner.isFree else { return 1 }
-            return min(planner.minutes / RingFace.lap, 1)
-        }
-        guard let active else { return nil }
-        let elapsed = max(now.timeIntervalSince(active.startedAt), 0) / 60
-        return min(elapsed / RingFace.lap, 1)
+    /// Whether the week's ring is on its way out. It stays mounted while it leaves so the glyph it
+    /// is handing over can be lifted out of it and flown to the label instead of fading with it.
+    private var ringLeaving: Bool { phase != .idle }
+
+    private var sessionRing: AnyTransition {
+        .scale(scale: WheelMetrics.enterScale).combined(with: .opacity)
     }
 
     /// How far above the finger the readout floats, as a multiple of how far the finger has already
