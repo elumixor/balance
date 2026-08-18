@@ -51,10 +51,24 @@ struct CalendarSettingsView: View {
                     }
                 }
             }
+
+            Section {
+                Text(Self.versionLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+            }
         }
         .navigationTitle("Write to")
         .task { await load() }
         .refreshable { await load() }
+    }
+
+    private static var versionLabel: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "v\(version) (\(build))"
     }
 
     private func row(_ calendar: CalendarRef, disabled: Bool) -> some View {
