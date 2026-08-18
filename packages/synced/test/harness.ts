@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Envelope, Identified, SyncRequest, SyncResponse } from "../src/protocol";
-import { type MutationLog, RejectedError, SyncServer, type SyncedStore, syncedModel } from "../src/server";
+import { action, type MutationLog, RejectedError, type SyncedStore, SyncServer, syncedModel } from "../src/server";
 
 export const noteSchema = z.object({
   id: z.string(),
@@ -90,13 +90,10 @@ export function makeServer() {
     store,
     writable: (note) => note.title !== "system",
     actions: {
-      pin: {
-        payload: z.object({ pinned: z.boolean() }),
-        async run(userId, id, payload) {
-          pinCounts.set(id, (pinCounts.get(id) ?? 0) + 1);
-          return store.update(userId, id, { pinned: payload.pinned });
-        },
-      },
+      pin: action(z.object({ pinned: z.boolean() }), async (userId, id, payload) => {
+        pinCounts.set(id, (pinCounts.get(id) ?? 0) + 1);
+        return store.update(userId, id, { pinned: payload.pinned });
+      }),
     },
   });
   return { store, log, server: new SyncServer([notes], log) };
@@ -133,14 +130,11 @@ export function makeRuntime() {
     newId: () => `id-${++next}`,
     random: () => 0.5,
     schedule: (run: () => void, ms: number) => void timers.push({ run, ms }),
-    /** Runs everything scheduled so far, including anything those runs schedule in turn. */
+    /** Runs what is scheduled right now — one generation, so a retry loop can be watched step by step. */
     async settle() {
-      for (let guard = 0; guard < 50 && timers.length > 0; guard++) {
-        const due = timers.splice(0, timers.length);
-        for (const timer of due) timer.run();
-        await Promise.resolve();
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
+      const due = timers.splice(0, timers.length);
+      for (const timer of due) timer.run();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     },
     delays: () => timers.map((timer) => timer.ms),
   };

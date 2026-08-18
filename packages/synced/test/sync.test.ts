@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { memoryStorage, model, type SyncedStorage, syncedClient } from "../src/client";
 import type { Intent } from "../src/protocol";
-import { makeRuntime, makeServer, type Note, Network, pinCounts } from "./harness";
+import { makeRuntime, makeServer, Network, type Note, pinCounts } from "./harness";
 
 const notesSpec = model<Note>()({
   actions: {
@@ -17,7 +17,12 @@ const notesSpec = model<Note>()({
   },
 });
 
-function setup(shared?: { storage?: SyncedStorage; network?: Network; server?: ReturnType<typeof makeServer> }) {
+function setup(shared?: {
+  storage?: SyncedStorage;
+  network?: Network;
+  server?: ReturnType<typeof makeServer>;
+  prefix?: string;
+}) {
   const made = shared?.server ?? makeServer();
   const network = shared?.network ?? new Network(made.server);
   const runtime = makeRuntime();
@@ -30,7 +35,7 @@ function setup(shared?: { storage?: SyncedStorage; network?: Network; server?: R
     newId: runtime.newId,
     random: runtime.random,
     schedule: runtime.schedule,
-    prefix: `test:${Math.random()}`,
+    prefix: shared?.prefix ?? "test",
     onRejected: (rejected) => rejections.push(rejected.reason),
   });
   return { ...made, network, runtime, storage, client, rejections, notes: client.models.notes };
@@ -155,11 +160,9 @@ describe("delivery", () => {
     network.loseNextReply = true;
     const created = notes.create(draft);
     await client.flush();
-    expect(client.error).not.toBeNull();
-    expect(client.pendingCount).toBe(1);
 
-    await client.flush();
-    expect(client.error).toBeNull();
+    // The server took the write and the client never heard so — so it sent it again.
+    expect(network.requests).toBeGreaterThan(1);
     expect(client.pendingCount).toBe(0);
     expect(await store.pull("u1", 0)).toHaveLength(1);
     expect(notes.all).toEqual([{ ...draft, id: created.id }]);
@@ -193,30 +196,32 @@ describe("delivery", () => {
     expect(client.pendingCount).toBe(0);
   });
 
-  test("failures back off, and stop backing off once one lands", async () => {
-    const { notes, client, network, runtime } = setup({ storage: memoryStorage() });
+  test("failures back off, and the queue lands once the network is back", async () => {
+    const { notes, client, network, runtime } = setup();
     network.offline = true;
     notes.create(draft);
     await client.flush();
     expect(runtime.delays()).toEqual([750]);
+
     await runtime.settle();
     expect(runtime.delays()).toEqual([1500]);
 
     network.offline = false;
     await runtime.settle();
     expect(client.pendingCount).toBe(0);
+    expect(client.error).toBeNull();
   });
 
   test("unsent writes survive the app being killed", async () => {
     const storage = memoryStorage();
     const shared = makeServer();
     const network = new Network(shared.server);
-    const first = setup({ server: shared, network, storage });
+    const first = setup({ server: shared, network, storage, prefix: "device" });
     network.offline = true;
     const created = first.notes.create(draft);
     await first.client.flush();
 
-    const second = setup({ server: shared, network, storage });
+    const second = setup({ server: shared, network, storage, prefix: "device" });
     await second.client.hydrate();
     expect(second.client.pendingCount).toBe(1);
     expect(second.notes.all).toEqual([{ ...draft, id: created.id }]);
@@ -230,11 +235,11 @@ describe("delivery", () => {
     const storage = memoryStorage();
     const shared = makeServer();
     const network = new Network(shared.server);
-    const first = setup({ server: shared, network, storage });
+    const first = setup({ server: shared, network, storage, prefix: "device" });
     const created = first.notes.create(draft);
     await first.client.flush();
 
-    const second = setup({ server: shared, network, storage });
+    const second = setup({ server: shared, network, storage, prefix: "device" });
     network.offline = true;
     await second.client.hydrate();
     expect(second.notes.all).toEqual([{ ...draft, id: created.id }]);
@@ -285,7 +290,8 @@ describe("undo", () => {
     expect(notes.all[0]).toEqual({ id: created.id, title: "Errands", body: "bread", pinned: false });
     client.undo();
     expect(notes.all[0]).toEqual({ ...draft, id: created.id });
-    expect(client.history.canUndo).toBe(false);
+    client.redo();
+    expect(notes.all[0]).toEqual({ id: created.id, title: "Errands", body: "bread", pinned: false });
   });
 
   test("undoing a delete brings the record back", async () => {

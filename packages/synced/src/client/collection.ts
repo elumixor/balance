@@ -15,10 +15,15 @@ export interface ActionSpec<T extends Identified, P> {
 
 export type ActionMap<T extends Identified> = Readonly<Record<string, ActionSpec<T, never>>>;
 
-export type PayloadOf<S> = S extends ActionSpec<Identified, infer P> ? P : never;
+/** The payload one action takes, read back off the spec the screens were typed against. */
+export type PayloadOf<S> = S extends { optimistic: (record: never, payload: infer P) => unknown }
+  ? P
+  : S extends { invert: (record: never, payload: infer P) => unknown }
+    ? P
+    : unknown;
 
 /** How a model's records are ordered on screen, and what can be done to one. */
-export interface ModelSpec<T extends Identified, A extends ActionMap<T> = ActionMap<T>> {
+export interface ModelSpec<T extends Identified, A = ActionMap<T>> {
   /** Server order — the order the pull returned — by default. */
   compare?(a: T, b: T): number;
   readonly actions?: A;
@@ -26,12 +31,22 @@ export interface ModelSpec<T extends Identified, A extends ActionMap<T> = Action
   readonly record?: T;
 }
 
-/** Any model's spec, for the code that holds every model at once and cares about none of them. */
-export type AnyModelSpec = ModelSpec<Identified, ActionMap<Identified>>;
+/**
+ * Any model's spec, for the code that holds every model at once and cares about none of them.
+ * Written structurally rather than as `ModelSpec<Identified>`: a spec for a real record type is
+ * not assignable to a spec for the bare identity, and this only ever needs to be a constraint.
+ */
+export interface AnyModelSpec {
+  compare?: (a: never, b: never) => number;
+  readonly actions?: Readonly<
+    Record<string, { optimistic?: (...args: never[]) => object; invert?: (...args: never[]) => Intent | null }>
+  >;
+  readonly record?: Identified;
+}
 
 export type RecordOf<S> = S extends { readonly record?: infer T } ? (T extends Identified ? T : never) : never;
 
-export type ActionsOf<S> = S extends { readonly actions?: infer A } ? (A extends ActionMap<never> ? A : never) : never;
+export type ActionsOf<S> = S extends { readonly actions?: infer A } ? A : never;
 
 /**
  * Names a model's record type, and infers its actions' payload types from the same object the
@@ -84,7 +99,7 @@ export interface CollectionSnapshot<T extends Identified> {
  * never overwrite an edit, because the edit is re-applied after the response lands, and a write
  * the server refuses simply stops being replayed, so the row snaps back to the truth on its own.
  */
-export class SyncedCollection<T extends Identified, A extends ActionMap<T> = ActionMap<T>> {
+export class SyncedCollection<T extends Identified, A = ActionMap<T>> {
   readonly #confirmed = new Map<string, Envelope<T>>();
   readonly #view;
   #since = 0;
@@ -149,7 +164,7 @@ export class SyncedCollection<T extends Identified, A extends ActionMap<T> = Act
   /** Runs one of the model's server-owned writes, drawn immediately as the spec says to. */
   act<K extends keyof A & string>(name: K, id: string, payload: PayloadOf<A[K]>) {
     this.require(id);
-    if (!this.spec.actions?.[name]) throw new UnknownActionError(this.name, name);
+    if (!this.#actions[name]) throw new UnknownActionError(this.name, name);
     this.host.apply({ kind: "action", model: this.name, id, name, payload });
   }
 
@@ -169,7 +184,7 @@ export class SyncedCollection<T extends Identified, A extends ActionMap<T> = Act
         return { kind: "update", model: this.name, id: intent.id, patch };
       }
       case "action": {
-        const spec = this.spec.actions?.[intent.name];
+        const spec = this.#actions[intent.name];
         if (!current || !spec?.invert) return null;
         return spec.invert(current, intent.payload as never);
       }
@@ -221,7 +236,7 @@ export class SyncedCollection<T extends Identified, A extends ActionMap<T> = Act
       else if (!current) continue;
       else if (intent.kind === "update") records.set(intent.id, { ...current, ...(intent.patch as Partial<T>) });
       else {
-        const optimistic = this.spec.actions?.[intent.name]?.optimistic;
+        const optimistic = this.#actions[intent.name]?.optimistic;
         if (optimistic) records.set(intent.id, { ...current, ...optimistic(current, intent.payload as never) });
       }
     }
@@ -231,5 +246,9 @@ export class SyncedCollection<T extends Identified, A extends ActionMap<T> = Act
 
   #find(id: string) {
     return this.#view.value.find((record) => record.id === id);
+  }
+
+  get #actions(): ActionMap<T> {
+    return (this.spec.actions ?? {}) as ActionMap<T>;
   }
 }

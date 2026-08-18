@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Envelope, Mutation, RejectedMutation, SyncRequest, SyncResponse } from "../protocol";
-import { RejectedError, type SyncedModel } from "./model";
+import { type AnySyncedModel, RejectedError } from "./model";
 
 /**
  * Which writes this server has already carried out.
@@ -19,8 +19,20 @@ export const syncRequestSchema = z.object({
   since: z.record(z.string(), z.number()),
   mutations: z.array(
     z.discriminatedUnion("kind", [
-      z.object({ kind: z.literal("create"), mutationId: z.string(), model: z.string(), id: z.string(), data: z.looseObject({}) }),
-      z.object({ kind: z.literal("update"), mutationId: z.string(), model: z.string(), id: z.string(), patch: z.looseObject({}) }),
+      z.object({
+        kind: z.literal("create"),
+        mutationId: z.string(),
+        model: z.string(),
+        id: z.string(),
+        data: z.looseObject({}),
+      }),
+      z.object({
+        kind: z.literal("update"),
+        mutationId: z.string(),
+        model: z.string(),
+        id: z.string(),
+        patch: z.looseObject({}),
+      }),
       z.object({ kind: z.literal("delete"), mutationId: z.string(), model: z.string(), id: z.string() }),
       z.object({
         kind: z.literal("action"),
@@ -44,10 +56,13 @@ export const syncRequestSchema = z.object({
  * fails, and the client tries again with the queue intact.
  */
 export class SyncServer {
-  readonly #models: ReadonlyMap<string, SyncedModel>;
+  readonly #models: ReadonlyMap<string, AnySyncedModel>;
 
-  constructor(models: readonly SyncedModel[], private readonly log: MutationLog) {
-    this.#models = new Map(models.map((model) => [model.name, model as SyncedModel]));
+  constructor(
+    models: readonly AnySyncedModel[],
+    private readonly log: MutationLog,
+  ) {
+    this.#models = new Map(models.map((model) => [model.name, model]));
   }
 
   async handle(userId: string, request: SyncRequest): Promise<SyncResponse> {

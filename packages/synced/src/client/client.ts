@@ -5,6 +5,7 @@ import {
   type AnyModelSpec,
   type CollectionHost,
   type CollectionSnapshot,
+  type ModelSpec,
   type RecordOf,
   SyncedCollection,
 } from "./collection";
@@ -23,6 +24,9 @@ export type Collections<S extends ModelSpecs> = {
 
 /** The collections seen from inside, where one model is much like another. */
 type AnyCollection = SyncedCollection<Identified, ActionMap<Identified>>;
+
+/** The record types are erased here and put back by `Collections<S>` on the way out. */
+type ErasedSpec = ModelSpec<Identified, ActionMap<Identified>>;
 
 export interface RetryOptions {
   /** How long to wait after the first failed round trip; doubles from there. */
@@ -108,7 +112,7 @@ export class SyncedClient<S extends ModelSpecs> {
     };
     const collections: Record<string, AnyCollection> = {};
     for (const name of this.#names) {
-      collections[name] = new SyncedCollection(name, options.models[name], host, signals);
+      collections[name] = new SyncedCollection(name, options.models[name] as ErasedSpec, host, signals);
     }
     this.#collections = collections;
     this.models = collections as unknown as Collections<S>;
@@ -186,12 +190,17 @@ export class SyncedClient<S extends ModelSpecs> {
     return this.#inflight;
   }
 
-  /** Rounds until the queue is empty or one fails. For a screen closing on an unsent edit. */
+  /**
+   * Rounds until the queue is empty or one makes no progress. For a screen closing on an unsent
+   * edit, and for tests. A round already in flight is waited out first rather than joined: it was
+   * built before this call, so it may not carry what the caller is waiting for.
+   */
   async flush() {
     while (this.#queue.length > 0) {
+      if (this.#inflight) await this.#inflight;
       const before = this.#queue.length;
       await this.sync();
-      if (this.#error.value !== null || this.#queue.length >= before) return;
+      if (this.#queue.length >= before) return;
     }
   }
 
@@ -307,7 +316,9 @@ export class SyncedClient<S extends ModelSpecs> {
 
   async #hydrateAsync() {
     const stored = await Promise.all(this.#names.map((name) => this.#storage.read(this.#modelKey(name))));
-    this.#names.forEach((name, i) => this.#restoreModel(name, stored[i] ?? null));
+    this.#names.forEach((name, i) => {
+      this.#restoreModel(name, stored[i] ?? null);
+    });
     this.#restoreQueue(await this.#storage.read(this.#queueKey));
     this.#refresh();
   }
