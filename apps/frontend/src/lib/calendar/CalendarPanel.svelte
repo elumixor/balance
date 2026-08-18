@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { store } from "$lib/store.svelte";
+  import { categories } from "$lib/synced.svelte";
   import { calendarData } from "./calendar-data.svelte";
   import CalendarsSection from "./CalendarsSection.svelte";
   import MonthGrid from "./MonthGrid.svelte";
@@ -13,7 +13,7 @@
    */
   const data = calendarData;
 
-  const categories = $derived(store.categories.value ?? []);
+  const plan = $derived(categories.all);
 </script>
 
 <div class="space-y-5">
@@ -25,7 +25,7 @@
 
   {#if data.connected}
     <section>
-      <WeekMeters events={data.eventsForTotals} {categories} weekStart={data.weekStart} />
+      <WeekMeters events={data.eventsForTotals} categories={plan} weekStart={data.weekStart} />
     </section>
   {/if}
 

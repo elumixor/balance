@@ -9,8 +9,8 @@
   import Screen from "$lib/components/Screen.svelte";
   import SectionHeader from "$lib/components/SectionHeader.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
-  import { AUTOSAVE_DELAY_MS, categoryDrafts as week, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
-  import { planHistory } from "$lib/week/plan-history.svelte";
+  import { synced } from "$lib/synced.svelte";
+  import { categoryDrafts as week, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
   import PlanDial from "$lib/week/PlanDial.svelte";
 
   /**
@@ -30,19 +30,6 @@
   const claimedHours = $derived(WEEK_HOURS - week.restHours);
   const claimedPercent = $derived(Math.round((claimedHours / WEEK_HOURS) * 100));
 
-  // Changes save themselves a moment after you stop moving things.
-  $effect(() => {
-    if (!week.savable) return;
-    const timeout = setTimeout(() => void week.flush(), AUTOSAVE_DELAY_MS);
-    return () => clearTimeout(timeout);
-  });
-
-  $effect(() => {
-    if (!activities.savable) return;
-    const timeout = setTimeout(() => void activities.flush(), AUTOSAVE_DELAY_MS);
-    return () => clearTimeout(timeout);
-  });
-
   /** ⌘Z takes back the last edit here — a category cut, renamed or removed, an activity's split. */
   function onkeydown(e: KeyboardEvent) {
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
@@ -54,17 +41,17 @@
     if (target?.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
 
     e.preventDefault();
-    if (redo) planHistory.redo();
-    else planHistory.undo();
+    if (redo) synced.redo();
+    else synced.undo();
   }
 </script>
 
 <svelte:window {onkeydown} />
 
 <Screen title="Planning" wide>
-  {#if week.loadError && !week.categories}
+  {#if week.loadError && !week.ready}
     <LoadError message={week.loadError} onretry={week.load} />
-  {:else if !week.categories}
+  {:else if !week.ready}
     <div class="flex flex-col items-center gap-4">
       <Skeleton width={232} height={232} radius={116} />
       <Skeleton width="80%" height={16} />

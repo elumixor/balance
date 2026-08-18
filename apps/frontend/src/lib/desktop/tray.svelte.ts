@@ -12,7 +12,7 @@ import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
 import { report } from "./report";
-import { trayIcons, type RasterIcon } from "./tray-icons.svelte";
+import { type RasterIcon, trayIcons } from "./tray-icons.svelte";
 
 /** A macOS menu that runs past the bottom of the screen scrolls, which nobody wants. */
 const MAX_ROWS = 16;

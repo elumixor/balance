@@ -102,6 +102,7 @@ export interface CollectionSnapshot<T extends Identified> {
 export class SyncedCollection<T extends Identified, A = ActionMap<T>> {
   readonly #confirmed = new Map<string, Envelope<T>>();
   readonly #view;
+  readonly #ready;
   #since = 0;
 
   constructor(
@@ -111,6 +112,15 @@ export class SyncedCollection<T extends Identified, A = ActionMap<T>> {
     signals: Signals,
   ) {
     this.#view = signals.state<readonly T[]>([]);
+    this.#ready = signals.state(false);
+  }
+
+  /**
+   * Whether these records have been heard about at all — from the server or from the device.
+   * False is what a skeleton is for; an empty list that is `ready` means the user has none.
+   */
+  get ready() {
+    return this.#ready.value;
   }
 
   /** Every live record, in the server's order unless the model asked for another. */
@@ -195,6 +205,7 @@ export class SyncedCollection<T extends Identified, A = ActionMap<T>> {
   absorb(changes: readonly Envelope<T>[], since: number) {
     for (const envelope of changes) this.#confirmed.set(envelope.id, envelope);
     this.#since = Math.max(this.#since, since);
+    this.#ready.value = true;
   }
 
   /** Recomputed by the client whenever the confirmed records or the pending queue move. */
@@ -210,12 +221,14 @@ export class SyncedCollection<T extends Identified, A = ActionMap<T>> {
     this.#confirmed.clear();
     for (const envelope of snapshot.records) this.#confirmed.set(envelope.id, envelope);
     this.#since = snapshot.since;
+    this.#ready.value = true;
   }
 
   clear() {
     this.#confirmed.clear();
     this.#since = 0;
     this.#view.value = [];
+    this.#ready.value = false;
   }
 
   require(id: string) {

@@ -1,7 +1,8 @@
 import { listen } from "@tauri-apps/api/event";
 import type { Cached } from "$lib/cache.svelte";
 import { addDays, DAYS_PER_WEEK, startOfWeek, weekKey } from "$lib/dates";
-import { calendarWeek, invalidate, store } from "$lib/store.svelte";
+import { calendarWeek, invalidate } from "$lib/store.svelte";
+import { categories, synced } from "$lib/synced.svelte";
 import type { CalendarEvent, CalendarWeek, Category } from "$lib/types";
 import { isDesktop } from "./platform";
 
@@ -89,7 +90,7 @@ class DesktopAgenda {
   }
 
   get categories(): Map<string, Category> {
-    return new Map((store.categories.value ?? []).map((category) => [category.id, category]));
+    return new Map(categories.all.map((category) => [category.id, category]));
   }
 
   /**
@@ -105,7 +106,7 @@ class DesktopAgenda {
 
   /** Fetches only what's missing or stale — which on a cold start is both weeks. */
   #ensure() {
-    return Promise.all([store.categories.ensure(), ...this.#weeks.map((week) => week.ensure())]);
+    return Promise.all([synced.ensure(), ...this.#weeks.map((week) => week.ensure())]);
   }
 }
 

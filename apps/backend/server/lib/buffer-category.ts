@@ -48,6 +48,9 @@ export class BufferCategoryService {
 
     const allocated = others.reduce((sum, c) => sum + Number(c.targetHoursPerWeek), 0);
     const remaining = Math.max(0, BufferCategoryService.WEEK_HOURS - allocated);
+    // A write here bumps `updatedAt`, which is what every synced client watches. Recomputing the
+    // same number it already holds is not a change, and must not look like one.
+    if (Number(buffer.targetHoursPerWeek) === remaining) return;
 
     await db.update(categories).set({ targetHoursPerWeek: remaining.toString() }).where(eq(categories.id, buffer.id));
   }

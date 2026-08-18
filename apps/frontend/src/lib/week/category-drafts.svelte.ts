@@ -1,56 +1,28 @@
 import { restColor, swatchPalette } from "$lib/colors";
 import { DEFAULT_ICON, randomIcon } from "$lib/icons";
-import { archiveCategory, createCategory, restoreCategory, updateCategory } from "$lib/queries";
-import { invalidate, store } from "$lib/store.svelte";
+import { invalidate } from "$lib/store.svelte";
+import { categories, synced, syncStatus } from "$lib/synced.svelte";
 import type { Category, RingSegment } from "$lib/types";
-import { planHistory } from "./plan-history.svelte";
-
-/**
- * The rows the shared cache should hold, given what the drafts currently say. A row the server
- * hasn't seen yet stands in under its draft key — an id nothing can be written back to, which is
- * the right shape for something that doesn't exist anywhere else yet.
- */
-function toCategory(draft: Draft): Category {
-  return {
-    id: draft.id ?? draft.key,
-    name: draft.name,
-    color: draft.color,
-    icon: draft.icon,
-    targetHoursPerWeek: draft.hours,
-    isBuffer: false,
-    archived: false,
-  };
-}
 
 export const WEEK_HOURS = 168;
-export const AUTOSAVE_DELAY_MS = 700;
 
+/** One slice of the ring, as the dial and its labels want it. */
 export type Draft = {
   key: string;
-  id: string | null;
+  id: string;
   name: string;
   color: string;
   icon: string;
   hours: number;
-  saved?: { name: string; color: string; icon: string; hours: number };
 };
 
-/** Counts the cuts made this session, so a row the server has never seen still has its own key. */
-let cut = 0;
-
-function nextColor(used: string[]) {
-  return swatchPalette.find((c) => !used.includes(c)) ?? swatchPalette[used.length % swatchPalette.length];
-}
-
-function isDirty(draft: Draft) {
-  return (
-    !draft.saved ||
-    draft.saved.name !== draft.name ||
-    draft.saved.color !== draft.color ||
-    draft.saved.icon !== draft.icon ||
-    draft.saved.hours !== draft.hours
-  );
-}
+/**
+ * How long after the last drag or keystroke an edit burst counts as finished.
+ *
+ * Dragging a seam writes on every frame; each of those is not something to undo separately. The
+ * burst is closed when the hand stops, and one press of ⌘Z takes the whole movement back.
+ */
+const BURST_MS = 700;
 
 function toDraft(category: Category): Draft {
   return {
@@ -60,13 +32,11 @@ function toDraft(category: Category): Draft {
     color: category.color,
     icon: category.icon || DEFAULT_ICON,
     hours: category.targetHoursPerWeek,
-    saved: {
-      name: category.name,
-      color: category.color,
-      icon: category.icon || DEFAULT_ICON,
-      hours: category.targetHoursPerWeek,
-    },
   };
+}
+
+function nextColor(used: string[]) {
+  return swatchPalette.find((c) => !used.includes(c)) ?? swatchPalette[used.length % swatchPalette.length];
 }
 
 export type PlanUnit = "h" | "%";
@@ -81,270 +51,111 @@ export const fromUnit = (value: number, unit: PlanUnit) =>
 const round = (value: number) => Math.round(value * 10) / 10;
 
 /**
- * Owns the Week screen's editable category plan: per-row drafts over the shared store, the
- * save the page debounces, and the split/remove mutations the ring's labels drive.
+ * The Week screen's category plan.
  *
- * Every edit lands in the shared cache the moment it's made, so the colours and names the rest
- * of the app draws with are never a request behind what's on screen — and a cold start opens on
- * them, because the cache writes itself to the device. The server is asked afterwards, and its
- * answer is what the next load reads.
+ * There are no drafts here any more, and no save: a slice cut, renamed or dragged is written
+ * straight to the synced collection, which is already what every screen draws from and already
+ * holds the write until the server has taken it. What's left is the screen's own vocabulary —
+ * slices, seams, the buffer's leftover hours — and the grouping of a drag into one undo step.
  */
 class CategoryDrafts {
-  drafts = $state<Draft[]>([]);
-  saving = $state(false);
-  error = $state<string | null>(null);
+  #burst: ReturnType<typeof setTimeout> | null = null;
+  #open = false;
 
-  /** What the drafts looked like before the edit burst that's still running. */
-  #historyBefore: Draft[] | null = null;
+  drafts = $derived(categories.all.filter((category) => !category.isBuffer).map(toDraft));
+  /** False until these records have been heard about at all — the screen shows its skeleton. */
+  ready = $derived(categories.ready);
+  loadError = $derived(synced.error);
+  error = $derived(syncStatus.rejected);
 
-  categories = $derived(store.categories.hasValue ? (store.categories.value ?? []) : null);
-  loadError = $derived(store.categories.error);
-
-  restHours = $derived(Math.max(0, WEEK_HOURS - this.drafts.reduce((sum, d) => sum + d.hours, 0)));
-  dirty = $derived(this.drafts.some(isDirty));
+  restHours = $derived(Math.max(0, WEEK_HOURS - this.drafts.reduce((sum, draft) => sum + draft.hours, 0)));
 
   segments = $derived<RingSegment[]>([
-    ...this.drafts.map((d) => ({
-      id: d.key,
-      label: d.name || "Untitled",
-      color: d.color,
-      icon: d.icon,
-      value: d.hours,
+    ...this.drafts.map((draft) => ({
+      id: draft.key,
+      label: draft.name || "Untitled",
+      color: draft.color,
+      icon: draft.icon,
+      value: draft.hours,
     })),
     { id: "__rest__", label: "Buffer", color: restColor, icon: "circle-dashed", value: this.restHours },
   ]);
 
-  /**
-   * What the screen calls on mount. Edits typed before navigating away outlive the screen now,
-   * so they win over the cached rows — rebuilding from cache would silently undo them.
-   */
-  enter = async () => {
-    if (!this.dirty) this.#syncDrafts();
-    await store.categories.ensure();
-    // Asked again rather than remembered from before the request: an edit typed while it was out
-    // is exactly what this must not overwrite, and it wasn't there to see when the screen opened.
-    if (!this.dirty) this.#syncDrafts();
-  };
+  /** What the screen calls on mount. The rows are already on screen; this checks them. */
+  enter = () => synced.ensure();
 
-  load = async () => {
-    await store.categories.refresh();
-    this.#syncDrafts();
-    planHistory.clear();
-  };
+  load = () => synced.sync();
 
-  #syncDrafts() {
-    this.drafts = (store.categories.value ?? []).filter((c) => !c.isBuffer).map(toDraft);
+  update(id: string, patch: Partial<Draft>) {
+    this.#grouped(() =>
+      categories.update(id, {
+        ...(patch.name === undefined ? {} : { name: patch.name }),
+        ...(patch.color === undefined ? {} : { color: patch.color }),
+        ...(patch.icon === undefined ? {} : { icon: patch.icon }),
+        ...(patch.hours === undefined ? {} : { targetHoursPerWeek: patch.hours }),
+      }),
+    );
   }
 
-  /**
-   * Puts what the drafts say into the shared cache, and marks it worth checking. The buffer rows
-   * are the server's own and pass through untouched — nothing on this screen edits them.
-   */
-  #publish() {
-    const buffers = (store.categories.value ?? []).filter((c) => c.isBuffer);
-    store.categories.set([...this.drafts.map(toCategory), ...buffers]);
-    invalidate.categories();
-  }
-
-  /** True while there is something worth writing — an unnamed row is still being typed. */
-  get savable() {
-    return !this.saving && this.dirty && this.drafts.every((d) => d.name.trim());
-  }
-
-  /** Marks an edit burst as started, if one isn't already running — one undo step per burst. */
-  #beginEdit() {
-    if (this.#historyBefore === null) this.#historyBefore = this.drafts;
-  }
-
-  /** Closes the running burst, if any, as one undo step — a rename, a drag, a value typed. */
-  #commitEdit() {
-    const before = this.#historyBefore;
-    this.#historyBefore = null;
-    if (!before || before === this.drafts) return;
-    const after = this.drafts;
-    planHistory.push({
-      undo: () => {
-        this.drafts = before;
-        this.#publish();
-      },
-      redo: () => {
-        this.drafts = after;
-        this.#publish();
-      },
-    });
-  }
-
-  /**
-   * Writes every changed row. The page calls this a moment after the last edit, and the screen
-   * is already showing the answer — what this adds is the id a new row was given, and the check
-   * behind it. A row edited again while its own write was out stays dirty, and goes again.
-   */
-  flush = async () => {
-    this.#commitEdit();
-    const changed = this.drafts.filter(isDirty);
-    if (changed.length === 0) return;
-    this.saving = true;
-    this.error = null;
-    try {
-      for (const draft of changed) {
-        const payload = { name: draft.name, color: draft.color, icon: draft.icon, targetHoursPerWeek: draft.hours };
-        const written = draft.id ? await updateCategory(draft.id, payload) : await createCategory(payload);
-        const saved = {
-          name: payload.name,
-          color: payload.color,
-          icon: payload.icon,
-          hours: payload.targetHoursPerWeek,
-        };
-        this.drafts = this.drafts.map((d) => (d.key === draft.key ? { ...d, id: written.id, saved } : d));
-      }
-      this.#publish();
-      // Not awaited: the rows on screen are already the ones just written, and a screen that
-      // waits on the server has nothing to show for the wait.
-      void store.categories.refresh();
-    } catch (e) {
-      this.error = e instanceof Error ? e.message : "Couldn't save your plan";
-      await this.load();
-    } finally {
-      this.saving = false;
-    }
-  };
-
-  update(key: string, patch: Partial<Draft>) {
-    this.#beginEdit();
-    this.drafts = this.drafts.map((d) => (d.key === key ? { ...d, ...patch } : d));
-    this.#publish();
-  }
-
+  /** A seam dragged moves hours between neighbours: every slice at once, one step. */
   setAllHours = (values: number[]) => {
-    this.#beginEdit();
-    this.drafts = this.drafts.map((d, i) => ({ ...d, hours: values[i] ?? d.hours }));
-    this.#publish();
+    this.#grouped(() => {
+      this.drafts.forEach((draft, i) => {
+        const hours = values[i];
+        if (hours !== undefined && hours !== draft.hours) categories.update(draft.id, { targetHoursPerWeek: hours });
+      });
+    });
   };
 
   /** Cuts a slice in two. Past the last draft is the buffer: its half becomes a new category. */
   split = (index: number) => {
-    this.#commitEdit();
-    const before = this.drafts;
-    const used = this.drafts.map((d) => d.color);
-    const wearing = this.drafts.map((d) => d.icon);
-    const fresh = (hours: number, taken: string[], worn: string[]): Draft => ({
-      key: `new-${++cut}`,
-      id: null,
-      name: "",
-      color: nextColor(taken),
-      icon: randomIcon(worn),
-      hours,
-    });
+    this.#closeBurst();
+    const used = this.drafts.map((draft) => draft.color);
+    const worn = this.drafts.map((draft) => draft.icon);
+    const target = this.drafts[index];
+    const hours = target ? round(target.hours / 2) : round(this.restHours / 2);
 
-    if (index >= this.drafts.length) {
-      this.drafts = [...this.drafts, fresh(Math.round((this.restHours / 2) * 10) / 10, used, wearing)];
-    } else {
-      const target = this.drafts[index];
-      const half = Math.round((target.hours / 2) * 10) / 10;
-      this.drafts = [
-        ...this.drafts.slice(0, index),
-        { ...target, hours: half },
-        fresh(Math.round((target.hours - half) * 10) / 10, [...used, target.color], [...wearing, target.icon]),
-        ...this.drafts.slice(index + 1),
-      ];
-    }
-    const after = this.drafts;
-    this.#publish();
-
-    // The new slice may be its own row on the server by the time this is undone or redone — a
-    // freshly cut category is checked for and taken back off, then put back the same way.
-    const newKey = after.find((d) => !before.some((b) => b.key === d.key))?.key;
-    let archivedId: string | null = null;
-    planHistory.push({
-      undo: async () => {
-        const current = newKey ? this.drafts.find((d) => d.key === newKey) : undefined;
-        if (current?.id) {
-          archivedId = current.id;
-          try {
-            await archiveCategory(current.id);
-            void store.categories.refresh();
-          } catch {
-            archivedId = null;
-          }
-        }
-        this.drafts = before;
-        this.#publish();
-      },
-      redo: async () => {
-        this.drafts = after;
-        this.#publish();
-        if (archivedId) {
-          try {
-            await restoreCategory(archivedId);
-            void store.categories.refresh();
-          } catch {
-            /* best effort — the next load will show the truth */
-          }
-          archivedId = null;
-        }
-      },
+    synced.transaction(() => {
+      if (target) categories.update(target.id, { targetHoursPerWeek: round(target.hours - hours) });
+      categories.create({
+        name: "",
+        color: nextColor(used),
+        icon: randomIcon(worn),
+        targetHoursPerWeek: target ? hours : round(this.restHours - hours),
+        isBuffer: false,
+      });
     });
+    invalidate.categories();
   };
 
-  remove = async (draft: Draft) => {
-    this.#commitEdit();
-    const before = this.drafts;
-    this.drafts = this.drafts.filter((d) => d.key !== draft.key);
-    const after = this.drafts;
-    this.#publish();
-
-    if (!draft.id) {
-      planHistory.push({
-        undo: () => {
-          this.drafts = before;
-          this.#publish();
-        },
-        redo: () => {
-          this.drafts = after;
-          this.#publish();
-        },
-      });
-      return;
-    }
-
-    // The guard above proved the row exists on the server, but the closures below outlive that
-    // narrowing, so the id is held onto here rather than re-read from the draft.
-    const id = draft.id;
-
-    try {
-      await archiveCategory(id);
-      void store.categories.refresh();
-      // Only a write that landed is worth taking back — a step for one that failed would undo
-      // an archive that never happened.
-      planHistory.push({
-        undo: async () => {
-          this.drafts = before;
-          this.#publish();
-          try {
-            await restoreCategory(id);
-            void store.categories.refresh();
-          } catch {
-            /* best effort — the next load will show the truth */
-          }
-        },
-        redo: async () => {
-          this.drafts = after;
-          this.#publish();
-          try {
-            await archiveCategory(id);
-            void store.categories.refresh();
-          } catch {
-            /* best effort — the next load will show the truth */
-          }
-        },
-      });
-    } catch (e) {
-      // The row goes back where it was: it still exists, whatever the screen said for a moment.
-      this.drafts = before;
-      this.#publish();
-      this.error = e instanceof Error ? e.message : "Couldn't remove that category";
-    }
+  remove = (draft: Draft) => {
+    this.#closeBurst();
+    categories.delete(draft.id);
+    invalidate.categories();
   };
+
+  /**
+   * Runs a write as part of the burst that's in progress, starting one if there isn't. The burst
+   * closes itself once the edits stop, so a caller never has to say when a gesture ended.
+   */
+  #grouped(write: () => void) {
+    if (!this.#open) {
+      this.#open = true;
+      synced.beginStep();
+    }
+    write();
+    invalidate.categories();
+    if (this.#burst) clearTimeout(this.#burst);
+    this.#burst = setTimeout(() => this.#closeBurst(), BURST_MS);
+  }
+
+  #closeBurst() {
+    if (this.#burst) clearTimeout(this.#burst);
+    this.#burst = null;
+    if (!this.#open) return;
+    this.#open = false;
+    synced.commitStep();
+  }
 }
 
 export const categoryDrafts = new CategoryDrafts();

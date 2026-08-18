@@ -196,6 +196,40 @@ describe("delivery", () => {
     expect(client.pendingCount).toBe(0);
   });
 
+  test("a slider dragged across the screen is one write, not two hundred", async () => {
+    const { notes, client, network } = setup();
+    const created = notes.create(draft);
+    await client.flush();
+    network.offline = true;
+    for (let step = 0; step < 50; step++) notes.update(created.id, { body: `${step}` });
+    // One write for whatever a round in flight already took, one for everything since.
+    expect(client.pendingCount).toBeLessThanOrEqual(2);
+
+    network.offline = false;
+    await client.flush();
+    expect(notes.all[0]?.body).toBe("49");
+  });
+
+  test("a step that spans a drag is one press of undo", async () => {
+    const { notes, client } = setup();
+    const created = notes.create(draft);
+    await client.flush();
+
+    client.beginStep();
+    for (const title of ["A", "AB", "ABC"]) notes.update(created.id, { title });
+    client.commitStep();
+    expect(notes.all[0]?.title).toBe("ABC");
+    client.undo();
+    expect(notes.all[0]?.title).toBe("Groceries");
+  });
+
+  test("the first screen to ask pays for the round trip; the rest read what it left", async () => {
+    const { client, network } = setup();
+    await Promise.all([client.ensure(), client.ensure()]);
+    await client.ensure();
+    expect(network.requests).toBe(1);
+  });
+
   test("failures back off, and the queue lands once the network is back", async () => {
     const { notes, client, network, runtime } = setup();
     network.offline = true;

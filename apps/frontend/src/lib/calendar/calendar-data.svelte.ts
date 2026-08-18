@@ -10,6 +10,7 @@ import {
   updateCalendarEvent,
 } from "$lib/queries";
 import { calendarWeek, invalidate, store } from "$lib/store.svelte";
+import { activities, synced } from "$lib/synced.svelte";
 import { type Activity, type ActivityWeight, type CalendarEvent, type MappingScope, NOT_A_MEETING } from "$lib/types";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
@@ -579,12 +580,7 @@ class CalendarData {
   }
 
   enter() {
-    return Promise.all([
-      store.categories.ensure(),
-      store.activities.ensure(),
-      store.integrations.ensure(),
-      this.ensureWeeks(),
-    ]);
+    return Promise.all([synced.ensure(), store.integrations.ensure(), this.ensureWeeks()]);
   }
 
   ensureWeeks() {
@@ -1052,7 +1048,7 @@ class CalendarData {
       externalEventId: scope === "series" && was.seriesId ? was.seriesId : ref.id,
       scope,
     });
-    const activity = store.activities.value?.find((a) => a.id === choice?.activityId) ?? null;
+    const activity = activities.all.find((a) => a.id === choice?.activityId) ?? null;
     const restyle = (event: CalendarEvent): CalendarEvent => ({
       ...event,
       mappingScope: choice ? scope : null,
@@ -1146,7 +1142,7 @@ class CalendarData {
    * the real event takes its place when the refetch lands.
    */
   async #create(activityId: string | null, title: string, start: Date, end: Date, openAt: DOMRect | null = null) {
-    const activity = store.activities.value?.find((a) => a.id === activityId) ?? null;
+    const activity = activities.all.find((a) => a.id === activityId) ?? null;
     const draft: CalendarEvent = {
       id: `${DRAFT_PREFIX}${this.#nextTempId++}`,
       calendarId: this.week.value?.writeCalendarId ?? "",

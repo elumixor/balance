@@ -14,37 +14,35 @@ export interface MutationLog {
   remember(userId: string, mutationIds: readonly string[]): Promise<void>;
 }
 
-/** The wire shape, checked at the edge so a malformed body is a 400 and not a half-applied batch. */
-export const syncRequestSchema = z.object({
-  since: z.record(z.string(), z.number()),
-  mutations: z.array(
-    z.discriminatedUnion("kind", [
-      z.object({
-        kind: z.literal("create"),
-        mutationId: z.string(),
-        model: z.string(),
-        id: z.string(),
-        data: z.looseObject({}),
-      }),
-      z.object({
-        kind: z.literal("update"),
-        mutationId: z.string(),
-        model: z.string(),
-        id: z.string(),
-        patch: z.looseObject({}),
-      }),
-      z.object({ kind: z.literal("delete"), mutationId: z.string(), model: z.string(), id: z.string() }),
-      z.object({
-        kind: z.literal("action"),
-        mutationId: z.string(),
-        model: z.string(),
-        id: z.string(),
-        name: z.string(),
-        payload: z.unknown(),
-      }),
-    ]),
-  ),
-});
+/** One write on the wire, checked at the edge so a malformed body is a 400, not a half-batch. */
+export const mutationSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("create"),
+    mutationId: z.string(),
+    model: z.string(),
+    id: z.string(),
+    data: z.looseObject({ id: z.string() }),
+  }),
+  z.object({
+    kind: z.literal("update"),
+    mutationId: z.string(),
+    model: z.string(),
+    id: z.string(),
+    patch: z.looseObject({ id: z.string().optional() }),
+  }),
+  z.object({ kind: z.literal("delete"), mutationId: z.string(), model: z.string(), id: z.string() }),
+  z.object({
+    kind: z.literal("action"),
+    mutationId: z.string(),
+    model: z.string(),
+    id: z.string(),
+    name: z.string(),
+    payload: z.unknown(),
+  }),
+]);
+
+/** How fresh each model's copy is, by model name. */
+export const sinceSchema = z.record(z.string(), z.number());
 
 /**
  * The server half of one round trip: apply what the client did, then say what changed.

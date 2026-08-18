@@ -9,7 +9,7 @@
   import LoadError from "$lib/components/LoadError.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import SidePanelSection from "$lib/components/nav/SidePanelSection.svelte";
-  import { store } from "$lib/store.svelte";
+  import { categories } from "$lib/synced.svelte";
   import { SlidersHorizontal } from "lucide-svelte";
 
   /**
@@ -20,9 +20,8 @@
   const data = calendarData;
   void data.enter();
 
-  const categories = $derived(store.categories.value ?? []);
-  const categoryById = $derived(new Map(categories.map((c) => [c.id, c])));
-  const activities = $derived(store.activities.value ?? []);
+  const plan = $derived(categories.all);
+  const categoryById = $derived(new Map(plan.map((category) => [category.id, category])));
   const week = $derived(data.week);
 
   /**
@@ -136,5 +135,5 @@
 {#if data.selected}
   <!-- Unkeyed: the card loads whatever event it's handed, and rebuilding it would take the cursor
        out of a name being typed the moment the calendar gives that block its real id. -->
-  <EventEditor event={data.selected} rect={data.selectedRect} {categories} />
+  <EventEditor event={data.selected} rect={data.selectedRect} categories={plan} />
 {/if}

@@ -21,7 +21,7 @@
   } = $props();
 
   const data = calendarData;
-  const live = $derived(activities.filter((a) => !a.archived));
+  const live = $derived(activities);
 </script>
 
 <div

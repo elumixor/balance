@@ -8,6 +8,13 @@
       "when": 1786937447804,
       "tag": "0000_lowly_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787046739054,
+      "tag": "0001_giant_joshua_kane",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,13 @@
-export { type MutationLog, SyncServer, syncRequestSchema } from "./handle";
+export type {
+  Envelope,
+  Identified,
+  Intent,
+  Mutation,
+  RejectedMutation,
+  SyncRequest,
+  SyncResponse,
+} from "../protocol";
+export { type MutationLog, mutationSchema, SyncServer, sinceSchema } from "./handle";
 export {
   type ActionHandler,
   type ActionHandlers,

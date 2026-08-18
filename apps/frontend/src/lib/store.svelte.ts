@@ -2,29 +2,20 @@ import { SvelteMap } from "svelte/reactivity";
 import { Cached } from "./cache.svelte";
 import { weekKey, weekRange } from "./dates";
 import * as persist from "./persist";
-import {
-  getActivities,
-  getCalendarPrefs,
-  getCalendarWeek,
-  getCategories,
-  getIntegrations,
-  getPreferences,
-} from "./queries";
+import { getCalendarPrefs, getCalendarWeek, getIntegrations, getPreferences } from "./queries";
+import { synced } from "./synced.svelte";
 import type { CalendarWeek } from "./types";
 
 /**
- * Every screen's data, held once for the whole app session and once on the device.
+ * What the app reads but never writes: the calendar's answer to a week, and the state of the
+ * connection that produces it.
  *
- * Both screens read overlapping rows — categories alone back the ring on Planning, the colours
- * on its activity list, and the tint of every block on Calendar. Sharing one cache per thing
- * means a tab tap renders from memory, and a write on any screen lands on all of them.
- *
- * Each cache names a storage key, so a cold start opens on the rows the last session ended with
- * and checks them behind your back — the app is never a spinner waiting on the network.
+ * Held once for the whole app session and once on the device, so a tab tap renders from memory
+ * and a cold start opens on the rows the last session ended with, checked behind your back.
+ * The records this app owns — categories, activities — are not here: they're written as well as
+ * read, so they live in `synced.svelte.ts`, where a write is a queue entry rather than a refetch.
  */
 export const store = {
-  categories: new Cached(getCategories, "Couldn't load your categories.", "categories"),
-  activities: new Cached(getActivities, "Couldn't load your activities.", "activities"),
   integrations: new Cached(getIntegrations, "Couldn't check your connected calendars.", "integrations"),
   calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars.", "calendars"),
   preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences"),
@@ -85,7 +76,7 @@ export const syncing = {
     return store.integrations.syncing || [...weeks.values()].some((week) => week.syncing);
   },
   get planning() {
-    return store.categories.syncing || store.activities.syncing;
+    return synced.syncing;
   },
 };
 
@@ -97,12 +88,10 @@ export const syncing = {
 export const invalidate = {
   /** Names, colours and targets feed every screen's labels. */
   categories() {
-    store.categories.invalidate();
     invalidateWeeks();
   },
   /** An activity's weights change what every event mapped to it counts toward. */
   activities() {
-    store.activities.invalidate();
     invalidateWeeks();
   },
   /** An event moved, or started counting as something else. */
@@ -128,8 +117,7 @@ function invalidateWeeks() {
  */
 export function warmStore() {
   return Promise.all([
-    store.categories.ensure(),
-    store.activities.ensure(),
+    synced.ensure(),
     store.integrations.ensure(),
     store.preferences.ensure(),
     calendarWeek(weekKey(new Date())).ensure(),
@@ -141,13 +129,14 @@ export function warmStore() {
  * held means none of what's on disk — or hydrated from it — is theirs.
  */
 export function adoptUser(userId: string) {
-  if (persist.adoptOwner(userId)) clearStore();
+  if (persist.adoptOwner(userId)) void clearStore();
 }
 
 /** Signing out has to take the previous account's rows with it, off screen and off the device. */
-export function clearStore() {
+export async function clearStore() {
   for (const cached of Object.values(store)) cached.clear();
   for (const cached of weeks.values()) cached.clear();
   weeks.clear();
   persist.wipe();
+  await synced.clear();
 }

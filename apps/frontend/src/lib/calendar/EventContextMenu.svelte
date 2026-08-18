@@ -22,7 +22,7 @@
   const targets = $derived(data.picked.has(event.id) && data.picked.size > 1 ? data.pickedEvents : [event]);
   const batch = $derived(targets.length > 1);
   const deletable = $derived(targets.every((e) => !e.readOnly && !e.allDay));
-  const plannable = $derived(categories.filter((c) => !c.archived));
+  const plannable = $derived(categories);
 
   let categoryRect = $state<DOMRect | null>(null);
 

@@ -87,6 +87,11 @@ export class SyncedClient<S extends ModelSpecs> {
   #failures = 0;
   #retryScheduled = false;
   #hydrated = false;
+  #firstSync: Promise<void> | null = null;
+  /** The mutations the round in flight is carrying, which must not be rewritten under it. */
+  #sending: ReadonlySet<string> = new Set();
+  /** How many `beginStep` calls are open; the outermost one decides what an undo step is. */
+  #stepDepth = 0;
   /** Set while a group of writes is being collected into a single undo step. */
   #step: { forward: Intent[]; inverse: (Intent | null)[] } | null = null;
   /** Set while undo or redo is replaying, so its own writes don't become new steps. */
@@ -148,19 +153,40 @@ export class SyncedClient<S extends ModelSpecs> {
     return Promise.resolve();
   }
 
+  /** One round trip, the first time anything asks. What a screen calls on mount. */
+  ensure() {
+    this.#firstSync ??= this.sync();
+    return this.#firstSync;
+  }
+
   /**
-   * Everything written inside `edit` is one press of undo. Nesting is flattened: the outermost
-   * call decides what a step is, so a helper that groups its own writes doesn't split a burst.
+   * Opens an undo step that spans more than one turn of the event loop — a drag, a burst of
+   * keystrokes. Everything written until `commitStep` is one press of undo. Nesting is flattened:
+   * the outermost pair decides what a step is, so a helper that groups its own writes can't split
+   * the burst it was called inside.
    */
+  beginStep() {
+    if (this.#replaying) return;
+    this.#stepDepth += 1;
+    this.#step ??= { forward: [], inverse: [] };
+  }
+
+  commitStep() {
+    if (this.#replaying || this.#stepDepth === 0) return;
+    this.#stepDepth -= 1;
+    if (this.#stepDepth > 0) return;
+    const step = this.#step;
+    this.#step = null;
+    if (step) this.history.push(step.forward, step.inverse);
+  }
+
+  /** The same thing for a burst that starts and ends in one go. */
   transaction<R>(edit: () => R): R {
-    if (this.#step || this.#replaying) return edit();
-    this.#step = { forward: [], inverse: [] };
+    this.beginStep();
     try {
       return edit();
     } finally {
-      const step = this.#step;
-      this.#step = null;
-      if (step) this.history.push(step.forward, step.inverse);
+      this.commitStep();
     }
   }
 
@@ -218,6 +244,7 @@ export class SyncedClient<S extends ModelSpecs> {
   async #round() {
     this.#syncing.value = true;
     const sending = [...this.#queue];
+    this.#sending = new Set(sending.map((mutation) => mutation.mutationId));
     const since = Object.fromEntries(this.#names.map((name) => [name, this.#collections[name].since]));
     try {
       const response = await this.options.transport({ since, mutations: sending });
@@ -234,6 +261,7 @@ export class SyncedClient<S extends ModelSpecs> {
       this.options.onError?.(e);
       this.#scheduleRetry();
     } finally {
+      this.#sending = new Set();
       this.#syncing.value = false;
     }
   }
@@ -268,11 +296,29 @@ export class SyncedClient<S extends ModelSpecs> {
         this.history.push([intent], [inverse]);
       }
     }
-    this.#queue = [...this.#queue, { ...intent, mutationId: this.#newId() }];
+    this.#queue = this.#queued(intent);
     this.#pending.value = this.#queue.length;
     this.#collections[intent.model].refresh();
     void this.#persistQueue();
     void this.sync();
+  }
+
+  /**
+   * The queue with `intent` in it, folded into the write already waiting where that says the same
+   * thing. A slider dragged across a screen is one write to send, not two hundred — but only
+   * while nothing has gone up: a mutation the server may already have seen keeps its own identity.
+   */
+  #queued(intent: Intent): Mutation[] {
+    const last = this.#queue.at(-1);
+    const mergeable =
+      intent.kind === "update" &&
+      last?.kind === "update" &&
+      last.model === intent.model &&
+      last.id === intent.id &&
+      !this.#sending.has(last.mutationId);
+    if (!mergeable) return [...this.#queue, { ...intent, mutationId: this.#newId() }];
+    const merged: Mutation = { ...last, patch: { ...last.patch, ...intent.patch } };
+    return [...this.#queue.slice(0, -1), merged];
   }
 
   #replay(intents: readonly Intent[]) {

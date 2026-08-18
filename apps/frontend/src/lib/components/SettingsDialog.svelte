@@ -70,7 +70,7 @@
     settings.hide();
     await auth.signOut();
     // Whatever is cached belongs to the account that just left.
-    clearStore();
+    await clearStore();
     await goto("/sign-in");
   }
 </script>

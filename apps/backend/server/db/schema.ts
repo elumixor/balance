@@ -1,5 +1,16 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -21,8 +32,14 @@ export const categories = pgTable(
     targetHoursPerWeek: numeric("target_hours_per_week", { precision: 5, scale: 2 }).notNull(),
     /** The single system-managed category that absorbs all time unallocated by the user's other categories. */
     isBuffer: boolean("is_buffer").notNull().default(false),
+    /** Archiving is how a category is deleted: it stops being offered, past entries keep it. */
     archived: boolean("archived").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** What `/mobile/sync` compares against — see `server/lib/sync/`. Bumped on every write. */
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => [uniqueIndex("categories_one_buffer_per_user").on(table.userId).where(sql`${table.isBuffer}`)],
 );
@@ -35,7 +52,31 @@ export const activities = pgTable("activities", {
   name: text("name").notNull(),
   archived: boolean("archived").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Bumped by a weight changing too — the split is part of the activity, as far as a client is. */
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
+
+/**
+ * Every write `/mobile/sync` has already carried out, by the id the client made up for it.
+ *
+ * A client that never heard the answer sends the same write again, and applying it twice would
+ * mean two rows, or two calendar events. Remembering the id is the whole of what makes a retry
+ * free — and it's the only state the sync layer itself owns.
+ */
+export const syncMutations = pgTable(
+  "sync_mutations",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mutationId: text("mutation_id").notNull(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.mutationId] })],
+);
 
 export const activityCategoryWeights = pgTable("activity_category_weights", {
   id: uuid("id").primaryKey().defaultRandom(),

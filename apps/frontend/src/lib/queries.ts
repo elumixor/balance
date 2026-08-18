@@ -1,35 +1,13 @@
 import { api, apiGet, callApi, unwrapOk } from "./api";
 import type { StoredPreferences } from "./preferences.svelte";
 import type {
-  Activity,
   ActivityWeight,
   CalendarEvent,
   CalendarPrefs,
   CalendarWeek,
-  Category,
   IntegrationStatus,
   MappingScope,
 } from "./types";
-
-// Categories
-export const getCategories = () => callApi(api.categories.$get()).then((r) => r.categories as Category[]);
-export const createCategory = (input: { name: string; color: string; icon: string; targetHoursPerWeek: number }) =>
-  callApi(api.categories.$post(input)).then((r) => unwrapOk(r).category as Category);
-export const updateCategory = (
-  id: string,
-  input: { name: string; color: string; icon: string; targetHoursPerWeek: number },
-) => callApi(api.categories(id).$patch(input)).then((r) => unwrapOk(r).category as Category);
-export const archiveCategory = (id: string) => callApi(api.categories(id).archive.$post()).then(unwrapOk);
-export const restoreCategory = (id: string) => callApi(api.categories(id).restore.$post()).then(unwrapOk);
-
-// Activities
-export const getActivities = () => callApi(api.activities.$get()).then((r) => r.activities as Activity[]);
-export const createActivity = (input: { name: string; weights: ActivityWeight[] }) =>
-  callApi(api.activities.$post(input)).then((r) => unwrapOk(r).activity as Activity);
-export const updateActivity = (id: string, input: { name: string; weights: ActivityWeight[] }) =>
-  callApi(api.activities(id).$patch(input)).then((r) => unwrapOk(r).activity as Activity);
-export const archiveActivity = (id: string) => callApi(api.activities(id).archive.$post()).then(unwrapOk);
-export const restoreActivity = (id: string) => callApi(api.activities(id).restore.$post()).then(unwrapOk);
 
 // Auth
 /** Trades this browser's session for a ticket the macOS app can sign in with — see `/desktop-link`. */

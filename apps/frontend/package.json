@@ -17,6 +17,7 @@
     "desktop:install": "bun scripts/install-desktop.ts"
   },
   "dependencies": {
+    "@balance/synced": "workspace:*",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.5.0",

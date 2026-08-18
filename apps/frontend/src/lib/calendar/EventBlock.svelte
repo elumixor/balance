@@ -44,7 +44,7 @@
   const fillColor = $derived(category?.color ?? restColor);
   const borderColor = $derived(calendars.find((c) => c.id === event.calendarId)?.color ?? restColor);
 
-  const plannable = $derived([...categories.values()].filter((c) => !c.archived));
+  const plannable = $derived([...categories.values()]);
 
   const selected = $derived(data.selected?.id === event.id);
   /** One of the blocks a box or a ⌘-click gathered, and so one a batch write is about. */
