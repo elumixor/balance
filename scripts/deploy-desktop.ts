@@ -2,6 +2,7 @@
 // Builds the macOS app and stages it for the website to hand out. The deployment serves the DMG
 // itself — one origin for the web app, the API and the download — so there is no release page to
 // keep in step with what was actually built.
+import { existsSync } from "node:fs";
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -10,7 +11,9 @@ import { $ } from "bun";
 const root = resolve(import.meta.dir, "..");
 const frontend = join(root, "apps/frontend");
 const bundleDir = join(frontend, "src-tauri/target/release/bundle/dmg");
+const appBundle = join(frontend, "src-tauri/target/release/bundle/macos/Balance.app");
 const staged = join(root, "dist/download");
+const installed = "/Applications/Balance.app";
 
 const version = (await Bun.file(join(frontend, "src-tauri/tauri.conf.json")).json()).version as string;
 
@@ -59,6 +62,16 @@ await Bun.write(
 );
 
 console.log(`Staged ${dmg} (${(size / 1e6).toFixed(1)} MB) for the web deployment`);
+
+// "Configured" means this machine already has the app installed — a fresh checkout building for the
+// web deploy shouldn't plant a copy nobody asked for.
+if (existsSync(installed)) {
+  await $`osascript -e 'quit app "Balance"'`.nothrow().quiet();
+  await $`rm -rf ${installed}`;
+  await $`cp -R ${appBundle} ${installed}`;
+  await $`xattr -cr ${installed}`.nothrow().quiet();
+  console.log(`Reinstalled ${installed}`);
+}
 
 /** Sends the disk image to Apple and staples their answer into it, so it opens offline too. */
 async function notarize(path: string) {
