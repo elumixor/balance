@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
-    "@elumixor/devkit": "^0.5.0",
+    "@elumixor/devkit": "^0.7.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^20",
     "typescript": "^5"
@@ -48,12 +48,12 @@
     "deploy": [
       {
         "name": "desktop",
-        "command": "bun scripts/deploy-desktop.ts",
+        "type": "tauri-macos",
         "color": "yellow"
       },
       {
         "name": "vercel",
-        "command": "bun scripts/deploy-vercel.ts",
+        "type": "vercel",
         "color": "magenta",
         "needs": [
           "desktop"
@@ -61,8 +61,12 @@
       },
       {
         "name": "ios",
-        "command": "bun scripts/deploy-ios.ts",
-        "color": "cyan"
+        "type": "fastlane-ios",
+        "color": "cyan",
+        "options": {
+          "backendDir": "apps/backend",
+          "defaultApiBaseUrl": "https://balance-app-mauve.vercel.app"
+        }
       }
     ]
   }
