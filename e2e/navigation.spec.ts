@@ -51,7 +51,7 @@ test.describe("Moving between tabs", () => {
     const share = activityRow(page, "Coding").getByRole("textbox", { name: "Deep Work percent", exact: true });
     await expect(share).toBeVisible({ timeout: 10_000 });
     const next = String(Number(await share.inputValue()) - 5);
-    // Every write in the app rides one endpoint now — see `packages/synced`.
+    // Every write in the app rides one endpoint now — see `@elumixor/synced`.
     const written = page.waitForResponse(
       (response) => response.request().method() === "POST" && response.url().includes("/mobile/sync"),
     );

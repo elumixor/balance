@@ -1,5 +1,5 @@
-import { model, type Signals, type SyncedStorage, syncedClient } from "@balance/synced/client";
-import type { SyncResponse } from "@balance/synced/protocol";
+import { model, type Signals, type SyncedStorage, syncedClient } from "@elumixor/synced/client";
+import type { SyncResponse } from "@elumixor/synced/protocol";
 import { api, callApi } from "./api";
 import type { Activity, Category } from "./types";
 
@@ -7,7 +7,7 @@ import type { Activity, Category } from "./types";
  * The app's own records — the ones this server owns, as opposed to the calendar's.
  *
  * Every screen that writes used to draw its change, cache it, send it and reconcile the answer by
- * hand. This is that, once: `@balance/synced` holds the queue, the retries and the undo, and what
+ * hand. This is that, once: `@elumixor/synced` holds the queue, the retries and the undo, and what
  * a screen sees is always the server's records with its own unacknowledged writes on top.
  */
 const models = {

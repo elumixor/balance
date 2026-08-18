@@ -1,4 +1,4 @@
-import { type Envelope, RejectedError, type SyncedStore, syncedModel } from "@balance/synced/server";
+import { type Envelope, RejectedError, type SyncedStore, syncedModel } from "@elumixor/synced/server";
 import { and, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db";

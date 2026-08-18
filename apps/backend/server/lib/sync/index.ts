@@ -1,4 +1,4 @@
-import { SyncServer } from "@balance/synced/server";
+import { SyncServer } from "@elumixor/synced/server";
 import { activitiesModel } from "./activities";
 import { categoriesModel } from "./categories";
 import { DbMutationLog } from "./mutation-log";

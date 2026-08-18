@@ -46,7 +46,7 @@ must call `eventCache.invalidate(userId)`, or the next read is served a 30-secon
 
 ## Writes go through one queue
 
-`packages/synced` owns every write to the app's own records — categories and activities today.
+`@elumixor/synced` owns every write to the app's own records — categories and activities today.
 The rule it exists for is one line: **what a screen shows is the server's records with the writes
 it hasn't acknowledged yet replayed on top**, recomputed whenever either half moves. So a pull
 landing mid-keystroke can't overwrite the keystroke, and a write the server refuses needs no

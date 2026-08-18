@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --filter @balance/synced build && vite dev --host --port 8081",
-    "build": "bun --filter @balance/synced build && vite build",
+    "dev": "vite dev --host --port 8081",
+    "build": "vite build",
     "preview": "vite preview",
-    "check": "bun --filter @balance/synced build && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "sync": "cap sync ios",
     "assets": "bun scripts/assets.ts",
     "ios": "CAPACITOR_LIVE_RELOAD=true cap sync ios && cap open ios",
@@ -17,7 +17,6 @@
     "desktop:install": "bun scripts/install-desktop.ts"
   },
   "dependencies": {
-    "@balance/synced": "workspace:*",
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.5.0",
@@ -26,6 +25,7 @@
     "@capacitor/preferences": "^8.0.1",
     "@capgo/capacitor-social-login": "^8.3.40",
     "@clerk/clerk-js": "^6.26.0",
+    "@elumixor/synced": "^0.1.1",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-deep-link": "^2.4.9",
     "@tauri-apps/plugin-log": "^2.9.0",

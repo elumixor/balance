@@ -1,4 +1,4 @@
-import type { MutationLog } from "@balance/synced/server";
+import type { MutationLog } from "@elumixor/synced/server";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { syncMutations } from "../../db/schema";

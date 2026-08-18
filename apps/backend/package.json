@@ -2,9 +2,9 @@
   "name": "@balance/backend",
   "private": true,
   "scripts": {
-    "build": "bun --filter @balance/synced build && nitro build",
-    "check": "bun --filter @balance/synced build && tsc --noEmit",
-    "dev": "bun --filter @balance/synced build && nitro dev --port 3100 --host",
+    "build": "nitro build",
+    "check": "tsc --noEmit",
+    "dev": "nitro dev --port 3100 --host",
     "preview": "node .output/server/index.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -17,8 +17,8 @@
     "nitropack": "^2.12.4"
   },
   "dependencies": {
-    "@balance/synced": "workspace:*",
     "@clerk/backend": "^3.15.0",
+    "@elumixor/synced": "^0.1.1",
     "@neondatabase/serverless": "^1.1.0",
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",

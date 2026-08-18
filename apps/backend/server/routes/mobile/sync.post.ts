@@ -1,4 +1,4 @@
-import { mutationSchema, sinceSchema } from "@balance/synced/server";
+import { mutationSchema, sinceSchema } from "@elumixor/synced/server";
 import { handler } from "@elumixor/nitro-client/server";
 import { z } from "zod";
 import { handleApiError } from "../../lib/api-error";
