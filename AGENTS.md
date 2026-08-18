@@ -44,6 +44,30 @@ expired" are states the screens render, returned as 200 with `connected` / `need
 a 401, which the frontend reads as a dead Clerk session and bounces to sign-in. And every write
 must call `eventCache.invalidate(userId)`, or the next read is served a 30-second-old memo.
 
+## Writes go through one queue
+
+`packages/synced` owns every write to the app's own records — categories and activities today.
+The rule it exists for is one line: **what a screen shows is the server's records with the writes
+it hasn't acknowledged yet replayed on top**, recomputed whenever either half moves. So a pull
+landing mid-keystroke can't overwrite the keystroke, and a write the server refuses needs no
+rollback — it just stops being replayed.
+
+Screens never fetch or post here either: they call `categories.create/update/delete` (or assign to
+a field of `categories.get(id)`) from `src/lib/synced.svelte.ts`, and one loop batches every
+model's writes and reads into a single `POST /mobile/sync`. Writes carry a client-made id, so a
+retry after a dropped reply is free; `sync_mutations` is what makes that true on the server.
+
+Undo is not a rollback — the server has usually applied the write already — so it's an inverse
+write, worked out when the original was made. Group a drag or a burst of keystrokes with
+`synced.beginStep()` / `commitStep()`, or `synced.transaction()` in one go.
+
+Adding a model is a `syncedModel` on the server (`server/lib/sync/`) plus a line in
+`src/lib/synced.svelte.ts`. Its store is an interface, not a table: `pull`, `read`, `create`,
+`update`, `remove`, backed by Drizzle or by somebody else's API. A write whose meaning belongs to
+the server — an RSVP, an archive in Gmail — is an `action` instead, with the client saying only
+what to draw meanwhile. Calendar events are deliberately not a synced model: Google owns them,
+and `CalendarEventsService.resolve` is still the one read path.
+
 ## Generated and committed
 
 - `apps/frontend/src/lib/api-client/` is generated from the backend's routes (`bunx nitro-client`).

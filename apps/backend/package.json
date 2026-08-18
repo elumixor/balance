@@ -2,9 +2,9 @@
   "name": "@balance/backend",
   "private": true,
   "scripts": {
-    "build": "nitro build",
-    "check": "tsc --noEmit",
-    "dev": "nitro dev --port 3100 --host",
+    "build": "bun --filter @balance/synced build && nitro build",
+    "check": "bun --filter @balance/synced build && tsc --noEmit",
+    "dev": "bun --filter @balance/synced build && nitro dev --port 3100 --host",
     "preview": "node .output/server/index.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

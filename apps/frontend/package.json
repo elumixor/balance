@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --host --port 8081",
-    "build": "vite build",
+    "dev": "bun --filter @balance/synced build && vite dev --host --port 8081",
+    "build": "bun --filter @balance/synced build && vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "bun --filter @balance/synced build && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "sync": "cap sync ios",
     "assets": "bun scripts/assets.ts",
     "ios": "CAPACITOR_LIVE_RELOAD=true cap sync ios && cap open ios",

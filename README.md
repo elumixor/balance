@@ -16,6 +16,7 @@ and it becomes a real event in your calendar.
 | `apps/frontend/ios`   | Everything Apple: the committed Xcode project, BalanceKit, fastlane    |
 | `apps/frontend/src-tauri` | The macOS shell: the menu bar item and the window around the SPA  |
 | `apps/backend`        | Nitro JSON API over Postgres (Neon) with Drizzle                       |
+| `packages/synced`     | The optimistic write queue both halves speak — records, retries, undo  |
 | `e2e`                 | Playwright suite, driven against the app's web build                   |
 
 Auth is Clerk on both sides; the frontend sends its session token to `/mobile/*`.
