@@ -208,7 +208,7 @@ struct RingFace: View {
     /// be kept apart from, and a full lap must read as one unbroken circle.
     private var arcs: some View {
         ForEach(laps, id: \.index) { lap in
-            Band(start: .zero, sweep: .degrees(lap.turn * 360), inset: lap.inset, thickness: lap.thickness, gapped: false)
+            Band(start: .zero, sweep: .degrees(lap.turn * 360), inset: lap.inset, thickness: lap.thickness, gap: .zero)
                 .fill(color.opacity(lap.opacity))
         }
     }

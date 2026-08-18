@@ -160,6 +160,10 @@ struct CategoryWheel: View {
                             glyphs: glyphs
                         )
                         .opacity(chosenIndex == nil ? opacity(for: segment) : 0)
+                        // The glyphs that were not picked have nothing to say about the lap being
+                        // opened, so they go before it, rather than hanging over the whole of a
+                        // collapse that is deliberately slow.
+                        .animation(.easeOut(duration: 0.25), value: chosenIndex)
                     }
                 }
             }
@@ -244,12 +248,24 @@ struct CategoryWheel: View {
         return segment.index == focusedIndex ? 1 : WheelMetrics.unfocusedOpacity
     }
 
-    /// Where a segment is heading once a category has been chosen: the chosen one to a full lap
-    /// starting at twelve o'clock, everything else to nothing where it already stands.
+    /// Where a segment is heading once a category has been chosen.
+    ///
+    /// What moves is the seams between the segments, not the segments themselves. Every boundary
+    /// before the chosen one is pushed back to twelve o'clock and every boundary after it is pushed
+    /// forward to twelve o'clock the other way round, which leaves the chosen segment holding the
+    /// whole turn and the rest squeezed out to nothing at the seam. Because each segment's start and
+    /// sweep are both linear in those boundaries, interpolating them is interpolating the boundaries:
+    /// the ring is a complete, non-overlapping partition of the circle in every frame of the
+    /// collapse, rather than one arc growing through five others that are shrinking into themselves.
     private func collapse(for segment: WheelSegment) -> (start: Angle, sweep: Angle, chosen: Bool)? {
         guard let chosenIndex else { return nil }
-        guard segment.index == chosenIndex else { return (segment.midAngle, .zero, false) }
-        return (.zero, .degrees(360), true)
+        let opens: Double = segment.index <= chosenIndex ? 0 : 1
+        let closes: Double = segment.index < chosenIndex ? 0 : 1
+        return (
+            .radians(opens * 2 * .pi),
+            .radians((closes - opens) * 2 * .pi),
+            segment.index == chosenIndex
+        )
     }
 
     /// The ring moves opposite the finger, by as much as it takes to put the band the finger points
@@ -311,21 +327,22 @@ private struct SegmentBand: View {
         // the chosen one takes the whole of its band as it opens, so what sweeps around to the full
         // lap is a solid arc rather than a hairline of whatever happened to be spent already.
         let solid = collapse.map { $0.chosen ? 1 : fill } ?? fill
+        let gap: Angle = collapse == nil ? WheelMetrics.gap : .zero
 
         ZStack {
-            Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gapped: collapse == nil)
+            Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gap: gap)
                 .fill(color.opacity(0.14))
             // The outline says "this much was planned", which is a thing only the week's ring has to
             // say — but it fades rather than being taken away, or the ring's brightest edge would
             // vanish on the frame the collapse starts and there would be nothing left to watch move.
-            Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gapped: collapse == nil)
+            Band(start: start, sweep: sweep, inset: inset, thickness: thickness, gap: gap)
                 .stroke(color.opacity(strokeOpacity), lineWidth: 1.5)
             Band(
                 start: start,
                 sweep: sweep,
                 inset: inset + thickness * (1 - solid),
                 thickness: thickness * solid,
-                gapped: collapse == nil
+                gap: gap
             )
             .fill(color.opacity(solidOpacity))
 
@@ -334,7 +351,8 @@ private struct SegmentBand: View {
                     start: start,
                     sweep: Angle.radians(sweep.radians * overflow),
                     inset: inset + thickness + 2,
-                    thickness: 2.5
+                    thickness: 2.5,
+                    gap: gap
                 )
                 .fill(color.opacity(collapse == nil ? 1 : 0))
             }
@@ -393,19 +411,21 @@ struct Band: Shape {
     var sweep: Angle
     var inset: CGFloat
     var thickness: CGFloat
-    /// Whether a sliver is trimmed off both ends to keep this band apart from a neighbour. A lap
-    /// with no neighbour — the duration dial's arc, a running session's elapsed ring — turns this
-    /// off, since a full sweep trimmed by a gap on both ends is a circle with a seam in it rather
-    /// than the unbroken one it is meant to be.
-    var gapped: Bool = true
+    /// The sliver trimmed off both ends to keep this band apart from its neighbours. A lap with no
+    /// neighbour — the duration dial's arc, a running session's elapsed ring — asks for none, since
+    /// a full sweep trimmed at both ends is a circle with a seam in it rather than the unbroken one
+    /// it is meant to be. It animates like everything else here, so a ring closing up into one lap
+    /// loses its seams over the same move rather than on its first frame.
+    var gap: Angle = WheelMetrics.gap
 
-    var animatableData: AnimatablePair<AnimatablePair<Double, Double>, AnimatablePair<CGFloat, CGFloat>> {
-        get { .init(.init(start.radians, sweep.radians), .init(inset, thickness)) }
+    var animatableData: AnimatablePair<AnimatablePair<Double, Double>, AnimatablePair<AnimatablePair<CGFloat, CGFloat>, Double>> {
+        get { .init(.init(start.radians, sweep.radians), .init(.init(inset, thickness), gap.radians)) }
         set {
             start = .radians(newValue.first.first)
             sweep = .radians(newValue.first.second)
-            inset = newValue.second.first
-            thickness = newValue.second.second
+            inset = newValue.second.first.first
+            thickness = newValue.second.first.second
+            gap = .radians(newValue.second.second)
         }
     }
 
@@ -416,7 +436,7 @@ struct Band: Shape {
 
         // The gap keeps neighbouring bands apart, but a sliver of a segment must not be eaten
         // entirely by it, so it never takes more than two thirds of the sweep.
-        let gap = gapped ? min(WheelMetrics.gap.radians, sweep.radians * 0.66) : 0
+        let gap = min(max(self.gap.radians, 0), sweep.radians * 0.66)
         let from = Angle.radians(start.radians + gap / 2 - .pi / 2)
         let to = Angle.radians(start.radians + sweep.radians - gap / 2 - .pi / 2)
 
