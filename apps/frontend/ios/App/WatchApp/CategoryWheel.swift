@@ -54,10 +54,6 @@ enum WheelMetrics {
     static let exitScale: CGFloat = 1.3
     static let enterScale: CGFloat = 0.82
 
-    /// The id a category's glyph travels under, from its band on the ring to the label under the
-    /// clock. One per category, so the glyph that leaves the ring and the glyph that appears in the
-    /// label are the same view moving rather than two views crossfading.
-    static func glyphID(_ categoryID: String) -> String { "category-glyph-\(categoryID)" }
 }
 
 /// The ring is a ``DialLayout`` — shares of the circle worked out from planned hours, the same way
@@ -97,12 +93,9 @@ struct CategoryWheel: View {
     /// A finger is down on the ring. The centre's start glyph is only an invitation to press, so it
     /// steps out of the way for as long as one already has.
     let isPressing: Bool
-    /// The category that has been chosen, once the finger has lifted. The ring gives the whole
-    /// circle to it and takes it away from everything else, ending up as the clock face the
-    /// duration is dialled on.
-    let chosenIndex: Int?
-    /// The space the chosen glyph flies through on its way to the label under the clock.
-    let glyphs: Namespace.ID
+    /// A category has been chosen and the session's own ring is arriving. This ring's whole job
+    /// from here is to get out of the way of it.
+    let leaving: Bool
 
 
     init(
@@ -110,25 +103,22 @@ struct CategoryWheel: View {
         focusedIndex: Int?,
         pan: CGSize = .zero,
         isPressing: Bool = false,
-        chosenIndex: Int? = nil,
-        glyphs: Namespace.ID
+        leaving: Bool = false
     ) {
         self.categories = categories
         self.focusedIndex = focusedIndex
         self.pan = pan
         self.isPressing = isPressing
-        self.chosenIndex = chosenIndex
-        self.glyphs = glyphs
+        self.leaving = leaving
     }
 
-    init(model: WheelGestureModel, chosenIndex: Int? = nil, glyphs: Namespace.ID) {
+    init(model: WheelGestureModel, leaving: Bool = false) {
         self.init(
             categories: model.categories,
             focusedIndex: model.focusedIndex,
             pan: model.pan,
             isPressing: model.isPressing,
-            chosenIndex: chosenIndex,
-            glyphs: glyphs
+            leaving: leaving
         )
     }
 
@@ -144,31 +134,24 @@ struct CategoryWheel: View {
                 ForEach(layout.segments) { segment in
                     SegmentBand(
                         segment: segment,
-                        isFocused: segment.index == focusedIndex && chosenIndex == nil
+                        isFocused: segment.index == focusedIndex && !leaving
                     )
                     .opacity(opacity(for: segment))
                 }
                 ForEach(layout.segments) { segment in
-                    // The glyphs belong to picking a category. Once one is picked the ring is a
-                    // clock face and its own marks say what it means, so the rest fade where they
-                    // stand — and the chosen one leaves the ring entirely, to reappear as the label
-                    // under the clock it flies into.
-                    if segment.index != chosenIndex {
-                        SegmentIcon(
-                            segment: segment,
-                            isFocused: segment.index == focusedIndex,
-                            radius: radius - WheelMetrics.bandThickness / 2,
-                            centre: CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2),
-                            scale: scale,
-                            glyphs: glyphs
-                        )
-                        .opacity(chosenIndex == nil ? opacity(for: segment) : 0)
-                    }
+                    SegmentIcon(
+                        segment: segment,
+                        isFocused: segment.index == focusedIndex,
+                        radius: radius - WheelMetrics.bandThickness / 2,
+                        centre: CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2),
+                        scale: scale
+                    )
+                    .opacity(opacity(for: segment))
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .scaleEffect(scale)
-            .offset(chosenIndex == nil ? cameraOffset(radius: radius) : .zero)
+            .offset(leaving ? .zero : cameraOffset(radius: radius))
             // One animation for the whole ring rather than one per value: the collapse changes the
             // focus, the pan and the choice in a single frame, and chained `animation(_:value:)`
             // modifiers would leave the fastest of them deciding how the slowest one looks.
@@ -181,37 +164,36 @@ struct CategoryWheel: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .animation(.easeOut(duration: 0.15), value: isPressing)
                 .animation(.easeOut(duration: 0.15), value: focusedIndex == nil)
-                .animation(WheelMetrics.collapse, value: chosenIndex)
+                .animation(WheelMetrics.collapse, value: leaving)
                 .allowsHitTesting(false)
         }
         .aspectRatio(1, contentMode: .fit)
         // The week's ring does not turn into a session's ring — it gets out of the way of one. It
         // pushes out past its own size and fades, the session's ring comes up from behind it, and
         // whichever the eye is following is the one at full strength.
-        .scaleEffect(chosenIndex == nil ? 1 : WheelMetrics.exitScale)
-        .opacity(chosenIndex == nil ? 1 : 0)
-        .animation(WheelMetrics.collapse, value: chosenIndex)
+        .scaleEffect(leaving ? WheelMetrics.exitScale : 1)
+        .opacity(leaving ? 0 : 1)
+        .animation(WheelMetrics.collapse, value: leaving)
     }
 
     /// Everything about the ring that is worth animating, in one value, so a frame that changes
     /// several of them at once is still one animation.
     private var ringState: RingState {
-        RingState(focused: focusedIndex, pan: pan, pressing: isPressing, chosen: chosenIndex)
+        RingState(focused: focusedIndex, pan: pan, pressing: isPressing, leaving: leaving)
     }
 
     private struct RingState: Equatable {
         var focused: Int?
         var pan: CGSize
         var pressing: Bool
-        var chosen: Int?
+        var leaving: Bool
     }
 
     /// Which animation that change gets. Aiming — the close-up sliding under the finger — has to
     /// keep up with the hand, so it is the quick one. Everything that settles the ring into or out
     /// of a lap is the slow collapse, including cancelling back to the week.
     private var ringAnimation: Animation {
-        guard chosenIndex == nil else { return WheelMetrics.collapse }
-        guard isPressing else { return WheelMetrics.collapse }
+        guard !leaving, isPressing else { return WheelMetrics.collapse }
         return focusedIndex == nil
             ? .spring(response: 0.28, dampingFraction: 0.8)
             : .interactiveSpring(response: 0.18, dampingFraction: 0.9)
@@ -221,7 +203,7 @@ struct CategoryWheel: View {
     /// undecided, and the close-up once the drag has picked a direction. A chosen category has no
     /// zoom at all — the ring is a clock face by then, and the whole of it has to be on screen.
     private var ringScale: CGFloat {
-        guard chosenIndex == nil else { return 1 }
+        guard !leaving else { return 1 }
         if focusedIndex != nil { return WheelMetrics.focusScale }
         return isPressing ? WheelMetrics.pressScale : 1
     }
@@ -229,7 +211,7 @@ struct CategoryWheel: View {
     /// The hole in the middle of the ring, and the one thing it says at a time.
     @ViewBuilder
     private var centre: some View {
-        if chosenIndex == nil {
+        if !leaving {
             if !isPressing {
                 Image(systemName: "play.fill")
                     .font(.system(size: 20, weight: .semibold))
@@ -249,7 +231,7 @@ struct CategoryWheel: View {
     /// content, and dimming it at rest would only make the week harder to read. A focused segment
     /// keeps that weight while the rest step back, so the drag has something to have picked out.
     private func opacity(for segment: WheelSegment) -> Double {
-        guard let focusedIndex, chosenIndex == nil else { return 1 }
+        guard let focusedIndex, !leaving else { return 1 }
         return segment.index == focusedIndex ? 1 : WheelMetrics.unfocusedOpacity
     }
 
@@ -340,7 +322,6 @@ private struct SegmentIcon: View {
     /// The middle of the ring, in the space the glyph is placed in.
     let centre: CGPoint
     let scale: CGFloat
-    let glyphs: Namespace.ID
 
     var body: some View {
         let placement = segment.midAngle.radians - .pi / 2
@@ -349,11 +330,6 @@ private struct SegmentIcon: View {
         Image(systemName: Icons.symbol(for: segment.category.icon))
             .font(.system(size: size, weight: .semibold))
             .foregroundStyle(Color.white.opacity(isFocused ? 1 : 0.85))
-            // Recorded before the glyph is placed, but `position` is a layout modifier rather than a
-            // drawing one, so what the flight reads is the glyph's real place on the band. An
-            // `offset` here would leave every glyph reporting the middle of the ring, and a flight
-            // from the middle of the ring to a label just under it is a crossfade with extra steps.
-            .matchedGeometryEffect(id: WheelMetrics.glyphID(segment.category.id), in: glyphs)
             .position(x: centre.x + radius * cos(placement), y: centre.y + radius * sin(placement))
     }
 }

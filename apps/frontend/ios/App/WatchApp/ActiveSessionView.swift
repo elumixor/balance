@@ -14,7 +14,6 @@ struct RunningSessionView: View {
     /// ring, because the ring's own arc is the session's elapsed time — the arc and the numbers have
     /// to be told what time it is by the same tick, or they can disagree about the second.
     let now: Date
-    let glyphs: Namespace.ID
 
     private var tint: Color { Color(hex: session.categoryColor) }
 
@@ -30,13 +29,11 @@ struct RunningSessionView: View {
         .overlay {
             DialReadout(
                 tint: tint,
-                categoryID: session.categoryId,
                 categoryName: session.categoryName,
                 categoryIcon: session.categoryIcon,
                 value: RunningSessionView.clock(elapsed),
                 note: note,
-                noteColor: isOverrun ? .orange : .secondary,
-                glyphs: glyphs
+                noteColor: isOverrun ? .orange : .secondary
             )
         }
     }

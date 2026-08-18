@@ -43,11 +43,6 @@ struct ContentView: View {
     /// now the dial its length is set on.
     @State private var planner: TrackingPlanner?
 
-    /// The one thing that travels between the ring and the readouts below it: the chosen category's
-    /// glyph, which flies from its band into the label under the clock instead of one fading out
-    /// while a copy fades in somewhere else.
-    @Namespace private var glyphs
-
     /// How wide the drag readout turned out to be, so it can be kept on screen without being pinned
     /// to a fixed width it rarely needs.
     @State private var readoutSize: CGSize = .zero
@@ -197,7 +192,7 @@ struct ContentView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             } else {
-                CategoryWheel(model: wheel, chosenIndex: ringLeaving ? (chosenIndex ?? 0) : nil, glyphs: glyphs)
+                CategoryWheel(model: wheel, leaving: phase != .idle)
                     .contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 0)
@@ -214,10 +209,10 @@ struct ContentView: View {
                 // The session's ring arrives from behind the week's, which is on its way out towards
                 // the viewer. They cross rather than one becoming the other.
                 if let planner {
-                    DurationDialView(planner: planner, glyphs: glyphs)
+                    DurationDialView(planner: planner)
                         .transition(sessionRing)
                 } else if let active {
-                    RunningSessionView(session: active, now: now, glyphs: glyphs)
+                    RunningSessionView(session: active, now: now)
                         .transition(sessionRing)
                 }
 
@@ -233,10 +228,6 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-
-    /// Whether the week's ring is on its way out. It stays mounted while it leaves so the glyph it
-    /// is handing over can be lifted out of it and flown to the label instead of fading with it.
-    private var ringLeaving: Bool { phase != .idle }
 
     private var sessionRing: AnyTransition {
         .scale(scale: WheelMetrics.enterScale).combined(with: .opacity)

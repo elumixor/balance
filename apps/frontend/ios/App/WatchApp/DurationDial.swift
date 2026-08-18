@@ -257,19 +257,14 @@ struct RingFace: View {
 /// What sits in the hole in the middle of the ring, for both the dial and a running session: the
 /// number the ring is showing, the category under it, and one quiet line of detail under that.
 ///
-/// The category's glyph is not drawn here so much as landed here — it is the same glyph that was on
-/// the band a moment ago, flown in by `matchedGeometryEffect`, which is what makes choosing a
-/// category read as the ring folding down into a timer rather than as one screen replacing another.
 struct DialReadout: View {
     let tint: Color
-    let categoryID: String
     let categoryName: String
     let categoryIcon: String
     /// The big number in the middle — minutes being dialled, or the clock of a running session.
     let value: String
     let note: String?
     let noteColor: Color
-    let glyphs: Namespace.ID
 
     var body: some View {
         VStack(spacing: 1) {
@@ -286,7 +281,6 @@ struct DialReadout: View {
             HStack(spacing: 4) {
                 Image(systemName: Icons.symbol(for: categoryIcon))
                     .font(.system(size: 11, weight: .semibold))
-                    .matchedGeometryEffect(id: WheelMetrics.glyphID(categoryID), in: glyphs)
                 Text(categoryName)
                     .font(.caption2.weight(.semibold))
                     .lineLimit(1)
@@ -316,7 +310,6 @@ struct DialReadout: View {
 /// the ring's way.
 struct DurationDialView: View {
     @Bindable var planner: TrackingPlanner
-    let glyphs: Namespace.ID
 
     @FocusState private var crownFocused: Bool
 
@@ -327,13 +320,11 @@ struct DurationDialView: View {
             .overlay {
                 DialReadout(
                     tint: color,
-                    categoryID: planner.category.id,
                     categoryName: planner.category.name,
                     categoryIcon: planner.category.icon,
                     value: lengthText,
                     note: ticksText,
-                    noteColor: color,
-                    glyphs: glyphs
+                    noteColor: color
                 )
             }
             .modifier(CrownControl(planner: planner, focused: $crownFocused))
