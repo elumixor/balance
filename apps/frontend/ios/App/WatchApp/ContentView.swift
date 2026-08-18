@@ -218,7 +218,8 @@ struct ContentView: View {
     /// The drag has landed on a segment: the ring keeps it and becomes the dial its length is set
     /// on. The index has to be read before `ended()`, which clears the gesture behind it.
     private func choose() {
-        guard let index = wheel.focusedIndex, let category = wheel.ended() else { return }
+        let index = wheel.focusedIndex
+        guard let index, let category = wheel.ended() else { return }
         withAnimation(WheelMetrics.collapse) {
             planner = TrackingPlanner(category: category, index: index)
         }
