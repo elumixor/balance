@@ -26,7 +26,12 @@ enum WheelMetrics {
     /// the direction it looks in and how far out it goes. Nearly all of it: the close-up parks on
     /// the band and stays there, so crossing into a segment is a move to it rather than a slide that
     /// keeps drifting. What is left is enough to see the ring answer the drag.
-    static let segmentSnap = 0.6
+    static let segmentSnap = 0.88
+
+    /// How far a focused segment's centre is pushed from the middle of the screen, as a fraction of
+    /// the ring's own radius. Less than one keeps the close-up from parking the band right against
+    /// the edge.
+    static let focusDistance: CGFloat = 0.7
 
     /// What the segments that were not picked fall back to while one of them is focused.
     static let unfocusedOpacity = 0.35
@@ -175,7 +180,7 @@ struct CategoryWheel: View {
         // under the middle of the screen at once, and reaching further only creeps the last of the
         // way. Otherwise a segment could be focused while still being drawn half off the edge, which
         // is the same "aimed at one thing, looking at another" the angle snap exists to prevent.
-        let bandCentre = (radius - WheelMetrics.bandThickness / 2) * WheelMetrics.focusScale
+        let bandCentre = (radius - WheelMetrics.bandThickness / 2) * WheelMetrics.focusScale * WheelMetrics.focusDistance
         let progress = min(max((travel - WheelGestureModel.deadZone) / WheelMetrics.panTravel, 0), 1)
         let reached = bandCentre * progress
         let distance = reached + (bandCentre - reached) * WheelMetrics.segmentSnap
