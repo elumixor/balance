@@ -1,8 +1,12 @@
 import SwiftUI
 import BalanceKit
 
-/// The one line over the ring that says what the finger is currently pointing at: the category's
-/// glyph and name, then how the week stands for it — "3.5 / 10h · 35%".
+/// The card over the ring that says what the finger is currently pointing at: the category's glyph
+/// and name on top, and how the week stands for it underneath — "3.5 / 10h · 35%".
+///
+/// Two lines rather than one because it rides the finger: a single line long enough to hold both
+/// halves is wider than the screen has to spare once the drag reaches for the rim, and the half that
+/// gets squeezed out is always the numbers.
 ///
 /// It draws nothing at all while the drag is inside the dead zone. There is no hint to replace it
 /// with: the ring appearing under the thumb is the instruction.
@@ -12,15 +16,17 @@ struct CategoryFocusReadout: View {
     var body: some View {
         Group {
             if let category {
-                HStack(spacing: 5) {
-                    Image(systemName: Icons.symbol(for: category.icon))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color(hex: category.color))
+                VStack(spacing: 0) {
+                    HStack(spacing: 4) {
+                        Image(systemName: Icons.symbol(for: category.icon))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color(hex: category.color))
 
-                    Text(category.name)
-                        .font(.footnote.weight(.semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        Text(category.name)
+                            .font(.footnote.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
 
                     Text(progress(for: category))
                         .font(.caption2)
@@ -29,10 +35,10 @@ struct CategoryFocusReadout: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                 }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(.black.opacity(0.75), in: Capsule())
-                .frame(maxWidth: 165)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .frame(maxWidth: 130)
                 .transition(.opacity)
             }
         }
