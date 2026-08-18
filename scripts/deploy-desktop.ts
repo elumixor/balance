@@ -37,6 +37,10 @@ await $`bunx tauri build --bundles dmg`.cwd(frontend).env({
 const dmg = (await readdir(bundleDir)).find((name) => name.endsWith(".dmg"));
 if (!dmg) throw new Error(`No .dmg in ${bundleDir}`);
 
+// Tauri notarizes and staples the app, then signs the DMG around it — leaving the DMG itself
+// unnotarized, which is what Gatekeeper judges when someone opens the file they downloaded.
+if (identity) await notarize(join(bundleDir, dmg));
+
 await rm(staged, { recursive: true, force: true });
 await mkdir(staged, { recursive: true });
 await $`cp ${join(bundleDir, dmg)} ${join(staged, "Balance.dmg")}`;
@@ -55,6 +59,20 @@ await Bun.write(
 );
 
 console.log(`Staged ${dmg} (${(size / 1e6).toFixed(1)} MB) for the web deployment`);
+
+/** Sends the disk image to Apple and staples their answer into it, so it opens offline too. */
+async function notarize(path: string) {
+  const key = [
+    "--key",
+    keyPath(),
+    "--key-id",
+    required("APP_STORE_CONNECT_API_KEY_ID"),
+    "--issuer",
+    required("APP_STORE_CONNECT_API_KEY_ISSUER_ID"),
+  ];
+  await $`xcrun notarytool submit ${path} ${key} --wait`;
+  await $`xcrun stapler staple ${path}`;
+}
 
 /** The Developer ID identity in this machine's keychain, if the account has one yet. */
 async function developerId() {

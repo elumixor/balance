@@ -18,15 +18,15 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test:e2e": "playwright test",
-    "deploy": "bun scripts/deploy.ts",
-    "deploy:vercel": "bun scripts/deploy-vercel.ts",
-    "deploy:ios": "bun scripts/deploy-ios.ts",
-    "deploy:desktop": "bun scripts/deploy-desktop.ts",
+    "deploy": "devkit deploy",
+    "deploy:vercel": "devkit deploy vercel",
+    "deploy:ios": "devkit deploy ios",
+    "deploy:desktop": "devkit deploy desktop",
     "release:ios": "git tag ios-v$(date +%Y%m%d%H%M%S) && git push origin --tags"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
-    "@elumixor/devkit": "^0.4.1",
+    "@elumixor/devkit": "^0.5.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^20",
     "typescript": "^5"

@@ -16,7 +16,7 @@ and it becomes a real event in your calendar.
 | `apps/frontend/ios`   | Everything Apple: the committed Xcode project, BalanceKit, fastlane    |
 | `apps/frontend/src-tauri` | The macOS shell: the menu bar item and the window around the SPA  |
 | `apps/backend`        | Nitro JSON API over Postgres (Neon) with Drizzle                       |
-| `packages/synced`     | The optimistic write queue both halves speak — records, retries, undo  |
+| `@elumixor/synced`     | The optimistic write queue both halves speak — records, retries, undo  |
 | `e2e`                 | Playwright suite, driven against the app's web build                   |
 
 Auth is Clerk on both sides; the frontend sends its session token to `/mobile/*`.
@@ -189,8 +189,11 @@ bun run deploy:ios      # web bundle -> Xcode project -> fastlane `beta` -> Test
 bun run deploy:desktop  # macOS app -> `dist/download`, which the web deployment then serves
 ```
 
-The iOS half runs alongside the other two. The macOS app doesn't: the website hands it out, so the
-DMG has to exist before Vercel packages the site, and a web deploy builds it first.
+The targets, what each one runs and what it waits for live in the `devkit.deploy` block of the root
+`package.json`; `devkit deploy` runs them, drawing a line per target and keeping the full logs in
+`.devkit/deploy/`. The iOS half runs alongside the other two. The macOS app doesn't: the website
+hands it out, so the DMG has to exist before Vercel packages the site, and a web deploy builds it
+first.
 
 Everything is built on this machine — there is no CI doing it, and no tag to push. The iOS half
 needs a working release setup locally: Homebrew Ruby (`brew install ruby`, macOS's own 2.6 is too

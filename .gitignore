@@ -43,6 +43,9 @@ npm-debug.log*
 # the macOS app a release stages for the website to serve
 dist/
 
+# per-target deploy logs (devkit deploy)
+.devkit/
+
 # vercel
 .vercel
 
