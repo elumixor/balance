@@ -16,7 +16,7 @@ enum WheelMetrics {
     /// The camera move. The ring never turns — dragging pushes it under the screen the way a hand
     /// pushes a map, and crossing the dead zone snaps to the close-up so the segment being dragged
     /// towards fills the middle instead of sitting on the rim.
-    static let focusScale: CGFloat = 2
+    static let focusScale: CGFloat = 1.5
 
     /// How much further than the dead zone the finger travels before the ring has slid the whole
     /// way, putting the focused band under the middle of the screen.
