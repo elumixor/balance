@@ -18,8 +18,7 @@
   <section>
     <SectionHeader title="Balance for Mac" />
     <p class="t-micro mb-3 text-fg-faint">
-      The menu bar knows what you're in the middle of, and reminds you before the next thing. Opening it the first
-      time needs a right-click → Open, because the build isn't signed by Apple yet.
+      The menu bar knows what you're in the middle of, and reminds you before the next thing.
     </p>
     <a
       href={DESKTOP_DOWNLOAD_URL}
@@ -32,5 +31,14 @@
     <p class="t-data-micro mt-2 text-center text-fg-faint">
       {build.version} · {build.arch} · {desktopDownload.size}
     </p>
+    <!-- Until the app is notarized, macOS stops the first launch of a downloaded copy. Saying so
+         here, with the way out, beats a dialog claiming the app is damaged. -->
+    {#if !build.notarized}
+      <p class="t-micro mt-3 text-fg-faint">
+        This build isn't signed by Apple yet, so the first launch is blocked: open it once from
+        <span class="text-fg">System Settings → Privacy &amp; Security → Open Anyway</span>. Or run
+        <code class="select-all">xattr -dr com.apple.quarantine /Applications/Balance.app</code>.
+      </p>
+    {/if}
   </section>
 {/if}

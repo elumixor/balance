@@ -6,6 +6,8 @@ interface DesktopBuild {
   bytes: number;
   builtAt: string;
   arch: string;
+  /** Whether Apple has notarized this build — if not, the first launch needs a trip to settings. */
+  notarized: boolean;
 }
 
 export const DESKTOP_DOWNLOAD_URL = "/download/Balance.dmg";
