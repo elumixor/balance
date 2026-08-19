@@ -99,7 +99,26 @@ final class SessionController {
         ticks = TrackingPlan(minutes: 0, ticks: .off)
         active = nil
         TrackingAlarm.playConfirmation()
-        await perform { _ = try await APIClient.shared.stopTracking(); return nil }
+        isBusy = true
+        errorMessage = nil
+        defer { isBusy = false }
+        do {
+            _ = try await APIClient.shared.stopTracking()
+            confirm(nil)
+        } catch {
+            errorMessage = error.localizedDescription
+            // A rollback to `confirmed` normally undoes the optimistic edit, but here that would
+            // hand the auto-finish task in ContentView the same (already past) `plannedEndAt` it
+            // just fired on, so it fires `stop()` again immediately — a haptic-and-view-flip loop
+            // that never stops as long as the request keeps failing. A session whose planned end
+            // is already behind us stays finished regardless of what the request answered.
+            if let session = confirmed, let end = session.plannedEndAt, end <= Date() {
+                active = nil
+            } else {
+                active = confirmed
+            }
+            publish()
+        }
     }
 
     /// `minutes` is the session's whole length measured from where it started, which is what the
