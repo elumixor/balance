@@ -65,45 +65,28 @@ struct RunningSessionView: View {
 }
 
 /// What a running session can be done to, sitting in the screen's bottom margin the same way the
-/// start button did — the ring keeps its whole height, and the controls float over its lower arc
-/// with enough shadow under them that the arc reads as passing behind.
+/// start button did — the ring keeps its whole height, and the control floats over its lower arc
+/// with enough shadow under it that the arc reads as passing behind.
+///
+/// Stopping is the only thing offered. A session that runs past its planned end keeps running and
+/// says so, so there is nothing "+15 more minutes" would buy that letting it overrun doesn't.
 struct RunningControls: View {
     let session: ActiveSession
     let isBusy: Bool
     let onFinish: () -> Void
-    let onExtend: (Int) -> Void
-
-    /// What "+ more time" adds. Small enough to tap twice, large enough to be worth the tap.
-    private static let extendStep = 15
 
     private var tint: Color { Color(hex: session.categoryColor) }
 
     var body: some View {
-        HStack(spacing: 6) {
-            Button(action: onFinish) {
-                Image(systemName: "stop.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(width: 54, height: 28)
-                    .background(tint, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(isBusy)
-
-            if session.plannedEndAt != nil {
-                Button {
-                    onExtend(Self.extendStep)
-                } label: {
-                    Text("+\(Self.extendStep)m")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 42, height: 28)
-                        .background(.white.opacity(0.18), in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(isBusy)
-            }
+        Button(action: onFinish) {
+            Image(systemName: "stop.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.black)
+                .frame(width: 54, height: 28)
+                .background(tint, in: Capsule())
         }
+        .buttonStyle(.plain)
+        .disabled(isBusy)
         .ringButtonShadow()
         .overlay(alignment: .top) {
             if isBusy {

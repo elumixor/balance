@@ -20,10 +20,10 @@ the API is Nitro, in `apps/backend`.
 
 `src/lib/store.svelte.ts` holds every screen's data for the session, one `Cached` per thing. A
 screen calls `ensure()` on mount, which fetches only what's missing or stale, so switching tabs
-costs no requests and shows no skeleton — `e2e/navigation.spec.ts` holds that line. A write calls
-the matching `invalidate.*()` and refreshes its own cache; the screens it touched refetch behind
-their existing rows the next time they're opened. Don't fetch from a component, and don't
-instantiate a screen's data class per mount — they're module-level singletons.
+costs no requests and shows no skeleton. A write calls the matching `invalidate.*()` and refreshes
+its own cache; the screens it touched refetch behind their existing rows the next time they're
+opened. Don't fetch from a component, and don't instantiate a screen's data class per mount —
+they're module-level singletons.
 
 ## The calendar is the source of truth, the database is thin
 

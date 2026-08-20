@@ -17,7 +17,6 @@ and it becomes a real event in your calendar.
 | `apps/frontend/src-tauri` | The macOS shell: the menu bar item and the window around the SPA  |
 | `apps/backend`        | Nitro JSON API over Postgres (Neon) with Drizzle                       |
 | `@elumixor/synced`     | The optimistic write queue both halves speak — records, retries, undo  |
-| `e2e`                 | Playwright suite, driven against the app's web build                   |
 
 Auth is Clerk on both sides; the frontend sends its session token to `/mobile/*`.
 
@@ -170,15 +169,6 @@ bun run lint       # biome check
 bun run lint:fix   # biome check --write
 bun run check      # svelte-check over the frontend
 ```
-
-## Tests
-
-```bash
-bun run test:e2e     # starts both dev servers, then runs Playwright
-```
-
-The suite signs in as a `+clerk_test` account, so it uses Clerk's fixed `424242` code instead of a
-real email.
 
 ## Releasing
 
