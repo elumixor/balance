@@ -240,20 +240,18 @@ struct ContentView: View {
     private let readoutDrift: CGFloat = 0.5
     private let readoutMargin: CGFloat = 6
 
-    /// Where the readout sits: the fixed gap above the finger, and pulled half of the way back
-    /// towards the middle of the ring horizontally. Following the finger's x exactly would push a
-    /// line this wide against the edge on every reach outwards; half of it keeps the readout under
-    /// the eye without ever needing to be shoved back on screen. When there is no room above, it
-    /// flips to the same gap below rather than sliding closer, so the distance never changes.
+    /// Where the readout sits: always the same gap above the finger, and pulled half of the way
+    /// back towards the middle of the ring horizontally. Following the finger's x exactly would
+    /// push a line this wide against the edge on every reach outwards; half of it keeps the readout
+    /// under the eye without ever needing to be shoved back on screen. The y is never clamped or
+    /// flipped below — the card staying in one place relative to the thumb is worth more than the
+    /// top edge of it, which the ring's own top rarely reaches anyway.
     private func readoutPosition(for location: CGPoint, in size: CGSize) -> CGPoint {
         let halfWidth = max(readoutSize.width, 40) / 2
-        let halfHeight = max(readoutSize.height, 20) / 2
         let centre = size.width / 2
         let aimed = centre + (location.x - centre) * readoutDrift
         let x = min(max(aimed, halfWidth + readoutMargin), size.width - halfWidth - readoutMargin)
-        let above = location.y - readoutGap
-        let y = above - halfHeight >= readoutMargin ? above : location.y + readoutGap
-        return CGPoint(x: x, y: y)
+        return CGPoint(x: x, y: location.y - readoutGap)
     }
 
     // MARK: - The band underneath
