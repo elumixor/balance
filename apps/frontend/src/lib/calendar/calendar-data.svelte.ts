@@ -9,7 +9,7 @@ import {
   saveEventMapping,
   updateCalendarEvent,
 } from "$lib/queries";
-import { calendarWeek, invalidate, store } from "$lib/store.svelte";
+import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
 import { activities, synced } from "$lib/synced.svelte";
 import { type Activity, type ActivityWeight, type CalendarEvent, type MappingScope, NOT_A_MEETING } from "$lib/types";
 import type { HistoryStep } from "./history.svelte";
@@ -36,9 +36,6 @@ const AUTOSCROLL_STEP_PX = 12;
 /** How many events keep a handle before the lot is dropped — see `#ref`. */
 const REF_LIMIT = 200;
 
-/** How many times a write asks the calendar to agree with it before taking no for an answer. */
-const SETTLE_ATTEMPTS = 3;
-const SETTLE_DELAY_MS = 600;
 /** The id a block wears between being drawn and the calendar giving it a real one. */
 const DRAFT_PREFIX = "draft:";
 
@@ -1004,17 +1001,35 @@ class CalendarData {
 
   // --- one write each, so an undo can run the same one backwards -------------
 
+  /**
+   * The event as the last write left it: the weeks with the drawn-ahead versions over the top,
+   * and deliberately not `events`, which also carries the times the editor is previewing. A diff
+   * taken against a preview finds nothing to write — and what it found nothing to write for is
+   * the very write the preview was leading up to.
+   */
+  #written(id: string): CalendarEvent | undefined {
+    if (this.#pending.has(id)) return this.#pending.get(id) ?? undefined;
+    return this.weeks.flatMap((week) => week.value?.events ?? []).find((event) => event.id === id);
+  }
+
   async #writeFields(ref: EventRef, was: CalendarEvent, fields: EventFields): Promise<boolean> {
+    // Only what actually moved. A write that carries the title along with a new end time is a
+    // write of the title as far as the calendar and everyone else reading it is concerned, and
+    // two edits racing over one field are only a race if both of them name that field.
+    const base = this.#written(ref.id) ?? was;
+    const patch: { title?: string; description?: string; start?: string; end?: string } = {};
+    if (fields.title !== base.title) patch.title = fields.title;
+    // An empty string is how the calendar is told the notes are gone; leaving it out keeps them.
+    const description = fields.description ?? "";
+    if (description !== (base.description ?? "")) patch.description = description;
+    if (fields.start.getTime() !== new Date(base.start).getTime()) patch.start = fields.start.toISOString();
+    if (fields.end.getTime() !== new Date(base.end).getTime()) patch.end = fields.end.toISOString();
+    // Nothing to say. An undo of an edit that was itself a no-op lands here, as does the editor
+    // committing a field the grid already moved.
+    if (Object.keys(patch).length === 0) return true;
+
     const done = await this.#run(
-      () =>
-        updateCalendarEvent(ref.id, {
-          calendarId: ref.calendarId,
-          title: fields.title,
-          // An empty string is how the calendar is told the notes are gone; leaving it out keeps them.
-          description: fields.description ?? "",
-          start: fields.start.toISOString(),
-          end: fields.end.toISOString(),
-        }),
+      () => updateCalendarEvent(ref.id, { calendarId: ref.calendarId, ...patch }),
       {
         id: ref.id,
         event: {
@@ -1027,6 +1042,7 @@ class CalendarData {
           end: fields.end.toISOString(),
         },
       },
+      (event) => applyCalendarEvent(event, ref.id),
     );
     return done !== null;
   }
@@ -1068,12 +1084,20 @@ class CalendarData {
     const done = await this.#run<unknown>(
       () => (choice ? saveEventMapping({ ...target(), ...choice }) : removeEventMapping(target())),
       drawn,
+      // What an instance now counts as is worked out here in full, so the answer is already on
+      // the screen — there is nothing to ask the server for. A series recolours instances this
+      // strip has never loaded, which only a refetch can know about.
+      scope === "instance" ? () => drawn[0]?.event && applyCalendarEvent(drawn[0].event) : undefined,
     );
     return done !== null;
   }
 
   async #remove(ref: EventRef): Promise<boolean> {
-    const done = await this.#run(() => deleteCalendarEvent(ref.id, ref.calendarId), { id: ref.id, event: null });
+    const done = await this.#run(
+      () => deleteCalendarEvent(ref.id, ref.calendarId),
+      { id: ref.id, event: null },
+      () => dropCalendarEvent(ref.id),
+    );
     return done !== null;
   }
 
@@ -1105,6 +1129,7 @@ class CalendarData {
         return event;
       },
       { id: ref.id, event: { ...was, id: ref.id, calendarId: ref.calendarId } },
+      (event) => applyCalendarEvent(event, ref.id),
     );
     if (!created) return false;
 
@@ -1187,6 +1212,7 @@ class CalendarData {
         return event;
       },
       { id: draft.id, event: draft },
+      (event) => applyCalendarEvent(event, draft.id),
     );
     if (!created) {
       // Nothing was made, so there's nothing to have open — the error says why.
@@ -1239,6 +1265,7 @@ class CalendarData {
         return event;
       },
       { id: draft.id, event: draft },
+      (event) => applyCalendarEvent(event, draft.id),
     );
     if (!created) return;
 
@@ -1247,15 +1274,23 @@ class CalendarData {
   }
 
   /**
-   * Every write puts its answer on the grid first and asks the server second. The server is still
-   * the truth: the week is refetched either way, and the drawn-ahead version is only dropped once
-   * that refetch has landed — so a write that failed rolls back to what the server actually holds
-   * without a frame of the old value showing in between.
+   * Every write puts its answer on the grid first and asks the server second, and the server's
+   * own answer to that write is what the week ends up holding — not a refetch of the week.
+   *
+   * A refetch would be three requests for three weeks of events to learn about one block the
+   * answer already described, and Google will happily serve a read with the version from before
+   * the write it has just accepted, so the refetched week is not even reliably newer. What the
+   * write returns is: it goes into the caches through `apply`, and the drawn-ahead version comes
+   * off in the same turn, so the block never blinks.
+   *
+   * Writes whose reach this screen can't work out — a series edit, a series mapping — pass no
+   * `apply` and refetch instead. A write that failed rolls back to what the caches already hold,
+   * which is the version from before it was drawn, and marks the weeks worth checking later.
    *
    * The asking is one at a time. Two writes to the same event in flight together land in whichever
    * order Google gets to them, and undoing three edits in a second is exactly that case.
    */
-  #run<T>(action: () => Promise<T>, drawn?: Drawn | readonly Drawn[]): Promise<T | null> {
+  #run<T>(action: () => Promise<T>, drawn?: Drawn | readonly Drawn[], apply?: (answer: T) => void): Promise<T | null> {
     const drawnList = drawn ? (Array.isArray(drawn) ? drawn : [drawn]) : [];
     // Drawn now, before anything is queued: this is the whole point of drawing ahead. Holding
     // ⌘Z stacks its answers up on the grid at once and lets the writes catch up behind them.
@@ -1274,17 +1309,22 @@ class CalendarData {
       let saved = false;
       try {
         answer = await action();
-        invalidate.calendar();
         saved = true;
       } catch (e) {
         this.actionError = e instanceof Error ? e.message : "That didn't save.";
       }
       try {
-        // Nothing to wait for once a later write has drawn over this one: the block on screen is
-        // that write's now, and it does its own settling. Waiting here would only put this
-        // write's older version back for as long as the waiting took.
-        if (saved && drawnList.length > 0 && current()) await this.#settle(drawnList);
-        else await this.refreshWeeks();
+        if (!saved) {
+          // The caches still hold what the server had before this was drawn, so taking the drawn
+          // version off is the whole rollback. They're marked stale in case the write landed
+          // anyway and only the answer was lost.
+          invalidate.calendar();
+        } else if (apply) {
+          apply(answer as T);
+        } else {
+          invalidate.calendar();
+          await this.refreshWeeks();
+        }
       } finally {
         if (current()) {
           for (const one of drawnList) {
@@ -1300,34 +1340,6 @@ class CalendarData {
       () => undefined,
     );
     return run;
-  }
-
-  /**
-   * Google will happily answer a read with the version from before the write it just accepted, so
-   * refetching once and trusting it is how a block ends up back where it started a second after
-   * being moved. The drawn-ahead version stays up until the server's answer matches it, or until
-   * asking again stops being worth the wait — at which point what the server says wins anyway.
-   */
-  async #settle(drawn: readonly Drawn[]) {
-    for (let attempt = 0; ; attempt++) {
-      await this.refreshWeeks();
-      if (attempt >= SETTLE_ATTEMPTS - 1 || drawn.every((one) => this.#serverAgrees(one))) return;
-      await new Promise((resolve) => setTimeout(resolve, SETTLE_DELAY_MS));
-    }
-  }
-
-  #serverAgrees(drawn: Drawn) {
-    const events = this.weeks.flatMap((week) => week.value?.events ?? []);
-    // A deletion: agreement is the event being gone.
-    if (!drawn.event) return !events.some((event) => event.id === drawn.id);
-    // A creation, which has no server id to look up — the slot it was drawn in being taken is
-    // as close as this gets.
-    const wanted = drawn.event;
-    if (drawn.id.startsWith(DRAFT_PREFIX)) return events.some((event) => sameTimes(event, wanted));
-    const found = events.find((event) => event.id === drawn.id);
-    return Boolean(
-      found && sameTimes(found, wanted) && found.title === wanted.title && found.activityId === wanted.activityId,
-    );
   }
 
   // --- pointer geometry -----------------------------------------------------
@@ -1552,14 +1564,6 @@ function mappingOf(event: CalendarEvent): Mapping | null {
     scope: event.mappingScope,
     choice: event.activityId ? { activityId: event.activityId } : { weights: event.weights },
   };
-}
-
-/** Times come back RFC 3339 with a zone offset, which the same instant can spell more than one way. */
-function sameTimes(a: CalendarEvent, b: CalendarEvent) {
-  return (
-    new Date(a.start).getTime() === new Date(b.start).getTime() &&
-    new Date(a.end).getTime() === new Date(b.end).getTime()
-  );
 }
 
 /** The caches for the three weeks drawn from `start`, made if the store hasn't got them yet. */

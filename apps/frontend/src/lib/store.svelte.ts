@@ -4,7 +4,7 @@ import { weekKey, weekRange } from "./dates";
 import * as persist from "./persist";
 import { getCalendarPrefs, getCalendarWeek, getIntegrations, getPreferences } from "./queries";
 import { synced } from "./synced.svelte";
-import type { CalendarWeek } from "./types";
+import type { CalendarEvent, CalendarWeek } from "./types";
 
 /**
  * What the app reads but never writes: the calendar's answer to a week, and the state of the
@@ -139,4 +139,40 @@ export async function clearStore() {
   weeks.clear();
   persist.wipe();
   await synced.clear();
+}
+
+/**
+ * What a write to one event did, put straight into the weeks that hold it.
+ *
+ * The alternative — marking every week stale and asking the server again — costs one request per
+ * week on the strip for a change the server has already described in its answer, and asks Google
+ * for a range it may still be answering with the version from before the write. The event the
+ * write returned is the newest thing anyone has, so it goes in as it is.
+ *
+ * `previousId` covers the two cases where the answer isn't the row it replaces: a draft becoming
+ * the event the calendar made, and an event whose new times put it in a different week.
+ */
+export function applyCalendarEvent(event: CalendarEvent, previousId?: string) {
+  const from = new Date(event.start).getTime();
+  const to = new Date(event.end).getTime();
+  for (const cached of weeks.values()) {
+    const week = cached.value;
+    if (!week) continue;
+    const kept = week.events.filter((one) => one.id !== event.id && one.id !== previousId);
+    // The week's own range, not its key: an event that straddles Sunday night belongs to both.
+    const overlaps = from < new Date(week.to).getTime() && to > new Date(week.from).getTime();
+    // A week that neither held this event nor wants it now is left as it was — replacing its
+    // array would have the grid re-place every block in it for nothing.
+    if (!overlaps && kept.length === week.events.length) continue;
+    cached.patch({ ...week, events: overlaps ? [...kept, event] : kept });
+  }
+}
+
+/** The same for a delete: the row comes out of every week that had it. */
+export function dropCalendarEvent(id: string) {
+  for (const cached of weeks.values()) {
+    const week = cached.value;
+    if (!week?.events.some((one) => one.id === id)) continue;
+    cached.patch({ ...week, events: week.events.filter((one) => one.id !== id) });
+  }
 }

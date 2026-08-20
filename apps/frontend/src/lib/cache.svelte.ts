@@ -78,6 +78,18 @@ export class Cached<T> {
     if (this.#key !== undefined) persist.write(this.#key, value, Date.now());
   }
 
+  /**
+   * A value the caller worked out itself — a write's own answer folded into what's held — rather
+   * than one the server just gave for the whole thing. Whether this is still worth checking is
+   * exactly what it was a moment ago, so `set`'s claim of freshness would be a different fact.
+   */
+  patch(value: T) {
+    this.value = value;
+    this.hasValue = true;
+    this.error = null;
+    if (this.#key !== undefined) persist.write(this.#key, value, Date.now());
+  }
+
   /** Marks the value worth refetching without blanking the screen that's showing it. */
   invalidate() {
     this.#stale = true;

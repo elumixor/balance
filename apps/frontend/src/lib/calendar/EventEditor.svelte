@@ -13,7 +13,7 @@
   import { hasAddress, meetingOf } from "$lib/meeting";
   import { preferences } from "$lib/preferences.svelte";
   import { respondToCalendarEvent } from "$lib/queries";
-  import { invalidate } from "$lib/store.svelte";
+  import { applyCalendarEvent } from "$lib/store.svelte";
   import type { CalendarEvent, Category, EventResponse, MappingScope } from "$lib/types";
   import { ArrowRight, Bell, Clock, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
@@ -288,17 +288,16 @@
   }
 
   /**
-   * Answering an invitation isn't an edit, so it doesn't go through the debounce — and the week is
-   * refetched behind it, because the answer changes whether the block counts toward its category.
+   * Answering an invitation isn't an edit, so it doesn't go through the debounce. The answer
+   * changes whether the block counts toward its category, and the reply carries the event it
+   * changed — so the week takes that, rather than asking for all three of them again.
    */
   async function respond(response: Answer) {
     if (answering) return;
     answering = response;
     error = null;
     try {
-      await respondToCalendarEvent(event.id, event.calendarId, response);
-      invalidate.calendar();
-      await data.refreshWeeks();
+      applyCalendarEvent(await respondToCalendarEvent(event.id, event.calendarId, response));
     } catch (e) {
       error = e instanceof Error ? e.message : "That didn't save.";
     } finally {
