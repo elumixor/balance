@@ -43,6 +43,15 @@ struct ContentView: View {
     /// now the dial its length is set on.
     @State private var planner: TrackingPlanner?
 
+    /// Where the week's ring was sitting when the finger lifted. The close-up has pushed the chosen
+    /// band away from the middle of the screen, and the session's ring is drawn centred — so it
+    /// arrives at the offset the band was left at and slides home, which is what makes the two read
+    /// as one ring rather than a swap.
+    @State private var handoff: CGSize = .zero
+
+    /// The ring's own square, kept so the handover can be worked out without a view to ask.
+    @State private var ringSize: CGSize = .zero
+
     /// How wide the drag readout turned out to be, so it can be kept on screen without being pinned
     /// to a fixed width it rarely needs.
     @State private var readoutSize: CGSize = .zero
@@ -169,7 +178,14 @@ struct ContentView: View {
             TimelineView(.periodic(from: active?.startedAt ?? .now, by: active == nil ? 60 : 1)) { context in
                 stack(in: proxy.size, now: context.date, active: active)
             }
+            .onChange(of: proxy.size, initial: true) { _, size in ringSize = size }
         }
+    }
+
+    /// The radius the wheel draws itself at, worked out the same way it does: the ring is fitted
+    /// square into whatever the screen leaves it.
+    private var ringRadius: CGFloat {
+        min(ringSize.width, ringSize.height) / 2 - WheelMetrics.ringInset
     }
 
     @ViewBuilder
@@ -222,8 +238,15 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// The session's ring arriving and leaving. Only the arrival carries the handover offset: it
+    /// comes in where the chosen band was left and travels to the middle, while a dial that is being
+    /// dismissed has nothing to travel back to — by then the week's ring is centred again.
     private var sessionRing: AnyTransition {
-        .scale(scale: WheelMetrics.enterScale).combined(with: .opacity)
+        let cross = AnyTransition.scale(scale: WheelMetrics.enterScale).combined(with: .opacity)
+        return .asymmetric(
+            insertion: cross.combined(with: .offset(handoff)),
+            removal: cross
+        )
     }
 
     /// How far the readout floats from the finger, centre to centre. Constant: the card keeps the
@@ -293,8 +316,16 @@ struct ContentView: View {
     /// zone still has to put the ring back the way it found it.
     private func choose() {
         let index = wheel.focusedIndex
+        let pan = wheel.pan
+        let categories = wheel.categories
         let category = wheel.ended()
         guard let index, let category else { return }
+        handoff = CategoryWheel.cameraOffset(
+            layout: WheelLayout(categories: categories),
+            focusedIndex: index,
+            pan: pan,
+            radius: ringRadius
+        )
         withAnimation(WheelMetrics.collapse) {
             planner = TrackingPlanner(category: category, index: index)
         }
@@ -307,6 +338,9 @@ struct ContentView: View {
         // The controller sets its optimistic session before it reaches the network, so clearing the
         // planner first means the running ring is already there in the same frame the dial leaves —
         // the lap never blinks back to a week in between.
+        // The running ring replaces the dial in place — the handover was the week's ring becoming a
+        // lap, and that already happened.
+        handoff = .zero
         self.planner = nil
         await sessions.start(category: planner.category, plan: plan)
         // Starting a session writes an event into the week the ring is drawn from, so the numbers
