@@ -8,6 +8,8 @@ export const DEFAULT_EVENT_MINUTES = 60;
 /** Where the scroller opens, and where a block stops being wide enough to say anything. */
 export const OPENING_HOUR = 7;
 export const NARROW_BLOCK_PERCENT = 34;
+/** The gutter every block leaves on the right of its column, timed blocks and all-day alike. */
+export const BLOCK_GUTTER_PX = 10;
 
 export interface Segment {
   readonly event: CalendarEvent;
@@ -223,6 +225,13 @@ export function snapMinutes(minutes: number): number {
   return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
 }
 
+/**
+ * Which column a date falls in, counted in days rather than in hours.
+ *
+ * The day the clocks go forward is 23 hours long, so dividing the gap by 24 and flooring it puts
+ * that Monday — and every day after it — one column to the left for the rest of the strip.
+ * Rounding a whole number of local midnights apart is right in both directions.
+ */
 function dayIndexOf(date: Date, rangeStart: Date): number {
-  return Math.floor((startOfDay(date).getTime() - rangeStart.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.round((startOfDay(date).getTime() - startOfDay(rangeStart).getTime()) / (24 * 60 * 60 * 1000));
 }

@@ -15,6 +15,7 @@
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import {
     allDaySpansForRange,
+    BLOCK_GUTTER_PX,
     daySpans,
     HOUR_PX,
     NARROW_BLOCK_PERCENT,
@@ -580,7 +581,7 @@
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 class="relative py-0.5"
-                style="grid-row:{span.row + 1};grid-column:{span.dayIndex + 1} / span {span.days}"
+                style="padding-right:{BLOCK_GUTTER_PX}px;grid-row:{span.row + 1};grid-column:{span.dayIndex + 1} / span {span.days}"
                 in:appear={{ id: span.event.id }}
                 onclick={(e) =>
                   data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
@@ -635,7 +636,7 @@
                 class="absolute touch-none select-none {isSelected
                   ? 'z-30'
                   : ''} {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
-                style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - 10px)"
+                style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - {BLOCK_GUTTER_PX}px)"
                 in:appear={{ id: segment.event.id }}
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
