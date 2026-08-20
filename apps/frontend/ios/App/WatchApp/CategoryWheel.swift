@@ -248,6 +248,14 @@ struct CategoryWheel: View {
     /// band; leaning towards the middle means whatever is focused is also what is centred, while the
     /// remaining freedom still makes the ring feel dragged rather than switched.
     private func cameraOffset(radius: CGFloat) -> CGSize {
+        Self.cameraOffset(layout: layout, focusedIndex: focusedIndex, pan: pan, radius: radius)
+    }
+
+    /// The same camera move, worked out from the drag rather than from a live view. The handover to
+    /// a session's ring needs the offset the week's ring was sitting at in the frame the finger
+    /// lifted, and by then the gesture has already been reset — so the maths has to be callable
+    /// with the numbers kept aside, and there must only be one copy of it.
+    static func cameraOffset(layout: WheelLayout, focusedIndex: Int?, pan: CGSize, radius: CGFloat) -> CGSize {
         guard let focusedIndex, let segment = layout.segment(at: focusedIndex) else { return .zero }
         let travel = hypot(pan.width, pan.height)
         guard travel > 0 else { return .zero }

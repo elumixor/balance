@@ -133,7 +133,7 @@
   {#if oneLine}
     <span
       bind:this={titleEl}
-      class="relative z-10 min-w-0 flex-1 truncate t-micro text-fg {event.declined ? 'line-through' : ''}"
+      class="relative z-10 min-w-0 flex-1 whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}"
     >
       {@render badge()}{label}</span
     >

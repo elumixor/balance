@@ -38,8 +38,12 @@ const PROVIDERS: { provider: MeetingProvider; label: string; pattern: RegExp }[]
   { provider: "webex", label: "Webex", pattern: /^https:\/\/[\w.-]*webex\.com\//i },
 ];
 
-/** Trailing punctuation belongs to the sentence, not the link. */
-const URL_PATTERN = /https?:\/\/[^\s<>"')\]]+/g;
+/**
+ * Trailing punctuation belongs to the sentence, not the link: a URL has to end on a character
+ * that could plausibly be the last one, or "join at https://meet.google.com/abc." is a button
+ * that opens a 404.
+ */
+const URL_PATTERN = /https?:\/\/[^\s<>"')\]]*[^\s<>"')\].,;:!?]/g;
 
 /** An address is text; a room name or a link is not. "Grote Markt 1, Antwerpen" is. */
 const ADDRESSY = /\d|\bstraat\b|\bstreet\b|\bst\.|\bave\b|\broad\b|\brd\b|\blaan\b|,/i;
