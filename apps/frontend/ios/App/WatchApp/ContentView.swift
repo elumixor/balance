@@ -233,26 +233,26 @@ struct ContentView: View {
         .scale(scale: WheelMetrics.enterScale).combined(with: .opacity)
     }
 
-    /// How far above the finger the readout floats, as a multiple of how far the finger has already
-    /// travelled: it starts close to the touch and rises out of the way as the drag reaches for the
-    /// rim, which is exactly when the hand is covering the most of the ring.
-    private let readoutRise: CGFloat = 2.2
+    /// How far the readout floats from the finger, centre to centre. Constant: the card keeps the
+    /// same gap wherever the drag goes, so the eye never has to re-find it mid-reach.
+    private let readoutGap: CGFloat = 44
     /// How much of the finger's distance from the middle the readout copies, sideways.
     private let readoutDrift: CGFloat = 0.5
     private let readoutMargin: CGFloat = 6
 
-    /// Where the readout sits: lifted above the finger, and pulled half of the way back towards the
-    /// middle of the ring horizontally. Following the finger's x exactly would push a line this wide
-    /// against the edge on every reach outwards; half of it keeps the readout under the eye without
-    /// ever needing to be shoved back on screen.
+    /// Where the readout sits: the fixed gap above the finger, and pulled half of the way back
+    /// towards the middle of the ring horizontally. Following the finger's x exactly would push a
+    /// line this wide against the edge on every reach outwards; half of it keeps the readout under
+    /// the eye without ever needing to be shoved back on screen. When there is no room above, it
+    /// flips to the same gap below rather than sliding closer, so the distance never changes.
     private func readoutPosition(for location: CGPoint, in size: CGSize) -> CGPoint {
         let halfWidth = max(readoutSize.width, 40) / 2
         let halfHeight = max(readoutSize.height, 20) / 2
-        let travel = hypot(wheel.pan.width, wheel.pan.height)
         let centre = size.width / 2
         let aimed = centre + (location.x - centre) * readoutDrift
         let x = min(max(aimed, halfWidth + readoutMargin), size.width - halfWidth - readoutMargin)
-        let y = max(location.y - travel * readoutRise, halfHeight + readoutMargin)
+        let above = location.y - readoutGap
+        let y = above - halfHeight >= readoutMargin ? above : location.y + readoutGap
         return CGPoint(x: x, y: y)
     }
 
