@@ -148,7 +148,7 @@
   {:else}
     <span
       class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}"
-      style="display:-webkit-box;-webkit-line-clamp:{titleLines};-webkit-box-orient:vertical;overflow:hidden"
+      style="max-height:{titleLines}lh;overflow:hidden"
     >
       {@render badge()}{label}</span
     >
