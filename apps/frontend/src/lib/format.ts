@@ -52,7 +52,6 @@ export function parseDateAndClock(dateInput: string, clockInput: string): Date |
   const [, year, month, day] = dateMatch;
   const [, hour, minute] = clockMatch;
   const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
-  if (Number.isNaN(date.getTime())) return null;
   // A date that doesn't exist is rolled into the next month by `Date` rather than refused, so
   // February 31st becomes March 3rd and the event lands a week from where it was typed. The only
   // way to tell is to ask what came back — a date the clocks skipped is still a real instant.

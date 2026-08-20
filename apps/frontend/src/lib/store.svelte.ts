@@ -58,9 +58,9 @@ export function calendarWeek(key: string) {
   const made = new Cached(() => getCalendarWeek(from, to), "Couldn't load that week.", `week:${key}`);
   weeks.set(key, made);
   persist.prune("week:", WEEKS_STORED);
-  while (weeks.size > WEEKS_KEPT) {
-    const oldest = weeks.keys().next().value;
-    if (oldest === undefined) break;
+  // Insertion order is least-recently-asked-for first, so the front of the map is what goes.
+  for (const oldest of weeks.keys()) {
+    if (weeks.size <= WEEKS_KEPT) break;
     weeks.delete(oldest);
   }
   return made;

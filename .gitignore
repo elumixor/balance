@@ -2,6 +2,7 @@
 node_modules
 
 # testing
+apps/frontend/coverage/
 
 # svelte / vite
 apps/frontend/.svelte-kit/

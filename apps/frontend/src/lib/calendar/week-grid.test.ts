@@ -124,7 +124,11 @@ describe("segmentsForRange", () => {
 
 describe("allDaySpansForRange", () => {
   it("treats Google's exclusive end date as the day before", () => {
-    const [span] = allDaySpansForRange([event(new Date(2026, 7, 11), new Date(2026, 7, 12), { allDay: true })], MONDAY, 7);
+    const [span] = allDaySpansForRange(
+      [event(new Date(2026, 7, 11), new Date(2026, 7, 12), { allDay: true })],
+      MONDAY,
+      7,
+    );
     expect([span.dayIndex, span.days, span.row]).toEqual([1, 1, 0]);
   });
 
@@ -145,8 +149,27 @@ describe("allDaySpansForRange", () => {
     ]);
   });
 
+  it("puts the longer of two banners starting the same day on the top row", () => {
+    const spans = allDaySpansForRange(
+      [
+        event(new Date(2026, 7, 11), new Date(2026, 7, 12), { allDay: true }),
+        event(new Date(2026, 7, 11), new Date(2026, 7, 14), { allDay: true }),
+      ],
+      MONDAY,
+      7,
+    );
+    expect(spans.map((s) => [s.days, s.row])).toEqual([
+      [3, 0],
+      [1, 1],
+    ]);
+  });
+
   it("clips a banner that runs past both ends of the strip", () => {
-    const [span] = allDaySpansForRange([event(new Date(2026, 7, 3), new Date(2026, 7, 20), { allDay: true })], MONDAY, 7);
+    const [span] = allDaySpansForRange(
+      [event(new Date(2026, 7, 3), new Date(2026, 7, 20), { allDay: true })],
+      MONDAY,
+      7,
+    );
     expect([span.dayIndex, span.days]).toEqual([0, 7]);
   });
 

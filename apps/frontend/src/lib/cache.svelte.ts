@@ -28,6 +28,12 @@ export class Cached<T> {
 
   /** Set by a write that invalidated this; the next `ensure()` refetches behind the old value. */
   #stale = $state(false);
+  /**
+   * Bumped by every invalidation, so an answer can be asked whether it was sent before one.
+   * A write that lands while a read is out describes a world that read never saw, and the read's
+   * own answer would otherwise report the value as checked and current.
+   */
+  #generation = 0;
   #inflight: Promise<void> | null = null;
   readonly #key: string | undefined;
 
@@ -61,8 +67,12 @@ export class Cached<T> {
 
   async #fetch() {
     this.loading = true;
+    const generation = this.#generation;
     try {
       this.set(await this.fetcher());
+      // Invalidated while this was in flight: the value is newer than what was on screen, and
+      // still older than the write that came in behind it.
+      if (generation !== this.#generation) this.#stale = true;
     } catch (e) {
       this.error = e instanceof Error ? e.message : this.fallbackError;
     } finally {
@@ -93,6 +103,7 @@ export class Cached<T> {
   /** Marks the value worth refetching without blanking the screen that's showing it. */
   invalidate() {
     this.#stale = true;
+    this.#generation += 1;
   }
 
   /** Back to never-fetched — for sign-out, where the next account must not see these rows. */

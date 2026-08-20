@@ -82,7 +82,7 @@ export function write<T>(key: string, value: T, now: number) {
   } catch {
     // A full quota shouldn't break a write that already succeeded on the server. Make room by
     // dropping the oldest weeks — they're the bulk of it — and let the next write try again.
-    evictOldest(8);
+    evictOldest(store, 8);
   }
 }
 
@@ -112,9 +112,7 @@ export function prune(keyPrefix: string, keep: number) {
   for (const entry of entries.slice(keep)) store.removeItem(entry.key);
 }
 
-function evictOldest(count: number) {
-  const store = storage();
-  if (!store) return;
+function evictOldest(store: Storage, count: number) {
   const entries = ownKeys(store)
     .map((key) => ({ key, t: writtenAt(store, key) }))
     .sort((a, b) => a.t - b.t);
@@ -130,9 +128,12 @@ function ownKeys(store: Storage) {
   return keys;
 }
 
+/** An entry nobody can date is treated as the oldest there is, which is what it behaves like. */
 function writtenAt(store: Storage, key: string) {
   try {
-    return (JSON.parse(store.getItem(key) ?? "{}") as Entry<unknown>).t ?? 0;
+    // The keys come from `ownKeys`, so the entry is there; a missing one parses to `null` and
+    // throws on the read below, which is the same answer by another route.
+    return (JSON.parse(store.getItem(key) as string) as Entry<unknown>).t ?? 0;
   } catch {
     return 0;
   }

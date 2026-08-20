@@ -1,0 +1,91 @@
+import { describe, expect, it } from "vitest";
+import { hasAddress, meetingOf } from "./meeting";
+
+describe("meetingOf", () => {
+  it("takes the conferencing block the calendar gives outright", () => {
+    const { join } = meetingOf({ conferenceUrl: "https://meet.google.com/abc-defg-hij" });
+    expect(join).toEqual({ url: "https://meet.google.com/abc-defg-hij", label: "Google Meet", provider: "meet" });
+  });
+
+  it("finds the room in notes written by a person", () => {
+    const { join } = meetingOf({ description: "Standup — join at https://zoom.us/j/123456789 if you're remote" });
+    expect(join?.provider).toBe("zoom");
+  });
+
+  it("knows the providers it claims to", () => {
+    const providers = [
+      ["https://meet.google.com/x", "meet"],
+      ["https://zoom.us/j/1", "zoom"],
+      ["https://acme.zoom.us/my/room", "zoom"],
+      ["https://zoom.com/w/1", "zoom"],
+      ["https://teams.microsoft.com/l/meetup-join/x", "teams"],
+      ["https://teams.live.com/meet/x", "teams"],
+      ["https://acme.webex.com/meet/x", "webex"],
+    ] as const;
+    for (const [url, provider] of providers) expect(meetingOf({ conferenceUrl: url }).join?.provider).toBe(provider);
+  });
+
+  it("leaves the sentence's punctuation out of the link", () => {
+    // A trailing full stop makes a URL that 404s, and it's how most invitations end a line.
+    const { join } = meetingOf({ description: "Dial in: https://meet.google.com/abc-defg-hij." });
+    expect(join?.url).toBe("https://meet.google.com/abc-defg-hij");
+  });
+
+  it("leaves brackets and quotes out of the link too", () => {
+    const { links } = meetingOf({
+      description: '(see https://docs.example.com/agenda) and "https://wiki.example.com/x"',
+    });
+    expect(links.map((l) => l.url)).toEqual(["https://docs.example.com/agenda", "https://wiki.example.com/x"]);
+  });
+
+  it("lists the other links once each, by the site they're on", () => {
+    const { join, links } = meetingOf({
+      location: "https://meet.google.com/abc-defg-hij",
+      description: "Agenda https://docs.google.com/document/d/1 and again https://docs.google.com/document/d/1",
+    });
+    expect(join?.provider).toBe("meet");
+    expect(links).toEqual([{ url: "https://docs.google.com/document/d/1", label: "docs.google.com" }]);
+  });
+
+  it("doesn't list the room a second time as an ordinary link", () => {
+    const { links } = meetingOf({
+      conferenceUrl: "https://meet.google.com/abc-defg-hij",
+      description: "Room: https://meet.google.com/abc-defg-hij (backup https://zoom.us/j/1)",
+    });
+    expect(links).toEqual([]);
+  });
+
+  it("drops www and falls back to a plain label for something unparseable", () => {
+    const { links } = meetingOf({ description: "https://www.example.com/a https://[" });
+    expect(links.map((l) => l.label)).toEqual(["example.com", "Link"]);
+  });
+
+  it("treats a location that was only a link as nowhere to go", () => {
+    expect(meetingOf({ location: "https://meet.google.com/abc-defg-hij" }).location).toBeNull();
+    expect(meetingOf({ location: "   " }).location).toBeNull();
+    expect(meetingOf({}).location).toBeNull();
+  });
+
+  it("keeps the address when the link is only tacked onto it", () => {
+    expect(meetingOf({ location: "Grote Markt 1, Antwerpen, https://maps.example.com/x" }).location).toBe(
+      "Grote Markt 1, Antwerpen",
+    );
+  });
+
+  it("has nothing to join when nothing in the event is a call", () => {
+    expect(meetingOf({ description: "Bring coffee" })).toEqual({ join: null, links: [], location: null });
+  });
+});
+
+describe("hasAddress", () => {
+  it("is true for somewhere you have to physically be", () => {
+    expect(hasAddress({ location: "Grote Markt 1, Antwerpen" })).toBe(true);
+    expect(hasAddress({ location: "Baker Street" })).toBe(true);
+  });
+
+  it("is false for a link, a bare room name, and nothing at all", () => {
+    expect(hasAddress({ location: "https://meet.google.com/abc-defg-hij" })).toBe(false);
+    expect(hasAddress({ location: "Boardroom" })).toBe(false);
+    expect(hasAddress({})).toBe(false);
+  });
+});

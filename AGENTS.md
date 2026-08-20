@@ -88,3 +88,19 @@ and `CalendarEventsService.resolve` is still the one read path.
   its own process and a second copy of that maths is a second, quietly different answer. The watch
   reads `/mobile/watch/summary` and writes through `/mobile/tracking/*`; `SessionController` is the
   one place that knows what is running, and the only writer of the App Group snapshot.
+
+## Tests
+
+`bun test` runs the unit tests (`bun run test:coverage` for the report); they live beside what they
+cover, as `*.test.ts` under `apps/frontend/src/lib/`. Vitest compiles `.svelte.ts` through the
+Svelte plugin, so runes work — see `apps/frontend/vitest.config.ts`.
+
+The suite is not a net cast over the whole app. It covers the modules named in that config's
+`coverage.include` list, and covers them completely — 100% of statements, branches, functions and
+lines, enforced, so a new branch in one of them fails the run until it's tested. A module joins the
+list when its tests actually cover it; padding the list with a screen nobody can test headlessly
+would turn a number that means something into one that doesn't.
+
+Write tests that try to break the thing. The ones already here found a DST-day column shift in the
+week grid, a "-0m" meter, a URL with the sentence's full stop still on it, dates rolled silently
+into the next month, and an invalidation lost by a read that was already in flight.
