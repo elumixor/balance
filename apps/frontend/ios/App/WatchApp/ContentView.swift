@@ -107,15 +107,6 @@ struct ContentView: View {
         .onChange(of: summary.categories) { _, categories in
             wheel.categories = categories
         }
-        // A fixed session is over when its time is up, whoever is looking: the app finishes it
-        // itself rather than leaving a timer running past its own end waiting to be told.
-        .task(id: sessions.active?.plannedEndAt) {
-            guard let end = sessions.active?.plannedEndAt else { return }
-            let wait = end.timeIntervalSinceNow
-            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
-            guard !Task.isCancelled, sessions.active?.plannedEndAt == end else { return }
-            await sessions.stop()
-        }
     }
 
     // MARK: - Phase
@@ -167,14 +158,16 @@ struct ContentView: View {
     /// the parts that carry over can travel instead of being swapped.
     private var ring: some View {
         GeometryReader { proxy in
+            let active = planner == nil ? sessions.active : nil
             // One clock for the whole ring while a session runs: the arc is the elapsed time, and
             // the arc and the numbers inside it must not be told the time by two different ticks.
-            if let active = sessions.active, planner == nil {
-                TimelineView(.periodic(from: active.startedAt, by: 1)) { context in
-                    stack(in: proxy.size, now: context.date, active: active)
-                }
-            } else {
-                stack(in: proxy.size, now: .distantPast, active: nil)
+            //
+            // The timeline is always there, even with nothing running and nothing to tick for. Two
+            // branches would mean the whole stack is a different view before and after a session,
+            // and a view that is replaced cannot transition — which is what left the finished ring
+            // hanging on screen behind the week it had already been swapped for.
+            TimelineView(.periodic(from: active?.startedAt ?? .now, by: active == nil ? 60 : 1)) { context in
+                stack(in: proxy.size, now: context.date, active: active)
             }
         }
     }
@@ -277,8 +270,7 @@ struct ContentView: View {
                 RunningControls(
                     session: active,
                     isBusy: sessions.isBusy,
-                    onFinish: { Task { await sessions.stop() } },
-                    onExtend: { minutes in Task { await sessions.extendBy(minutes: minutes) } }
+                    onFinish: { Task { await sessions.stop() } }
                 )
                 .transition(.opacity)
             }

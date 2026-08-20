@@ -44,7 +44,7 @@ final class SessionController {
             let session = try await APIClient.shared.fetchCurrentSession()
             confirm(session)
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -94,11 +94,14 @@ final class SessionController {
         }
     }
 
-    func stop() async {
+    /// Ends the session now. `alerting` is for the end arriving on its own — a session the user
+    /// stopped by hand needs no more than the tap's own click, one that ran out needs to be felt.
+    func stop(alerting: Bool = false) async {
         guard active != nil else { return }
         ticks = TrackingPlan(minutes: 0, ticks: .off)
         active = nil
-        TrackingAlarm.playConfirmation()
+        stopWatchingForEnd()
+        if alerting { TrackingAlarm.playCompletion() } else { TrackingAlarm.playConfirmation() }
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }
@@ -106,12 +109,12 @@ final class SessionController {
             _ = try await APIClient.shared.stopTracking()
             confirm(nil)
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
             // A rollback to `confirmed` normally undoes the optimistic edit, but here that would
-            // hand the auto-finish task in ContentView the same (already past) `plannedEndAt` it
-            // just fired on, so it fires `stop()` again immediately — a haptic-and-view-flip loop
-            // that never stops as long as the request keeps failing. A session whose planned end
-            // is already behind us stays finished regardless of what the request answered.
+            // hand the end watcher the same (already past) `plannedEndAt` it just fired on, so it
+            // fires `stop()` again immediately — a haptic-and-view-flip loop that never stops as
+            // long as the request keeps failing. A session whose planned end is already behind us
+            // stays finished regardless of what the request answered.
             if let session = confirmed, let end = session.plannedEndAt, end <= Date() {
                 active = nil
             } else {
@@ -119,35 +122,6 @@ final class SessionController {
             }
             publish()
         }
-    }
-
-    /// `minutes` is the session's whole length measured from where it started, which is what the
-    /// backend stores — the "+15 min" button on screen adds to the current length before calling.
-    func extend(minutes: Int) async {
-        if let current = active {
-            active = ActiveSession(
-                id: current.id,
-                categoryId: current.categoryId,
-                categoryName: current.categoryName,
-                categoryColor: current.categoryColor,
-                categoryIcon: current.categoryIcon,
-                eventId: current.eventId,
-                calendarId: current.calendarId,
-                startedAt: current.startedAt,
-                plannedEndAt: current.startedAt.addingTimeInterval(TimeInterval(minutes * 60))
-            )
-        }
-        await perform { try await APIClient.shared.extendTracking(durationMinutes: minutes) }
-    }
-
-    /// Adds to whatever the session is currently planned to run for. Open-ended sessions count
-    /// from now, since they have no planned end to add to.
-    func extendBy(minutes: Int) async {
-        guard let current = active else { return }
-        let plannedSoFar = current.plannedEndAt.map { $0.timeIntervalSince(current.startedAt) }
-            ?? Date().timeIntervalSince(current.startedAt)
-        let total = Int((plannedSoFar / 60).rounded()) + minutes
-        await extend(minutes: max(total, 1))
     }
 
     // MARK: - Plumbing
@@ -167,7 +141,7 @@ final class SessionController {
         do {
             confirm(try await work())
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
             active = confirmed
             publish()
         }
@@ -177,6 +151,52 @@ final class SessionController {
         confirmed = session
         active = session
         publish()
+    }
+
+    /// A cancelled request is not something that went wrong — it is this app deciding it no longer
+    /// wants the answer — and "cancelled" on the screen only ever reads as a failure that isn't one.
+    private func report(_ error: Error) {
+        if error is CancellationError { return }
+        if let error = error as? URLError, error.code == .cancelled { return }
+        errorMessage = error.localizedDescription
+    }
+
+    /// The end of a fixed session, watched here rather than by a view.
+    ///
+    /// A view's `.task(id:)` keyed on the planned end is torn down the instant the session it was
+    /// keyed on changes — which is the first thing finishing does — so the stop request it had just
+    /// started died in flight, the server was never told, and the screen said "cancelled". The
+    /// controller outlives every screen, so the wait belongs to it.
+    private var endWatcher: Task<Void, Never>?
+    private var watchedEnd: Date?
+
+    /// Restarted only when the planned end actually moves, so the frequent re-publishes don't keep
+    /// resetting a wait that is already counting down to the right moment.
+    private func watchForEnd() {
+        let end = active?.plannedEndAt
+        guard end != watchedEnd else { return }
+        endWatcher?.cancel()
+        watchedEnd = end
+        guard let end else { endWatcher = nil; return }
+
+        endWatcher = Task { [weak self] in
+            let wait = end.timeIntervalSinceNow
+            if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+            guard !Task.isCancelled else { return }
+            guard let self, active?.plannedEndAt == end else { return }
+            // Let go of this task before finishing: `stop` cancels whatever is watching, and this
+            // is it — cancelling the task the stop request is running in is how the request used to
+            // die halfway. Nothing is left to cancel by the time it asks.
+            endWatcher = nil
+            watchedEnd = nil
+            await stop(alerting: true)
+        }
+    }
+
+    private func stopWatchingForEnd() {
+        endWatcher?.cancel()
+        endWatcher = nil
+        watchedEnd = nil
     }
 
     /// The complication and the alarm both live outside this process, so they are refreshed on
@@ -194,6 +214,7 @@ final class SessionController {
         )
         WatchSharedState.save(snapshot)
         WidgetCenter.shared.reloadAllTimelines()
+        watchForEnd()
 
         guard let session = active else {
             TrackingAlarm.cancel()

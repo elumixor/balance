@@ -117,8 +117,16 @@ enum TrackingAlarm {
     }
 
     /// Played when the app happens to be in front — a start or a finish the user is watching should
-    /// feel like it landed. The end-of-session haptic comes from the notification instead.
+    /// feel like it landed.
     static func playConfirmation() {
         WKInterfaceDevice.current().play(.click)
+    }
+
+    /// The end of a session arriving on its own, with the app in front. watchOS does not deliver a
+    /// notification to an app that is already on screen — no delegate can make it buzz, it is simply
+    /// not shown — so the one moment the alarm exists for is the one moment it cannot cover. The app
+    /// plays the haptic itself instead; the notification is what covers the wrist being down.
+    static func playCompletion() {
+        WKInterfaceDevice.current().play(.notification)
     }
 }
