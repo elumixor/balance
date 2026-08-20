@@ -60,6 +60,25 @@
   /** Set to the badge's rect while the quick category pick is open, null otherwise. */
   let categoryRect = $state<DOMRect | null>(null);
 
+  /**
+   * On one line the title comes first and the start time is a bonus: it shows only when the whole
+   * title already fits beside it. The time span stays in the DOM either way — taken out of the flow
+   * when it can't be shown — so its width is known without a second, hidden copy to measure.
+   */
+  let boxWidth = $state(0);
+  let timeWidth = $state(0);
+  let titleEl = $state<HTMLElement | null>(null);
+  let titleWidth = $state(0);
+  $effect(() => {
+    // Re-measure whenever the block resizes or the title changes; scrollWidth is the untruncated
+    // width, so it doesn't move when the time appears next to it and can't oscillate.
+    void [label, boxWidth];
+    titleWidth = titleEl?.scrollWidth ?? 0;
+  });
+  /** px: the block's horizontal padding plus the gap between title and time. */
+  const CHROME_PX = 16;
+  const timeFits = $derived(boxWidth > 0 && titleWidth + timeWidth + CHROME_PX <= boxWidth);
+
   function chooseCategory(id: string) {
     categoryRect = null;
     const targets = data.picked.has(event.id) && data.picked.size > 1 ? data.pickedEvents : [event];
@@ -96,6 +115,7 @@
 <div
   role="button"
   tabindex={ghost ? -1 : 0}
+  bind:clientWidth={boxWidth}
   aria-label="{label}, {formatClock(new Date(event.start))}"
   class="absolute inset-0 flex min-w-0 overflow-hidden px-1.5 text-left leading-tight @container/evt
     {oneLine ? 'flex-row items-center gap-1 py-0' : 'flex-col justify-start py-0.5'}
@@ -111,12 +131,18 @@
   ></span>
 
   {#if oneLine}
-    <span class="relative z-10 min-w-0 flex-1 overflow-hidden whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}">
+    <span
+      bind:this={titleEl}
+      class="relative z-10 min-w-0 flex-1 truncate t-micro text-fg {event.declined ? 'line-through' : ''}"
+    >
       {@render badge()}{label}</span
     >
     {#if !narrow}
-      <span class="relative z-10 shrink-0 t-data-nano text-fg-muted/60"
-        >{formatClock(new Date(event.start))}</span
+      <span
+        bind:clientWidth={timeWidth}
+        class="z-10 shrink-0 t-data-nano text-fg-muted/60 {timeFits
+          ? 'relative'
+          : 'pointer-events-none absolute opacity-0'}">{formatClock(new Date(event.start))}</span
       >
     {/if}
   {:else}
