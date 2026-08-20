@@ -2,7 +2,9 @@ export function formatHoursAndMinutes(hours: number): string {
   const totalMinutes = Math.round(Math.abs(hours) * 60);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  const sign = hours < 0 ? "-" : "";
+  // A shortfall of a few seconds rounds away to nothing, and "-0m" then says the opposite of what
+  // is true: the sign belongs to a difference, not to a rounding error.
+  const sign = hours < 0 && totalMinutes > 0 ? "-" : "";
   if (h <= 0) return `${sign}${m}m`;
   if (m === 0) return `${sign}${h}h`;
   return `${sign}${h}h ${m}m`;
@@ -11,7 +13,7 @@ export function formatHoursAndMinutes(hours: number): string {
 /** "11.5h" — hours to one decimal, trimmed when whole. */
 export function formatHoursDecimal(hours: number): string {
   const rounded = Math.round(Math.abs(hours) * 10) / 10;
-  const sign = hours < 0 ? "-" : "";
+  const sign = hours < 0 && rounded > 0 ? "-" : "";
   return `${sign}${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}h`;
 }
 
@@ -50,5 +52,15 @@ export function parseDateAndClock(dateInput: string, clockInput: string): Date |
   const [, year, month, day] = dateMatch;
   const [, hour, minute] = clockMatch;
   const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(date.getTime())) return null;
+  // A date that doesn't exist is rolled into the next month by `Date` rather than refused, so
+  // February 31st becomes March 3rd and the event lands a week from where it was typed. The only
+  // way to tell is to ask what came back — a date the clocks skipped is still a real instant.
+  const rolled =
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() !== Number(month) - 1 ||
+    date.getDate() !== Number(day) ||
+    Number(hour) > 23 ||
+    Number(minute) > 59;
+  return rolled ? null : date;
 }

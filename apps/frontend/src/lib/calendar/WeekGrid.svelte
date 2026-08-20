@@ -581,7 +581,7 @@
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 class="relative py-0.5"
-                style="padding-right:{BLOCK_GUTTER_PX}px;grid-row:{span.row + 1};grid-column:{span.dayIndex + 1} / span {span.days}"
+                style="margin-right:{BLOCK_GUTTER_PX}px;grid-row:{span.row + 1};grid-column:{span.dayIndex + 1} / span {span.days}"
                 in:appear={{ id: span.event.id }}
                 onclick={(e) =>
                   data.tap(span.event, e.currentTarget.getBoundingClientRect(), e.metaKey || e.ctrlKey)}
