@@ -16,21 +16,13 @@
   const plan = $derived(categories.all);
 </script>
 
-<div class="space-y-5">
+<div class="space-y-6">
   {#if data.connected}
     <MonthGrid />
-  {/if}
-
-  <br />
-
-  {#if data.connected}
     <section>
       <WeekMeters events={data.eventsForTotals} categories={plan} weekStart={data.weekStart} />
     </section>
   {/if}
 
-  <br>
-
   <CalendarsSection />
-
 </div>

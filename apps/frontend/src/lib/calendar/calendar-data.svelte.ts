@@ -12,18 +12,21 @@ import {
 import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
 import { activities, synced } from "$lib/synced.svelte";
 import { type Activity, type ActivityWeight, type CalendarEvent, type MappingScope, NOT_A_MEETING } from "$lib/types";
+import { viewport } from "$lib/viewport.svelte";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
 import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
 
 /**
- * Three weeks of columns, so there's a week to scroll into on either side of the seven shown.
+ * Three weeks of columns, so there's a week to scroll into on either side of the ones shown.
  *
  * A wider strip would be a week's worth of requests spent on days nobody has asked for. Scrolling
  * into a week that hasn't arrived draws its columns empty and fills them a moment later, which is
  * the right way round: the grid is the screen, and the events are what lands in it.
  */
 const SIDE_WEEKS = 1;
+/** Day columns a window narrower than the rail's breakpoint holds — see `CalendarData.visibleDays`. */
+const PHONE_DAYS = 3;
 export const STRIP_WEEKS = 2 * SIDE_WEEKS + 1;
 export const STRIP_DAYS = STRIP_WEEKS * DAYS_PER_WEEK;
 
@@ -163,8 +166,16 @@ interface PendingDrag {
  * you were looking at.
  */
 class CalendarData {
-  /** Opens on the current week; scrolling moves it off a Monday and that's fine. */
-  #anchor = $state(startOfWeek(new Date()));
+  /**
+   * How many day columns the window holds. A phone gets three: seven columns on a 390pt screen
+   * leave a block 45pt wide, which is narrower than the finger meant to grab it and too narrow to
+   * carry a title. Everything that counts days — where a jump lands, which week the meters are
+   * about, how far a slide travels — reads this rather than assuming a week.
+   */
+  readonly visibleDays = $derived(viewport.md ? DAYS_PER_WEEK : PHONE_DAYS);
+
+  /** Opens on the current week — or, where the window is narrower than one, on today. */
+  #anchor = $state(viewport.md ? startOfWeek(new Date()) : startOfDay(new Date()));
 
   get anchor() {
     return this.#anchor;
@@ -276,12 +287,12 @@ class CalendarData {
   /** The last tap on empty grid, which the next one is measured against — see `tapEmpty`. */
   #lastTap: { x: number; y: number; at: number } | null = null;
 
-  /** The first of the seven days on screen — any day, not just a Monday. */
+  /** The first day on screen — any day, not just a Monday. */
   readonly windowStart = $derived(startOfDay(this.anchor));
 
   /**
-   * The grid draws whole weeks and shows seven days of them, so there's always room to scroll into
-   * on either side and the day columns line up with the week the events came in.
+   * The grid draws whole weeks and shows a run of days out of them, so there's always room to
+   * scroll into on either side and the day columns line up with the week the events came in.
    */
   readonly stripStart = $derived(addDays(startOfWeek(this.windowStart), -SIDE_WEEKS * DAYS_PER_WEEK));
   readonly dayOffset = $derived(daysBetween(this.stripStart, this.windowStart));
@@ -371,10 +382,10 @@ class CalendarData {
   });
 
   /**
-   * Seven days always overlap two calendar weeks; the one holding four or more of them is the
-   * week the meters and the title are about. Adding three days lands on that week by itself.
+   * The window can straddle two calendar weeks; the one holding its middle day is the week the
+   * meters and the title are about. Stepping to that middle day lands on it by itself.
    */
-  readonly weekStart = $derived(startOfWeek(addDays(this.windowStart, 3)));
+  readonly weekStart = $derived(startOfWeek(addDays(this.windowStart, Math.floor(this.visibleDays / 2))));
   readonly key = $derived(weekKey(this.weekStart));
   /** The focused week's cache, resolved alongside the strip's and read the same way. */
   #focusedWeek = $state(calendarWeek(this.key));
@@ -632,7 +643,9 @@ class CalendarData {
    * slide over columns that never changed, and the grid clears it only when it animates.
    */
   #jumpTo(date: Date) {
-    const target = startOfWeek(date);
+    // A week's worth of columns starts its week on a Monday; three columns can't hold a week, so
+    // there the day asked for is the day drawn, first in the window.
+    const target = this.visibleDays >= DAYS_PER_WEEK ? startOfWeek(date) : startOfDay(date);
     if (target.getTime() === this.#anchor.getTime()) return;
     this.animateNextJump = true;
     this.anchor = target;

@@ -12,6 +12,7 @@
   import { isDesktop } from "$lib/desktop/platform";
   import { freeScroll, onWheelGesture, wheelGestureActive } from "./free-scroll";
   import { theme } from "$lib/theme.svelte";
+  import { viewport } from "$lib/viewport.svelte";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import {
     allDaySpansForRange,
@@ -28,10 +29,11 @@
   } from "./week-grid";
 
   /**
-   * Seven days of hours, with a week either side of them a swipe away — scrolling sideways is how
-   * the days change, so the grid never spends a corner on arrows. Twenty-one columns are drawn and
-   * seven fit; coming to rest on a column makes it the first day on screen, and the strip re-centres
-   * under it, so the scroll can go on forever in either direction.
+   * Days of hours — a week of them on a wide screen, three on a phone — with a week either side a
+   * swipe away, so scrolling sideways is how the days change and the grid never spends a corner on
+   * arrows. Twenty-one columns are drawn and `VISIBLE_DAYS` of them fit; coming to rest on a column
+   * makes it the first day on screen, and the strip re-centres under it, so the scroll can go on
+   * forever in either direction.
    *
    * Events are absolutely positioned inside their day column rather than laid out by the grid,
    * because two events at the same hour have to sit beside each other — something no row-based
@@ -39,19 +41,21 @@
    */
   let { categories }: { categories: Map<string, Category> } = $props();
 
+  const data = calendarData;
+
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
-  const GUTTER_PX = 56;
+  /** The hours' own column. Narrower on a phone, where every pixel it gives up is a pixel of day. */
+  const GUTTER_PX = $derived(viewport.md ? 56 : 48);
   const DAY_HEAD_PX = 28;
   const ALL_DAY_PX = 28;
-  const VISIBLE_DAYS = 7;
+  /** Three columns on a phone, a week on a wide screen — see `CalendarData.visibleDays`. */
+  const VISIBLE_DAYS = $derived(data.visibleDays);
   /** How long the scroll has to sit still before it counts as having landed on a day. */
   const SETTLE_MS = 120;
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const JUMP_ANIMATE_MS = 300;
   /** A settle is a nudge onto the nearest column, not a journey across the strip. */
   const SNAP_ANIMATE_MS = 200;
-
-  const data = calendarData;
 
   let viewWidth = $state(0);
   let settle: ReturnType<typeof setTimeout> | null = null;
@@ -101,7 +105,7 @@
   const days = $derived(Array.from({ length: STRIP_DAYS }, (_, i) => addDays(data.stripStart, i)));
 
   /**
-   * How far past the seven on screen the blocks are actually drawn. The strip is wide so a fling
+   * How far past the columns on screen the blocks are actually drawn. The strip is wide so a fling
    * always has columns ahead of it, but only the days near the window are worth building: the rest
    * would be a few hundred absolutely-positioned nodes nobody can see, rebuilt on every write.
    * Three days of margin covers the columns a fling exposes between two scroll ticks.
@@ -110,7 +114,7 @@
   const firstDrawn = $derived(Math.max(0, liveDayOffset - DRAW_MARGIN_DAYS));
   const lastDrawn = $derived(Math.min(STRIP_DAYS - 1, liveDayOffset + VISIBLE_DAYS - 1 + DRAW_MARGIN_DAYS));
   const isDrawn = (index: number) => index >= firstDrawn && index <= lastDrawn;
-  /** The seven columns the window is actually over, as against the runway either side of them. */
+  /** The columns the window is actually over, as against the runway either side of them. */
   const inWindow = (index: number) => index >= liveDayOffset && index < liveDayOffset + VISIBLE_DAYS;
 
   /**
@@ -196,7 +200,7 @@
   const todayStart = $derived(clock.todayStart);
   const nowTop = $derived((minutesIntoDay(clock.now) / 60) * HOUR_PX);
   /**
-   * Whether today's column sits outside the seven days currently on screen. Measured against the
+   * Whether today's column sits outside the days currently on screen. Measured against the
    * settled window rather than the live scroll: a fling crosses columns by the handful, and a
    * button that answered each one would blink through the whole gesture. It waits for the week to
    * land, which is also the only moment its answer can still be true a second later.
@@ -520,7 +524,8 @@
     bind:clientWidth={viewWidth}
     use:freeScroll
     {onscroll}
-    class="no-scrollbar h-full overflow-auto overscroll-none scroll-pl-14 bg-surface"
+    style="scroll-padding-left:{GUTTER_PX}px"
+    class="no-scrollbar h-full overflow-auto overscroll-none bg-surface"
     class:snap-x={!jumping}
     class:snap-proximity={!jumping}
   >
@@ -531,7 +536,8 @@
         class="sticky top-0 z-10 flex shrink-0 items-end justify-center border-line border-b bg-surface pb-0.5 transition-[height] duration-150"
         style="height:{headerPx}px"
       >
-        <span class="t-data-micro text-fg-faint">{timeZoneLabel}</span>
+        <!-- A rung smaller on a phone, where the gutter is narrower than the label it carries. -->
+        <span class="{viewport.md ? 't-data-micro' : 't-data-nano'} text-fg-faint">{timeZoneLabel}</span>
       </div>
       <div class="relative" style="height:{24 * HOUR_PX}px">
         {#each HOURS as hour (hour)}
@@ -556,7 +562,7 @@
             {@const today = day.getTime() === todayStart}
             <div class="flex items-center justify-center gap-1 border-line border-l px-1 text-center">
               <span class="t-micro {today ? 'text-danger' : 'text-fg-faint'}">
-                {day.toLocaleDateString(undefined, { weekday: "short" })}
+                {day.toLocaleDateString(undefined, { weekday: viewport.md ? "short" : "long" })}
               </span>
               <span
                 class="t-micro flex h-5 min-w-5 items-center justify-center rounded-md px-1 tabular-nums {today

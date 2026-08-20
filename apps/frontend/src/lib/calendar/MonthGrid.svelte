@@ -8,7 +8,8 @@
 
   /**
    * The month as a picker: one continuous column of weeks that scrolls like any other list, six of
-   * them in view at a time, the currently visible seven days washed with a plate and today in red.
+   * them in view at a time, the days the grid is currently showing washed with a plate and today
+   * in red.
    * Tapping a day jumps the main grid to the week it falls in; scrolling here only browses, so a
    * flick through the year doesn't drag the week grid along behind it.
    *
@@ -18,7 +19,8 @@
    */
   const data = calendarData;
 
-  const VISIBLE_DAYS = 7;
+  /** A row is always a week; how many of its days the grid beside it shows is the grid's business. */
+  const DAYS_PER_ROW = 7;
   const VISIBLE_ROWS = 6;
   const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
   /** Row geometry has to be known here, not just in CSS: the scroll position is what says which
@@ -41,7 +43,7 @@
     addDays(baseWeek, (i - WEEKS_EITHER_SIDE) * 7),
   );
 
-  const daysOf = (row: Date) => Array.from({ length: VISIBLE_DAYS }, (_, offset) => addDays(row, offset));
+  const daysOf = (row: Date) => Array.from({ length: DAYS_PER_ROW }, (_, offset) => addDays(row, offset));
 
   const weekIndex = (date: Date) =>
     Math.round((startOfWeek(date).getTime() - baseWeek.getTime()) / MS_PER_WEEK) + WEEKS_EITHER_SIDE;
@@ -68,15 +70,15 @@
     return index >= first && index < first + VISIBLE_ROWS;
   });
 
-  // The strip always shows exactly seven consecutive days, but a swipe can land that window on
-  // any weekday — not just a Monday — so it can cut across two of the grid's own Monday-start rows.
+  // The strip shows a run of consecutive days, but a swipe can land that window on any weekday —
+  // not just a Monday — so it can cut across two of the grid's own Monday-start rows.
   const visibleStart = $derived(data.windowStart);
-  const visibleEnd = $derived(addDays(visibleStart, VISIBLE_DAYS - 1));
+  const visibleEnd = $derived(addDays(visibleStart, data.visibleDays - 1));
 
   function visibleSpan(row: Date): { start: number; end: number } | null {
     let start = -1;
     let end = -1;
-    for (let i = 0; i < VISIBLE_DAYS; i++) {
+    for (let i = 0; i < DAYS_PER_ROW; i++) {
       const time = addDays(row, i).getTime();
       if (time < visibleStart.getTime() || time > visibleEnd.getTime()) continue;
       if (start === -1) start = i;
@@ -104,9 +106,22 @@
     });
   });
 
+  /**
+   * The opening position: the current week one row down, so last week is still on screen.
+   *
+   * Re-tried until it takes. In the rail this lands on the first go, but on a phone the grid
+   * lives in a popover, whose panel is moved into the document by an action that runs after this
+   * component's effects — and a scroll written to an element that is nowhere yet is dropped,
+   * which is what left the phone's month picker sitting a year in the past.
+   */
   $effect(() => {
-    // The opening position: the current week one row down, so last week is still on screen.
-    scrollToRow(WEEKS_EITHER_SIDE - 1, false);
+    const target = WEEKS_EITHER_SIDE - 1;
+    let frame = 0;
+    let handle = requestAnimationFrame(function place() {
+      scrollToRow(target, false);
+      if (viewport && viewport.scrollTop === 0 && frame++ < 20) handle = requestAnimationFrame(place);
+    });
+    return () => cancelAnimationFrame(handle);
   });
 
   function shiftMonth(delta: number) {
