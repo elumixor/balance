@@ -91,7 +91,7 @@ and `CalendarEventsService.resolve` is still the one read path.
 
 ## Tests
 
-`bun test` runs the unit tests (`bun run test:coverage` for the report); they live beside what they
+`bun run test` runs the unit tests (`bun run test:coverage` for the report); they live beside what they
 cover, as `*.test.ts` under `apps/frontend/src/lib/`. Vitest compiles `.svelte.ts` through the
 Svelte plugin, so runes work — see `apps/frontend/vitest.config.ts`.
 
