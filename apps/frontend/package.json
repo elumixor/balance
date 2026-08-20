@@ -28,7 +28,7 @@
     "@capacitor/preferences": "^8.0.1",
     "@capgo/capacitor-social-login": "^8.3.40",
     "@clerk/clerk-js": "^6.26.0",
-    "@elumixor/synced": "^0.1.2",
+    "@elumixor/synced": "^0.1.3",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-deep-link": "^2.4.9",
     "@tauri-apps/plugin-log": "^2.9.0",

@@ -15,7 +15,7 @@
       "name": "@balance/backend",
       "dependencies": {
         "@clerk/backend": "^3.15.0",
-        "@elumixor/synced": "^0.1.2",
+        "@elumixor/synced": "^0.1.3",
         "@neondatabase/serverless": "^1.1.0",
         "date-fns": "^4.4.0",
         "drizzle-orm": "^0.45.2",
@@ -41,7 +41,7 @@
         "@capacitor/preferences": "^8.0.1",
         "@capgo/capacitor-social-login": "^8.3.40",
         "@clerk/clerk-js": "^6.26.0",
-        "@elumixor/synced": "^0.1.2",
+        "@elumixor/synced": "^0.1.3",
         "@tauri-apps/api": "^2.11.1",
         "@tauri-apps/plugin-deep-link": "^2.4.9",
         "@tauri-apps/plugin-log": "^2.9.0",
@@ -252,7 +252,7 @@
 
     "@elumixor/nitro-client": ["@elumixor/nitro-client@4.0.6", "", { "dependencies": { "@elumixor/zod-config-cli": "^1.0.3", "ts-morph": "^25.0.1" }, "peerDependencies": { "h3": ">=1.0.0", "zod": ">=4.0.0" }, "optionalPeers": ["h3", "zod"], "bin": { "nitro-client": "dist/cli.mjs" } }, "sha512-xCrNPWpkRnG/PD+zdRlRVid8PPakoIj255F4kycrnLUL3cWd2691+R+o4eaG2PLJOn/OQQr9RLEwDIML9uF8Pg=="],
 
-    "@elumixor/synced": ["@elumixor/synced@0.1.2", "", { "peerDependencies": { "zod": ">=4.0.0" }, "optionalPeers": ["zod"] }, "sha512-+0xpjDovEn9p6Y2VcilHsQ1EyR0X0aZETnxDxCqPcL8HdcKEl0xW3uNhBciswJ1iHs7odlu1rFYXwlcy4/NvOA=="],
+    "@elumixor/synced": ["@elumixor/synced@0.1.3", "", { "peerDependencies": { "zod": ">=4.0.0" }, "optionalPeers": ["zod"] }, "sha512-2Hdz4xGi15NoN4WtweLGExv8JP2KjWjYMDa98g+cBnpun4TqdK8o5BeZqPpR0KSxk0FvTYHo4h6FsnMWJn3fVw=="],
 
     "@elumixor/zod-config-cli": ["@elumixor/zod-config-cli@1.0.3", "", { "dependencies": { "dotenv": "^17.3.1" }, "peerDependencies": { "typescript": "^5", "zod": "^4" } }, "sha512-D/pHlFDstQQJxdMjje9NKRnco3Y4z7r9yaoDLL82i6Qp130PoOhruC2kF8m2zvrshPkISanEClrOWJXbsFx9Jg=="],
 
