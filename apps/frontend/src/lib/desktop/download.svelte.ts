@@ -1,6 +1,6 @@
 import { isNativeShell } from "./platform";
 
-/** What the deployment says it is handing out — written next to the DMG by scripts/deploy-desktop.ts. */
+/** What the deployment says it is handing out — written next to the DMG by devkit's `tauri-macos` deploy. */
 interface DesktopBuild {
   version: string;
   bytes: number;

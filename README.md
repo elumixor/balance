@@ -212,8 +212,8 @@ its own output directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`) and `.verc
 Vercel's file scan out of them; nothing else should need any of it.
 
 Every version number in the repo is stamped from one place — `version` in
-`apps/frontend/src-tauri/tauri.conf.json` — by `scripts/sync-version.ts`, which a deploy runs
-first. It writes both `package.json`s, the Rust crate, `MARKETING_VERSION` in the Xcode project and
+`apps/frontend/src-tauri/tauri.conf.json` — by `bun run version:sync`, configured under `devkit.version`
+in the root `package.json`. It writes both `package.json`s, the Rust crate, `MARKETING_VERSION` in the Xcode project and
 the watch/widget plists, so the App Store, the DMG and the line at the bottom of settings can't
 disagree. Bump that one field to release a new version.
 

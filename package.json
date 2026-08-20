@@ -6,12 +6,12 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "bun scripts/build-vercel.ts",
+    "build": "devkit build",
     "dev": "devkit",
     "dev:open": "devkit --open",
     "check": "bun --filter frontend check",
     "ios": "bun --filter frontend ios",
-    "sim:watch": "bun scripts/sim.ts",
+    "sim:watch": "devkit sim",
     "desktop": "bun --filter frontend desktop",
     "desktop:install": "bun --filter frontend desktop:install",
     "lint": "biome check .",
@@ -21,53 +21,84 @@
     "deploy:vercel": "devkit deploy vercel",
     "deploy:ios": "devkit deploy ios",
     "deploy:desktop": "devkit deploy desktop",
-    "release:ios": "git tag ios-v$(date +%Y%m%d%H%M%S) && git push origin --tags"
+    "release:ios": "devkit release ios",
+    "version:sync": "devkit version"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
-    "@elumixor/devkit": "^0.7.0",
+    "@elumixor/devkit": "^0.9.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^20",
     "typescript": "^5"
   },
   "devkit": {
-    "apps": [
-      {
-        "name": "backend",
+    "apps": {
+      "backend": {
         "filter": "@balance/backend",
-        "port": 3100,
-        "color": "blue"
+        "port": 3100
       },
-      {
-        "name": "frontend",
+      "frontend": {
         "port": 8081,
-        "color": "magenta",
         "open": true
       }
-    ],
-    "deploy": [
-      {
-        "name": "desktop",
-        "type": "tauri-macos",
-        "color": "yellow"
+    },
+    "deploy": {
+      "desktop": {
+        "type": "tauri-macos"
       },
-      {
-        "name": "vercel",
+      "vercel": {
         "type": "vercel",
-        "color": "magenta",
         "needs": [
           "desktop"
         ]
       },
-      {
-        "name": "ios",
+      "ios": {
         "type": "fastlane-ios",
-        "color": "cyan",
         "options": {
           "backendDir": "apps/backend",
           "defaultApiBaseUrl": "https://balance-app-mauve.vercel.app"
         }
       }
-    ]
+    },
+    "build": {
+      "frontendDir": "apps/frontend",
+      "backendDir": "apps/backend",
+      "apiPrefixes": [
+        "mobile",
+        "health"
+      ],
+      "clientCommand": "bunx nitro-client",
+      "include": {
+        "dist/download": "download"
+      }
+    },
+    "sim": {
+      "project": "apps/frontend/ios/App/App.xcodeproj",
+      "scheme": "BalanceWatch",
+      "bundleId": "com.elumixor.balance.watchkitapp",
+      "device": "Apple Watch Series 11 (46mm)",
+      "derivedDataDir": "apps/frontend/ios/App/build/sim",
+      "previewEnv": "BALANCE_WATCH_PREVIEW"
+    },
+    "version": {
+      "source": "apps/frontend/src-tauri/tauri.conf.json",
+      "packages": [
+        "package.json",
+        "apps/frontend/package.json"
+      ],
+      "cargo": [
+        "apps/frontend/src-tauri/Cargo.toml"
+      ],
+      "xcodeProjects": [
+        "apps/frontend/ios/App/App.xcodeproj/project.pbxproj"
+      ],
+      "marketingVersionPlists": [
+        "apps/frontend/ios/App/App/Info.plist"
+      ],
+      "plists": [
+        "apps/frontend/ios/App/WatchApp/Info.plist",
+        "apps/frontend/ios/App/WatchWidget/Info.plist"
+      ]
+    }
   }
 }

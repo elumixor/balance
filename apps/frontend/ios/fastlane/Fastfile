@@ -67,7 +67,7 @@ platform :ios do
 
     # Keep the embedded watch app + widget version-locked to the host app, or
     # App Store validation rejects the upload. The number itself comes from the macOS shell's
-    # config, which is where the whole product declares its version — see scripts/sync-version.ts.
+    # config, which is where the whole product declares its version — see `devkit version`.
     app_version = JSON.parse(File.read(File.expand_path("../../src-tauri/tauri.conf.json", __dir__)))["version"]
     ["App/WatchApp/Info.plist", "App/WatchWidget/Info.plist"].each do |plist|
       set_info_plist_value(path: plist, key: "CFBundleShortVersionString", value: app_version)
