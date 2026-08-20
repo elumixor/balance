@@ -4,6 +4,7 @@
   import { type CalendarEvent, type Category, NOT_A_MEETING } from "$lib/types";
   import { calendarData, STRIP_DAYS } from "./calendar-data.svelte";
   import Button from "$lib/components/Button.svelte";
+  import { LocateFixed } from "lucide-svelte";
   import EventBlock from "./EventBlock.svelte";
   import { fade, fly } from "svelte/transition";
   import { untrack } from "svelte";
@@ -498,8 +499,12 @@
           size="sm"
           variant="danger"
           onclick={() => data.goToToday()}
-          class="shadow-(--shadow-float)"
-        />
+          class="gap-1.5 rounded-full py-1.5 shadow-(--shadow-float)"
+        >
+          {#snippet icon()}
+            <LocateFixed size={14} />
+          {/snippet}
+        </Button>
       </div>
     </div>
   {/if}
