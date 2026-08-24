@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { planMode } from "$lib/planning/plan-mode.svelte";
   import { clock } from "$lib/clock.svelte";
   import { addDays, minutesIntoDay, startOfDay } from "$lib/dates";
   import { type CalendarEvent, type Category, NOT_A_MEETING } from "$lib/types";
@@ -601,7 +602,12 @@
         <div class="grid" style="grid-template-columns:{columns};height:{DAY_HEAD_PX}px">
           {#each days as day}
             {@const today = day.getTime() === todayStart}
-            <div class="flex items-center justify-center gap-1 border-line border-l px-1 text-center">
+            {@const planning = planMode.isDay(day)}
+            <div
+              class="flex items-center justify-center gap-1 border-line border-l px-1 text-center {planning
+                ? 'plan-day'
+                : ''}"
+            >
               <span class="t-micro {today ? 'text-danger' : 'text-fg-faint'}">
                 {day.toLocaleDateString(undefined, { weekday: viewport.md ? "short" : "long" })}
               </span>
@@ -799,3 +805,36 @@
 {/if}
 
 <SeriesEditPrompt />
+
+<style>
+  /**
+   * The day being planned, breathing.
+   *
+   * On the heading rather than down the column: a glow behind twelve hours of blocks makes the
+   * blocks harder to read, and the heading is where the eye goes to answer "which day is this".
+   */
+  .plan-day {
+    animation: plan-pulse 2.4s ease-in-out infinite;
+    border-radius: 0.375rem;
+  }
+
+  @keyframes plan-pulse {
+    0%,
+    100% {
+      background-color: color-mix(in oklab, var(--color-cyan-400) 12%, transparent);
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-cyan-400) 30%, transparent);
+    }
+    50% {
+      background-color: color-mix(in oklab, var(--color-cyan-400) 22%, transparent);
+      box-shadow: 0 0 12px 2px color-mix(in oklab, var(--color-cyan-400) 22%, transparent);
+    }
+  }
+
+  /* A pulse that never stops is a problem for anyone who asked the system to stop them. */
+  @media (prefers-reduced-motion: reduce) {
+    .plan-day {
+      animation: none;
+      background-color: color-mix(in oklab, var(--color-cyan-400) 18%, transparent);
+    }
+  }
+</style>

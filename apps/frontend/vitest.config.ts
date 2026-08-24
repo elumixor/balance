@@ -37,6 +37,7 @@ export default defineConfig({
         "src/lib/ics.ts",
         "src/lib/meeting.ts",
         "src/lib/persist.ts",
+        "src/lib/planning/zone.ts",
         "src/lib/reminders.ts",
         "src/lib/splits.ts",
         "src/lib/store.svelte.ts",

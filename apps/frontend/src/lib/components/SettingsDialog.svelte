@@ -17,6 +17,7 @@
   import NumberField from "./NumberField.svelte";
   import SectionHeader from "./SectionHeader.svelte";
   import Segmented from "./Segmented.svelte";
+  import TimeInput from "../planning/TimeInput.svelte";
   import Switch from "./Switch.svelte";
 
   /**
@@ -28,6 +29,22 @@
     { value: "system", label: "System" },
     { value: "light", label: "Light" },
     { value: "dark", label: "Dark" },
+  ];
+
+  const WEEKDAYS = [
+    { value: 1, label: "Monday" },
+    { value: 2, label: "Tuesday" },
+    { value: 3, label: "Wednesday" },
+    { value: 4, label: "Thursday" },
+    { value: 5, label: "Friday" },
+    { value: 6, label: "Saturday" },
+    { value: 7, label: "Sunday" },
+  ];
+
+  /** Planning the evening before is the one worth an extra star — the label says which is which. */
+  const PLAN_WHEN: { value: "evening" | "morning"; label: string }[] = [
+    { value: "evening", label: "Tonight" },
+    { value: "morning", label: "In the morning" },
   ];
 
   const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
@@ -97,6 +114,87 @@
   <section>
     <SectionHeader title="Appearance" />
     <Segmented options={MODES} value={theme.mode} onchange={(mode) => theme.setMode(mode)} />
+  </section>
+
+  <!-- The ritual the whole app hangs off: when to look back, when to plan, and how full a day has
+       to be before it counts. Kept above the event reminders because it is the one people change
+       — a lead time is set once, a planning hour moves with your life. -->
+  <section>
+    <SectionHeader title="Planning sessions" />
+    <p class="t-micro mb-3 text-fg-faint">
+      Two moments a day: one to see how it went, one to decide the next. On iPhone and Apple Watch.
+    </p>
+    <div class="space-y-1">
+      <div class="flex min-h-8 items-center justify-between gap-3">
+        <span class="t-body">Ask me to plan</span>
+        <Switch
+          checked={preferences.sessions.enabled}
+          label="Ask me to plan"
+          onchange={(enabled) => preferences.setSessions({ enabled })}
+        />
+      </div>
+
+      {#if preferences.sessions.enabled}
+        <div class="flex min-h-8 items-center justify-between gap-3">
+          <span class="t-body">Evening</span>
+          <TimeInput
+            value={preferences.sessions.eveningTime}
+            label="Evening session time"
+            onchange={(eveningTime) => preferences.setSessions({ eveningTime })}
+          />
+        </div>
+        <div class="flex min-h-8 items-center justify-between gap-3">
+          <span class="t-body">Morning</span>
+          <TimeInput
+            value={preferences.sessions.morningTime}
+            label="Morning session time"
+            onchange={(morningTime) => preferences.setSessions({ morningTime })}
+          />
+        </div>
+        <div class="flex min-h-8 items-center justify-between gap-3">
+          <span class="t-body">The longer sitting</span>
+          <div class="flex items-center gap-1.5">
+            <select
+              value={preferences.sessions.weeklyWeekday}
+              aria-label="Day of the weekly session"
+              onchange={(e) => preferences.setSessions({ weeklyWeekday: Number(e.currentTarget.value) })}
+              class="t-body rounded-md border border-line-strong bg-surface px-2 py-1"
+            >
+              {#each WEEKDAYS as weekday (weekday.value)}
+                <option value={weekday.value}>{weekday.label}</option>
+              {/each}
+            </select>
+            <TimeInput
+              value={preferences.sessions.weeklyTime}
+              label="Weekly session time"
+              onchange={(weeklyTime) => preferences.setSessions({ weeklyTime })}
+            />
+          </div>
+        </div>
+
+        <!-- Planning the evening before is worth an extra star, and the copy says so rather than
+             leaving it to be discovered. -->
+        <div class="flex min-h-8 items-center justify-between gap-3">
+          <span class="t-body">I plan</span>
+          <Segmented
+            options={PLAN_WHEN}
+            value={preferences.sessions.planWhen}
+            onchange={(planWhen) => preferences.setSessions({ planWhen })}
+          />
+        </div>
+        <div class="flex min-h-8 items-center justify-between gap-3">
+          <span class="t-body">A day counts as planned at</span>
+          <NumberField
+            value={preferences.sessions.coveragePercent}
+            unit="%"
+            ariaLabel="How full a day has to be"
+            inputmode="numeric"
+            onchange={(coveragePercent) =>
+              preferences.setSessions({ coveragePercent: Math.min(100, Math.max(10, Math.round(coveragePercent))) })}
+          />
+        </div>
+      {/if}
+    </div>
   </section>
 
   <!-- Shown everywhere, though a browser tab can act on none of them: it has nowhere to put a

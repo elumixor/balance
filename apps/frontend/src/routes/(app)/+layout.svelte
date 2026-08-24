@@ -14,6 +14,7 @@
   import IcsDropZone from "$lib/components/IcsDropZone.svelte";
   import ImportIcsDialog from "$lib/components/ImportIcsDialog.svelte";
   import { mobileReminders } from "$lib/mobile/reminders.svelte";
+  import { sessionReminders } from "$lib/mobile/session-reminders.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { settings } from "$lib/settings.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
@@ -62,6 +63,7 @@
     desktopUpdates.start();
     desktopReminders.start();
     mobileReminders.start();
+    sessionReminders.start();
     icsImport.start();
     const stopWatchHandoff = startWatchHandoff();
     return () => {
@@ -70,6 +72,7 @@
       desktopUpdates.stop();
       desktopReminders.stop();
       mobileReminders.stop();
+      sessionReminders.stop();
       icsImport.stop();
       stopWatchHandoff();
     };

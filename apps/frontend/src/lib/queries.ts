@@ -1,4 +1,5 @@
 import { api, apiGet, callApi, unwrapOk } from "./api";
+import type { CommitResult, SessionNotification, SessionSummary, Slot } from "./planning/types";
 import type { StoredPreferences } from "./preferences.svelte";
 import type {
   ActivityWeight,
@@ -27,7 +28,19 @@ export const getPreferences = () => callApi(api.preferences.$get()).then((r) => 
 export const updatePreferences = (patch: {
   reminders?: Partial<StoredPreferences["reminders"]>;
   travel?: Partial<StoredPreferences["travel"]>;
+  sessions?: Partial<StoredPreferences["sessions"]>;
 }) => callApi(api.preferences.$patch(patch)).then(unwrapOk);
+
+// Planning sessions
+/** The zone travels with every ask: a planning day is a day in a place, and only the device knows. */
+export const getSessionSummary = (slot: Slot, timeZone: string) =>
+  apiGet<SessionSummary>("/planning/summary", { slot, timeZone });
+export const getSessionNotifications = (timeZone: string) =>
+  apiGet<{ enabled: boolean; slots: SessionNotification[] }>("/planning/notifications", { timeZone });
+export const commitPlannedDay = (input: { day: string; timeZone: string; rest?: boolean }) =>
+  callApi(api.planning.day.$post(input)).then((r) => unwrapOk(r) as CommitResult);
+export const commitPlannedWeek = (input: { weekStart: string; timeZone: string }) =>
+  callApi(api.planning.week.$post(input)).then((r) => unwrapOk(r) as CommitResult);
 
 // Calendar
 export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => unwrapOk(r) as CalendarPrefs);

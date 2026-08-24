@@ -44,9 +44,30 @@ export interface TravelPrefs {
   bufferMinutes: number;
 }
 
+/**
+ * When the app asks you to look back and to plan, and what counts as having planned.
+ *
+ * The times are the user's own — some people plan tonight, some over coffee — and the zone is
+ * written by the app rather than chosen, because a planning day is a day in a place.
+ */
+export interface SessionsPrefs {
+  enabled: boolean;
+  eveningTime: string;
+  morningTime: string;
+  /** 1 is Monday, 7 is Sunday. The weekly sitting replaces that evening's reminder. */
+  weeklyWeekday: number;
+  weeklyTime: string;
+  /** Which sitting you mean to plan in. The other one only looks back. */
+  planWhen: "evening" | "morning";
+  /** How full a day has to be before it counts as planned. */
+  coveragePercent: number;
+  timeZone: string;
+}
+
 export interface StoredPreferences {
   reminders: RemindersPrefs;
   travel: TravelPrefs;
+  sessions: SessionsPrefs;
   /** False when the server has no maps key, so the panel can say why journeys aren't on offer. */
   travelAvailable: boolean;
 }
@@ -55,6 +76,16 @@ export interface StoredPreferences {
 export const DEFAULT_PREFERENCES: StoredPreferences = {
   reminders: { enabled: true, leadMinutes: 5, useCalendarReminders: true, leaveInTime: true, sound: true },
   travel: { origin: "", modes: ["transit", "drive"], bufferMinutes: 5 },
+  sessions: {
+    enabled: true,
+    eveningTime: "18:00",
+    morningTime: "08:00",
+    weeklyWeekday: 7,
+    weeklyTime: "18:00",
+    planWhen: "evening",
+    coveragePercent: 70,
+    timeZone: "UTC",
+  },
   travelAvailable: false,
 };
 
@@ -62,7 +93,11 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
 const SAVE_DELAY_MS = 500;
 
 class Preferences {
-  #pending: { reminders?: Partial<RemindersPrefs>; travel?: Partial<TravelPrefs> } = {};
+  #pending: {
+    reminders?: Partial<RemindersPrefs>;
+    travel?: Partial<TravelPrefs>;
+    sessions?: Partial<SessionsPrefs>;
+  } = {};
   #timer: ReturnType<typeof setTimeout> | null = null;
 
   get #value(): StoredPreferences {
@@ -77,6 +112,10 @@ class Preferences {
     return this.#value.travel;
   }
 
+  get sessions(): SessionsPrefs {
+    return this.#value.sessions;
+  }
+
   /** Whether the server can work out journeys at all — see `GOOGLE_MAPS_API_KEY`. */
   get travelAvailable() {
     return this.#value.travelAvailable;
@@ -88,6 +127,10 @@ class Preferences {
 
   setTravel(patch: Partial<TravelPrefs>) {
     this.#apply({ travel: patch });
+  }
+
+  setSessions(patch: Partial<SessionsPrefs>) {
+    this.#apply({ sessions: patch });
   }
 
   /** Turns one way of getting there on or off, keeping the order the picker lists them in. */
@@ -104,7 +147,7 @@ class Preferences {
     this.#timer = null;
     const patch = this.#pending;
     this.#pending = {};
-    if (!patch.reminders && !patch.travel) return;
+    if (!patch.reminders && !patch.travel && !patch.sessions) return;
     void updatePreferences(patch).catch(() => {
       // The value on screen is what the user chose; the next write, or the next load, settles it.
       store.preferences.invalidate();
@@ -115,17 +158,23 @@ class Preferences {
    * On screen immediately, on the server a moment later. The patches are merged rather than
    * queued, so holding down a stepper is one request.
    */
-  #apply(patch: { reminders?: Partial<RemindersPrefs>; travel?: Partial<TravelPrefs> }) {
+  #apply(patch: {
+    reminders?: Partial<RemindersPrefs>;
+    travel?: Partial<TravelPrefs>;
+    sessions?: Partial<SessionsPrefs>;
+  }) {
     const current = this.#value;
     store.preferences.set({
       ...current,
       reminders: { ...current.reminders, ...patch.reminders },
       travel: { ...current.travel, ...patch.travel },
+      sessions: { ...current.sessions, ...patch.sessions },
     });
 
     this.#pending = {
       reminders: { ...this.#pending.reminders, ...patch.reminders },
       travel: { ...this.#pending.travel, ...patch.travel },
+      sessions: { ...this.#pending.sessions, ...patch.sessions },
     };
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = setTimeout(() => this.flush(), SAVE_DELAY_MS);

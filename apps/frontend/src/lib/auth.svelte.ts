@@ -193,10 +193,9 @@ async function restoreNativeSession(clerk: Clerk) {
   const token = await readDeviceGrant();
   if (!token) return;
   try {
-    const { ticket, token: rotated } = await postJson<{ ticket: string; token: string }>(
-      "/mobile/auth/device/ticket",
-      { token },
-    );
+    const { ticket, token: rotated } = await postJson<{ ticket: string; token: string }>("/mobile/auth/device/ticket", {
+      token,
+    });
     await Preferences.set({ key: DEVICE_GRANT_KEY, value: rotated });
     await redeemTicket(clerk, ticket);
   } catch (e) {

@@ -13,6 +13,11 @@
   import Divider from "$lib/components/Divider.svelte";
   import ThemeToggle from "$lib/components/ThemeToggle.svelte";
   import { settings } from "$lib/settings.svelte";
+  import { page } from "$app/state";
+  import PlanningBar from "$lib/planning/PlanningBar.svelte";
+  import { planMode } from "$lib/planning/plan-mode.svelte";
+  import { sessionData } from "$lib/planning/session-data.svelte";
+  import { slotNow } from "$lib/planning/zone";
   import { Menu } from "lucide-svelte";
 
   /**
@@ -23,6 +28,29 @@
    */
   const data = calendarData;
   void data.enter();
+
+  /**
+   * `?plan=YYYY-MM-DD` turns this screen into the planner: same grid, same drags, one day lit and
+   * a bar along the bottom. The parameter rather than a flag on the class is what makes it survive
+   * a reload — and a reload is exactly when the state that sent us here is gone, so the session is
+   * asked for again to recover the day's budget.
+   */
+  const planning = $derived(page.url.searchParams.get("plan"));
+
+  $effect(() => {
+    if (!planning) return void (planMode.active && planMode.stop());
+    if (planMode.day === planning) return;
+
+    void (async () => {
+      await sessionData.enter(slotNow());
+      const summary = sessionData.summary;
+      if (!summary || summary.target.day !== planning) return;
+      planMode.day = planning;
+      planMode.budgetHours = summary.target.budgetHours;
+      planMode.threshold = summary.coverageThreshold;
+      planMode.award = summary.award;
+    })();
+  });
 
   const plan = $derived(categories.all);
   const categoryById = $derived(new Map(plan.map((category) => [category.id, category])));
@@ -160,6 +188,10 @@
     <div class="h-full {data.connectionKnown && !data.connected ? 'hidden md:block' : ''}">
       <WeekGrid categories={categoryById} />
     </div>
+
+    {#if planMode.active}
+      <PlanningBar />
+    {/if}
   </div>
 </div>
 
