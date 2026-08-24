@@ -1,6 +1,20 @@
 <script lang="ts">
   import { auth } from "$lib/auth.svelte";
   import BrandMark from "./BrandMark.svelte";
+  import Button from "./Button.svelte";
+
+  let retrying = $state(false);
+
+  async function retry() {
+    retrying = true;
+    try {
+      await auth.retry();
+    } catch {
+      // The message is already on screen — `startupError` carries whatever went wrong this time.
+    } finally {
+      retrying = false;
+    }
+  }
 </script>
 
 <!--
@@ -12,8 +26,11 @@
   {#if auth.startupError}
     <div class="max-w-sm space-y-1 text-center">
       <p class="t-body">Balance couldn't start</p>
-      <p class="t-label text-fg-muted">Sign-in didn't load. Check your connection and reopen the app.</p>
+      <p class="t-label text-fg-muted">Sign-in didn't load. Check your connection and try again.</p>
       <p class="t-data-micro break-words text-fg-faint">{auth.startupError}</p>
     </div>
+    <!-- Reopening the app was the only way out of this, and on a phone that means killing it
+         from the switcher first — a fix nobody guesses at. -->
+    <Button label="Try again" variant="outline" size="sm" loading={retrying} onclick={() => void retry()} />
   {/if}
 </div>

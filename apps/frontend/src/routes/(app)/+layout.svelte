@@ -28,8 +28,12 @@
    * A device that was signed in last time gets its shell — and the rows the store read back off
    * disk — before Clerk has confirmed anything, so reopening the app is a screen rather than a
    * splash. If the session turns out to be gone, the effect below moves on to sign-in.
+   *
+   * A start-up that failed takes the optimistic shell back down: nothing here ever gets a token,
+   * so every screen under it would skeleton behind a tab bar that does nothing. The splash says
+   * what went wrong and offers to try again instead.
    */
-  const shellReady = $derived(auth.signedIn || (!auth.loaded && auth.wasSignedIn));
+  const shellReady = $derived(auth.signedIn || (!auth.loaded && auth.wasSignedIn && !auth.startupError));
 
   $effect(() => {
     if (auth.loaded && !auth.startupError && !auth.signedIn) void goto("/sign-in", { replaceState: true });

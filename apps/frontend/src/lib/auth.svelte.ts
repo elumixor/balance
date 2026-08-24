@@ -25,6 +25,43 @@ const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
 /** The device's standing permission to sign itself back in — see `restoreNativeSession`. */
 const DEVICE_GRANT_KEY = "balance:device-grant";
 
+/**
+ * How long the whole start-up — Clerk's own load, and the device's silent sign-in behind it — is
+ * allowed to take before it counts as failed.
+ *
+ * Nothing in here answers on its own. `clerk.load()` waits on a script and a handshake with the
+ * development instance, and the grant exchange is a plain request; a webview suspended mid-flight
+ * resumes with a promise that will never settle. `loaded` would then stay false forever, which is
+ * not a splash — the shell opens anyway on the device's last-known session, so what the person
+ * actually gets is every screen skeletoning behind a tab bar that does nothing, with no error and
+ * nothing to retry. A start-up that fails says so; one that hangs says nothing at all.
+ */
+const STARTUP_TIMEOUT_MS = 15_000;
+
+/** The same limit for the sign-in requests, which go out by hand rather than through the client. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
+class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+async function withDeadline<T>(promise: Promise<T>, message: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new TimeoutError(message)), STARTUP_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 class Auth {
   /** False until Clerk has replayed any stored session, so screens can hold their first frame. */
   loaded = $state(false);
@@ -64,10 +101,23 @@ class Auth {
     return this.#ready;
   }
 
+  /**
+   * Starts over after a start-up that failed. The client that didn't load is thrown away with the
+   * promise that reported it, so the next `load()` is a first load again rather than the old
+   * rejection handed back to everybody who asks.
+   */
+  retry() {
+    this.startupError = null;
+    this.loaded = false;
+    this.#clerk = null;
+    this.#ready = null;
+    return this.load();
+  }
+
   async #load() {
     const clerk = new Clerk(PUBLISHABLE_KEY);
     try {
-      await clerk.load();
+      await withDeadline(clerk.load(), "Sign-in took too long to load.");
       // A webview is not a browser that keeps things: WKWebView prunes both halves of what
       // clerk-js leaves behind — local storage and the dev-browser cookie — so a launch opens
       // signed out however carefully that state is mirrored into native storage. The device
@@ -76,7 +126,9 @@ class Auth {
       // Telling Clerk it isn't a standard browser is not the fix, however tempting it reads: a
       // development instance then can't run its browser handshake at all, and every launch fails
       // with "Unable to authenticate this browser for your development instance".
-      if (isNativeApp && !clerk.session) await restoreNativeSession(clerk);
+      if (isNativeApp && !clerk.session) {
+        await withDeadline(restoreNativeSession(clerk), "Signing this device back in took too long.");
+      }
     } catch (e) {
       // A signed-out app is still usable enough to show what went wrong; hanging on the
       // splash tells the person holding the phone nothing at all.
@@ -294,7 +346,13 @@ class RequestError extends Error {
 async function postJson<T>(path: string, body: unknown, sessionToken?: string): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
-  const response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+  // A request with no limit on it is the one that leaves a launch hanging — see `withDeadline`.
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
   const payload = (await response.json()) as T & { error?: string };
   if (!response.ok) throw new RequestError(payload.error ?? `Request to ${path} failed.`, response.status);
   return payload;
