@@ -104,7 +104,7 @@ the app worth having: twice a day the phone asks you to look at what happened an
 happens next, and committing that decision is what earns stars.
 
 Four pure modules hold every rule, and they are the only things here with tests
-(`bun run test:backend`): `stars.ts` says what a commit pays and what a total means, `coverage.ts`
+(`cd apps/backend && bun test`): `stars.ts` says what a commit pays and what a total means, `coverage.ts`
 says how full a day is and how closely it was kept, `days.ts` turns `YYYY-MM-DD` plus a zone into
 instants, and `schedule.ts` says when the next reminders fall. Everything else is a database or a
 calendar away from them.
@@ -164,10 +164,10 @@ companion app installed — and holds nothing pending otherwise, or the same eve
 
 ## Tests
 
-`bun run test` runs both suites. The frontend's are Vitest (`bun run test:coverage` for the report),
-beside what they cover as `*.test.ts` under `apps/frontend/src/lib/`; the backend's are `bun test`
-(`bun run test:backend`), and cover `server/lib/planning/`'s pure rules — the star arithmetic, the
-coverage and match formulas, zoned days, and the reminder schedule. Vitest compiles `.svelte.ts` through the
+`bun run test` runs both suites. The frontend's are Vitest, beside what they cover as `*.test.ts`
+under `apps/frontend/src/lib/` (`bun --filter frontend test:coverage` for the report); the backend's
+are `bun test`, and cover `server/lib/planning/`'s pure rules — the star arithmetic, the coverage
+and match formulas, zoned days, and the reminder schedule. Vitest compiles `.svelte.ts` through the
 Svelte plugin, so runes work — see `apps/frontend/vitest.config.ts`.
 
 The suite is not a net cast over the whole app. It covers the modules named in that config's

@@ -6,7 +6,7 @@
       "name": "balance-app",
       "devDependencies": {
         "@biomejs/biome": "^2.5.6",
-        "@elumixor/devkit": "^0.9.0",
+        "@elumixor/devkit": "^0.10.1",
         "@types/node": "^20",
         "typescript": "^5",
       },
@@ -260,7 +260,7 @@
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 
-    "@elumixor/devkit": ["@elumixor/devkit@0.9.0", "", { "dependencies": { "concurrently": "^10.0.3" }, "bin": { "devkit": "src/bin/devkit.ts", "free-port": "src/bin/free-port.ts" } }, "sha512-xkxF5m+qCXnrjZmcTIVu0+VUvBvFUsOOWEtPtRJNoi6jqkDbz1hYz8lcS818JJUsm4zhkYmI+Oip7knTjOfy1Q=="],
+    "@elumixor/devkit": ["@elumixor/devkit@0.10.1", "", { "dependencies": { "concurrently": "^10.0.3" }, "bin": { "devkit": "src/bin/devkit.ts", "free-port": "src/bin/free-port.ts" } }, "sha512-mTZ06LhOCBvE7pd2ER/qRGOhJOEdun0C0bsM5/Bo7A6iQQrRl3Mjd+TGsKArOeyHkNlxrOwdCuHkwwSgsc35yw=="],
 
     "@elumixor/nitro-client": ["@elumixor/nitro-client@4.0.6", "", { "dependencies": { "@elumixor/zod-config-cli": "^1.0.3", "ts-morph": "^25.0.1" }, "peerDependencies": { "h3": ">=1.0.0", "zod": ">=4.0.0" }, "optionalPeers": ["h3", "zod"], "bin": { "nitro-client": "dist/cli.mjs" } }, "sha512-xCrNPWpkRnG/PD+zdRlRVid8PPakoIj255F4kycrnLUL3cWd2691+R+o4eaG2PLJOn/OQQr9RLEwDIML9uF8Pg=="],
 

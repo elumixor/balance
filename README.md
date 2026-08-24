@@ -27,12 +27,17 @@ Auth is Clerk on both sides; the frontend sends its session token to `/mobile/*`
 
 ```bash
 bun install
-bun run dev       # devkit: runs backend + frontend side-by-side
-bun run dev:open  # same, and opens the frontend URL once it's up
+bun run dev          # every platform at once
+bunx devkit dev:web  # only the web stack — the backend and the SPA
 ```
 
+The product ships on four platforms, and devkit names them the same way everywhere: `web`, `mac`,
+`iphone`, `iwatch`. `devkit dev:<platform>` runs one of them, and starts whatever it needs — the
+three native shells all point at the web dev server, so naming any of them brings that up too.
+What each one runs lives in the `devkit.dev` block of the root `package.json`.
+
 That's `backend` on `http://localhost:3100` and `frontend` on `http://localhost:8081`. To run just
-one: `cd apps/backend && bun run dev`, or `cd apps/frontend && bun run dev`.
+one process: `cd apps/backend && bun run dev`, or `cd apps/frontend && bun run dev`.
 
 Both apps read their own `.env`. The backend needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
 `CLERK_SECRET_KEY`, and for the calendar integration `GOOGLE_OAUTH_CLIENT_ID`,
@@ -91,11 +96,15 @@ something you trigger, not something a push causes.
 ## iOS
 
 ```bash
-cd apps/frontend
-bun run ios       # live-reload against the dev server, then opens Xcode
-bun run ios:prod  # bundles the production build into the app, then opens Xcode
-bun run assets    # regenerates icons + splash screens from assets/icon.png
+bunx devkit dev:iphone    # simulator, loading the dev server — web edits are live, native ones rebuild
+bunx devkit dev:iwatch    # the watch app on its own simulator, with sample data (--real for the API)
+bunx devkit build:iphone  # web bundle -> Xcode project -> compiles the app, no signing
+cd apps/frontend && bun run assets  # regenerates icons + splash screens from assets/icon.png
 ```
+
+Neither dev command opens Xcode: the app is built, installed on the simulator and launched, and
+then the native sources are watched — saving one rebuilds and relaunches, which is the whole loop.
+`--device` picks a different simulator than the configured one.
 
 Everything Apple lives under `apps/frontend/ios`: the committed Xcode project (`App/`), the watch
 app and widget sources (`App/WatchApp`, `App/WatchWidget`), the BalanceKit Swift package they
@@ -150,9 +159,9 @@ says so.
 ## macOS
 
 ```bash
-bun run dev              # the dev server the desktop shell loads
-bun run desktop          # runs the app against it
-bun run desktop:install  # builds a release bundle and puts it in /Applications
+bunx devkit dev:mac       # the dev server, and the desktop shell against it
+bunx devkit build:mac     # a release bundle, ad-hoc signed
+cd apps/frontend && bun run desktop:install  # builds one and puts it in /Applications
 ```
 
 The same SPA, wrapped in Tauri (`apps/frontend/src-tauri`). What the desktop adds is a menu bar
@@ -191,7 +200,7 @@ sent to.
 The bundle is unsigned. That is fine for the machine that built it (nothing copied off local disk
 carries a quarantine flag) and not fine for anyone else, who would need a Developer ID in
 `bundle.macOS.signingIdentity`. Deep links also only resolve to an installed `.app`, so a
-`bun run desktop` session hands its ticket to whatever is in `/Applications`.
+`devkit dev:mac` session hands its ticket to whatever is in `/Applications`.
 
 The app keeps itself current. A menu bar item is opened once and then left running for weeks, so a
 download nobody goes looking for again leaves everybody a month behind.
@@ -217,14 +226,14 @@ bun run check      # svelte-check over the frontend
 ## Releasing
 
 ```bash
-bun run deploy          # all of the below, with their logs interleaved and labelled
-bun run deploy:vercel   # builds here, uploads the finished output (`vercel deploy --prebuilt --prod`)
-bun run deploy:ios      # web bundle -> Xcode project -> fastlane `beta` -> TestFlight
-bun run deploy:desktop  # macOS app + updater manifest -> `dist/download`, which the web serves
+bun run deploy            # every platform, in dependency order
+bunx devkit deploy:web    # builds here, uploads the finished output (`vercel deploy --prebuilt --prod`)
+bunx devkit deploy:iphone # web bundle -> Xcode project -> fastlane `beta` -> TestFlight
+bunx devkit deploy:mac    # macOS app + updater manifest -> `dist/download`, which the web serves
 ```
 
-The targets, what each one runs and what it waits for live in the `devkit.deploy` block of the root
-`package.json`; `devkit deploy` runs them, drawing a line per target and keeping the full logs in
+What each platform runs and what it waits for live in the `devkit.deploy` block of the root
+`package.json`; `devkit deploy` runs them, drawing a line per platform and keeping the full logs in
 `.devkit/deploy/`. The iOS half runs alongside the other two. The macOS app doesn't: the website
 hands it out, so the DMG has to exist before Vercel packages the site, and a web deploy builds it
 first. `updater` runs between them, packing the same `.app` as a signed tarball beside the DMG —
@@ -242,9 +251,11 @@ The app is bundled against `https://balance-app-mauve.vercel.app` — override w
 build number from TestFlight itself and writes it into the Xcode project and both watch targets'
 `Info.plist`, so a release leaves those files changed — commit them.
 
-The builds run over the same sources with different settings at the same time, so the iOS one gets
-its own output directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`) and `.vercelignore` keeps
-Vercel's file scan out of them; nothing else should need any of it.
+Every native shell carries its own copy of the web app, built with its own API base URL, and both
+`devkit build` and `devkit deploy` build them beside each other — so each gets its own output
+directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`) and `.vercelignore` keeps Vercel's file scan
+out of them. The typed API client every one of those builds reads is generated once up front
+(`devkit.generate`), rather than by each of them while the others are reading it.
 
 Every version number in the repo is stamped from one place — `version` in
 `apps/frontend/src-tauri/tauri.conf.json` — by `bun run version:sync`, configured under `devkit.version`
@@ -272,7 +283,7 @@ Both halves can also be built by CI, but never by a push — each is a button in
 a merge to `main` still changes nothing that users see.
 
 ```bash
-bun run release:ios  # tags the commit and pushes the tag; the iOS workflow picks it up
+bunx devkit release ios  # tags the commit and pushes the tag; the iOS workflow picks it up
 ```
 
 **iOS TestFlight** runs the same `fastlane beta` lane on a macOS runner, on an `ios-v*` tag or a

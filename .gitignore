@@ -7,9 +7,10 @@ apps/frontend/coverage/
 # svelte / vite
 apps/frontend/.svelte-kit/
 apps/frontend/build/
-# the native build a release makes alongside the web one (scripts/deploy-ios.ts)
-apps/frontend/.svelte-kit-ios/
-apps/frontend/build-ios/
+# every native shell carries its own copy of the web app, and `devkit build` builds them beside
+# each other — so each gets its own output and kit directory
+apps/frontend/.svelte-kit-*/
+apps/frontend/build-*/
 
 # capacitor — the Xcode project is committed, its build products are not.
 # The rest lives in apps/frontend/ios/.gitignore, next to what it ignores.

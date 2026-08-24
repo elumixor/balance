@@ -6,88 +6,149 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "devkit dev",
     "build": "devkit build",
-    "dev": "devkit",
-    "dev:open": "devkit --open",
-    "check": "bun --filter frontend check",
-    "test": "bun --filter frontend test && bun --filter '@balance/backend' test",
-    "test:frontend": "bun --filter frontend test",
-    "test:backend": "bun --filter '@balance/backend' test",
-    "test:watch": "bun --filter frontend test:watch",
-    "test:coverage": "bun --filter frontend test:coverage",
-    "ios": "bun --filter frontend ios",
-    "sim:watch": "devkit sim",
-    "desktop": "bun --filter frontend desktop",
-    "desktop:install": "bun --filter frontend desktop:install",
+    "deploy": "devkit deploy",
+    "test": "bun run --filter '*' test",
+    "check": "bun run --filter '*' check",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "deploy": "devkit deploy",
-    "deploy:vercel": "devkit deploy vercel",
-    "deploy:ios": "devkit deploy ios",
-    "deploy:desktop": "devkit deploy desktop updater",
-    "release:ios": "devkit release ios",
     "version:sync": "devkit version"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
-    "@elumixor/devkit": "^0.9.0",
+    "@elumixor/devkit": "^0.10.1",
     "@types/node": "^20",
     "typescript": "^5"
   },
   "devkit": {
-    "apps": {
-      "backend": {
-        "filter": "@balance/backend",
-        "port": 3100
+    "generate": {
+      "command": "bunx nitro-client",
+      "cwd": "apps/backend"
+    },
+    "dev": {
+      "web": {
+        "processes": {
+          "backend": {
+            "filter": "@balance/backend",
+            "port": 3100,
+            "color": "blue"
+          },
+          "frontend": {
+            "port": 8081,
+            "color": "magenta",
+            "open": true
+          }
+        }
       },
-      "frontend": {
-        "port": 8081,
-        "open": true
+      "mac": {
+        "command": "bunx tauri dev",
+        "cwd": "apps/frontend",
+        "color": "yellow",
+        "needs": [
+          "web"
+        ]
+      },
+      "iphone": {
+        "type": "capacitor-ios",
+        "color": "green",
+        "needs": [
+          "web"
+        ],
+        "options": {
+          "frontendDir": "apps/frontend",
+          "project": "apps/frontend/ios/App/App.xcodeproj",
+          "scheme": "App",
+          "bundleId": "com.elumixor.balance",
+          "device": "iPhone 17 Pro",
+          "derivedDataDir": "apps/frontend/ios/App/build/iphone",
+          "port": 8081,
+          "watch": [
+            "apps/frontend/ios/App/App"
+          ]
+        }
+      },
+      "iwatch": {
+        "type": "xcode-sim",
+        "color": "cyan",
+        "options": {
+          "project": "apps/frontend/ios/App/App.xcodeproj",
+          "scheme": "BalanceWatch",
+          "sdk": "watchsimulator",
+          "bundleId": "com.elumixor.balance.watchkitapp",
+          "device": "Apple Watch Series 11 (46mm)",
+          "derivedDataDir": "apps/frontend/ios/App/build/sim",
+          "previewEnv": "BALANCE_WATCH_PREVIEW",
+          "watch": [
+            "apps/frontend/ios/App/WatchApp",
+            "apps/frontend/ios/App/WatchWidget",
+            "apps/frontend/ios/BalanceKit/Sources"
+          ]
+        }
+      }
+    },
+    "build": {
+      "web": {
+        "type": "web",
+        "options": {
+          "frontendDir": "apps/frontend",
+          "backendDir": "apps/backend",
+          "apiPrefixes": [
+            "mobile",
+            "health"
+          ],
+          "include": {
+            "dist/download": "download"
+          }
+        }
+      },
+      "mac": {
+        "type": "tauri-macos",
+        "options": {
+          "frontendDir": "apps/frontend"
+        }
+      },
+      "iphone": {
+        "type": "capacitor-ios",
+        "options": {
+          "frontendDir": "apps/frontend",
+          "project": "apps/frontend/ios/App/App.xcodeproj",
+          "scheme": "App",
+          "derivedDataDir": "apps/frontend/ios/App/build/iphone"
+        }
+      },
+      "iwatch": {
+        "type": "xcode",
+        "options": {
+          "project": "apps/frontend/ios/App/App.xcodeproj",
+          "scheme": "BalanceWatch",
+          "sdk": "watchsimulator",
+          "derivedDataDir": "apps/frontend/ios/App/build/sim"
+        }
       }
     },
     "deploy": {
-      "desktop": {
+      "mac": {
         "type": "tauri-macos"
       },
       "updater": {
         "command": "bun apps/frontend/scripts/stage-updater.ts",
         "needs": [
-          "desktop"
+          "mac"
         ]
       },
-      "vercel": {
+      "web": {
         "type": "vercel",
         "needs": [
           "updater"
         ]
       },
-      "ios": {
+      "iphone": {
         "type": "fastlane-ios",
         "options": {
-          "backendDir": "apps/backend",
           "defaultApiBaseUrl": "https://balance-app-mauve.vercel.app"
         }
       }
-    },
-    "build": {
-      "frontendDir": "apps/frontend",
-      "backendDir": "apps/backend",
-      "apiPrefixes": [
-        "mobile",
-        "health"
-      ],
-      "clientCommand": "bunx nitro-client",
-      "include": {
-        "dist/download": "download"
-      }
-    },
-    "sim": {
-      "project": "apps/frontend/ios/App/App.xcodeproj",
-      "scheme": "BalanceWatch",
-      "bundleId": "com.elumixor.balance.watchkitapp",
-      "device": "Apple Watch Series 11 (46mm)",
-      "derivedDataDir": "apps/frontend/ios/App/build/sim",
-      "previewEnv": "BALANCE_WATCH_PREVIEW"
     },
     "version": {
       "source": "apps/frontend/src-tauri/tauri.conf.json",

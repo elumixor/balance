@@ -6,17 +6,10 @@
   "scripts": {
     "dev": "vite dev --host --port 8081",
     "build": "vite build",
-    "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "TZ=Europe/Amsterdam vitest run",
-    "test:watch": "TZ=Europe/Amsterdam vitest",
     "test:coverage": "TZ=Europe/Amsterdam vitest run --coverage",
-    "sync": "cap sync ios",
     "assets": "bun scripts/assets.ts",
-    "ios": "CAPACITOR_LIVE_RELOAD=true cap sync ios && cap open ios",
-    "ios:prod": "VITE_API_BASE_URL=https://balance-app-mauve.vercel.app vite build && cap sync ios && cap open ios",
-    "desktop": "tauri dev",
-    "desktop:build": "tauri build --bundles app",
     "desktop:install": "bun scripts/install-desktop.ts"
   },
   "dependencies": {
