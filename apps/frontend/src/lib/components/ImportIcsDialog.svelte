@@ -5,7 +5,7 @@
   import InlineError from "$lib/components/InlineError.svelte";
   import { formatClock, formatDayDate } from "$lib/format";
   import type { IcsEvent } from "$lib/ics";
-  import { icsImport } from "./ics-import.svelte";
+  import { icsImport } from "$lib/ics-import.svelte";
 
   /**
    * What an `.ics` file shared into the app looks like before any of it is in the calendar: the

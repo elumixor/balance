@@ -89,7 +89,8 @@ and `CalendarEventsService.resolve` is still the one read path.
   reads `/mobile/watch/summary` and writes through `/mobile/tracking/*`; `SessionController` is the
   one place that knows what is running, and the only writer of the App Group snapshot. A calendar file shared into the
   phone app arrives the same native-to-webview way: `IcsImportPlugin.swift` only carries it,
-  `$lib/ics.ts` parses it, and the events are written through the ordinary calendar API.
+  `$lib/ics.ts` parses it, and the events are written through the ordinary calendar API. A file
+  dropped on the Mac app or a browser tab goes to the same sheet through `IcsDropZone.svelte`.
 
 ## Reminders are worked out once and shown three ways
 

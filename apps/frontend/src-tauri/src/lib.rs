@@ -117,6 +117,9 @@ fn build_main_window(app: &AppHandle) -> tauri::Result<()> {
         // Below this the side rail collapses, and the window buttons would land on the calendar.
         .min_inner_size(820.0, 520.0)
         .resizable(true)
+        // The webview handles dropped files itself (`IcsDropZone.svelte`); left on, the shell
+        // swallows the drop and the page is never told a calendar file arrived.
+        .disable_drag_drop_handler()
         .initialization_script(REPORT_ERRORS)
         .center();
 

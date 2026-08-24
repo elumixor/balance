@@ -10,8 +10,9 @@
   import { desktopTray } from "$lib/desktop/tray.svelte";
   import { desktopUpdates } from "$lib/desktop/updates.svelte";
   import { isBareKey, isSettingsKey } from "$lib/keys";
-  import { icsImport } from "$lib/mobile/ics-import.svelte";
-  import ImportIcsDialog from "$lib/mobile/ImportIcsDialog.svelte";
+  import { icsImport } from "$lib/ics-import.svelte";
+  import IcsDropZone from "$lib/components/IcsDropZone.svelte";
+  import ImportIcsDialog from "$lib/components/ImportIcsDialog.svelte";
   import { mobileReminders } from "$lib/mobile/reminders.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { settings } from "$lib/settings.svelte";
@@ -116,4 +117,7 @@
   <!-- A file shared into the app can arrive on any screen, so the sheet that reads it lives here
        with the settings panel rather than on the calendar. -->
   <ImportIcsDialog />
+  <!-- The other way a file arrives: dropped onto the Mac app or a browser tab, rather than shared
+       into the phone. -->
+  <IcsDropZone />
 {/if}

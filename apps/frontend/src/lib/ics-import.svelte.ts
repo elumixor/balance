@@ -2,11 +2,12 @@ import { registerPlugin } from "@capacitor/core";
 import { type IcsEvent, parseIcs } from "$lib/ics";
 import { createCalendarEvent } from "$lib/queries";
 import { invalidate } from "$lib/store.svelte";
-import { isIOSApp } from "./platform";
+import { isIOSApp } from "$lib/mobile/platform";
 
 /**
- * Importing an `.ics` file the phone was given — an invitation from Mail, a timetable downloaded
- * in Safari, a season's fixtures from a club's website.
+ * Importing an `.ics` file the app was given — an invitation from Mail, a timetable downloaded in
+ * Safari, a season's fixtures from a club's website. The phone is handed one by iOS; the Mac and
+ * a browser tab are handed one by dropping it on the window (`IcsDropZone.svelte`).
  *
  * iOS hands the file to the app itself rather than to a share extension: the events are written
  * into Google Calendar through the same API the rest of the app writes with, and that needs the
@@ -25,7 +26,7 @@ interface IcsImportPlugin {
   addListener(event: "icsReceived", handler: (file: IncomingFile) => void): Promise<{ remove: () => Promise<void> }>;
 }
 
-interface IncomingFile {
+export interface IncomingFile {
   readonly name: string;
   readonly content: string;
 }
@@ -65,11 +66,11 @@ export class IcsImport {
     let stopped = false;
     void (async () => {
       try {
-        const handle = await plugin.addListener("icsReceived", (file) => this.#receive(file));
+        const handle = await plugin.addListener("icsReceived", (file) => this.receive(file));
         if (stopped) return void handle.remove();
         removeListener = () => handle.remove();
         const { files } = await plugin.pending();
-        for (const file of files) this.#receive(file);
+        for (const file of files) this.receive(file);
       } catch (e) {
         console.warn("[ics] couldn't listen for shared files", e);
       }
@@ -145,7 +146,30 @@ export class IcsImport {
     }
   }
 
-  #receive(file: IncomingFile) {
+  /**
+   * A file picked up from the desktop rather than from iOS. Read here rather than by whatever
+   * caught the drop, so a dropped file and a shared one open the same sheet the same way — and
+   * anything that isn't a calendar says so in it, instead of vanishing silently.
+   */
+  async receiveFile(file: File) {
+    if (!/\.ics$/i.test(file.name) && file.type !== "text/calendar") {
+      this.fileName = file.name;
+      this.candidates = [];
+      this.imported = null;
+      this.error = "That isn't a calendar file.";
+      return;
+    }
+    try {
+      this.receive({ name: file.name, content: await file.text() });
+    } catch (e) {
+      this.fileName = file.name;
+      this.candidates = [];
+      this.imported = null;
+      this.error = e instanceof Error ? e.message : "That file wouldn't open.";
+    }
+  }
+
+  receive(file: IncomingFile) {
     const events = parseIcs(file.content);
     this.fileName = file.name;
     this.error = events.length === 0 ? "There are no events in that file." : null;
