@@ -309,6 +309,10 @@ struct ContentView: View {
     private func reload() async {
         await summary.refresh()
         if let value = summary.summary { sessions.apply(summary: value) }
+        // Only ever schedules something when there is no iPhone to schedule it instead — see
+        // `EventAlarm`. Asked on every summary, because a cancelled event has to take its
+        // reminder with it.
+        EventAlarm.sync(next: summary.nextEvent, reminders: summary.summary?.reminders)
     }
 
     /// The drag has landed on a segment: the ring keeps it and becomes the dial its length is set

@@ -1,6 +1,7 @@
 import SwiftUI
 import BalanceKit
 import ClerkKit
+import WatchKit
 
 @main
 struct BalanceWatchApp: App {
@@ -22,5 +23,12 @@ struct BalanceWatchApp: App {
                 // screen" — so the only thing to do with it is get back to the root.
                 .onOpenURL { router.handle($0) }
         }
+
+        // Reminders arrive in one of two categories — a call carries iOS's Join button, everything
+        // else doesn't — whether the iPhone scheduled them and watchOS forwarded them or
+        // `EventAlarm` scheduled them here. These draw both; without them they land as the
+        // system's plain title-and-body card.
+        WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.categoryID)
+        WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.joinCategoryID)
     }
 }

@@ -117,6 +117,15 @@ placeholder.
 The ring's geometry is `DialLayout` in BalanceKit, not a shape in either target: the app's wheel and
 the widget's dial are the same week drawn at two sizes, and they used to disagree about it.
 
+Reminders on the phone are the same reminders the Mac shows — when each is due is answered once, in
+`src/lib/reminders.ts` — but they cannot be delivered the same way. iOS suspends the webview seconds
+after the screen goes off, so nothing can be decided at the moment a reminder is due: the next two
+days are worked out ahead and handed to iOS as local notifications, and the list is replaced
+whenever the calendar or the preferences move. A reminder on a locked iPhone is mirrored to the
+paired watch, which draws it with a scene of its own (`EventNotificationView.swift`) in the colour
+of whatever the event counts as. `EventAlarm.swift` covers only the case the phone cannot — a watch
+worn without the companion app installed — because a reminder scheduled on both sides buzzes twice.
+
 ## macOS
 
 ```bash
@@ -133,7 +142,8 @@ that holds a Clerk session and knows what an event counts as, and there is no se
 that logic in Rust. Closing the window hides it rather than quitting, because destroying the
 webview would take both with it.
 
-The Dock icon and the reminders follow the same rule. The webview draws today's date onto a canvas
+The Dock icon and the reminders follow the same rule (and the reminders themselves are shared with
+the iOS build — see above). The webview draws today's date onto a canvas
 and hands the shell the PNG — macOS forgets it on quit, so it is pushed again on every launch. And
 a reminder is a small floating card, a second webview of the app's own `/reminder` route, because a
 macOS notification cannot carry a Join button; the card is given its whole content in the URL and

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ApiError, handleApiError } from "../../../../lib/api-error";
 import { CalendarEventsService, qualifyCalendarId } from "../../../../lib/calendar/events-service";
 import { getDbUserForRequest } from "../../../../lib/current-user";
+import { PreferencesService } from "../../../../lib/preferences-service";
 import { categoryStatsCalculator } from "../../../../lib/stats/category-stats";
 import { periodResolver } from "../../../../lib/stats/period";
 import { StatsRepository } from "../../../../lib/stats/queries";
@@ -15,8 +16,8 @@ import { TrackingSessionsService } from "../../../../lib/tracking/sessions-servi
 const LOOKAHEAD_DAYS = 14;
 
 /**
- * Everything a watch face draws in one round trip: how this week is going, what's next, and
- * whether a timer is running. A wrist has no room for the buffer category, so it isn't sent.
+ * Everything a watch face draws in one round trip: how this week is going, what's next, whether a
+ * timer is running, and how this account wants to be reminded. A wrist has no room for the buffer category, so it isn't sent.
  *
  * The week is the caller's, not the server's: a watch sends its own local Monday midnight as an
  * instant, the same way the web app does, because "this week" is a question about where the person
@@ -29,10 +30,11 @@ export default handler({ query: { weekStart: z.string().optional() } }, async ({
     const now = new Date();
     const week = resolveWeek(query.weekStart, now);
 
-    const [data, upcoming, active] = await Promise.all([
+    const [data, upcoming, active, preferences] = await Promise.all([
       new StatsRepository(user.id).get(week.start, week.end),
       new CalendarEventsService(user.id).resolve(now, addDays(now, LOOKAHEAD_DAYS)),
       new TrackingSessionsService(user.id).current(),
+      new PreferencesService(user.id).get(),
     ]);
 
     const stats = categoryStatsCalculator.compute(data.categories, data.events, week);
@@ -79,14 +81,30 @@ export default handler({ query: { weekStart: z.string().optional() } }, async ({
             // mostly about rather than the split it is actually mapped to.
             categoryColor: nextCategory?.color ?? null,
             categoryIcon: nextCategory?.icon ?? null,
+            // The soonest popup reminder the calendar itself carries, so a watch reminding on its
+            // own honours the event's own lead time the way every other screen does.
+            reminderMinutes: popupMinutes(next.reminders),
           }
         : null,
       active,
+      // The watch reminds about `nextEvent` itself when no iPhone is there to do it, and it has
+      // no other way to learn how far ahead this account wants to be told.
+      reminders: {
+        enabled: preferences.reminders.enabled,
+        leadMinutes: preferences.reminders.leadMinutes,
+        useCalendarReminders: preferences.reminders.useCalendarReminders,
+      },
     };
   } catch (e) {
     return handleApiError(event, e);
   }
 });
+
+/** The soonest popup reminder on the event, in minutes, or null when it carries none. */
+function popupMinutes(reminders: readonly { method: string; minutes: number }[]) {
+  const popups = reminders.filter((reminder) => reminder.method === "popup");
+  return popups.length > 0 ? Math.min(...popups.map((reminder) => reminder.minutes)) : null;
+}
 
 /** The category an event counts most towards, or nothing when it counts towards none. */
 function dominantCategory<T extends { id: string }>(

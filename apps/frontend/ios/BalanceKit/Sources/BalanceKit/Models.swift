@@ -59,10 +59,13 @@ public struct NextEvent: Codable, Identifiable, Hashable, Sendable {
     public let inProgress: Bool
     public let categoryColor: String?
     public let categoryIcon: String?
+    /// How long before it starts the calendar itself would say something, in minutes. Nil when the
+    /// event carries no popup reminder of its own, in which case the account's lead time is used.
+    public let reminderMinutes: Int?
 
     public init(
         id: String, calendarId: String, title: String, start: Date, end: Date, inProgress: Bool,
-        categoryColor: String? = nil, categoryIcon: String? = nil
+        categoryColor: String? = nil, categoryIcon: String? = nil, reminderMinutes: Int? = nil
     ) {
         self.id = id
         self.calendarId = calendarId
@@ -72,6 +75,7 @@ public struct NextEvent: Codable, Identifiable, Hashable, Sendable {
         self.inProgress = inProgress
         self.categoryColor = categoryColor
         self.categoryIcon = categoryIcon
+        self.reminderMinutes = reminderMinutes
     }
 }
 
@@ -104,6 +108,24 @@ public struct ActiveSession: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
+/// How this account wants to be reminded about what is next. The watch only acts on this when no
+/// iPhone is there to — see `EventAlarm` — but the lead time is the account's either way, so it is
+/// answered here rather than kept on the wrist.
+public struct WatchReminders: Codable, Hashable, Sendable {
+    public let enabled: Bool
+    public let leadMinutes: Int
+    public let useCalendarReminders: Bool
+
+    public init(enabled: Bool, leadMinutes: Int, useCalendarReminders: Bool) {
+        self.enabled = enabled
+        self.leadMinutes = leadMinutes
+        self.useCalendarReminders = useCalendarReminders
+    }
+
+    /// What an account that has never set anything gets, and what an older server's answer means.
+    public static let defaults = WatchReminders(enabled: true, leadMinutes: 5, useCalendarReminders: true)
+}
+
 /// Everything a watch face needs in one round trip. The buffer category is not in `categories` —
 /// the backend leaves it out, because a wrist has no room for the thing that absorbs the rest.
 public struct WatchSummary: Codable, Sendable {
@@ -114,10 +136,13 @@ public struct WatchSummary: Codable, Sendable {
     public let categories: [WatchCategory]
     public let nextEvent: NextEvent?
     public let active: ActiveSession?
+    /// Absent from an older server's answer, which is what `defaults` is for.
+    public let reminders: WatchReminders?
 
     public init(
         connected: Bool, needsReconnect: Bool, weekStart: Date, now: Date,
-        categories: [WatchCategory], nextEvent: NextEvent?, active: ActiveSession?
+        categories: [WatchCategory], nextEvent: NextEvent?, active: ActiveSession?,
+        reminders: WatchReminders? = nil
     ) {
         self.connected = connected
         self.needsReconnect = needsReconnect
@@ -126,6 +151,7 @@ public struct WatchSummary: Codable, Sendable {
         self.categories = categories
         self.nextEvent = nextEvent
         self.active = active
+        self.reminders = reminders
     }
 }
 

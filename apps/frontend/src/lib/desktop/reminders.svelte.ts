@@ -4,6 +4,7 @@ import { restColor } from "$lib/colors";
 import { DEFAULT_ICON } from "$lib/icons";
 import { hasAddress, meetingOf } from "$lib/meeting";
 import { preferences } from "$lib/preferences.svelte";
+import { REMINDER_KINDS, reminderDueAt } from "$lib/reminders";
 import { getTravelTimes, type TravelLeg } from "$lib/travel";
 import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
@@ -27,8 +28,6 @@ import { report } from "./report";
 const LATE_MS = 3 * 60_000;
 /** How far ahead a journey is worth asking about. Traffic an hour out isn't today's traffic. */
 const TRAVEL_HORIZON_MS = 45 * 60_000;
-/** A meeting gets one more card right before it starts, whatever the lead-time preference says. */
-const JOIN_LEAD_MS = 60_000;
 
 const FIRED_KEY = "balance.reminders-fired";
 
@@ -74,7 +73,7 @@ class DesktopReminders {
       // Asked for a little before it's needed, so the card doesn't open on an empty route.
       if (start - now < TRAVEL_HORIZON_MS) void this.#askTravel(event);
 
-      for (const kind of ["leave", "starts", "join"] as const) {
+      for (const kind of REMINDER_KINDS) {
         const due = this.#dueAt(event, kind, start);
         if (due === null) continue;
         const key = `${event.id}|${kind}`;
@@ -87,30 +86,15 @@ class DesktopReminders {
     }
   }
 
-  /**
-   * When a reminder is due, or null when it isn't wanted. What's about to start uses the event's
-   * own reminder if the calendar carries one, and the preference otherwise; setting off is timed
-   * off the journey the app just looked up. A meeting always gets a second, fixed reminder right
-   * before it starts — missing the join link because the lead time was set to twenty minutes isn't
-   * something a preference should be able to cause.
-   */
+  /** Where the shared arithmetic gets what it can't know: the journey this app has looked up. */
   #dueAt(event: CalendarEvent, kind: ReminderKind, start: number) {
-    if (!preferences.reminders.enabled || event.allDay) return null;
-
-    if (kind === "join") {
-      if (!meetingOf(event).join) return null;
-      return start - JOIN_LEAD_MS;
-    }
-
-    if (kind === "starts") {
-      const own = preferences.reminders.useCalendarReminders ? popupMinutes(event) : null;
-      return start - (own ?? preferences.reminders.leadMinutes) * 60_000;
-    }
-
-    if (!preferences.reminders.leaveInTime) return null;
-    const journey = this.#travel.get(event.id)?.[0];
-    if (!journey) return null;
-    return start - journey.seconds * 1000 - preferences.travel.bufferMinutes * 60_000;
+    return reminderDueAt(event, kind, {
+      start,
+      reminders: preferences.reminders,
+      travel: preferences.travel,
+      hasJoinLink: meetingOf(event).join !== null,
+      journey: this.#travel.get(event.id)?.[0] ?? null,
+    });
   }
 
   /** One question per event: a journey doesn't change enough between two ticks to re-ask. */
@@ -174,13 +158,6 @@ export const desktopReminders = new DesktopReminders();
 function bodyOf(card: ReminderCard) {
   const at = new Date(card.start).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   return card.kind === "leave" ? `Time to leave for ${at}` : `Starts at ${at}`;
-}
-
-/** The soonest popup reminder the calendar itself carries, in minutes. */
-function popupMinutes(event: CalendarEvent) {
-  const overrides = event.reminders?.filter((reminder) => reminder.method === "popup") ?? [];
-  if (overrides.length === 0) return null;
-  return Math.min(...overrides.map((reminder) => reminder.minutes));
 }
 
 /**

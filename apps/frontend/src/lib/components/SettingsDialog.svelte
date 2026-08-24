@@ -3,7 +3,7 @@
   import { auth } from "$lib/auth.svelte";
   import { buildInfo } from "$lib/build-info";
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
-  import { isDesktop, isNativeShell } from "$lib/desktop/platform";
+  import { isNativeShell } from "$lib/desktop/platform";
   import { preferences, TRAVEL_MODES } from "$lib/preferences.svelte";
   import { settings } from "$lib/settings.svelte";
   import { clearStore } from "$lib/store.svelte";
@@ -98,13 +98,14 @@
     <Segmented options={MODES} value={theme.mode} onchange={(mode) => theme.setMode(mode)} />
   </section>
 
-  <!-- Shown everywhere, though only the macOS app can act on them: a browser tab has nowhere to
-       put a reminder card. They belong to the account rather than to this machine, so setting
-       them from whichever screen is open reaches the one that will use them. -->
+  <!-- Shown everywhere, though a browser tab can act on none of them: it has nowhere to put a
+       reminder card and no notifications of its own. They belong to the account rather than to
+       this device, so setting them from whichever screen is open reaches the ones that use
+       them — the Mac app, the iPhone, and the watch on its wrist. -->
   <section>
     <SectionHeader title="Reminders" />
-    {#if !isDesktop}
-      <p class="t-micro mb-3 text-fg-faint">Reminders appear in the Balance app for Mac.</p>
+    {#if !isNativeShell}
+      <p class="t-micro mb-3 text-fg-faint">Reminders appear in the Balance apps for Mac and iPhone.</p>
     {/if}
     <div class="space-y-1">
       <div class="flex min-h-8 items-center justify-between gap-3">

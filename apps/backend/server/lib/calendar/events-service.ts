@@ -125,6 +125,8 @@ export class CalendarEventsService {
     calendarId?: string;
     title?: string;
     description?: string;
+    location?: string;
+    allDay?: boolean;
   }): Promise<ResolvedEvent> {
     const { connection, calendarId } = await this.resolveTarget(input.calendarId);
     const activity = input.activityId
@@ -143,8 +145,10 @@ export class CalendarEventsService {
       calendarId,
       title,
       description: input.description,
+      location: input.location,
       start: input.start,
       end: input.end,
+      allDay: input.allDay,
     });
     eventCache.invalidate(this.userId);
 

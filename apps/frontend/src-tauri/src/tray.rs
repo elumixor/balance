@@ -67,6 +67,14 @@ pub struct TrayJoin {
     pub url: String,
 }
 
+/// An update the app has already written over its own bundle, waiting for a relaunch.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrayUpdate {
+    /// The whole row: "Restart to update to 1.2.0".
+    pub label: String,
+}
+
 /// Everything the menu bar shows, in one push.
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -78,6 +86,9 @@ pub struct TrayState {
     pub tooltip: Option<String>,
     #[serde(default)]
     pub join: Option<TrayJoin>,
+    /// Present once an update is installed and only a relaunch is left.
+    #[serde(default)]
+    pub update: Option<TrayUpdate>,
     pub sections: Vec<TraySection>,
 }
 
@@ -168,6 +179,16 @@ pub fn build_menu(app: &AppHandle, state: &TrayState) -> tauri::Result<Menu<Wry>
     }
 
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    // The window spends its life hidden, so the menu is where a finished update gets noticed.
+    if let Some(update) = &state.update {
+        items.push(Box::new(MenuItem::with_id(
+            app,
+            "restart",
+            &update.label,
+            true,
+            None::<&str>,
+        )?));
+    }
     items.push(Box::new(MenuItem::with_id(
         app,
         "open",

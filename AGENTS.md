@@ -75,8 +75,8 @@ and `CalendarEventsService.resolve` is still the one read path.
 - `apps/frontend/src-tauri/` is the macOS shell. It renders the menu bar item, the Dock icon and
   the reminder card, and decides the content of none of them: `src/lib/desktop/` computes each
   state and pushes it down (`update_tray`, `set_dock_icon`, `show_reminder`), with
-  `agenda.svelte.ts` as the one answer to "what is next" that the menu bar and the reminders both
-  read. Don't fetch or reason about events in Rust — the session lives in the webview. A new
+  `$lib/agenda.svelte.ts` as the one answer to "what is next" that the menu bar and the reminders
+  both read. Don't fetch or reason about events in Rust — the session lives in the webview. A new
   command has to be named in `build.rs` and in `capabilities/default.json`, or the built app never
   receives it. `target/` and `gen/` are generated; the rest is committed.
 - `apps/frontend/ios/` is a committed Xcode project, and holds everything Apple: `App/WatchApp`,
@@ -88,6 +88,20 @@ and `CalendarEventsService.resolve` is still the one read path.
   its own process and a second copy of that maths is a second, quietly different answer. The watch
   reads `/mobile/watch/summary` and writes through `/mobile/tracking/*`; `SessionController` is the
   one place that knows what is running, and the only writer of the App Group snapshot.
+
+## Reminders are worked out once and shown three ways
+
+`$lib/reminders.ts` answers when a reminder is due — the event's own calendar reminder or the
+account's lead time, a second one when it is time to set off, and a fixed one right before a call
+starts. Everything else is delivery. The Mac ticks once a minute and asks "is this due now"
+(`desktop/reminders.svelte.ts`), because it is running; iOS is asleep by then, so
+`mobile/reminders.svelte.ts` works the next two days out ahead of time and hands the whole list to
+`UNUserNotificationCenter`, replacing it whenever the calendar or the preferences move.
+
+The wrist is mostly free: a reminder on a locked iPhone is mirrored to the watch, which draws it
+with its own scene (`EventNotificationView.swift`) off the colour and glyph travelling in the
+notification. `EventAlarm.swift` only covers the case the phone cannot — a watch worn without the
+companion app installed — and holds nothing pending otherwise, or the same event would buzz twice.
 
 ## Tests
 

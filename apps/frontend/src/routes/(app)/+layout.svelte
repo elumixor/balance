@@ -9,6 +9,7 @@
   import { desktopReminders } from "$lib/desktop/reminders.svelte";
   import { desktopTray } from "$lib/desktop/tray.svelte";
   import { isBareKey, isSettingsKey } from "$lib/keys";
+  import { mobileReminders } from "$lib/mobile/reminders.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { settings } from "$lib/settings.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
@@ -45,7 +46,9 @@
 
   // On macOS the app is also the menu bar item, which outlives every screen — so it starts with
   // the session rather than with a route, and stops when the session goes. The Dock icon and the
-  // reminders are the same kind of thing, running whether or not anybody is looking at a screen.
+  // reminders are the same kind of thing, running whether or not anybody is looking at a screen —
+  // and on iOS the same reminders are handed to the system ahead of time, since that shell is
+  // asleep by the time they are due.
   // The watch handoff belongs to the same list for the same reason: what it hands over is the
   // session itself, so it can only run while there is one.
   $effect(() => {
@@ -53,11 +56,13 @@
     desktopTray.start();
     desktopDock.start();
     desktopReminders.start();
+    mobileReminders.start();
     const stopWatchHandoff = startWatchHandoff();
     return () => {
       desktopTray.stop();
       desktopDock.stop();
       desktopReminders.stop();
+      mobileReminders.stop();
       stopWatchHandoff();
     };
   });

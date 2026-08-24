@@ -28,6 +28,15 @@ function conferenceUrl(event: GoogleEvent) {
   return video?.uri ?? event.hangoutLink ?? null;
 }
 
+/**
+ * The `YYYY-MM-DD` an all-day event is written as. The instant it comes from is midnight UTC by
+ * construction (see `CreateEventInput.allDay`), so the date is read straight off it — converting
+ * to any other zone here is what would move the event a day.
+ */
+function calendarDate(at: Date) {
+  return at.toISOString().slice(0, 10);
+}
+
 const BASE_URL = "https://www.googleapis.com/calendar/v3";
 const PAGE_SIZE = 250;
 const RATE_LIMIT_RETRY_MS = 500;
@@ -80,8 +89,10 @@ export class GoogleCalendarProvider implements CalendarProvider {
       body: {
         summary: input.title,
         ...(input.description === undefined ? {} : { description: input.description }),
-        start: { dateTime: input.start.toISOString() },
-        end: { dateTime: input.end.toISOString() },
+        ...(input.location === undefined ? {} : { location: input.location }),
+        ...(input.allDay
+          ? { start: { date: calendarDate(input.start) }, end: { date: calendarDate(input.end) } }
+          : { start: { dateTime: input.start.toISOString() }, end: { dateTime: input.end.toISOString() } }),
       },
     });
     return this.toExternalEvent(created, input.calendarId, "UTC", false);

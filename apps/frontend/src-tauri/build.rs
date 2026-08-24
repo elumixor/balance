@@ -11,6 +11,7 @@ fn main() {
       "close_reminder",
       "resize_reminder",
       "open_window",
+      "restart_app",
     ])),
   )
   .expect("failed to run tauri-build")

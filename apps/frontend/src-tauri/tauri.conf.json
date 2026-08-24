@@ -20,12 +20,17 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
+    "createUpdaterArtifacts": true,
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns"],
     "macOS": {
       "minimumSystemVersion": "12.0"
     }
   },
   "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYyOEI3MkYzMURDNzEyM0IKUldRN0VzY2Q4M0tMOGloRXRWUGpzbmRHZVNOWVFVRnQ1MzJacEFvVEEvd0FoNHRlSHp5SDBVR2sK",
+      "endpoints": ["https://balance-app-mauve.vercel.app/download/latest.json"]
+    },
     "deep-link": {
       "desktop": {
         "schemes": ["balance-desktop"]

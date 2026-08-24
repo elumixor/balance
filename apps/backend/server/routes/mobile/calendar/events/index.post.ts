@@ -15,6 +15,9 @@ export default handler(
       calendarId: z.string().optional(),
       title: z.string().trim().optional(),
       description: z.string().optional(),
+      location: z.string().optional(),
+      /** An all-day event: both instants are read as dates, and `end` is the day after the last. */
+      allDay: z.boolean().optional(),
     },
   },
   async ({ body, event }) => {

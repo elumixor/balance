@@ -36,6 +36,7 @@ export default defineConfig({
         "src/lib/format.ts",
         "src/lib/meeting.ts",
         "src/lib/persist.ts",
+        "src/lib/reminders.ts",
         "src/lib/splits.ts",
         "src/lib/store.svelte.ts",
         "src/lib/calendar/event-category.ts",

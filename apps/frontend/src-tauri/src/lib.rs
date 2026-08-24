@@ -66,6 +66,16 @@ fn open_window(app: AppHandle) {
     show_window(&app);
 }
 
+/// Quits and comes back, running whatever the updater has already written over the bundle.
+///
+/// An installed update only takes effect on the next launch, and a menu bar app is never
+/// relaunched — it is opened once and left running for weeks. So restarting is offered rather
+/// than waited for, from the tray row and from settings.
+#[tauri::command]
+fn restart_app(app: AppHandle) {
+    app.restart();
+}
+
 /// A path in the app, as the origin every window is loaded from.
 ///
 /// In development the Vite server is already a real origin, so it plays the part the localhost
@@ -147,13 +157,20 @@ pub fn run() {
             reminder::show_reminder,
             reminder::close_reminder,
             reminder::resize_reminder,
-            open_window
+            open_window,
+            restart_app
         ])
         .setup(|app| {
             // Built here rather than declared in `tauri.conf.json`: a window defined there is
             // opened on the custom protocol before the localhost server is up to serve it.
             build_main_window(app.handle())?;
             spawn_agenda_ticks(app.handle());
+
+            // The webview drives it — see `src/lib/desktop/updates.svelte.ts`. This side only
+            // has to be able to fetch the manifest, check its signature and swap the bundle.
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
 
             // Registered in a release build too, and at a level the webview can reach through
             // `@tauri-apps/plugin-log`. Everything the desktop half does happens on a screen
@@ -185,6 +202,7 @@ pub fn run() {
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "quit" => app.exit(0),
+                    "restart" => app.restart(),
                     "open" => show_window(app),
                     "refresh" => {
                         let _ = app.emit(tray::REFRESH_EVENT, ());

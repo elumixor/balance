@@ -44,6 +44,9 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-deep-link = "2.4.9"
+# Self-updating: the app asks the deployed site for `latest.json` and replaces itself. macOS
+# forgets nothing about a bundle it has already opened, so the swap needs no privileges here.
+tauri-plugin-updater = "2.9.0"
 # The `deep-link` feature is what makes a second launch hand its `balance://` URL to the running
 # instance instead of starting a second one beside it in the menu bar.
 tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }

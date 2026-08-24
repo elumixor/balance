@@ -1,35 +1,16 @@
 import { listen } from "@tauri-apps/api/event";
-import type { Cached } from "$lib/cache.svelte";
-import { addDays, DAYS_PER_WEEK, startOfWeek, weekKey } from "$lib/dates";
-import { calendarWeek, invalidate } from "$lib/store.svelte";
-import { categories, synced } from "$lib/synced.svelte";
-import type { CalendarEvent, CalendarWeek, Category } from "$lib/types";
+import { agenda } from "$lib/agenda.svelte";
+import type { CalendarEvent, Category } from "$lib/types";
 import { isDesktop } from "./platform";
 
 /**
- * What's still coming, for the parts of the desktop app that outlive every screen.
+ * The Mac's clock for the shared agenda (`$lib/agenda.svelte.ts`), and nothing else.
  *
- * The menu bar and the reminders are two views of the same question — "what is next, and what
- * does it count as" — asked once a minute whether or not a window is open. Sharing one answer
- * keeps them from disagreeing, and keeps one clock instead of two.
- *
- * The tick itself comes from Rust (`spawn_agenda_ticks` in `src-tauri/src/lib.rs`), not a
- * `setInterval` here — WebKit throttles a hidden window's own timers, and this app spends most of
- * its life as exactly that. Matches `AGENDA_TICK`/`AGENDA_REFRESH` on that side.
+ * The tick comes from Rust (`spawn_agenda_ticks` in `src-tauri/src/lib.rs`), not a `setInterval`
+ * here — WebKit throttles a hidden window's own timers, and this app spends most of its life as
+ * exactly that. Matches `AGENDA_TICK`/`AGENDA_REFRESH` on that side.
  */
-
-/** Past this, the next thing on the calendar is tomorrow's problem. */
-const HORIZON_MS = 14 * 24 * 60 * 60_000;
-
 class DesktopAgenda {
-  now = $state(new Date());
-
-  /**
-   * This week's cache and next week's, resolved by hand rather than read out of a `$derived`.
-   * `calendarWeek` writes the week map, and a write inside a reaction is either a re-run or, in a
-   * derived, an error — see `store.svelte.ts`.
-   */
-  #weeks = $state<Cached<CalendarWeek>[]>([]);
   #stop: (() => void) | null = null;
   #started = false;
 
@@ -38,17 +19,9 @@ class DesktopAgenda {
     if (!isDesktop || this.#started) return;
     this.#started = true;
 
-    this.#sync();
-    void this.#ensure();
+    agenda.start();
 
-    const unlisten = [
-      listen("agenda://tick", () => {
-        this.now = new Date();
-        this.#sync();
-        void this.#ensure();
-      }),
-      listen("agenda://refresh", () => this.refresh()),
-    ];
+    const unlisten = [listen("agenda://tick", () => agenda.tick()), listen("agenda://refresh", () => agenda.refresh())];
 
     this.#stop = () => {
       for (const pending of unlisten) void pending.then((off) => off());
@@ -64,49 +37,19 @@ class DesktopAgenda {
   /** Both weeks, checked against the calendar rather than trusted. */
   refresh() {
     if (!isDesktop) return;
-    invalidate.calendar();
-    this.#sync();
-    void this.#ensure();
+    agenda.refresh();
   }
 
-  /**
-   * Everything still to come, in order — including whatever is running right now. Declined events
-   * are somebody else's plan for the hour, so they stay out of it.
-   */
+  get now(): Date {
+    return agenda.now;
+  }
+
   get upcoming(): CalendarEvent[] {
-    const now = this.now.getTime();
-    const horizon = now + HORIZON_MS;
-    const seen = new Set<string>();
-    return this.#weeks
-      .flatMap((week) => week.value?.events ?? [])
-      .filter((event) => {
-        if (event.declined || seen.has(event.id)) return false;
-        const start = new Date(event.start).getTime();
-        if (start > horizon || new Date(event.end).getTime() <= now) return false;
-        seen.add(event.id);
-        return true;
-      })
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    return agenda.upcoming;
   }
 
   get categories(): Map<string, Category> {
-    return new Map(categories.all.map((category) => [category.id, category]));
-  }
-
-  /**
-   * This week and next: "what's next" on a Sunday evening is in a week no screen is showing.
-   * The array is only replaced when it actually changed, so a tick costs nothing downstream —
-   * and it is replaced when the calendar screen's paging drops one of these weeks from the map.
-   */
-  #sync() {
-    const monday = startOfWeek(this.now);
-    const next = [monday, addDays(monday, DAYS_PER_WEEK)].map((start) => calendarWeek(weekKey(start)));
-    if (next.length !== this.#weeks.length || next.some((week, i) => week !== this.#weeks[i])) this.#weeks = next;
-  }
-
-  /** Fetches only what's missing or stale — which on a cold start is both weeks. */
-  #ensure() {
-    return Promise.all([synced.ensure(), ...this.#weeks.map((week) => week.ensure())]);
+    return agenda.categories;
   }
 }
 

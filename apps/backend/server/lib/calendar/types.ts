@@ -72,6 +72,14 @@ export interface CreateEventInput {
   readonly description?: string;
   readonly start: Date;
   readonly end: Date;
+  /** Where it is, as the source spelled it — an address, a room, or sometimes a link. */
+  readonly location?: string;
+  /**
+   * A date rather than a moment. An all-day event has no time zone of its own, so its two dates
+   * are carried here as midnight UTC and read back off the instant — `end` is exclusive, the way
+   * both iCalendar and Google write it.
+   */
+  readonly allDay?: boolean;
 }
 
 export interface UpdateEventInput {

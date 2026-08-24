@@ -20,6 +20,8 @@
     "allow-show-reminder",
     "allow-close-reminder",
     "allow-resize-reminder",
-    "allow-open-window"
+    "allow-open-window",
+    "allow-restart-app",
+    "updater:default"
   ]
 }
