@@ -1,8 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
+import { accountEmailOf } from "$lib/calendar/calendar-data.svelte";
 import { eventCategory } from "$lib/calendar/event-category";
 import { restColor } from "$lib/colors";
 import { DEFAULT_ICON } from "$lib/icons";
-import { hasAddress, meetingOf } from "$lib/meeting";
+import { asGoogleAccount, hasAddress, meetingOf } from "$lib/meeting";
 import { preferences } from "$lib/preferences.svelte";
 import { REMINDER_KINDS, reminderDueAt } from "$lib/reminders";
 import { getTravelTimes, type TravelLeg } from "$lib/travel";
@@ -130,7 +131,9 @@ class DesktopReminders {
       color: category?.color ?? restColor,
       icon: category?.icon ?? DEFAULT_ICON,
       location: meeting.location,
-      join: meeting.join ? { url: meeting.join.url, label: meeting.join.label } : null,
+      join: meeting.join
+        ? { url: asGoogleAccount(meeting.join.url, accountEmailOf(event.calendarId)), label: meeting.join.label }
+        : null,
       links: meeting.links.slice(0, 4),
       travel: this.#travel.get(event.id) ?? [],
     };

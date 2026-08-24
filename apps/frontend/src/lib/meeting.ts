@@ -104,3 +104,24 @@ function siteOf(url: string) {
     return "Link";
   }
 }
+
+/**
+ * The same link, opened as the account the invitation belongs to. A browser signed into several
+ * Google accounts sends every `meet.google.com` link to whichever one it saw first, which for a
+ * second calendar is the wrong room and a request to be let in; `authuser` is what Google reads
+ * to pick between them, and it takes the address itself rather than an index.
+ *
+ * Only Google's own hosts understand it, and a link that already names an account is left alone.
+ */
+export function asGoogleAccount(url: string, email: string | null | undefined) {
+  if (!email) return url;
+  try {
+    const parsed = new URL(url);
+    if (!/(^|\.)google\.com$/i.test(parsed.hostname)) return url;
+    if (parsed.searchParams.has("authuser")) return url;
+    parsed.searchParams.set("authuser", email);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}

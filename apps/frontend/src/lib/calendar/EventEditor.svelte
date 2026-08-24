@@ -10,13 +10,13 @@
   import { isDesktop } from "$lib/desktop/platform";
   import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
   import { DEFAULT_ICON } from "$lib/icons";
-  import { hasAddress, meetingOf } from "$lib/meeting";
+  import { asGoogleAccount, hasAddress, meetingOf } from "$lib/meeting";
   import { preferences } from "$lib/preferences.svelte";
   import { respondToCalendarEvent } from "$lib/queries";
   import { applyCalendarEvent } from "$lib/store.svelte";
   import type { CalendarEvent, Category, EventResponse, MappingScope } from "$lib/types";
-  import { ArrowRight, Bell, Clock, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
-  import { calendarData } from "./calendar-data.svelte";
+  import { ArrowRight, Bell, Check, Clock, Copy, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
+  import { accountEmailOf, calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import EventAttendees from "./EventAttendees.svelte";
   import TimeField from "./TimeField.svelte";
@@ -144,6 +144,17 @@
 
   /** Where the meeting is and how you get into it, read the same way the reminder card reads it. */
   const meeting = $derived(meetingOf(event));
+  /**
+   * The join link is a link like the others as far as this card is concerned — it belongs in the
+   * list you copy things out of, not only behind the Join button.
+   */
+  const links = $derived(
+    meeting.join ? [{ url: meeting.join.url, label: meeting.join.label }, ...meeting.links] : meeting.links,
+  );
+  /** Whose calendar this came from: what tells a Google link which signed-in account to open as. */
+  const accountEmail = $derived(accountEmailOf(event.calendarId));
+  /** The link the Join button actually opens, pointed at the account that was invited. */
+  const joinUrl = $derived(meeting.join ? asGoogleAccount(meeting.join.url, accountEmail) : null);
   /**
    * The address travel times are worked out to, or null. A room name or a link is nowhere to
    * travel to, and without somewhere to leave from there's nothing to work out either.
@@ -287,6 +298,26 @@
     }
   }
 
+  /** The link whose copy button has just been pressed, so it can say so for a moment. */
+  let copied = $state<string | null>(null);
+  let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Copies the link as it was written, not the account-tagged one a Join opens. */
+  async function copy(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      copied = url;
+      if (copiedTimer) clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(() => (copied = null), 1500);
+    } catch {
+      error = "That link wouldn't copy.";
+    }
+  }
+
+  $effect(() => () => {
+    if (copiedTimer) clearTimeout(copiedTimer);
+  });
+
   /**
    * Answering an invitation isn't an edit, so it doesn't go through the debounce. The answer
    * changes whether the block counts toward its category, and the reply carries the event it
@@ -324,6 +355,23 @@
   <button type="button" class="press-sm flex w-full items-center gap-3 rounded-md py-1.5 text-left" disabled>
     <Icon size={16} class="shrink-0 text-fg-faint" />
     <span class="t-label text-fg-faint">{label}</span>
+  </button>
+{/snippet}
+
+{#snippet copyButton(url: string)}
+  {@const done = copied === url}
+  <button
+    type="button"
+    class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
+    aria-label={done ? "Link copied" : "Copy link"}
+    title={done ? "Copied" : "Copy link"}
+    onclick={() => void copy(url)}
+  >
+    {#if done}
+      <Check size={14} />
+    {:else}
+      <Copy size={14} />
+    {/if}
   </button>
 {/snippet}
 
@@ -439,10 +487,11 @@
         <div class="flex w-full items-center gap-3 py-1.5">
           <Video size={16} class="shrink-0 text-fg-faint" />
           <span class="t-label min-w-0 flex-1 truncate">{event.conferenceName ?? meeting.join.label}</span>
+          {@render copyButton(meeting.join.url)}
           <button
             type="button"
             class="press shrink-0 rounded-md bg-ink px-2.5 py-1 text-ink-fg"
-            onclick={() => void open(meeting.join?.url ?? "")}
+            onclick={() => void open(joinUrl ?? "")}
           >
             <span class="t-label">Join</span>
           </button>
@@ -467,18 +516,21 @@
     </div>
 
     <div class="border-t border-line px-3 py-2">
-      {#if meeting.links.length > 0}
+      {#if links.length > 0}
         <div class="flex w-full items-start gap-3 py-1.5">
           <Link2 size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-          <div class="flex min-w-0 flex-1 flex-wrap gap-2">
-            {#each meeting.links as link (link.url)}
-              <button
-                type="button"
-                class="press-sm max-w-full rounded-md border border-line px-2 py-1"
-                onclick={() => void open(link.url)}
-              >
-                <span class="t-label block truncate">{link.label}</span>
-              </button>
+          <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+            {#each links as link (link.url)}
+              <div class="flex min-w-0 items-center gap-1">
+                <button
+                  type="button"
+                  class="press-sm min-w-0 flex-1 rounded-md border border-line px-2 py-1 text-left"
+                  onclick={() => void open(asGoogleAccount(link.url, accountEmail))}
+                >
+                  <span class="t-label block truncate">{link.label}</span>
+                </button>
+                {@render copyButton(link.url)}
+              </div>
             {/each}
           </div>
         </div>

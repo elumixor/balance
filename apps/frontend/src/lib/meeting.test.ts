@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasAddress, meetingOf } from "./meeting";
+import { asGoogleAccount, hasAddress, meetingOf } from "./meeting";
 
 describe("meetingOf", () => {
   it("takes the conferencing block the calendar gives outright", () => {
@@ -87,5 +87,26 @@ describe("hasAddress", () => {
     expect(hasAddress({ location: "https://meet.google.com/abc-defg-hij" })).toBe(false);
     expect(hasAddress({ location: "Boardroom" })).toBe(false);
     expect(hasAddress({})).toBe(false);
+  });
+});
+
+describe("asGoogleAccount", () => {
+  it("names the account a Google link should open as", () => {
+    expect(asGoogleAccount("https://meet.google.com/abc-defg-hij", "work@example.com")).toBe(
+      "https://meet.google.com/abc-defg-hij?authuser=work%40example.com",
+    );
+    expect(asGoogleAccount("https://docs.google.com/document/d/1?usp=sharing", "work@example.com")).toBe(
+      "https://docs.google.com/document/d/1?usp=sharing&authuser=work%40example.com",
+    );
+  });
+
+  it("leaves alone what the parameter would mean nothing to, or would overwrite", () => {
+    expect(asGoogleAccount("https://zoom.us/j/1", "work@example.com")).toBe("https://zoom.us/j/1");
+    expect(asGoogleAccount("https://notgoogle.com/x", "work@example.com")).toBe("https://notgoogle.com/x");
+    expect(asGoogleAccount("https://meet.google.com/a?authuser=1", "work@example.com")).toBe(
+      "https://meet.google.com/a?authuser=1",
+    );
+    expect(asGoogleAccount("https://meet.google.com/a", null)).toBe("https://meet.google.com/a");
+    expect(asGoogleAccount("meet.google.com/a", "work@example.com")).toBe("meet.google.com/a");
   });
 });

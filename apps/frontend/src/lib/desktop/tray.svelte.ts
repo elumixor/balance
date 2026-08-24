@@ -1,13 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { goto } from "$app/navigation";
-import { calendarData } from "$lib/calendar/calendar-data.svelte";
+import { accountEmailOf, calendarData } from "$lib/calendar/calendar-data.svelte";
 import { eventCategory } from "$lib/calendar/event-category";
 import { restColor } from "$lib/colors";
 import { addDays, startOfDay, startOfWeek } from "$lib/dates";
 import { formatClock, formatDayDate, formatHoursAndMinutes } from "$lib/format";
 import { DEFAULT_ICON } from "$lib/icons";
-import { meetingOf } from "$lib/meeting";
+import { asGoogleAccount, meetingOf } from "$lib/meeting";
 import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
@@ -139,7 +139,11 @@ export const desktopTray = new DesktopTray();
 function join(event: CalendarEvent | null) {
   if (!event) return null;
   const meeting = meetingOf(event);
-  return meeting.join ? { label: `Join ${meeting.join.label}`, url: meeting.join.url } : null;
+  if (!meeting.join) return null;
+  // Tagged with the account the invitation came to: a browser signed into two Google accounts
+  // otherwise walks into the room as whichever one it saw first.
+  const url = asGoogleAccount(meeting.join.url, accountEmailOf(event.calendarId));
+  return { label: `Join ${meeting.join.label}`, url };
 }
 
 /** An event named after it was drawn still has to say something. */

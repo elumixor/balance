@@ -1579,6 +1579,18 @@ function mappingOf(event: CalendarEvent): Mapping | null {
   };
 }
 
+/**
+ * Which Google account a calendar came from, as an address — the one thing a Google link needs to
+ * open in the right place when the browser is signed into more than one. Null while the calendar
+ * list hasn't loaded, or for a calendar no account claims.
+ */
+export function accountEmailOf(calendarId: string) {
+  const prefs = store.calendars.value;
+  if (!prefs) return null;
+  const account = (prefs.accounts ?? []).find((a) => a.calendars.some((c) => c.id === calendarId));
+  return account?.email ?? null;
+}
+
 /** The caches for the three weeks drawn from `start`, made if the store hasn't got them yet. */
 function stripWeeksFrom(start: Date) {
   return Array.from({ length: STRIP_WEEKS }, (_, i) => calendarWeek(weekKey(addDays(start, i * DAYS_PER_WEEK))));
