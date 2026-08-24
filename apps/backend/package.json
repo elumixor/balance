@@ -4,6 +4,7 @@
   "scripts": {
     "build": "nitro build",
     "check": "tsc --noEmit",
+    "test": "bun test",
     "dev": "nitro dev --port 3100 --host",
     "preview": "node .output/server/index.mjs",
     "db:generate": "drizzle-kit generate",
