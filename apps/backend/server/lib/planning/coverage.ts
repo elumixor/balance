@@ -11,18 +11,13 @@ export interface MappedHours {
   hours: number;
 }
 
-/** What a day has to reach before it counts as planned, unless the user has said otherwise. */
-export const DEFAULT_COVERAGE_THRESHOLD = 0.7;
-
 /**
- * The most of one day anybody is asked to block out, however much the ring claims.
+ * What a day has to reach before it counts as planned.
  *
- * The ring is a week's worth of intent and often nearly all 168 hours of it — sleep, meals and the
- * hours that simply happen are categories too. A seventh of that is not a planning target, it is
- * an impossible one, and a target you cannot hit is a feature you stop opening. So the day's
- * budget is the smaller of what the ring implies and what a person can actually put on a calendar.
+ * A rule, not a preference. It was a setting once, which only ever asked people to choose the
+ * number they would rather not fail — and a bar you set yourself is not a bar.
  */
-export const DEFAULT_PLANNABLE_HOURS = 8;
+export const COVERAGE_THRESHOLD = 0.7;
 
 /**
  * The share of the day's budget that has been given a meaning.
@@ -31,18 +26,26 @@ export const DEFAULT_PLANNABLE_HOURS = 8;
  * — deciding what those meetings are for is the work, and it is the same work whether the block
  * came from you or from somebody's invitation.
  *
- * The budget comes from `budgetFor`: the ring's own answer to how much of a week is meant to be
- * directed, held under what one day can actually hold.
+ * The budget comes from `budgetFor`: the ring's own answer to how much of a day is directed.
  */
 export function coverage(options: { mappedHours: number; budgetHours: number }) {
   if (options.budgetHours <= 0) return 0;
   return clamp(options.mappedHours / options.budgetHours);
 }
 
-/** A day's share of the ring, held under what a day can actually hold — see the constant above. */
-export function budgetFor(options: { weeklyClaimedHours: number; plannableHours: number }) {
-  return Math.min(options.weeklyClaimedHours / 7, options.plannableHours);
+/**
+ * A day's share of the ring.
+ *
+ * The ring is a week of intent and all 168 hours of it — sleep, meals and the hours that simply
+ * happen are categories too — so a day is measured against the whole day, not against an
+ * office-hours slice of it. There is nothing to configure: a seventh of what the ring claims,
+ * and a day cannot hold more than a day.
+ */
+export function budgetFor(options: { weeklyClaimedHours: number }) {
+  return Math.min(options.weeklyClaimedHours / 7, HOURS_IN_A_DAY);
 }
+
+const HOURS_IN_A_DAY = 24;
 
 /** A category's week, as the stats already work it out. */
 export interface CategoryTarget {

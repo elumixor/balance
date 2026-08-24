@@ -35,9 +35,25 @@ export interface RemindersPrefs {
   sound: boolean;
 }
 
+/**
+ * A place worth naming — home, the office, the studio.
+ *
+ * Named rather than typed each time because "when do I have to leave" is asked of a phone in a
+ * pocket. The address is whatever Google Maps answered when it was picked, so it is one the
+ * Routes API can actually route from.
+ */
+export interface SavedLocation {
+  id: string;
+  /** What you call it: "Home", "Office". */
+  label: string;
+  address: string;
+}
+
 export interface TravelPrefs {
-  /** Where you're coming from — an address, or empty for "don't work it out". */
-  origin: string;
+  /** The places worth naming. Empty means journeys start from wherever the device is. */
+  locations: SavedLocation[];
+  /** Which one a journey starts from unless an event says otherwise; null is "where I am now". */
+  defaultLocationId: string | null;
   /** The ways you'd consider going, in the order you'd consider them. */
   modes: TravelMode[];
   /** Minutes to be there early, added to every journey. */
@@ -59,10 +75,6 @@ export interface SessionsPrefs {
   weeklyTime: string;
   /** Which sitting you mean to plan in. The other one only looks back. */
   planWhen: "evening" | "morning";
-  /** How full a day has to be before it counts as planned. */
-  coveragePercent: number;
-  /** The most of one day the app asks you to block out, whatever the ring claims. */
-  plannableHours: number;
   timeZone: string;
 }
 
@@ -77,7 +89,7 @@ export interface StoredPreferences {
 /** The same answer the server would give an account that has never set anything. */
 export const DEFAULT_PREFERENCES: StoredPreferences = {
   reminders: { enabled: true, leadMinutes: 5, useCalendarReminders: true, leaveInTime: true, sound: true },
-  travel: { origin: "", modes: ["transit", "drive"], bufferMinutes: 5 },
+  travel: { locations: [], defaultLocationId: null, modes: ["transit", "drive"], bufferMinutes: 5 },
   sessions: {
     enabled: true,
     eveningTime: "18:00",
@@ -85,8 +97,6 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
     weeklyWeekday: 7,
     weeklyTime: "18:00",
     planWhen: "evening",
-    coveragePercent: 70,
-    plannableHours: 8,
     timeZone: "UTC",
   },
   travelAvailable: false,
@@ -134,6 +144,46 @@ class Preferences {
 
   setSessions(patch: Partial<SessionsPrefs>) {
     this.#apply({ sessions: patch });
+  }
+
+  /** The place a journey starts from when nothing has said otherwise, or null for "where I am". */
+  get defaultLocation(): SavedLocation | null {
+    const id = this.travel.defaultLocationId;
+    return this.travel.locations.find((one) => one.id === id) ?? null;
+  }
+
+  location(id: string | null): SavedLocation | null {
+    return this.travel.locations.find((one) => one.id === id) ?? null;
+  }
+
+  /**
+   * Adds a place and hands back its id, so the picker that added it can select it in the same
+   * gesture. The first place saved becomes the default — somebody who has named exactly one
+   * address meant that one.
+   */
+  addLocation(input: { label: string; address: string }): string {
+    const id = crypto.randomUUID();
+    const locations = [...this.travel.locations, { id, label: input.label.trim(), address: input.address.trim() }];
+    this.setTravel({
+      locations,
+      defaultLocationId: this.travel.defaultLocationId ?? id,
+    });
+    return id;
+  }
+
+  updateLocation(id: string, patch: Partial<Omit<SavedLocation, "id">>) {
+    this.setTravel({
+      locations: this.travel.locations.map((one) => (one.id === id ? { ...one, ...patch } : one)),
+    });
+  }
+
+  removeLocation(id: string) {
+    const locations = this.travel.locations.filter((one) => one.id !== id);
+    this.setTravel({
+      locations,
+      // A default pointing at a place that is gone is the same as no default at all.
+      defaultLocationId: this.travel.defaultLocationId === id ? null : this.travel.defaultLocationId,
+    });
   }
 
   /** Turns one way of getting there on or off, keeping the order the picker lists them in. */

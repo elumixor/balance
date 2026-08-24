@@ -7,6 +7,7 @@ import { asGoogleAccount, hasAddress, meetingOf } from "$lib/meeting";
 import { preferences } from "$lib/preferences.svelte";
 import { REMINDER_KINDS, reminderDueAt } from "$lib/reminders";
 import { getTravelTimes, type TravelLeg } from "$lib/travel";
+import { travelOrigin } from "$lib/travel-origin.svelte";
 import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
@@ -100,14 +101,20 @@ class DesktopReminders {
 
   /** One question per event: a journey doesn't change enough between two ticks to re-ask. */
   async #askTravel(event: CalendarEvent) {
-    const origin = preferences.travel.origin.trim();
     const modes = preferences.travel.modes;
-    if (!origin || modes.length === 0 || this.#travel.has(event.id) || this.#asking.has(event.id)) return;
+    if (modes.length === 0 || this.#travel.has(event.id) || this.#asking.has(event.id)) return;
     const meeting = meetingOf(event);
     if (!meeting.location || !hasAddress(event)) return;
 
     this.#asking.add(event.id);
     try {
+      // Where this event is left from: the place chosen for it, the usual one, or — failing both
+      // — wherever this device is standing. Nothing to go on means no journey and no card.
+      const origin = await travelOrigin.resolveFor(event.id);
+      if (!origin) {
+        this.#travel.set(event.id, []);
+        return;
+      }
       const answer = await getTravelTimes({ origin, destination: meeting.location, modes, arriveBy: event.start });
       this.#travel.set(event.id, answer.legs);
     } catch (e) {

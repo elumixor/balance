@@ -4,26 +4,52 @@
   import { buildInfo } from "$lib/build-info";
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
   import { isDesktop, isNativeShell } from "$lib/desktop/platform";
-  import { preferences, TRAVEL_MODES } from "$lib/preferences.svelte";
+  import { preferences } from "$lib/preferences.svelte";
+  import LocationsSection from "$lib/settings/LocationsSection.svelte";
+  import SettingRow from "$lib/settings/SettingRow.svelte";
+  import SettingsSection from "$lib/settings/SettingsSection.svelte";
   import { settings } from "$lib/settings.svelte";
   import { clearStore } from "$lib/store.svelte";
   import { theme, type ThemeMode } from "$lib/theme.svelte";
+  import {
+    Bell,
+    CalendarClock,
+    CalendarDays,
+    CalendarRange,
+    ChevronDown,
+    Footprints,
+    Moon,
+    Palette,
+    PenLine,
+    Sunrise,
+    Timer,
+    Volume2,
+  } from "lucide-svelte";
+  import TimeInput from "../planning/TimeInput.svelte";
   import Button from "./Button.svelte";
-  import Chip from "./Chip.svelte";
   import DesktopDownload from "./DesktopDownload.svelte";
   import DesktopUpdate from "./DesktopUpdate.svelte";
   import Dialog from "./Dialog.svelte";
-  import Field from "./Field.svelte";
   import NumberField from "./NumberField.svelte";
-  import SectionHeader from "./SectionHeader.svelte";
+  import Popover from "./Popover.svelte";
+  import PopoverItem from "./PopoverItem.svelte";
   import Segmented from "./Segmented.svelte";
-  import TimeInput from "../planning/TimeInput.svelte";
   import Switch from "./Switch.svelte";
 
   /**
-   * The one panel for everything that isn't the week: who is signed in, how the app looks, and
-   * which calendars it reads. All three used to be a popover hanging off an 18px avatar, which
-   * was the wrong shape for them and had nowhere to put the third.
+   * Everything about the account that isn't the week: who is signed in, how the app looks, when it
+   * asks you to plan, what it says before an event, where you leave from, and which calendars it
+   * reads.
+   *
+   * Laid out as cards in two columns rather than one long scroll of headings and paragraphs. Six
+   * sections stacked in a phone-width column meant every visit began with scrolling past the five
+   * you didn't come for, and the explanations under each heading — read once, in the way forever
+   * after — are now on the rows they explain, where hovering asks for them.
+   *
+   * Two settings used to live here and don't any more. "Hours I plan in a day" asked people to
+   * choose a number that only ever made their own day look emptier than it was; a day is planned
+   * against the whole of itself now. And "a day counts as planned at" asked them to set the bar
+   * they'd rather not fail, which is not a bar — it is 70%, in `coverage.ts`, for everyone.
    */
   const MODES: { value: ThemeMode; label: string }[] = [
     { value: "system", label: "System" },
@@ -44,45 +70,16 @@
   /** Planning the evening before is the one worth an extra star — the label says which is which. */
   const PLAN_WHEN: { value: "evening" | "morning"; label: string }[] = [
     { value: "evening", label: "Tonight" },
-    { value: "morning", label: "In the morning" },
+    { value: "morning", label: "Morning" },
   ];
 
   const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
+  const sessions = $derived(preferences.sessions);
+  const reminders = $derived(preferences.reminders);
+  const weekday = $derived(WEEKDAYS.find((day) => day.value === sessions.weeklyWeekday)?.label ?? "Sunday");
 
-  /**
-   * Where you leave from, held here while it's being typed. Every other setting on this panel is
-   * one gesture, but an address is a sentence — writing each keystroke through would put a
-   * half-typed street into `localStorage` and, worse, send it to the maps API behind an open
-   * event card.
-   */
-  let origin = $state(preferences.travel.origin);
-  const ORIGIN_SAVE_MS = 600;
-  let originTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // The settings come from the account, so they can land after the panel is already open — on a
-  // cold start, or because another device changed them. Whatever isn't being typed follows them.
-  $effect(() => {
-    const saved = preferences.travel.origin;
-    if (!originTimer) origin = saved;
-  });
-
-  function typeOrigin(next: string) {
-    origin = next;
-    if (originTimer) clearTimeout(originTimer);
-    originTimer = setTimeout(saveOrigin, ORIGIN_SAVE_MS);
-  }
-
-  function saveOrigin() {
-    if (originTimer) clearTimeout(originTimer);
-    originTimer = null;
-    if (origin.trim() !== preferences.travel.origin) preferences.setTravel({ origin: origin.trim() });
-  }
-
-  /** Closing the panel is as good as finishing the sentence. */
-  $effect(() => () => {
-    saveOrigin();
-    preferences.flush();
-  });
+  /** Nothing here has a Save button, so a panel closing mid-edit still writes what it was given. */
+  $effect(() => () => preferences.flush());
 
   async function signOut() {
     settings.hide();
@@ -93,10 +90,10 @@
   }
 </script>
 
-<Dialog title="Settings" open={settings.open} onclose={() => settings.hide()}>
-  <section class="flex items-center gap-3">
+<Dialog title="Settings" open={settings.open} size="lg" onclose={() => settings.hide()}>
+  <section class="flex items-center gap-3 rounded-lg border border-line bg-surface-alt px-4 py-3">
     <span
-      class="t-body flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-surface-alt text-fg-muted"
+      class="t-body flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line-strong bg-surface text-fg-muted"
     >
       {#if auth.avatarUrl}
         <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
@@ -111,213 +108,208 @@
     <Button label="Sign out" variant="outline" size="sm" onclick={() => void signOut()} />
   </section>
 
-  <section>
-    <SectionHeader title="Appearance" />
-    <Segmented options={MODES} value={theme.mode} onchange={(mode) => theme.setMode(mode)} />
-  </section>
+  <!-- Two columns on anything wider than a phone. The cards are different heights and there is no
+       reading order between them, so they are two independent stacks rather than a grid whose
+       rows would leave a gap beside every short section. -->
+  <div class="gap-4 md:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
+    <SettingsSection icon={Palette} title="Appearance">
+      <Segmented options={MODES} value={theme.mode} onchange={(mode) => theme.setMode(mode)} />
+    </SettingsSection>
 
-  <!-- The ritual the whole app hangs off: when to look back, when to plan, and how full a day has
-       to be before it counts. Kept above the event reminders because it is the one people change
-       — a lead time is set once, a planning hour moves with your life. -->
-  <section>
-    <SectionHeader title="Planning sessions" />
-    <p class="t-micro mb-3 text-fg-faint">
-      Two moments a day: one to see how it went, one to decide the next. On iPhone and Apple Watch.
-    </p>
-    <div class="space-y-1">
-      <div class="flex min-h-8 items-center justify-between gap-3">
-        <span class="t-body">Ask me to plan</span>
+    <!-- The ritual the whole app hangs off: when to look back, and when to decide the next day. -->
+    <SettingsSection
+      icon={CalendarClock}
+      title="Planning sessions"
+      note="Two moments a day, on iPhone and Apple Watch."
+    >
+      {#snippet trailing()}
         <Switch
-          checked={preferences.sessions.enabled}
+          checked={sessions.enabled}
           label="Ask me to plan"
           onchange={(enabled) => preferences.setSessions({ enabled })}
         />
-      </div>
+      {/snippet}
 
-      {#if preferences.sessions.enabled}
-        <div class="flex min-h-8 items-center justify-between gap-3">
-          <span class="t-body">Evening</span>
-          <TimeInput
-            value={preferences.sessions.eveningTime}
-            label="Evening session time"
-            onchange={(eveningTime) => preferences.setSessions({ eveningTime })}
-          />
-        </div>
-        <div class="flex min-h-8 items-center justify-between gap-3">
-          <span class="t-body">Morning</span>
-          <TimeInput
-            value={preferences.sessions.morningTime}
-            label="Morning session time"
-            onchange={(morningTime) => preferences.setSessions({ morningTime })}
-          />
-        </div>
-        <div class="flex min-h-8 items-center justify-between gap-3">
-          <span class="t-body">The longer sitting</span>
-          <div class="flex items-center gap-1.5">
-            <select
-              value={preferences.sessions.weeklyWeekday}
-              aria-label="Day of the weekly session"
-              onchange={(e) => preferences.setSessions({ weeklyWeekday: Number(e.currentTarget.value) })}
-              class="t-body rounded-md border border-line-strong bg-surface px-2 py-1"
-            >
-              {#each WEEKDAYS as weekday (weekday.value)}
-                <option value={weekday.value}>{weekday.label}</option>
-              {/each}
-            </select>
+      <div class="space-y-0.5">
+        <SettingRow
+          icon={Moon}
+          label="Evening"
+          hint="Look back on today, and plan tomorrow while it's still tonight."
+          disabled={!sessions.enabled}
+        >
+          {#snippet control()}
             <TimeInput
-              value={preferences.sessions.weeklyTime}
-              label="Weekly session time"
-              onchange={(weeklyTime) => preferences.setSessions({ weeklyTime })}
+              value={sessions.eveningTime}
+              label="Evening session time"
+              onchange={(eveningTime) => preferences.setSessions({ eveningTime })}
             />
-          </div>
-        </div>
+          {/snippet}
+        </SettingRow>
 
-        <!-- Planning the evening before is worth an extra star, and the copy says so rather than
-             leaving it to be discovered. -->
-        <div class="flex min-h-8 items-center justify-between gap-3">
-          <span class="t-body">I plan</span>
-          <Segmented
-            options={PLAN_WHEN}
-            value={preferences.sessions.planWhen}
-            onchange={(planWhen) => preferences.setSessions({ planWhen })}
-          />
-        </div>
-        <!-- The ring is a whole week of intent, sleep included. A seventh of it is not a planning
-             target, so this is what a day is actually measured against. -->
-        <div class="flex min-h-8 items-center justify-between gap-3">
-          <span class="t-body">Hours I plan in a day</span>
-          <NumberField
-            value={preferences.sessions.plannableHours}
-            unit="h"
-            ariaLabel="Hours I plan in a day"
-            inputmode="numeric"
-            onchange={(plannableHours) =>
-              preferences.setSessions({ plannableHours: Math.min(16, Math.max(1, Math.round(plannableHours))) })}
-          />
-        </div>
-        <div class="flex min-h-8 items-center justify-between gap-3">
-          <span class="t-body">A day counts as planned at</span>
-          <NumberField
-            value={preferences.sessions.coveragePercent}
-            unit="%"
-            ariaLabel="How full a day has to be"
-            inputmode="numeric"
-            onchange={(coveragePercent) =>
-              preferences.setSessions({ coveragePercent: Math.min(100, Math.max(10, Math.round(coveragePercent))) })}
-          />
-        </div>
-      {/if}
-    </div>
-  </section>
+        <SettingRow
+          icon={Sunrise}
+          label="Morning"
+          hint="Yesterday, and what today could be — for whoever would rather plan over coffee."
+          disabled={!sessions.enabled}
+        >
+          {#snippet control()}
+            <TimeInput
+              value={sessions.morningTime}
+              label="Morning session time"
+              onchange={(morningTime) => preferences.setSessions({ morningTime })}
+            />
+          {/snippet}
+        </SettingRow>
 
-  <!-- Shown everywhere, though a browser tab can act on none of them: it has nowhere to put a
-       reminder card and no notifications of its own. They belong to the account rather than to
-       this device, so setting them from whichever screen is open reaches the ones that use
-       them — the Mac app, the iPhone, and the watch on its wrist. -->
-  <section>
-    <SectionHeader title="Reminders" />
-    {#if !isNativeShell}
-      <p class="t-micro mb-3 text-fg-faint">Reminders appear in the Balance apps for Mac and iPhone.</p>
-    {/if}
-    <div class="space-y-1">
-      <div class="flex min-h-8 items-center justify-between gap-3">
-        <span class="t-body">Remind me about events</span>
+        <SettingRow
+          icon={CalendarRange}
+          label="Weekly"
+          hint="The longer sitting. It replaces that evening's reminder and plans the week ahead."
+          disabled={!sessions.enabled}
+        >
+          {#snippet control()}
+            <div class="flex items-center gap-1.5">
+              <!-- An app popover, not the platform's select: the rest of the app picks this way. -->
+              <Popover width={180}>
+                {#snippet trigger(open)}
+                  <button
+                    type="button"
+                    onclick={open}
+                    aria-label="Day of the weekly session"
+                    class="press-sm flex items-center gap-1 rounded-md border border-line px-2 py-1.5"
+                  >
+                    <span class="t-label text-fg">{weekday}</span>
+                    <ChevronDown size={13} class="text-fg-faint" />
+                  </button>
+                {/snippet}
+                {#snippet content(close)}
+                  {#each WEEKDAYS as day (day.value)}
+                    <PopoverItem
+                      label={day.label}
+                      selected={day.value === sessions.weeklyWeekday}
+                      onclick={() => {
+                        preferences.setSessions({ weeklyWeekday: day.value });
+                        close();
+                      }}
+                    />
+                  {/each}
+                {/snippet}
+              </Popover>
+              <TimeInput
+                value={sessions.weeklyTime}
+                label="Weekly session time"
+                onchange={(weeklyTime) => preferences.setSessions({ weeklyTime })}
+              />
+            </div>
+          {/snippet}
+        </SettingRow>
+
+        <SettingRow
+          icon={PenLine}
+          label="I plan"
+          hint="Which sitting you mean to plan in. Planning the night before earns an extra star."
+          disabled={!sessions.enabled}
+        >
+          {#snippet control()}
+            <Segmented
+              options={PLAN_WHEN}
+              value={sessions.planWhen}
+              onchange={(planWhen) => preferences.setSessions({ planWhen })}
+            />
+          {/snippet}
+        </SettingRow>
+      </div>
+    </SettingsSection>
+
+    <!-- Shown everywhere, though a browser tab can act on none of them: it has nowhere to put a
+         reminder card and no notifications of its own. They belong to the account rather than to
+         this device, so setting them from whichever screen is open reaches the ones that use
+         them — the Mac app, the iPhone, and the watch on its wrist. -->
+    <SettingsSection
+      icon={Bell}
+      title="Reminders"
+      note={isNativeShell ? undefined : "Delivered by the Balance apps for Mac and iPhone."}
+    >
+      {#snippet trailing()}
         <Switch
-          checked={preferences.reminders.enabled}
+          checked={reminders.enabled}
           label="Remind me about events"
           onchange={(enabled) => preferences.setReminders({ enabled })}
         />
-      </div>
-      <div class="flex min-h-8 items-center justify-between gap-3">
-        <span class="t-body">Say something</span>
-        <div class="flex items-center gap-1.5">
-          <NumberField
-            value={preferences.reminders.leadMinutes}
-            unit="min"
-            ariaLabel="Minutes before an event"
-            inputmode="numeric"
-            onchange={(leadMinutes) => preferences.setReminders({ leadMinutes: Math.max(0, Math.round(leadMinutes)) })}
-          />
-          <span class="t-body text-fg-muted">before</span>
-        </div>
-      </div>
-      <div class="flex min-h-8 items-center justify-between gap-3">
-        <span class="t-body">Use the event's own reminders too</span>
-        <Switch
-          checked={preferences.reminders.useCalendarReminders}
-          label="Use the event's own reminders too"
-          onchange={(useCalendarReminders) => preferences.setReminders({ useCalendarReminders })}
-        />
-      </div>
-      <div class="flex min-h-8 items-center justify-between gap-3">
-        <span class="t-body">Tell me when to leave</span>
-        <Switch
-          checked={preferences.reminders.leaveInTime}
-          label="Tell me when to leave"
-          onchange={(leaveInTime) => preferences.setReminders({ leaveInTime })}
-        />
-      </div>
-      <div class="flex min-h-8 items-center justify-between gap-3">
-        <span class="t-body">Sound</span>
-        <Switch
-          checked={preferences.reminders.sound}
-          label="Sound"
-          onchange={(sound) => preferences.setReminders({ sound })}
-        />
-      </div>
-    </div>
-  </section>
+      {/snippet}
 
-  <section>
-    <SectionHeader title="Travel" />
-    <p class="t-micro mb-3 text-fg-faint">
-      {#if !preferences.travelAvailable}
-        Journey times are off — the server has no Google Maps key.
-      {:else}
-        Journey times need an address Google Maps can find.
-      {/if}
-    </p>
-    <div class="space-y-3">
-      <div class="space-y-1.5">
-        <span class="t-label block text-fg-muted">Usually leaving from</span>
-        <Field
-          value={origin}
-          oninput={typeOrigin}
-          placeholder="Street, city"
-          ariaLabel="Usually leaving from"
-          autocapitalize="sentences"
-        />
-      </div>
-      <div class="space-y-1.5">
-        <span class="t-label block text-fg-muted">Ways of getting there</span>
-        <div class="flex flex-wrap gap-1.5">
-          {#each TRAVEL_MODES as mode (mode.value)}
-            <Chip
-              label={mode.label}
-              selected={preferences.travel.modes.includes(mode.value)}
-              onclick={() => preferences.toggleMode(mode.value)}
+      <div class="space-y-0.5">
+        <SettingRow
+          icon={Timer}
+          label="Heads-up"
+          hint="How long before it starts. Used for events the calendar carries no reminder of its own for."
+          disabled={!reminders.enabled}
+        >
+          {#snippet control()}
+            <div class="flex items-center gap-1.5">
+              <NumberField
+                value={reminders.leadMinutes}
+                unit="min"
+                ariaLabel="Minutes before an event"
+                inputmode="numeric"
+                onchange={(leadMinutes) => preferences.setReminders({ leadMinutes: Math.max(0, Math.round(leadMinutes)) })}
+              />
+              <span class="t-micro text-fg-faint">before</span>
+            </div>
+          {/snippet}
+        </SettingRow>
+
+        <SettingRow
+          icon={CalendarClock}
+          label="The event's own"
+          hint="Honour the reminders already set on an event in the calendar, as well as this one."
+          disabled={!reminders.enabled}
+        >
+          {#snippet control()}
+            <Switch
+              checked={reminders.useCalendarReminders}
+              label="Use the event's own reminders too"
+              disabled={!reminders.enabled}
+              onchange={(useCalendarReminders) => preferences.setReminders({ useCalendarReminders })}
             />
-          {/each}
-        </div>
-      </div>
-      <div class="flex min-h-8 items-center justify-between gap-3">
-        <span class="t-body">Be there early by</span>
-        <NumberField
-          value={preferences.travel.bufferMinutes}
-          unit="min"
-          ariaLabel="Minutes to be there early"
-          inputmode="numeric"
-          onchange={(bufferMinutes) =>
-            preferences.setTravel({ bufferMinutes: Math.max(0, Math.round(bufferMinutes)) })}
-        />
-      </div>
-    </div>
-  </section>
+          {/snippet}
+        </SettingRow>
 
-  <section>
-    <SectionHeader title="Calendars" />
-    <CalendarsSection />
-  </section>
+        <SettingRow
+          icon={Footprints}
+          label="When to leave"
+          hint="A second reminder when it's time to set off, for events with an address."
+          disabled={!reminders.enabled}
+        >
+          {#snippet control()}
+            <Switch
+              checked={reminders.leaveInTime}
+              label="Tell me when to leave"
+              disabled={!reminders.enabled}
+              onchange={(leaveInTime) => preferences.setReminders({ leaveInTime })}
+            />
+          {/snippet}
+        </SettingRow>
+
+        <SettingRow icon={Volume2} label="Sound" disabled={!reminders.enabled}>
+          {#snippet control()}
+            <Switch
+              checked={reminders.sound}
+              label="Sound"
+              disabled={!reminders.enabled}
+              onchange={(sound) => preferences.setReminders({ sound })}
+            />
+          {/snippet}
+        </SettingRow>
+      </div>
+    </SettingsSection>
+
+    <LocationsSection />
+
+    <SettingsSection icon={CalendarDays} title="Calendars">
+      <CalendarsSection />
+    </SettingsSection>
+  </div>
 
   <!-- Only in a browser: the two app shells are already what it would install. -->
   {#if !isNativeShell}

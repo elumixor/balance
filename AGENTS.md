@@ -37,7 +37,12 @@ An event carries more than its hours — where it is, how to join it, who else i
 it wants to remind you — and an invitation can be answered from the app, which writes the reply
 back to the calendar everyone else reads. Travel times are separate and never stored:
 `server/lib/travel/` asks the Google Routes API on demand, and answers `{ available: false }` when
-no `GOOGLE_MAPS_API_KEY` is configured, so every screen has to cope with having no journeys.
+no `GOOGLE_MAPS_API_KEY` is configured, so every screen has to cope with having no journeys. The
+same key suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the
+spelling Maps itself gave back rather than one somebody typed from memory. Where a journey *starts*
+is the event's own answer — a place named in settings, or the device's position, resolved by
+`$lib/travel-origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
+because "where I am now" only means anything on the machine holding the person.
 
 Two consequences worth knowing before changing anything here. "Not connected" and "the grant
 expired" are states the screens render, returned as 200 with `connected` / `needsReconnect` — never
@@ -115,8 +120,9 @@ nothing the second time.
 
 Coverage is what unlocks the commit button, and only *mapped* hours count toward it — a calendar
 full of meetings other people booked is not a planned day, and deciding what those meetings are for
-is the work. The threshold is a preference (70% by default) because a rule you fail daily is a rule
-you delete.
+is the work. A day is measured against the whole of itself and the bar is 70% for everyone
+(`COVERAGE_THRESHOLD`) — both were settings once, and both only ever asked people to choose the
+number they would rather not fail.
 
 ## The words arrive before the phone wakes up
 

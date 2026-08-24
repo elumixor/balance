@@ -23,16 +23,19 @@ describe("coverage", () => {
 
 describe("budgetFor", () => {
   it("gives the day its share of the ring", () => {
-    expect(budgetFor({ weeklyClaimedHours: 70, plannableHours: 12 })).toBeCloseTo(10);
+    expect(budgetFor({ weeklyClaimedHours: 70 })).toBeCloseTo(10);
   });
 
-  it("holds it under what a day can actually hold — a ring claiming the whole week asks 8, not 23", () => {
-    // 159h claimed is 22.7h a day, which is not a planning target, it is an impossible one.
-    expect(budgetFor({ weeklyClaimedHours: 159, plannableHours: 8 })).toBe(8);
+  it("plans the whole day — a ring claiming every hour of the week asks for all 24", () => {
+    expect(budgetFor({ weeklyClaimedHours: 168 })).toBe(24);
+  });
+
+  it("never asks for more than a day holds", () => {
+    expect(budgetFor({ weeklyClaimedHours: 200 })).toBe(24);
   });
 
   it("is nothing when the ring claims nothing", () => {
-    expect(budgetFor({ weeklyClaimedHours: 0, plannableHours: 8 })).toBe(0);
+    expect(budgetFor({ weeklyClaimedHours: 0 })).toBe(0);
   });
 });
 

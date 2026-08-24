@@ -20,6 +20,7 @@
   import CategoryPicker from "./CategoryPicker.svelte";
   import EventAttendees from "./EventAttendees.svelte";
   import TimeField from "./TimeField.svelte";
+  import OriginPicker from "./OriginPicker.svelte";
   import TravelChips from "./TravelChips.svelte";
 
   /**
@@ -157,9 +158,10 @@
   const joinUrl = $derived(meeting.join ? asGoogleAccount(meeting.join.url, accountEmail) : null);
   /**
    * The address travel times are worked out to, or null. A room name or a link is nowhere to
-   * travel to, and without somewhere to leave from there's nothing to work out either.
+   * travel to. Where the journey *starts* is the picker's business — it can always answer, if
+   * only with the device's own position, so it is offered wherever there is an address.
    */
-  const travelTo = $derived(hasAddress(event) && preferences.travel.origin ? meeting.location : null);
+  const travelTo = $derived(hasAddress(event) ? meeting.location : null);
 
   type Answer = Exclude<EventResponse, "needsAction">;
   const RSVP: { value: Answer; label: string }[] = [
@@ -506,7 +508,15 @@
           <div class="min-w-0 flex-1 space-y-1.5">
             <p class="t-label break-words">{meeting.location}</p>
             {#if travelTo}
-              <TravelChips destination={travelTo} arriveBy={event.start} onopen={(url) => void open(url)} />
+              <div class="flex flex-wrap items-center gap-2">
+                <OriginPicker eventId={event.id} />
+                <TravelChips
+                  eventId={event.id}
+                  destination={travelTo}
+                  arriveBy={event.start}
+                  onopen={(url) => void open(url)}
+                />
+              </div>
             {/if}
           </div>
         </div>

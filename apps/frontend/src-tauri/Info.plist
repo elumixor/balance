@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged into the bundle by Tauri. A journey has to start somewhere, and an event nobody has
+	     named a place for starts wherever this machine is. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Balance uses your location to work out when to leave for an event you're travelling to.</string>
+</dict>
+</plist>

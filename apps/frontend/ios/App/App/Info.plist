@@ -21,7 +21,9 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>31</string>
+	<string>32</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Balance uses your location to work out when to leave for an event you're travelling to.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

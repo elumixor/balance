@@ -2,6 +2,7 @@
   import { formatHoursAndMinutes } from "$lib/format";
   import { preferences, type TravelMode } from "$lib/preferences.svelte";
   import { getTravelTimes, type TravelLeg } from "$lib/travel";
+  import { travelOrigin } from "$lib/travel-origin.svelte";
   import { Bike, Bus, Car, Footprints } from "lucide-svelte";
 
   /**
@@ -9,12 +10,17 @@
    * card shows, asked here because the editor is open on something with an address in it — the
    * server holds the maps key, so this is a request, and it's only worth making once the card is
    * actually on screen.
+   *
+   * Where the journey starts is the event's own answer — a named place or the device's position —
+   * so the chips change the moment the picker beside them does.
    */
   let {
+    eventId,
     destination,
     arriveBy,
     onopen,
   }: {
+    eventId: string;
     destination: string;
     arriveBy: string;
     onopen: (url: string) => void;
@@ -31,18 +37,27 @@
   /** The journey the chips on screen are about, so an answer that arrives late can be ignored. */
   let shown = $state("");
 
+  const choice = $derived(travelOrigin.choiceFor(eventId));
+
   $effect(() => {
-    const origin = preferences.travel.origin;
     const modes = preferences.travel.modes;
-    const key = `${origin}|${destination}|${arriveBy}|${modes.join(",")}`;
-    // A preference that isn't part of the question — how early you like to be — still replaces
-    // the whole preferences object, so the guard is on the journey rather than on having asked.
-    if (!origin || modes.length === 0 || shown === key) return;
+    // The choice rather than the resolved origin: "where I am" is a promise of an address, and
+    // waiting for the fix before deciding whether to ask would make this effect its own trigger.
+    const from = choice.kind === "here" ? "here" : choice.id;
+    const key = `${from}|${destination}|${arriveBy}|${modes.join(",")}`;
+    if (modes.length === 0 || shown === key) return;
     // What's on screen is about a different journey, and a wrong number is worse than none.
     if (shown) legs = [];
 
     let live = true;
-    void getTravelTimes({ origin, destination, modes: [...modes], arriveBy })
+    void travelOrigin
+      .resolve(choice)
+      .then((origin) => {
+        if (!live) return { available: false, legs: [] };
+        // Nowhere to leave from: no named place, or the device wouldn't say where it is.
+        if (!origin) return { available: false, legs: [] };
+        return getTravelTimes({ origin, destination, modes: [...modes], arriveBy });
+      })
       .then((answer) => {
         if (!live) return;
         legs = answer.available ? answer.legs : [];

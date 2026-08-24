@@ -26,9 +26,27 @@ export const remindersSchema = z.object({
   sound: z.boolean(),
 });
 
+/**
+ * A place the user leaves from often enough to name — home, the office, the studio.
+ *
+ * Named rather than typed each time because "when do I have to leave" is asked of a phone in a
+ * pocket, and an address is a sentence. The id is made by the client so a location can be added
+ * from the picker that is about to use it.
+ */
+export const locationSchema = z.object({
+  id: z.string().min(1).max(64),
+  /** What the user calls it: "Home", "Office". */
+  label: z.string().min(1).max(60),
+  /** The address as Google Maps knows it — what the Routes API is actually asked about. */
+  address: z.string().min(1).max(240),
+});
+export type SavedLocation = z.infer<typeof locationSchema>;
+
 export const travelSchema = z.object({
-  /** Where you're coming from — an address, or empty for "don't work it out". */
-  origin: z.string().max(240),
+  /** The places worth naming. Empty means journeys are only worked out from where you are now. */
+  locations: z.array(locationSchema).max(20),
+  /** Which one a journey starts from unless an event says otherwise; null is "where I am now". */
+  defaultLocationId: z.string().max(64).nullable(),
   /** The ways you'd consider going, in the order you'd consider them. */
   modes: z.array(z.enum(TRAVEL_MODES)).max(TRAVEL_MODES.length),
   /** Minutes to be there early, added to every journey. */
@@ -49,10 +67,6 @@ export const sessionsSchema = z.object({
   weeklyTime: timeOfDay,
   /** Which of the two sittings the user means to plan in. The other one only reviews. */
   planWhen: z.enum(["evening", "morning"]),
-  /** How full a day has to be before it counts as planned, as a percentage of its budget. */
-  coveragePercent: z.number().int().min(10).max(100),
-  /** The most of one day the app will ask you to block out, whatever the ring claims. */
-  plannableHours: z.number().int().min(1).max(16),
   /**
    * The zone the phone last said it was in. Written by the app rather than chosen in the panel:
    * a day is a day in a place, and the server has no other way to know which place.
@@ -69,7 +83,7 @@ export type Preferences = z.infer<typeof preferencesSchema>;
 
 const DEFAULTS: Preferences = {
   reminders: { enabled: true, leadMinutes: 5, useCalendarReminders: true, leaveInTime: true, sound: true },
-  travel: { origin: "", modes: ["transit", "drive"], bufferMinutes: 5 },
+  travel: { locations: [], defaultLocationId: null, modes: ["transit", "drive"], bufferMinutes: 5 },
   sessions: {
     enabled: true,
     eveningTime: "18:00",
@@ -77,8 +91,6 @@ const DEFAULTS: Preferences = {
     weeklyWeekday: 7,
     weeklyTime: "18:00",
     planWhen: "evening",
-    coveragePercent: 70,
-    plannableHours: 8,
     timeZone: "UTC",
   },
 };
@@ -121,20 +133,43 @@ export class PreferencesService {
   }
 }
 
-/** What a row can hold: anything the current shape recognises, and nothing else. */
+/**
+ * What a row can hold: anything the current shape recognises, and the one thing it used to.
+ *
+ * `origin` was a single address before there were named places. A row written by that build still
+ * holds one, and it is the address the person actually leaves from — so it is read back as their
+ * first location rather than dropped.
+ */
 const storedSchema = z.object({
   reminders: remindersSchema.partial().optional(),
-  travel: travelSchema.partial().optional(),
+  travel: travelSchema
+    .partial()
+    .extend({ origin: z.string().max(240).optional() })
+    .optional(),
   sessions: sessionsSchema.partial().optional(),
 });
+
+const HOME_ID = "home";
 
 /** Whatever is stored, read through the current shape — anything unreadable falls back. */
 function merge(stored: unknown): Preferences {
   const parsed = storedSchema.safeParse(stored ?? {});
   const value = parsed.success ? parsed.data : {};
+  const travel = { ...DEFAULTS.travel, ...value.travel };
+
+  const legacy = value.travel?.origin?.trim();
+  if (legacy && travel.locations.length === 0) {
+    travel.locations = [{ id: HOME_ID, label: "Home", address: legacy }];
+    travel.defaultLocationId = HOME_ID;
+  }
+  // A default pointing at a place that has since been deleted is the same as no default.
+  if (travel.defaultLocationId && !travel.locations.some((one) => one.id === travel.defaultLocationId)) {
+    travel.defaultLocationId = null;
+  }
+
   return {
     reminders: { ...DEFAULTS.reminders, ...value.reminders },
-    travel: { ...DEFAULTS.travel, ...value.travel },
+    travel,
     sessions: { ...DEFAULTS.sessions, ...value.sessions },
   };
 }

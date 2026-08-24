@@ -12,8 +12,10 @@
     title,
     open,
     onclose,
+    /** "md" is a form; "lg" is a panel that lays its sections out in two columns on a wide screen. */
+    size = "md",
     children,
-  }: { title: string; open: boolean; onclose: () => void; children: Snippet } = $props();
+  }: { title: string; open: boolean; onclose: () => void; size?: "md" | "lg"; children: Snippet } = $props();
 
   let panel = $state<HTMLElement>();
 
@@ -33,7 +35,7 @@
   <!-- The backdrop closes on click; the panel stops the click reaching it, which is what lets a
        drag that starts inside the panel end outside it without closing anything. -->
   <div
-    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay-strong p-4 pt-[10vh]
+    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay-strong p-4 pt-[6vh]
       backdrop-blur-sm backdrop-saturate-50"
     transition:fade={{ duration: 120 }}
     onclick={onclose}
@@ -49,7 +51,8 @@
       transition:scale={{ duration: 140, start: 0.98 }}
       onclick={(e) => e.stopPropagation()}
       onkeydown={() => {}}
-      class="w-full max-w-md rounded-lg border border-line bg-surface shadow-float outline-none"
+      class="w-full {size === 'lg' ? 'max-w-3xl' : 'max-w-md'} rounded-lg border border-line bg-surface
+        shadow-float outline-none"
     >
       <header class="flex items-center justify-between border-b border-line px-5 py-3">
         <h2 class="t-heading">{title}</h2>
@@ -62,7 +65,7 @@
           <X size={16} />
         </button>
       </header>
-      <div class="space-y-6 px-5 py-5">
+      <div class="{size === 'lg' ? 'space-y-4' : 'space-y-6'} px-5 py-5">
         {@render children()}
       </div>
     </div>

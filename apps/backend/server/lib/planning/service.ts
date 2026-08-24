@@ -6,7 +6,7 @@ import { bufferCategoryService } from "../buffer-category";
 import { CalendarEventsService, type ResolvedEvent } from "../calendar/events-service";
 import { PreferencesService } from "../preferences-service";
 import { type SessionCopy, sessionCopyFor } from "./copy";
-import { type Block, balanceMatch, budgetFor, coverage, scheduleMatch } from "./coverage";
+import { type Block, balanceMatch, budgetFor, COVERAGE_THRESHOLD, coverage, scheduleMatch } from "./coverage";
 import { addDays, type Day, dayIn, daysBetween, daysFrom, rangeOf, weekStartOf } from "./days";
 import { isFresh, type ScheduledSlot, upcomingSlots } from "./schedule";
 import {
@@ -91,15 +91,12 @@ export class PlanningService {
     const now = options.now ?? new Date();
     const today = dayIn(timeZone, now);
 
-    const preferences = await new PreferencesService(this.userId).get();
-    const threshold = preferences.sessions.coveragePercent / 100;
-
     // Which day is being planned, and which is being looked back on. The evening plans tomorrow
     // and reviews today; the morning plans today and reviews yesterday.
     const target = slot === "morning" ? today : addDays(today, 1);
     const reviewed = slot === "morning" ? addDays(today, -1) : today;
 
-    if (options.settle !== false) await this.settle({ timeZone, today, threshold });
+    if (options.settle !== false) await this.settle({ timeZone, today, threshold: COVERAGE_THRESHOLD });
 
     const week = weekStartOf(reviewed);
     const from = week < reviewed ? week : reviewed;
@@ -112,10 +109,7 @@ export class PlanningService {
       this.plannedWeek(weekStartOf(addDays(today, 7))),
     ]);
 
-    const budgetHours = budgetFor({
-      weeklyClaimedHours: claimedHours(plan),
-      plannableHours: preferences.sessions.plannableHours,
-    });
+    const budgetHours = budgetFor({ weeklyClaimedHours: claimedHours(plan) });
     const targetView = this.viewOf(target, timeZone, events, plan, budgetHours, planned);
     const reviewView = this.viewOf(reviewed, timeZone, events, plan, budgetHours, null);
     const reviewCategories = categoryHours(events, plan, rangeOf(reviewed, timeZone));
@@ -131,7 +125,7 @@ export class PlanningService {
       rank: rankOf(stars),
       streak,
       rates: STAR_RATES,
-      coverageThreshold: threshold,
+      coverageThreshold: COVERAGE_THRESHOLD,
       /** What committing the target day would pay right now, if it isn't already committed. */
       award: planned ? [] : dailyAward({ ahead: daysBetween(today, target) > 0, streak }),
       weeklyAward: weekPlanned ? 0 : WEEKLY_STARS,
@@ -175,7 +169,7 @@ export class PlanningService {
     await this.settle({
       timeZone: options.timeZone,
       today: dayIn(options.timeZone, now),
-      threshold: preferences.sessions.coveragePercent / 100,
+      threshold: COVERAGE_THRESHOLD,
     });
     const slots = upcomingSlots({ preferences: preferences.sessions, timeZone: options.timeZone, now });
 
@@ -219,23 +213,17 @@ export class PlanningService {
     const today = dayIn(timeZone, now);
     if (daysBetween(today, day) < 0) throw new ApiError("That day is already behind you");
 
-    const preferences = await new PreferencesService(this.userId).get();
-    const threshold = preferences.sessions.coveragePercent / 100;
-
     const existing = await this.plannedDay(day);
     if (existing) return { alreadyPlanned: true, awarded: [] as Award[], stars: await this.stars() };
 
     const { events, categories: plan } = await this.load(day, day, timeZone);
-    const budgetHours = budgetFor({
-      weeklyClaimedHours: claimedHours(plan),
-      plannableHours: preferences.sessions.plannableHours,
-    });
+    const budgetHours = budgetFor({ weeklyClaimedHours: claimedHours(plan) });
     const view = this.viewOf(day, timeZone, events, plan, budgetHours, null);
 
     const rest = options.rest ?? false;
-    if (!rest && view.coverage < threshold) {
+    if (!rest && view.coverage < COVERAGE_THRESHOLD) {
       throw new ApiError(
-        `That day is ${Math.round(view.coverage * 100)}% planned — it needs ${preferences.sessions.coveragePercent}%`,
+        `That day is ${Math.round(view.coverage * 100)}% planned — it needs ${Math.round(COVERAGE_THRESHOLD * 100)}%`,
       );
     }
 

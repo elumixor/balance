@@ -38,8 +38,10 @@ Both apps read their own `.env`. The backend needs `DATABASE_URL`, `DATABASE_URL
 `CLERK_SECRET_KEY`, and for the calendar integration `GOOGLE_OAUTH_CLIENT_ID`,
 `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and
 `OAUTH_STATE_SECRET` (the last two are `openssl rand -base64 32`). `GOOGLE_MAPS_API_KEY` is
-optional and buys travel times to an event's address, through the Google Routes API; without it
-`/mobile/travel` answers `{ available: false }` and the app offers no journeys at all. The frontend
+optional and buys travel times to an event's address through the Google Routes API, and address
+suggestions for the places you leave from through the Places API; without it `/mobile/travel`
+answers `{ available: false }`, `/mobile/travel/places` suggests nothing, and the app offers no
+journeys at all. The frontend
 needs `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL`. With
 no `VITE_API_BASE_URL`, dev falls back to this machine's LAN address (so a phone on the same
 network reaches the backend) and a release build falls back to the empty string, which is what

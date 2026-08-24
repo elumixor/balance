@@ -123,8 +123,8 @@ async function compute(
       "x-goog-fieldmask": "routes.duration,routes.distanceMeters",
     },
     body: JSON.stringify({
-      origin: { address: origin },
-      destination: { address: destination },
+      origin: waypoint(origin),
+      destination: waypoint(destination),
       travelMode: ROUTES_MODE[mode],
       ...timing(mode, arriveBy),
     }),
@@ -154,6 +154,17 @@ async function compute(
     url: directionsUrl(origin, destination, mode),
   };
 }
+
+/** Somewhere Google can be asked about: a pair of coordinates when the phone gave us one, and
+ * otherwise an address in words. "Where I am now" has no street name, so it travels as
+ * "50.0755,14.4378" and is recognised here rather than being sent as a nonsense address. */
+function waypoint(value: string) {
+  const point = COORDINATES.exec(value.trim());
+  if (!point) return { address: value };
+  return { location: { latLng: { latitude: Number(point[1]), longitude: Number(point[2]) } } };
+}
+
+const COORDINATES = /^(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)$/;
 
 /**
  * When the journey happens. Only transit can be asked to arrive by a time — every other mode
