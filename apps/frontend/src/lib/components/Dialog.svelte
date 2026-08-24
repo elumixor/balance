@@ -12,10 +12,15 @@
     title,
     open,
     onclose,
-    /** "md" is a form; "lg" is a panel that lays its sections out in two columns on a wide screen. */
+    /**
+     * "md" is a form — a title bar, padding, a column of controls.
+     * "split" is a panel that owns its own inside: a rail of pages down one side, one page at a
+     * time beside it. It gets no padding and no title bar, only the close button, because the
+     * page it is showing already says what it is.
+     */
     size = "md",
     children,
-  }: { title: string; open: boolean; onclose: () => void; size?: "md" | "lg"; children: Snippet } = $props();
+  }: { title: string; open: boolean; onclose: () => void; size?: "md" | "split"; children: Snippet } = $props();
 
   let panel = $state<HTMLElement>();
 
@@ -35,8 +40,8 @@
   <!-- The backdrop closes on click; the panel stops the click reaching it, which is what lets a
        drag that starts inside the panel end outside it without closing anything. -->
   <div
-    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay-strong p-4 pt-[6vh]
-      backdrop-blur-sm backdrop-saturate-50"
+    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay-strong p-4
+      {size === 'split' ? 'pt-[5vh]' : 'pt-[6vh]'} backdrop-blur-sm backdrop-saturate-50"
     transition:fade={{ duration: 120 }}
     onclick={onclose}
     onkeydown={() => {}}
@@ -51,23 +56,38 @@
       transition:scale={{ duration: 140, start: 0.98 }}
       onclick={(e) => e.stopPropagation()}
       onkeydown={() => {}}
-      class="w-full {size === 'lg' ? 'max-w-3xl' : 'max-w-md'} rounded-lg border border-line bg-surface
-        shadow-float outline-none"
+      class="relative w-full overflow-hidden rounded-lg border border-line bg-surface shadow-float outline-none
+        {size === 'split' ? 'max-w-4xl' : 'max-w-md'}"
     >
-      <header class="flex items-center justify-between border-b border-line px-5 py-3">
-        <h2 class="t-heading">{title}</h2>
+      {#if size === "split"}
+        <!-- Floated over the page rather than sitting in a bar of its own: a title bar above a rail
+             that already names every page would be the same word twice. -->
         <button
           type="button"
           onclick={onclose}
           aria-label="Close"
-          class="press-sm flex size-7 items-center justify-center rounded-md text-fg-muted hoverable"
+          class="press-sm hoverable absolute top-3 right-3 z-10 flex size-7 items-center justify-center
+            rounded-md text-fg-muted"
         >
           <X size={16} />
         </button>
-      </header>
-      <div class="{size === 'lg' ? 'space-y-4' : 'space-y-6'} px-5 py-5">
         {@render children()}
-      </div>
+      {:else}
+        <header class="flex items-center justify-between border-b border-line px-5 py-3">
+          <h2 class="t-heading">{title}</h2>
+          <button
+            type="button"
+            onclick={onclose}
+            aria-label="Close"
+            class="press-sm hoverable flex size-7 items-center justify-center rounded-md text-fg-muted"
+          >
+            <X size={16} />
+          </button>
+        </header>
+        <div class="space-y-6 px-5 py-5">
+          {@render children()}
+        </div>
+      {/if}
     </div>
   </div>
 {/if}

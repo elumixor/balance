@@ -1,7 +1,6 @@
 <script lang="ts">
   import { Download } from "lucide-svelte";
   import { DESKTOP_DOWNLOAD_URL, desktopDownload } from "$lib/desktop/download.svelte";
-  import SectionHeader from "./SectionHeader.svelte";
 
   /**
    * The Mac app, offered where the account already is. Only a browser sees this: the two app
@@ -16,10 +15,6 @@
 
 {#if build}
   <section>
-    <SectionHeader title="Balance for Mac" />
-    <p class="t-micro mb-3 text-fg-faint">
-      The menu bar knows what you're in the middle of, and reminds you before the next thing.
-    </p>
     <a
       href={DESKTOP_DOWNLOAD_URL}
       download

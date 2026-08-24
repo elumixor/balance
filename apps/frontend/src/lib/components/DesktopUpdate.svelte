@@ -1,7 +1,6 @@
 <script lang="ts">
   import { RefreshCw, RotateCcw } from "lucide-svelte";
   import { desktopUpdates } from "$lib/desktop/updates.svelte";
-  import SectionHeader from "./SectionHeader.svelte";
 
   /**
    * The Mac app's own updates, said out loud once. The install happens on its own; the only thing
@@ -14,7 +13,6 @@
 </script>
 
 <section>
-  <SectionHeader title="Updates" />
   {#if desktopUpdates.stage === "ready"}
     <p class="t-micro mb-3 text-fg-faint">
       Version {desktopUpdates.installed} is installed and starts with the app.
