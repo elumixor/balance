@@ -21,6 +21,7 @@
     allDaySpansForRange,
     BLOCK_GUTTER_PX,
     daySpans,
+    gridLines,
     NARROW_BLOCK_PERCENT,
     OPENING_HOUR,
     placeDay,
@@ -48,6 +49,21 @@
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
   /** An hour's height, as the pinch has left it — the one length everything vertical is drawn in. */
   const hourPx = $derived(timeScale.hourPx);
+  /**
+   * The rules behind the day, as one background rather than a node per line per column. Pinching in
+   * adds the half-hour and then the quarter-hour, each fainter than the division above it, so the
+   * eye still reads the hours first.
+   */
+  const gridImage = $derived(
+    gridLines(hourPx)
+      .map(
+        (line) =>
+          `repeating-linear-gradient(to bottom,${
+            line.mix === 100 ? "var(--line)" : `color-mix(in oklab,var(--line) ${line.mix}%,transparent)`
+          } 0 1px,transparent 1px ${(line.minutes / 60) * hourPx}px)`,
+      )
+      .join(","),
+  );
   /** Pinched right down, the hours are closer together than the label is tall, so only every
    *  other one is drawn — the lines behind them still say where the rest are. */
   const hourLabelStep = $derived(hourPx >= 32 ? 1 : 2);
@@ -662,8 +678,7 @@
         }}
         onpointercancel={() => data.endMarquee()}
         class="relative grid"
-        style="grid-template-columns:{columns};height:{24 *
-          hourPx}px;background-image:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px {hourPx}px)"
+        style="grid-template-columns:{columns};height:{24 * hourPx}px;background-image:{gridImage}"
       >
         {#each days as day, index}
           {@const weekend = day.getDay() === 0 || day.getDay() === 6}

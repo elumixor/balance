@@ -14,12 +14,41 @@ export const MIN_BLOCK_PX = (SNAP_MINUTES / 60) * HOUR_PX;
  * `TimeScale.fit`.
  */
 export const MAX_HOUR_PX = 3 * HOUR_PX;
+/**
+ * Where a half-hour and then a quarter-hour line is worth drawing: only once that division is far
+ * enough apart to be read as a rung rather than as hatching. Below them the hour lines say
+ * everything the grid can say at that scale.
+ */
+export const HALF_HOUR_LINE_PX = 72;
+export const QUARTER_HOUR_LINE_PX = 120;
 export const DEFAULT_EVENT_MINUTES = 60;
 /** Where the scroller opens, and where a block stops being wide enough to say anything. */
 export const OPENING_HOUR = 7;
 export const NARROW_BLOCK_PERCENT = 34;
 /** The gutter every block leaves on the right of its column, timed blocks and all-day alike. */
 export const BLOCK_GUTTER_PX = 10;
+
+/** One family of horizontal rules: how often it repeats, and how strongly it's drawn. */
+export interface GridLine {
+  readonly minutes: number;
+  /** Percent of the line colour, the rest transparent — a finer division is a fainter one. */
+  readonly mix: number;
+}
+
+/**
+ * The rules drawn behind the day, coarsest first — which is also the order they have to be painted
+ * in, since a later layer sits under an earlier one and the hour must win where they coincide.
+ *
+ * Pinching in doesn't just make the same grid bigger: it buys detail. An hour tall enough to hold
+ * a half-hour rung gets one, and taller still gets quarters, so what the grid measures follows what
+ * the scale can actually show.
+ */
+export function gridLines(hourPx: number): GridLine[] {
+  const lines: GridLine[] = [{ minutes: 60, mix: 100 }];
+  if (hourPx >= HALF_HOUR_LINE_PX) lines.push({ minutes: 30, mix: 45 });
+  if (hourPx >= QUARTER_HOUR_LINE_PX) lines.push({ minutes: 15, mix: 22 });
+  return lines;
+}
 
 export interface Segment {
   readonly event: CalendarEvent;

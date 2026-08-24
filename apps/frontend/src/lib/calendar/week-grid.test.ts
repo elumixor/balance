@@ -4,9 +4,12 @@ import { NOT_A_MEETING } from "$lib/types";
 import {
   allDaySpansForRange,
   daySpans,
+  gridLines,
+  HALF_HOUR_LINE_PX,
   HOUR_PX,
   MIN_BLOCK_PX,
   placeDay,
+  QUARTER_HOUR_LINE_PX,
   RESIZE_BAND_MAX_PX,
   RESIZE_BAND_SELECTED_PX,
   resizeBands,
@@ -235,6 +238,22 @@ describe("placeDay", () => {
 
   it("has nothing to place for an empty day", () => {
     expect(placeDay([])).toEqual([]);
+  });
+});
+
+describe("gridLines", () => {
+  it("draws only the hours until one is tall enough to divide", () => {
+    expect(gridLines(HOUR_PX)).toEqual([{ minutes: 60, mix: 100 }]);
+    expect(gridLines(HALF_HOUR_LINE_PX - 1)).toEqual([{ minutes: 60, mix: 100 }]);
+  });
+
+  it("adds the half hour, then the quarter, each fainter than the last", () => {
+    const half = gridLines(HALF_HOUR_LINE_PX);
+    expect(half.map((line) => line.minutes)).toEqual([60, 30]);
+    const quarter = gridLines(QUARTER_HOUR_LINE_PX);
+    expect(quarter.map((line) => line.minutes)).toEqual([60, 30, 15]);
+    // Coarsest first — the order they're painted in — and never brighter than the hour above it.
+    expect(quarter.map((line) => line.mix)).toEqual([...quarter.map((line) => line.mix)].sort((a, b) => b - a));
   });
 });
 
