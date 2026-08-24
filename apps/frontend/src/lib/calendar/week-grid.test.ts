@@ -3,10 +3,13 @@ import type { CalendarEvent } from "$lib/types";
 import { NOT_A_MEETING } from "$lib/types";
 import {
   allDaySpansForRange,
+  CROWDED_HOUR_PX,
   daySpans,
   gridLines,
+  gutterTicks,
   HALF_HOUR_LINE_PX,
   HOUR_PX,
+  MAX_HOUR_PX,
   MIN_BLOCK_PX,
   placeDay,
   QUARTER_HOUR_LINE_PX,
@@ -254,6 +257,48 @@ describe("gridLines", () => {
     expect(quarter.map((line) => line.minutes)).toEqual([60, 30, 15]);
     // Coarsest first — the order they're painted in — and never brighter than the hour above it.
     expect(quarter.map((line) => line.mix)).toEqual([...quarter.map((line) => line.mix)].sort((a, b) => b - a));
+  });
+});
+
+describe("gutterTicks", () => {
+  const at = (hourPx: number, minutes: number) => gutterTicks(hourPx).find((tick) => tick.minutes === minutes);
+
+  it("names every hour but midnight, which the top edge would cut in half", () => {
+    const ticks = gutterTicks(HOUR_PX);
+    expect(ticks[0]).toEqual({ minutes: 60, label: "01:00", major: true });
+    expect(ticks.at(-1)).toEqual({ minutes: 23 * 60, label: "23:00", major: true });
+    expect(ticks.some((tick) => tick.minutes === 0)).toBe(false);
+  });
+
+  it("thins out to every second hour when they're closer together than a label", () => {
+    expect(gutterTicks(CROWDED_HOUR_PX - 1).map((tick) => tick.label)).toEqual([
+      "02:00",
+      "04:00",
+      "06:00",
+      "08:00",
+      "10:00",
+      "12:00",
+      "14:00",
+      "16:00",
+      "18:00",
+      "20:00",
+      "22:00",
+    ]);
+  });
+
+  it("names the divisions the grid draws, and only by their minutes", () => {
+    expect(at(HALF_HOUR_LINE_PX, 30)).toEqual({ minutes: 30, label: ":30", major: false });
+    expect(at(HALF_HOUR_LINE_PX, 15)).toBeUndefined();
+    expect(at(QUARTER_HOUR_LINE_PX, 45)).toEqual({ minutes: 45, label: ":45", major: false });
+    expect(at(QUARTER_HOUR_LINE_PX, 15)).toEqual({ minutes: 15, label: ":15", major: false });
+  });
+
+  it("says as much as the grid draws, never more", () => {
+    for (const hourPx of [HOUR_PX / 2, HOUR_PX, HALF_HOUR_LINE_PX, QUARTER_HOUR_LINE_PX, MAX_HOUR_PX]) {
+      const finestLine = Math.min(...gridLines(hourPx).map((line) => line.minutes));
+      const finestTick = Math.min(...gutterTicks(hourPx).map((tick) => tick.minutes));
+      expect(finestTick).toBeGreaterThanOrEqual(finestLine);
+    }
   });
 });
 

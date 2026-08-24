@@ -20,6 +20,8 @@ export const MAX_HOUR_PX = 3 * HOUR_PX;
  * everything the grid can say at that scale.
  */
 export const HALF_HOUR_LINE_PX = 72;
+/** Below this the hours are closer together than a label is tall, so only every second one is named. */
+export const CROWDED_HOUR_PX = 32;
 export const QUARTER_HOUR_LINE_PX = 120;
 export const DEFAULT_EVENT_MINUTES = 60;
 /** Where the scroller opens, and where a block stops being wide enough to say anything. */
@@ -49,6 +51,42 @@ export function gridLines(hourPx: number): GridLine[] {
   if (hourPx >= QUARTER_HOUR_LINE_PX) lines.push({ minutes: 15, mix: 22 });
   return lines;
 }
+
+/** A label in the hours' column: how far into the day it sits, and how loudly it's drawn. */
+export interface TimeTick {
+  readonly minutes: number;
+  readonly label: string;
+  /** Whole hours carry the clock time; the divisions between them carry only their minutes. */
+  readonly major: boolean;
+}
+
+/**
+ * What the hours' column says at this scale.
+ *
+ * It follows the rules behind the grid — see `gridLines` — because a line the eye can pick out is
+ * one it will want named, and a column of numbers denser than the lines they belong to reads as
+ * noise. Squeezed the other way the hours themselves thin out to every second one, since a label is
+ * taller than the gap between two hours down there.
+ *
+ * Midnight is left out: it sits on the very top edge of the grid, where half of it would be cut off.
+ */
+export function gutterTicks(hourPx: number): TimeTick[] {
+  const step =
+    hourPx < CROWDED_HOUR_PX ? 120 : hourPx < HALF_HOUR_LINE_PX ? 60 : hourPx < QUARTER_HOUR_LINE_PX ? 30 : 15;
+  const ticks: TimeTick[] = [];
+  for (let minutes = step; minutes < MINUTES_PER_DAY; minutes += step) {
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    ticks.push({
+      minutes,
+      label: minute === 0 ? `${pad(hour)}:00` : `:${pad(minute)}`,
+      major: minute === 0,
+    });
+  }
+  return ticks;
+}
+
+const pad = (n: number) => n.toString().padStart(2, "0");
 
 export interface Segment {
   readonly event: CalendarEvent;

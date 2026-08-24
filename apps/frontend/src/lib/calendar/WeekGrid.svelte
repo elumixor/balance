@@ -22,6 +22,7 @@
     BLOCK_GUTTER_PX,
     daySpans,
     gridLines,
+    gutterTicks,
     NARROW_BLOCK_PERCENT,
     OPENING_HOUR,
     placeDay,
@@ -46,7 +47,6 @@
 
   const data = calendarData;
 
-  const HOURS = Array.from({ length: 24 }, (_, i) => i);
   /** An hour's height, as the pinch has left it — the one length everything vertical is drawn in. */
   const hourPx = $derived(timeScale.hourPx);
   /**
@@ -64,9 +64,8 @@
       )
       .join(","),
   );
-  /** Pinched right down, the hours are closer together than the label is tall, so only every
-   *  other one is drawn — the lines behind them still say where the rest are. */
-  const hourLabelStep = $derived(hourPx >= 32 ? 1 : 2);
+  /** The hours' column, which names as many of the rules behind the grid as there is room for. */
+  const ticks = $derived(gutterTicks(hourPx));
   /** The hours' own column. Narrower on a phone, where every pixel it gives up is a pixel of day. */
   const GUTTER_PX = $derived(viewport.md ? 56 : 48);
   const DAY_HEAD_PX = 28;
@@ -275,8 +274,6 @@
       }));
     });
   });
-
-  const pad = (n: number) => n.toString().padStart(2, "0");
 
   const timeZoneLabel = $derived.by(() => {
     const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(new Date());
@@ -596,12 +593,16 @@
         <span class="{viewport.md ? 't-data-micro' : 't-data-nano'} text-fg-faint">{timeZoneLabel}</span>
       </div>
       <div class="relative" style="height:{24 * hourPx}px">
-        {#each HOURS as hour (hour)}
-          {#if hour % hourLabelStep === 0}
-            <div class="t-data-micro absolute right-2 -translate-y-1/2 text-fg-faint" style="top:{hour * hourPx}px">
-              {hour === 0 ? "" : `${pad(hour)}:00`}
-            </div>
-          {/if}
+        {#each ticks as tick (tick.minutes)}
+          <!-- A division between the hours is drawn quieter than they are, the same way its line is. -->
+          <div
+            class="absolute right-2 -translate-y-1/2 text-fg-faint {tick.major
+              ? 't-data-micro'
+              : 't-data-nano opacity-55'}"
+            style="top:{(tick.minutes / 60) * hourPx}px"
+          >
+            {tick.label}
+          </div>
         {/each}
       </div>
     </div>
