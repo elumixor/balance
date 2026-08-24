@@ -6,7 +6,7 @@ import { bufferCategoryService } from "../buffer-category";
 import { CalendarEventsService, type ResolvedEvent } from "../calendar/events-service";
 import { PreferencesService } from "../preferences-service";
 import { type SessionCopy, sessionCopyFor } from "./copy";
-import { type Block, balanceMatch, coverage, scheduleMatch } from "./coverage";
+import { type Block, balanceMatch, budgetFor, coverage, scheduleMatch } from "./coverage";
 import { addDays, type Day, dayIn, daysBetween, daysFrom, rangeOf, weekStartOf } from "./days";
 import { isFresh, type ScheduledSlot, upcomingSlots } from "./schedule";
 import {
@@ -112,7 +112,10 @@ export class PlanningService {
       this.plannedWeek(weekStartOf(addDays(today, 7))),
     ]);
 
-    const budgetHours = claimedHours(plan) / 7;
+    const budgetHours = budgetFor({
+      weeklyClaimedHours: claimedHours(plan),
+      plannableHours: preferences.sessions.plannableHours,
+    });
     const targetView = this.viewOf(target, timeZone, events, plan, budgetHours, planned);
     const reviewView = this.viewOf(reviewed, timeZone, events, plan, budgetHours, null);
     const reviewCategories = categoryHours(events, plan, rangeOf(reviewed, timeZone));
@@ -223,7 +226,10 @@ export class PlanningService {
     if (existing) return { alreadyPlanned: true, awarded: [] as Award[], stars: await this.stars() };
 
     const { events, categories: plan } = await this.load(day, day, timeZone);
-    const budgetHours = claimedHours(plan) / 7;
+    const budgetHours = budgetFor({
+      weeklyClaimedHours: claimedHours(plan),
+      plannableHours: preferences.sessions.plannableHours,
+    });
     const view = this.viewOf(day, timeZone, events, plan, budgetHours, null);
 
     const rest = options.rest ?? false;
@@ -432,7 +438,7 @@ export class PlanningService {
       day,
       planned: !!planned,
       rest: planned?.rest ?? false,
-      coverage: coverage({ mappedHours, weeklyClaimedHours: budgetHours * 7 }),
+      coverage: coverage({ mappedHours, budgetHours }),
       mappedHours,
       budgetHours,
       blocks,

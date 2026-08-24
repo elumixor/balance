@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Block, balanceMatch, coverage, scheduleMatch } from "./coverage";
+import { type Block, balanceMatch, budgetFor, coverage, scheduleMatch } from "./coverage";
 
 const HOUR = 3_600_000;
 /** A day so the arithmetic reads in hours: `at(9, 11)` is nine to eleven. */
@@ -8,17 +8,31 @@ function at(from: number, to: number, categoryId: string | null = "work"): Block
 }
 
 describe("coverage", () => {
-  it("measures the day against a seventh of the week's claimed hours", () => {
-    // 70h claimed is 10h a day; 7 mapped hours is 70% of that.
-    expect(coverage({ mappedHours: 7, weeklyClaimedHours: 70 })).toBeCloseTo(0.7);
+  it("measures the day against its budget", () => {
+    expect(coverage({ mappedHours: 7, budgetHours: 10 })).toBeCloseTo(0.7);
   });
 
-  it("is nothing when the ring claims nothing — there is no budget to fill", () => {
-    expect(coverage({ mappedHours: 5, weeklyClaimedHours: 0 })).toBe(0);
+  it("is nothing when there is no budget to fill", () => {
+    expect(coverage({ mappedHours: 5, budgetHours: 0 })).toBe(0);
   });
 
   it("does not pay for overfilling", () => {
-    expect(coverage({ mappedHours: 40, weeklyClaimedHours: 70 })).toBe(1);
+    expect(coverage({ mappedHours: 40, budgetHours: 10 })).toBe(1);
+  });
+});
+
+describe("budgetFor", () => {
+  it("gives the day its share of the ring", () => {
+    expect(budgetFor({ weeklyClaimedHours: 70, plannableHours: 12 })).toBeCloseTo(10);
+  });
+
+  it("holds it under what a day can actually hold — a ring claiming the whole week asks 8, not 23", () => {
+    // 159h claimed is 22.7h a day, which is not a planning target, it is an impossible one.
+    expect(budgetFor({ weeklyClaimedHours: 159, plannableHours: 8 })).toBe(8);
+  });
+
+  it("is nothing when the ring claims nothing", () => {
+    expect(budgetFor({ weeklyClaimedHours: 0, plannableHours: 8 })).toBe(0);
   });
 });
 

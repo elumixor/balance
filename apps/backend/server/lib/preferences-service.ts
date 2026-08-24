@@ -51,6 +51,8 @@ export const sessionsSchema = z.object({
   planWhen: z.enum(["evening", "morning"]),
   /** How full a day has to be before it counts as planned, as a percentage of its budget. */
   coveragePercent: z.number().int().min(10).max(100),
+  /** The most of one day the app will ask you to block out, whatever the ring claims. */
+  plannableHours: z.number().int().min(1).max(16),
   /**
    * The zone the phone last said it was in. Written by the app rather than chosen in the panel:
    * a day is a day in a place, and the server has no other way to know which place.
@@ -76,6 +78,7 @@ const DEFAULTS: Preferences = {
     weeklyTime: "18:00",
     planWhen: "evening",
     coveragePercent: 70,
+    plannableHours: 8,
     timeZone: "UTC",
   },
 };

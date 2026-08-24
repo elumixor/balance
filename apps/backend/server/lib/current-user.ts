@@ -13,6 +13,23 @@ export const clerkClient = createClerkClient({
 });
 
 /**
+ * Signing in as somebody without signing in, for a simulator.
+ *
+ * A real sign-in in the iOS simulator means a Google consent screen in a webview on every clean
+ * install, which is a minute of clicking before anything can be looked at. With `DEV_AUTH_EMAIL`
+ * set, every request is that account instead — the real Clerk user, so the real `users` row and
+ * the real calendar, not a fixture.
+ *
+ * Fenced twice, and the fence is the whole reason this is safe to have: a production build and
+ * anything running on Vercel ignore the variable completely. So the worst a copy of it in a
+ * deployed environment can do is nothing at all.
+ */
+function devAuthEmail() {
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL) return null;
+  return process.env.DEV_AUTH_EMAIL?.trim() || null;
+}
+
+/**
  * Verifies the request's `Authorization: Bearer <session-token>` header against Clerk,
  * then looks up (or JIT-provisions) the internal `users` row for that Clerk identity —
  * mirrors the web app's cookie-or-bearer session handling, but explicit since Nitro
@@ -24,7 +41,13 @@ export class AuthService {
     return this.findOrProvisionUser(clerkUserId);
   }
 
+  /** Looked up once: it is the same account for the life of the process. */
+  #devUserId: Promise<string> | null = null;
+
   private async authenticate(event: H3Event): Promise<string> {
+    const email = devAuthEmail();
+    if (email) return this.#devUser(email);
+
     const authHeader = event.headers.get("authorization") ?? event.headers.get("Authorization");
     const token = authHeader?.match(/^Bearer (.+)$/)?.[1];
     if (!token) throw new ApiError("Not authenticated", 401);
@@ -39,6 +62,17 @@ export class AuthService {
     const auth = requestState.toAuth();
     if (!auth?.userId) throw new ApiError("Not authenticated", 401);
     return auth.userId;
+  }
+
+  /** The Clerk id behind `DEV_AUTH_EMAIL`, so the bypass lands on the same row a sign-in would. */
+  #devUser(email: string) {
+    this.#devUserId ??= clerkClient.users.getUserList({ emailAddress: [email], limit: 1 }).then((page) => {
+      const user = page.data[0];
+      if (!user) throw new ApiError(`DEV_AUTH_EMAIL is set to ${email}, which is not a Clerk user`, 401);
+      console.warn(`[auth] DEV_AUTH_EMAIL is on — every request is ${email}`);
+      return user.id;
+    });
+    return this.#devUserId;
   }
 
   private async findOrProvisionUser(clerkId: string): Promise<DbUser> {

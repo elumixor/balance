@@ -15,20 +15,33 @@ export interface MappedHours {
 export const DEFAULT_COVERAGE_THRESHOLD = 0.7;
 
 /**
+ * The most of one day anybody is asked to block out, however much the ring claims.
+ *
+ * The ring is a week's worth of intent and often nearly all 168 hours of it — sleep, meals and the
+ * hours that simply happen are categories too. A seventh of that is not a planning target, it is
+ * an impossible one, and a target you cannot hit is a feature you stop opening. So the day's
+ * budget is the smaller of what the ring implies and what a person can actually put on a calendar.
+ */
+export const DEFAULT_PLANNABLE_HOURS = 8;
+
+/**
  * The share of the day's budget that has been given a meaning.
  *
  * Only *mapped* hours count. A calendar full of meetings other people booked is not a planned day
  * — deciding what those meetings are for is the work, and it is the same work whether the block
  * came from you or from somebody's invitation.
  *
- * The budget is the ring's claimed hours divided by seven rather than the whole waking day: the
- * ring is already the user's own answer to how much of their life they mean to direct, and asking
- * for more than that on a Tuesday is asking them to fail.
+ * The budget comes from `budgetFor`: the ring's own answer to how much of a week is meant to be
+ * directed, held under what one day can actually hold.
  */
-export function coverage(options: { mappedHours: number; weeklyClaimedHours: number }) {
-  const target = options.weeklyClaimedHours / 7;
-  if (target <= 0) return 0;
-  return clamp(options.mappedHours / target);
+export function coverage(options: { mappedHours: number; budgetHours: number }) {
+  if (options.budgetHours <= 0) return 0;
+  return clamp(options.mappedHours / options.budgetHours);
+}
+
+/** A day's share of the ring, held under what a day can actually hold — see the constant above. */
+export function budgetFor(options: { weeklyClaimedHours: number; plannableHours: number }) {
+  return Math.min(options.weeklyClaimedHours / 7, options.plannableHours);
 }
 
 /** A category's week, as the stats already work it out. */

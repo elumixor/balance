@@ -182,6 +182,19 @@
             onchange={(planWhen) => preferences.setSessions({ planWhen })}
           />
         </div>
+        <!-- The ring is a whole week of intent, sleep included. A seventh of it is not a planning
+             target, so this is what a day is actually measured against. -->
+        <div class="flex min-h-8 items-center justify-between gap-3">
+          <span class="t-body">Hours I plan in a day</span>
+          <NumberField
+            value={preferences.sessions.plannableHours}
+            unit="h"
+            ariaLabel="Hours I plan in a day"
+            inputmode="numeric"
+            onchange={(plannableHours) =>
+              preferences.setSessions({ plannableHours: Math.min(16, Math.max(1, Math.round(plannableHours))) })}
+          />
+        </div>
         <div class="flex min-h-8 items-center justify-between gap-3">
           <span class="t-body">A day counts as planned at</span>
           <NumberField

@@ -61,6 +61,8 @@ export interface SessionsPrefs {
   planWhen: "evening" | "morning";
   /** How full a day has to be before it counts as planned. */
   coveragePercent: number;
+  /** The most of one day the app asks you to block out, whatever the ring claims. */
+  plannableHours: number;
   timeZone: string;
 }
 
@@ -84,6 +86,7 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
     weeklyTime: "18:00",
     planWhen: "evening",
     coveragePercent: 70,
+    plannableHours: 8,
     timeZone: "UTC",
   },
   travelAvailable: false,

@@ -13,6 +13,15 @@ const SIGNED_IN_KEY = "balance:signed-in";
 
 const isNativeApp = Capacitor.isNativePlatform();
 
+/**
+ * Skip the sign-in entirely, for a simulator pointed at a local backend.
+ *
+ * Only ever set on a build made by hand for that purpose; the deployed build never carries it, and
+ * a build that did would still be useless, because the backend refuses the bypass on Vercel and in
+ * production. The server is the fence — this half only saves the clicks.
+ */
+const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
+
 /** The device's standing permission to sign itself back in — see `restoreNativeSession`. */
 const DEVICE_GRANT_KEY = "balance:device-grant";
 
@@ -44,6 +53,13 @@ class Auth {
 
   /** Idempotent: every screen can await this, only the first call actually loads Clerk. */
   load() {
+    if (DEV_AUTH) {
+      this.signedIn = true;
+      this.loaded = true;
+      this.email = "dev@localhost";
+      // Nothing here ever touches Clerk, so nothing can await a client that will never exist.
+      return (this.#ready ??= Promise.resolve(null as unknown as Clerk));
+    }
     this.#ready ??= this.#load();
     return this.#ready;
   }
@@ -87,6 +103,9 @@ class Auth {
 
   /** The session token every API request carries, or null when nobody is signed in. */
   async token() {
+    // Any non-empty string: the backend isn't reading it when the bypass is on, only checking
+    // that a request looks like one an app would make.
+    if (DEV_AUTH) return "dev";
     const clerk = await this.load();
     return (await clerk.session?.getToken()) ?? null;
   }
