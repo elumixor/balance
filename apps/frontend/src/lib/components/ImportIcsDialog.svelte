@@ -8,11 +8,13 @@
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import { restColor } from "$lib/colors";
+  import { DEFAULT_ICON } from "$lib/icons";
   import { formatClock, formatDayDate } from "$lib/format";
   import type { IcsEvent } from "$lib/ics";
   import { icsImport } from "$lib/ics-import.svelte";
   import { store } from "$lib/store.svelte";
   import { categories } from "$lib/synced.svelte";
+  import type { Category } from "$lib/types";
   import type { Snippet } from "svelte";
 
   /**
@@ -38,7 +40,19 @@
     byAccount.flatMap((group) => group.calendars).find((calendar) => calendar.id === calendarId) ?? null,
   );
   const plan = $derived(categories.all);
-  const chosenCategory = $derived(plan.find((category) => category.id === icsImport.categoryId) ?? null);
+  /**
+   * The category everything lands in until somebody says otherwise: the buffer, which is what an
+   * hour nobody planned already counts as. A file of forty events left uncategorised is forty
+   * blocks to go back over, and the buffer is the honest answer for all of them meanwhile.
+   */
+  const buffer = $derived(plan.find((category) => category.isBuffer) ?? null);
+  const chosenCategory = $derived(plan.find((category) => category.id === icsImport.categoryId) ?? buffer);
+
+  // The categories can arrive after the sheet is open — a file dropped on a cold start — so this
+  // is an effect rather than something the sheet decides once on the way up.
+  $effect(() => {
+    if (icsImport.open && !icsImport.categoryId && buffer) icsImport.categoryId = buffer.id;
+  });
 
   // The pickers are the reason: the sheet can open on any screen, including one that has never
   // needed the list of calendars.
@@ -69,8 +83,17 @@
 
 {#snippet categoryBadge()}
   {#if chosenCategory}
-    <CategoryIcon icon={chosenCategory.icon} color={chosenCategory.color} size={20} />
+    {@render categoryMark(chosenCategory)}
   {/if}
+{/snippet}
+
+<!-- The buffer is drawn as rest wherever it is drawn — see `week-totals.ts`. -->
+{#snippet categoryMark(category: Category)}
+  <CategoryIcon
+    icon={category.isBuffer ? DEFAULT_ICON : category.icon}
+    color={category.isBuffer ? restColor : category.color}
+    size={20}
+  />
 {/snippet}
 
 <!-- What both rows open with: whatever is chosen, drawn the way the rest of the app draws it. -->
@@ -192,42 +215,35 @@
 
         <div class="flex items-center justify-between gap-3">
           <span class="t-label text-fg-muted">Counts as</span>
-          <Popover width={240}>
-            {#snippet trigger(open)}
-              {@render chooser(
-                open,
-                "Category the imported events count as",
-                chosenCategory?.name ?? "Nothing yet",
-                categoryBadge,
-              )}
-            {/snippet}
-            {#snippet content(close)}
-              <div class="max-h-64 overflow-y-auto">
-                <PopoverItem
-                  label="Nothing yet"
-                  selected={chosenCategory === null}
-                  onclick={() => {
-                    icsImport.categoryId = null;
-                    close();
-                  }}
-                />
-                {#each plan as category (category.id)}
-                  <PopoverItem
-                    label={category.name}
-                    selected={category.id === chosenCategory?.id}
-                    onclick={() => {
-                      icsImport.categoryId = category.id;
-                      close();
-                    }}
-                  >
-                    {#snippet icon()}
-                      <CategoryIcon icon={category.icon} color={category.color} size={20} />
-                    {/snippet}
-                  </PopoverItem>
-                {/each}
-              </div>
-            {/snippet}
-          </Popover>
+          {#if chosenCategory}
+            <Popover width={240}>
+              {#snippet trigger(open)}
+                {@render chooser(open, "Category the imported events count as", chosenCategory.name, categoryBadge)}
+              {/snippet}
+              {#snippet content(close)}
+                <div class="max-h-64 overflow-y-auto">
+                  {#each plan as category (category.id)}
+                    <PopoverItem
+                      label={category.name}
+                      selected={category.id === chosenCategory.id}
+                      onclick={() => {
+                        icsImport.categoryId = category.id;
+                        close();
+                      }}
+                    >
+                      {#snippet icon()}
+                        {@render categoryMark(category)}
+                      {/snippet}
+                    </PopoverItem>
+                  {/each}
+                </div>
+              {/snippet}
+            </Popover>
+          {:else}
+            <!-- No categories to count as yet: the events are still worth importing, and the week
+                 counts them as rest until there is something to say instead. -->
+            <span class="t-label px-2 py-1.5 text-fg-faint">No categories yet</span>
+          {/if}
         </div>
       </div>
 
