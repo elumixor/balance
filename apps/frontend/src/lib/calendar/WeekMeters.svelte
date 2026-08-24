@@ -15,8 +15,8 @@
   }: { events: readonly CalendarEvent[]; categories: readonly Category[]; weekStart: Date } = $props();
 
   /** The largest the dial gets; below that it takes whatever the rail can spare. */
-  const MAX_SIZE = 232;
-  const MIN_SIZE = 152;
+  const MAX_SIZE = 180;
+  const MIN_SIZE = 132;
 
   let width = $state(0);
 
@@ -33,6 +33,6 @@
 
 <div bind:clientWidth={width} class="flex justify-center">
   {#if segments.length}
-    <CategoryDial {segments} {size} thickness={size >= 200 ? 24 : 20} />
+    <CategoryDial {segments} {size} thickness={size >= 160 ? 32 : 26} />
   {/if}
 </div>

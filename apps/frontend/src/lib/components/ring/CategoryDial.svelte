@@ -54,8 +54,8 @@
    */
   let {
     segments,
-    size = 208,
-    thickness = 24,
+    size = 180,
+    thickness = 32,
     label = "Time spent against plan, by category",
   }: {
     segments: readonly DialSegment[];
@@ -215,7 +215,7 @@
   <!-- The middle answers whatever is being pointed at, and the week's total when nothing is. -->
   <div
     class="pointer-events-none absolute inset-y-0 flex flex-col items-center justify-center gap-0.5"
-    style="left:{thickness + 10}px;right:{thickness + 10}px"
+    style="left:{thickness + 6}px;right:{thickness + 6}px"
   >
     {#if shown}
       <span class="t-data-strong truncate" style="color:{shown.over ? 'var(--danger)' : undefined}">
@@ -227,7 +227,7 @@
       </span>
     {:else}
       <span class="t-data-strong truncate">{formatHoursDecimal(tracked)}</span>
-      <span class="t-micro w-full truncate text-center text-fg-muted">tracked this week</span>
+      <span class="t-micro w-full truncate text-center text-fg-muted">tracked</span>
     {/if}
   </div>
 </div>
