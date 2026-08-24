@@ -64,6 +64,7 @@
   const SNAP_ANIMATE_MS = 200;
 
   let viewWidth = $state(0);
+  let viewHeight = $state(0);
   let settle: ReturnType<typeof setTimeout> | null = null;
   /** Which strip the current scroll offset was measured against, and whether it's been placed yet. */
   let stripAt: number | null = null;
@@ -506,6 +507,10 @@
     end: () => timeScale.endPinch(),
   };
 
+  // The day has to fill the window and never fall short of it, so the smallest scale is worked out
+  // from the height the hours are actually drawn in — the scroller, less the header over them.
+  $effect(() => timeScale.fit(viewHeight - headerPx));
+
   $effect(() => timeScale.start());
 
   // A new gesture cancels whatever the grid was easing towards, and its end — not the gaps inside
@@ -554,6 +559,7 @@
   <div
     bind:this={data.scrollerEl}
     bind:clientWidth={viewWidth}
+    bind:clientHeight={viewHeight}
     use:freeScroll
     use:pinch={pinchTarget}
     {onscroll}

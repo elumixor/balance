@@ -6,12 +6,14 @@ export const HOUR_PX = 48;
 export const SNAP_MINUTES = 15;
 export const MIN_BLOCK_PX = (SNAP_MINUTES / 60) * HOUR_PX;
 /**
- * How far the time scale may be pinched, as a multiple of `HOUR_PX`. The floor is where a
- * quarter-hour block is still a couple of pixels tall; the ceiling is a day taller than any screen,
- * past which the grid is one event and a lot of scrolling.
+ * How tall an hour may be pinched to. Past this a quarter-hour block is taller than the editor it
+ * opens, and the grid says less per screen the harder you look at it.
+ *
+ * There is no constant for the other end: the floor is whatever height makes the whole day fit the
+ * window, since a grid shorter than the window is empty space nobody asked for — see
+ * `TimeScale.fit`.
  */
-export const MIN_ZOOM = 0.5;
-export const MAX_ZOOM = 6;
+export const MAX_HOUR_PX = 3 * HOUR_PX;
 export const DEFAULT_EVENT_MINUTES = 60;
 /** Where the scroller opens, and where a block stops being wide enough to say anything. */
 export const OPENING_HOUR = 7;
