@@ -61,6 +61,37 @@ public struct SnapshotEvent: Codable, Sendable, Equatable {
         guard start <= now, let end, end > now else { return nil }
         return end
     }
+
+    /// Beyond this far ahead "in 3h 40m" stops meaning anything and the clock time says it better —
+    /// the same hour the menu bar switches at.
+    private static let countdownWindow: TimeInterval = 60 * 60
+
+    /// The menu bar's sentence for where this event stands: how much of it is left once it is on,
+    /// how soon it starts while that is still a useful way to say it, and the clock time otherwise.
+    public func whenText(at now: Date) -> String {
+        if let end = remaining(at: now) { return "\(durationText(end.timeIntervalSince(now))) left" }
+        if start <= now { return "now" }
+        let until = start.timeIntervalSince(now)
+        if until > Self.countdownWindow { return clockText }
+        return "in \(durationText(until))"
+    }
+
+    /// The same answer with no room for a word beside it.
+    public func shortWhenText(at now: Date) -> String {
+        if let end = remaining(at: now) { return durationText(end.timeIntervalSince(now)) }
+        if start <= now { return "now" }
+        let until = start.timeIntervalSince(now)
+        return until > Self.countdownWindow ? clockText : durationText(until)
+    }
+
+    /// The moment the wording starts moving — an hour before it begins, or now if that has passed.
+    public func countdownStart() -> Date {
+        start.addingTimeInterval(-Self.countdownWindow)
+    }
+
+    private var clockText: String {
+        start.formatted(date: .omitted, time: .shortened)
+    }
 }
 
 /// The running timer, flattened the same way. `plannedEndAt` is nil while it is open-ended.

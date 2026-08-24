@@ -78,23 +78,23 @@ class DesktopTray {
   get #state(): TrayState {
     const now = desktopAgenda.now;
     const categories = desktopAgenda.categories;
-    const upcoming = desktopAgenda.upcoming;
+    // All-day events are a label on the day, not a thing to walk into — the menu bar is about
+    // what is running and what is next, so they are left to the calendar screen.
+    const upcoming = desktopAgenda.upcoming.filter((event) => !event.allDay);
     const color = (event: CalendarEvent) => eventCategory(event, categories)?.color ?? restColor;
     const icon = (event: CalendarEvent) =>
       trayIcons.get(eventCategory(event, categories)?.icon ?? DEFAULT_ICON, color(event));
 
-    // A timed block wins over an all-day one: "Sprint Start, 40m left" is the more useful of the
-    // two things true at 16:20 on a day that also happens to be somebody's birthday.
     const running = upcoming.filter((event) => new Date(event.start).getTime() <= now.getTime());
-    const current = running.find((event) => !event.allDay) ?? running[0] ?? null;
-    const next = upcoming.find((event) => event !== current && !event.allDay) ?? null;
+    const current = running[0] ?? null;
+    const next = upcoming.find((event) => event !== current) ?? null;
 
     const sections: TrayState["sections"] = [];
     let budget = MAX_ROWS;
     const push = (heading: string, events: CalendarEvent[]) => {
       const rows = events.slice(0, budget).map((event) => ({
         id: event.id,
-        label: `${event.allDay ? "All-day" : formatClock(new Date(event.start))} · ${label(event)}`,
+        label: `${formatClock(new Date(event.start))} · ${label(event)}`,
         icon: icon(event),
       }));
       if (rows.length === 0) return;
@@ -119,14 +119,19 @@ class DesktopTray {
     };
   }
 
-  /** A row in the menu, chosen: put that day on screen. */
+  /**
+   * A row in the menu, chosen: put that day on screen and open the block's own card, which is
+   * what the row was pointing at. The card follows the id rather than the event the menu was
+   * drawn from, so it appears the moment the week lands — with no rect, because the block it
+   * belongs to may not be on screen yet.
+   */
   async #open(eventId: string) {
     const event = desktopAgenda.upcoming.find((candidate) => candidate.id === eventId);
     await goto("/calendar");
-    if (event) {
-      calendarData.anchor = startOfWeek(new Date(event.start));
-      void calendarData.ensureWeeks();
-    }
+    if (!event) return;
+    calendarData.anchor = startOfWeek(new Date(event.start));
+    calendarData.select(event, null);
+    void calendarData.ensureWeeks();
   }
 }
 
@@ -164,7 +169,6 @@ function remaining(event: CalendarEvent, now: Date) {
  * says how soon, until "soon" stops meaning anything and a clock time says it better.
  */
 function when(event: CalendarEvent, isCurrent: boolean, now: Date) {
-  if (event.allDay) return "All-day";
   if (isCurrent) return `${remaining(event, now)} left`;
   const untilMinutes = (new Date(event.start).getTime() - now.getTime()) / 60_000;
   if (untilMinutes > 60) return formatClock(new Date(event.start));

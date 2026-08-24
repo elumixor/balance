@@ -33,21 +33,41 @@ struct BalanceProvider: TimelineProvider {
         // do schedule are the moments the *wording* changes: an event that starts (so it stops
         // reading "in 5 min") and a fixed session that runs out (so it stops reading as running).
         var dates: [Date] = [now]
-        if let start = snapshot?.nextEvent?.start, start > now {
-            dates.append(start)
-        }
-        // The moment a running event stops having time left is a wording change of its own.
-        if let end = snapshot?.nextEvent?.end, end > now {
-            dates.append(end)
-        }
         if let end = snapshot?.active?.plannedEndAt, end > now {
             dates.append(end)
         }
+        if let event = snapshot?.nextEvent {
+            // The event's countdown is written out rather than ticked by SwiftUI, because "in 23m"
+            // is the phrasing the menu bar uses and live text can only count in seconds. So the
+            // minutes it passes through have to be entries of their own — but only the ones inside
+            // the hour where the wording actually moves; before that it reads as a clock time and
+            // one entry covers the whole wait.
+            dates.append(contentsOf: minuteMarks(for: event, from: now))
+        }
 
-        let entries = dates.sorted().map { BalanceEntry(date: $0, snapshot: snapshot) }
+        let entries = Set(dates).sorted().map { BalanceEntry(date: $0, snapshot: snapshot) }
         let safetyNet = now.addingTimeInterval(15 * 60)
         let reload = max(dates.last ?? safetyNet, safetyNet)
         completion(Timeline(entries: entries, policy: .after(reload)))
+    }
+
+    /// Every minute boundary the event's wording changes on, from `now` until it is over — capped
+    /// at an hour's worth, which is also the longest the wording ever counts for.
+    private func minuteMarks(for event: SnapshotEvent, from now: Date) -> [Date] {
+        let countdownStart = max(event.countdownStart(), now)
+        let last = max(event.end ?? event.start, event.start)
+        guard last > now else { return [] }
+
+        var marks: [Date] = [countdownStart]
+        // Land on the seconds the event itself sits on, so a mark falls exactly where a minute of
+        // the countdown runs out rather than a few seconds after it.
+        var mark = countdownStart.addingTimeInterval(60)
+        while mark < last, marks.count <= 90 {
+            marks.append(mark)
+            mark.addTimeInterval(60)
+        }
+        marks.append(last)
+        return marks.filter { $0 >= now }
     }
 }
 
@@ -319,19 +339,15 @@ struct BalanceWidgetView: View {
         return Text(session.startedAt, style: .timer)
     }
 
-    /// The menu bar's phrasing: "in 5 min" until it starts, then how much of it is left. "Now" is
-    /// only reached by an event whose end the snapshot doesn't know, or one already over.
+    /// The menu bar's phrasing: "in 23m" until it starts, then how much of it is left, and the
+    /// clock time while it is further off than the countdown can usefully say.
     private func relative(_ event: SnapshotEvent) -> Text {
-        if let end = event.remaining(at: entry.date) {
-            return Text(end, style: .relative) + Text(" left")
-        }
-        return event.start <= entry.date ? Text("now") : Text("in ") + Text(event.start, style: .relative)
+        Text(event.whenText(at: entry.date))
     }
 
-    /// The same countdown with no room for a word beside it.
+    /// The same answer with no room for a word beside it.
     private func minutesUntil(_ event: SnapshotEvent) -> Text {
-        if let end = event.remaining(at: entry.date) { return Text(end, style: .relative) }
-        return event.start <= entry.date ? Text("now") : Text(event.start, style: .relative)
+        Text(event.shortWhenText(at: entry.date))
     }
 
     private func hours(_ category: SnapshotCategory) -> String {
