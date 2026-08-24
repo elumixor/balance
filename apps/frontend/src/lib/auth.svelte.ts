@@ -13,15 +13,8 @@ const SIGNED_IN_KEY = "balance:signed-in";
 
 const isNativeApp = Capacitor.isNativePlatform();
 
-/**
- * Everything Clerk keeps about this device lives under its own prefix, split between local
- * storage and a cookie. Which of those keys exist is Clerk's business and changes between
- * versions, so the whole prefix is mirrored rather than any one name.
- */
-const CLERK_STORAGE_PREFIX = "__clerk";
-const MIRRORED_CLERK_STATE = "balance:clerk-state";
-/** Clerk's own cookie lifetime for the dev-browser token. */
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+/** The device's standing permission to sign itself back in — see `restoreNativeSession`. */
+const DEVICE_GRANT_KEY = "balance:device-grant";
 
 class Auth {
   /** False until Clerk has replayed any stored session, so screens can hold their first frame. */
@@ -57,19 +50,17 @@ class Auth {
 
   async #load() {
     const clerk = new Clerk(PUBLISHABLE_KEY);
-    // A webview is not a browser that keeps things. `capacitor.config.ts` serves the app from
-    // `https://localhost` so Clerk recognises the origin, but WKWebView still prunes what Clerk
-    // leaves behind, which is why the app asked for a sign-in every launch. On a development
-    // instance, what actually re-authenticates the browser is `__clerk_db_jwt` — set as a
-    // *cookie*, not local storage — so both are mirrored into native storage, where nothing
-    // prunes them, and put back before Clerk goes looking.
-    //
-    // Telling Clerk it isn't a standard browser is not the fix, however tempting it reads: a
-    // development instance then can't run its browser handshake at all, and every launch fails
-    // with "Unable to authenticate this browser for your development instance".
     try {
-      if (isNativeApp) await restoreClerkState();
       await clerk.load();
+      // A webview is not a browser that keeps things: WKWebView prunes both halves of what
+      // clerk-js leaves behind — local storage and the dev-browser cookie — so a launch opens
+      // signed out however carefully that state is mirrored into native storage. The device
+      // signs itself back in instead, with a grant that lives where nothing prunes it.
+      //
+      // Telling Clerk it isn't a standard browser is not the fix, however tempting it reads: a
+      // development instance then can't run its browser handshake at all, and every launch fails
+      // with "Unable to authenticate this browser for your development instance".
+      if (isNativeApp && !clerk.session) await restoreNativeSession(clerk);
     } catch (e) {
       // A signed-out app is still usable enough to show what went wrong; hanging on the
       // splash tells the person holding the phone nothing at all.
@@ -78,10 +69,7 @@ class Auth {
       throw e;
     }
     this.#clerk = clerk;
-    clerk.addListener(() => {
-      this.#sync();
-      if (isNativeApp) void rememberClerkState();
-    });
+    clerk.addListener(() => this.#sync());
     this.#sync();
     this.loaded = true;
     return clerk;
@@ -94,6 +82,7 @@ class Auth {
     this.avatarUrl = clerk?.user?.hasImage ? (clerk.user.imageUrl ?? "") : "";
     this.userId = clerk?.user?.id ?? "";
     writeSignedIn(this.signedIn);
+    if (isNativeApp && clerk?.session) void ensureDeviceGrant(clerk);
   }
 
   /** The session token every API request carries, or null when nobody is signed in. */
@@ -158,14 +147,8 @@ class Auth {
   }
 
   async #nativeTicket(provider: "google" | "apple", idToken: string) {
-    const response = await fetch(`${API_BASE_URL}/mobile/auth/native/${provider}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    });
-    const body = (await response.json()) as { ticket?: string; error?: string };
-    if (!response.ok || !body.ticket) throw new Error(body.error ?? "Sign in didn't finish.");
-    return body.ticket;
+    const { ticket } = await postJson<{ ticket: string }>(`/mobile/auth/native/${provider}`, { idToken });
+    return ticket;
   }
 
   /**
@@ -174,10 +157,9 @@ class Auth {
    * from a native idToken, macOS with one handed back by the browser that did the OAuth.
    */
   async redeemTicket(ticket: string) {
-    const signIn = await this.signIn();
-    const result = await signIn.create({ strategy: "ticket", ticket });
-    if (result.status !== "complete") throw new Error("Sign in didn't finish.");
-    await this.activate(result.createdSessionId);
+    const clerk = await this.load();
+    await redeemTicket(clerk, ticket);
+    this.#sync();
   }
 
   async handleRedirectCallback(afterSignIn: string) {
@@ -191,9 +173,8 @@ class Auth {
   async signOut() {
     const clerk = await this.load();
     await clerk.signOut();
-    // Signing out has to clear the mirror too, or the next launch restores the device Clerk was
-    // just told to forget.
-    if (isNativeApp) await forgetClerkState();
+    // The grant has to go with the session, or the next launch signs the device straight back in.
+    if (isNativeApp) await revokeDeviceGrant();
     this.#sync();
   }
 }
@@ -201,64 +182,104 @@ class Auth {
 export const auth = new Auth();
 
 /**
- * Clerk's device state, put back before Clerk looks for it. Native storage outlives the webview's
- * own, so this is what turns "signed in yesterday" into a session today rather than a sign-in
- * screen. A device with nothing mirrored yet — a fresh install — restores nothing and signs in
- * the ordinary way.
+ * Signs the device back in without anybody touching the screen.
+ *
+ * The grant is an opaque secret held in native storage, which outlives the webview's own; the
+ * backend trades it for a Clerk sign-in ticket and hands back a replacement, so the copy just
+ * spent is worthless from here on. A device with no grant yet — a fresh install, or a sign-out —
+ * restores nothing and signs in the ordinary way.
  */
-async function restoreClerkState() {
+async function restoreNativeSession(clerk: Clerk) {
+  const token = await readDeviceGrant();
+  if (!token) return;
   try {
-    const { value } = await Preferences.get({ key: MIRRORED_CLERK_STATE });
-    if (!value) return;
-    const state = JSON.parse(value) as { localStorage?: Record<string, string>; cookies?: Record<string, string> };
-    for (const [key, item] of Object.entries(state.localStorage ?? {})) {
-      if (localStorage.getItem(key) === null) localStorage.setItem(key, item);
-    }
-    const existing = readClerkCookies();
-    for (const [key, item] of Object.entries(state.cookies ?? {})) {
-      if (!(key in existing)) writeClerkCookie(key, item);
-    }
-  } catch {
-    // A mirror that can't be read is a sign-in screen, not an error worth showing.
+    const { ticket, token: rotated } = await postJson<{ ticket: string; token: string }>(
+      "/mobile/auth/device/ticket",
+      { token },
+    );
+    await Preferences.set({ key: DEVICE_GRANT_KEY, value: rotated });
+    await redeemTicket(clerk, ticket);
+  } catch (e) {
+    // A grant the server refuses (revoked, expired, or spent by a restore interrupted after it
+    // rotated) is worth forgetting; a launch with no network is not — throwing that grant away
+    // would turn every offline start into a sign-in screen the next time there is a signal.
+    if (e instanceof RequestError && e.rejected) await Preferences.remove({ key: DEVICE_GRANT_KEY });
   }
 }
 
-async function rememberClerkState() {
+/**
+ * A device that is signed in but holds no grant would never get one — including after a restore.
+ * Every resource change asks, so the in-flight one is remembered: two answers would be two rows.
+ */
+let pendingGrant: Promise<void> | null = null;
+
+function ensureDeviceGrant(clerk: Clerk) {
+  pendingGrant ??= issueDeviceGrant(clerk).finally(() => (pendingGrant = null));
+  return pendingGrant;
+}
+
+async function issueDeviceGrant(clerk: Clerk) {
   try {
-    const localStorageState: Record<string, string> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key?.startsWith(CLERK_STORAGE_PREFIX)) continue;
-      localStorageState[key] = localStorage.getItem(key) ?? "";
-    }
-    const state = { localStorage: localStorageState, cookies: readClerkCookies() };
-    await Preferences.set({ key: MIRRORED_CLERK_STATE, value: JSON.stringify(state) });
+    if (await readDeviceGrant()) return;
+    const sessionToken = await clerk.session?.getToken();
+    if (!sessionToken) return;
+    const { token } = await postJson<{ token: string }>("/mobile/auth/device", {}, sessionToken);
+    await Preferences.set({ key: DEVICE_GRANT_KEY, value: token });
   } catch {
-    // Same: the cost of failing here is one more sign-in, later.
+    // Worst case the next launch asks for a sign-in, which is what it did before this existed.
   }
 }
 
-function readClerkCookies() {
-  const cookies: Record<string, string> = {};
-  for (const pair of document.cookie.split("; ")) {
-    const eq = pair.indexOf("=");
-    if (eq === -1) continue;
-    const key = pair.slice(0, eq);
-    if (key.startsWith(CLERK_STORAGE_PREFIX)) cookies[key] = decodeURIComponent(pair.slice(eq + 1));
-  }
-  return cookies;
-}
-
-function writeClerkCookie(key: string, value: string) {
-  document.cookie = `${key}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
-}
-
-async function forgetClerkState() {
+async function revokeDeviceGrant() {
+  const token = await readDeviceGrant();
+  await Preferences.remove({ key: DEVICE_GRANT_KEY });
+  if (!token) return;
   try {
-    await Preferences.remove({ key: MIRRORED_CLERK_STATE });
+    await postJson("/mobile/auth/device/revoke", { token });
   } catch {
-    /* nothing to forget */
+    // The device has already forgotten it; the row expires on its own.
   }
+}
+
+async function readDeviceGrant() {
+  const { value } = await Preferences.get({ key: DEVICE_GRANT_KEY });
+  return value ?? null;
+}
+
+async function redeemTicket(clerk: Clerk, ticket: string) {
+  const signIn = clerk.client?.signIn;
+  if (!signIn) throw new Error("Clerk isn't ready yet.");
+  const result = await signIn.create({ strategy: "ticket", ticket });
+  if (result.status !== "complete" || !result.createdSessionId) throw new Error("Sign in didn't finish.");
+  await clerk.setActive({ session: result.createdSessionId });
+}
+
+/** A request the server answered, so its verdict is the server's — not the network's. */
+class RequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+
+  /** The server understood and said no, rather than being unreachable or broken. */
+  get rejected() {
+    return this.status >= 400 && this.status < 500;
+  }
+}
+
+/**
+ * The generated API client signs every request with a Clerk session token, which is exactly what
+ * the sign-in calls don't have (or, for a device grant, don't need), so they go out by hand.
+ */
+async function postJson<T>(path: string, body: unknown, sessionToken?: string): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+  const payload = (await response.json()) as T & { error?: string };
+  if (!response.ok) throw new RequestError(payload.error ?? `Request to ${path} failed.`, response.status);
+  return payload;
 }
 
 function readSignedIn() {
