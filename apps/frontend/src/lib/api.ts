@@ -10,17 +10,45 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApiClientError extends Error {}
 
+/**
+ * How long a request — or the token minted for it — is allowed to take before it counts as lost.
+ *
+ * There has to be a limit, because a request that never answers is worse than one that fails: the
+ * caches and the write queue both mark themselves busy while a request is out and clear it when
+ * the answer lands, so a promise that never settles leaves a spinner turning for the rest of the
+ * session and nothing ever tries again. iOS suspends the webview mid-request often enough that
+ * this is the ordinary case, not the exotic one.
+ */
+const REQUEST_TIMEOUT_MS = 20_000;
+
+/** Rejects rather than hangs, so a caller waiting on this always gets an answer of some kind. */
+async function withTimeout<T>(promise: Promise<T>, message: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new ApiClientError(message)), REQUEST_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function authenticatedFetch(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
-  const token = await auth.token();
+  // Clerk refreshes the session token over the network, so this hangs for the same reasons a
+  // request does — and a request that never gets its token never even starts.
+  const token = await withTimeout(auth.token(), "Can't reach the server. Check your connection and try again.");
   if (!token) throw new ApiClientError("Not authenticated");
 
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${token}`);
   try {
-    return await fetch(input, { ...init, headers });
+    return await fetch(input, { ...init, headers, signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
   } catch {
     // A transport failure (offline, DNS, server down) surfaces as `TypeError: Failed to fetch`,
-    // which means nothing to the person holding the phone.
+    // and a timeout as an `AbortError` — neither means anything to the person holding the phone.
     throw new ApiClientError("Can't reach the server. Check your connection and try again.");
   }
 }
