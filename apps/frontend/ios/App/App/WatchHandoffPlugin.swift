@@ -10,6 +10,7 @@ import WatchConnectivity
 class BalanceBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(WatchHandoffPlugin())
+        bridge?.registerPluginInstance(IcsImportPlugin())
     }
 }
 

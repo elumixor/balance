@@ -70,10 +70,12 @@ describe("parseIcs", () => {
           "DTSTART:20260824T070000Z",
           "SUMMARY:A title long enough that the exporter",
           "  had to fold it",
-          "LOCATION:Somewhere",
-          "\tspecific",
+          "LOCATION:Somewhere spec",
+          "\tific",
         ),
       );
+      // Only the one space or tab that marks the continuation goes — the rest of the line is the
+      // value, which is how a word folded down the middle survives the round trip.
       expect(event.title).toBe("A title long enough that the exporter had to fold it");
       expect(event.location).toBe("Somewhere specific");
     });
@@ -193,9 +195,7 @@ describe("parseIcs", () => {
     });
 
     it("falls back to this device's zone for one it has never heard of", () => {
-      expect(only(vevent("DTSTART;TZID=Mars/Olympus:20260824T090000")).start).toEqual(
-        new Date("2026-08-24T07:00:00Z"),
-      );
+      expect(only(vevent("DTSTART;TZID=Mars/Olympus:20260824T090000")).start).toEqual(new Date("2026-08-24T07:00:00Z"));
     });
 
     it("reads a bare date as an all-day event carried in UTC", () => {

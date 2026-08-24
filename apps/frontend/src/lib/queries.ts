@@ -43,6 +43,9 @@ export const createCalendarEvent = (input: {
   calendarId?: string;
   title?: string;
   description?: string;
+  location?: string;
+  /** A date rather than a moment: both instants are midnight UTC, and `end` is the day after. */
+  allDay?: boolean;
 }) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
 export const updateCalendarEvent = (
   id: string,

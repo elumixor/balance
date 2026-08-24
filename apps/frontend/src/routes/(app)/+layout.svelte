@@ -8,7 +8,10 @@
   import { desktopDock } from "$lib/desktop/dock";
   import { desktopReminders } from "$lib/desktop/reminders.svelte";
   import { desktopTray } from "$lib/desktop/tray.svelte";
+  import { desktopUpdates } from "$lib/desktop/updates.svelte";
   import { isBareKey, isSettingsKey } from "$lib/keys";
+  import { icsImport } from "$lib/mobile/ics-import.svelte";
+  import ImportIcsDialog from "$lib/mobile/ImportIcsDialog.svelte";
   import { mobileReminders } from "$lib/mobile/reminders.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { settings } from "$lib/settings.svelte";
@@ -55,14 +58,18 @@
     if (!auth.signedIn) return;
     desktopTray.start();
     desktopDock.start();
+    desktopUpdates.start();
     desktopReminders.start();
     mobileReminders.start();
+    icsImport.start();
     const stopWatchHandoff = startWatchHandoff();
     return () => {
       desktopTray.stop();
       desktopDock.stop();
+      desktopUpdates.stop();
       desktopReminders.stop();
       mobileReminders.stop();
+      icsImport.stop();
       stopWatchHandoff();
     };
   });
@@ -106,4 +113,7 @@
   <!-- Above the shell rather than inside the rail: the hotkey opens it from any screen, and on a
        phone there is no rail for it to hang off at all. -->
   <SettingsDialog />
+  <!-- A file shared into the app can arrive on any screen, so the sheet that reads it lives here
+       with the settings panel rather than on the calendar. -->
+  <ImportIcsDialog />
 {/if}

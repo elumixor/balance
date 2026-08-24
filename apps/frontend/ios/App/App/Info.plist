@@ -79,5 +79,30 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- What puts Balance in the share sheet and in "Open in" for a calendar file: an invitation
+	     in Mail, a timetable downloaded in Safari, an .ics in Files. iOS hands the app the file
+	     URL, `IcsImportPlugin` reads it, and the webview decides what to do with it.
+	     Rank is Alternate, not Owner — Apple's own Calendar still opens these by default. -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Calendar File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.apple.ical.ics</string>
+				<string>public.calendar-event</string>
+			</array>
+		</dict>
+	</array>
+	<!-- A copy in the app's Inbox rather than the original where it lives: the file is read once,
+	     turned into calendar events and never referred to again, so there is nothing to edit in
+	     place and no document to keep a handle on. -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
 </dict>
 </plist>

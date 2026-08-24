@@ -32,7 +32,7 @@ app_target.build_configurations.each { |c| c.build_settings["DEVELOPMENT_TEAM"] 
 # about anything added to it since, so the file is named here — the plugin that carries a sign-in
 # ticket to the watch is the phone half of the watch app working at all.
 app_group = project.main_group.children.find { |c| c.display_name == APP_TARGET }
-HOST_SOURCES = ["WatchHandoffPlugin.swift"].freeze
+HOST_SOURCES = ["WatchHandoffPlugin.swift", "IcsImportPlugin.swift"].freeze
 HOST_SOURCES.each do |name|
   next if app_target.source_build_phase.files.any? { |f| f.file_ref&.display_name == name }
 
