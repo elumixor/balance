@@ -1,9 +1,17 @@
 import { addDays, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "$lib/dates";
 import type { CalendarEvent } from "$lib/types";
 
+/** An hour's height at rest. Pinching scales it — see `time-scale.svelte.ts`. */
 export const HOUR_PX = 48;
 export const SNAP_MINUTES = 15;
 export const MIN_BLOCK_PX = (SNAP_MINUTES / 60) * HOUR_PX;
+/**
+ * How far the time scale may be pinched, as a multiple of `HOUR_PX`. The floor is where a
+ * quarter-hour block is still a couple of pixels tall; the ceiling is a day taller than any screen,
+ * past which the grid is one event and a lot of scrolling.
+ */
+export const MIN_ZOOM = 0.5;
+export const MAX_ZOOM = 6;
 export const DEFAULT_EVENT_MINUTES = 60;
 /** Where the scroller opens, and where a block stops being wide enough to say anything. */
 export const OPENING_HOUR = 7;
@@ -106,7 +114,8 @@ export function allDaySpansForRange(
  * Packs one day's segments into columns so overlapping events sit side by side. Segments are
  * grouped into runs that actually collide, so a busy morning doesn't narrow a quiet evening.
  */
-export function placeDay(segments: readonly Segment[]): PlacedSegment[] {
+export function placeDay(segments: readonly Segment[], hourPx: number = HOUR_PX): PlacedSegment[] {
+  const minBlockPx = (SNAP_MINUTES / 60) * hourPx;
   // Earliest first, and the longest of a simultaneous pair takes the leftmost column.
   const ordered = [...segments].sort((a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes);
 
@@ -128,10 +137,10 @@ export function placeDay(segments: readonly Segment[]): PlacedSegment[] {
     for (const list of byColumn.values()) {
       for (let i = 0; i < list.length; i++) {
         const { segment, column } = list[i];
-        const top = (segment.startMinutes / 60) * HOUR_PX;
-        const desired = Math.max(MIN_BLOCK_PX, ((segment.endMinutes - segment.startMinutes) / 60) * HOUR_PX);
+        const top = (segment.startMinutes / 60) * hourPx;
+        const desired = Math.max(minBlockPx, ((segment.endMinutes - segment.startMinutes) / 60) * hourPx);
         const next = list[i + 1];
-        const available = next ? (next.segment.startMinutes / 60) * HOUR_PX - top : Infinity;
+        const available = next ? (next.segment.startMinutes / 60) * hourPx - top : Infinity;
         placed.push({
           ...segment,
           top,

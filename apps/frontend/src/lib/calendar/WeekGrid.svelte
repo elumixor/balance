@@ -11,6 +11,8 @@
   import EventContextMenu from "./EventContextMenu.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { freeScroll, onWheelGesture, wheelGestureActive } from "./free-scroll";
+  import { pinch } from "./pinch";
+  import { anchoredScrollTop, timeScale } from "./time-scale.svelte";
   import { theme } from "$lib/theme.svelte";
   import { viewport } from "$lib/viewport.svelte";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
@@ -18,7 +20,6 @@
     allDaySpansForRange,
     BLOCK_GUTTER_PX,
     daySpans,
-    HOUR_PX,
     NARROW_BLOCK_PERCENT,
     OPENING_HOUR,
     placeDay,
@@ -44,6 +45,11 @@
   const data = calendarData;
 
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
+  /** An hour's height, as the pinch has left it — the one length everything vertical is drawn in. */
+  const hourPx = $derived(timeScale.hourPx);
+  /** Pinched right down, the hours are closer together than the label is tall, so only every
+   *  other one is drawn — the lines behind them still say where the rest are. */
+  const hourLabelStep = $derived(hourPx >= 32 ? 1 : 2);
   /** The hours' own column. Narrower on a phone, where every pixel it gives up is a pixel of day. */
   const GUTTER_PX = $derived(viewport.md ? 56 : 48);
   const DAY_HEAD_PX = 28;
@@ -154,7 +160,7 @@
     for (const segment of segmentsForRange(data.events, data.stripStart, STRIP_DAYS)) {
       byDay[segment.dayIndex]?.push(segment);
     }
-    return byDay.map((segments) => placeDay(segments));
+    return byDay.map((segments) => placeDay(segments, hourPx));
   });
 
   /** The dragged block's own slot, so the free-floating preview keeps its real width. */
@@ -198,7 +204,7 @@
   const headerPx = $derived(DAY_HEAD_PX + allDayRows * ALL_DAY_PX);
 
   const todayStart = $derived(clock.todayStart);
-  const nowTop = $derived((minutesIntoDay(clock.now) / 60) * HOUR_PX);
+  const nowTop = $derived((minutesIntoDay(clock.now) / 60) * hourPx);
   /**
    * Whether today's column sits outside the days currently on screen. Measured against the
    * settled window rather than the live scroll: a fling crosses columns by the handful, and a
@@ -215,12 +221,12 @@
     const box = data.marquee;
     if (!box) return null;
     const left = Math.min(box.fromDay, box.toDay) * dayWidth;
-    const top = (Math.min(box.fromMinutes, box.toMinutes) / 60) * HOUR_PX;
+    const top = (Math.min(box.fromMinutes, box.toMinutes) / 60) * hourPx;
     return {
       left,
       top,
       width: Math.abs(box.toDay - box.fromDay) * dayWidth,
-      height: (Math.abs(box.toMinutes - box.fromMinutes) / 60) * HOUR_PX,
+      height: (Math.abs(box.toMinutes - box.fromMinutes) / 60) * hourPx,
     };
   });
 
@@ -246,8 +252,8 @@
       return daySpans(startMinutes, endMinutes).map((span) => ({
         id: `${event.id}:${span.dayOffset}`,
         left: (dayIndex + span.dayOffset) * dayWidth,
-        top: (span.startMinutes / 60) * HOUR_PX,
-        height: Math.max(2, ((span.endMinutes - span.startMinutes) / 60) * HOUR_PX),
+        top: (span.startMinutes / 60) * hourPx,
+        height: Math.max(2, ((span.endMinutes - span.startMinutes) / 60) * hourPx),
       }));
     });
   });
@@ -350,7 +356,7 @@
     // Next frame: the columns have to be laid out at their new width before an offset into them
     // means anything — set it too early and the browser clamps it to a scroll range of zero.
     const frame = requestAnimationFrame(() => {
-      if (!opened) scroller.scrollTop = OPENING_HOUR * HOUR_PX;
+      if (!opened) scroller.scrollTop = OPENING_HOUR * timeScale.hourPx;
       opened = true;
       if (!jumping && !followingScroll) {
         // Only when the scroll isn't already on the column: a settle that landed dead-on would
@@ -476,6 +482,32 @@
     data.goToDay(shift);
   }
 
+  /**
+   * The pinch, both kinds of it. Only the vertical scale moves: the columns are days, and a week is
+   * a week however closely you look at it.
+   *
+   * The scroll is written back on every step so the time between the fingers stays between them —
+   * without it the grid grows from its top edge and the hour being looked at slides off the screen.
+   * Whatever the fingers landed on first is dropped: a second finger arriving on a block is the
+   * start of a pinch, not the drag that one finger had begun to look like.
+   */
+  const pinchTarget = {
+    start: () => {
+      data.abortGesture();
+      timeScale.beginPinch();
+    },
+    move: (scale: number, centreY: number) => {
+      const scroller = data.scrollerEl;
+      const ratio = timeScale.pinchTo(scale);
+      if (!scroller || ratio === 1) return;
+      const top = scroller.getBoundingClientRect().top;
+      scroller.scrollTop = anchoredScrollTop(scroller.scrollTop, centreY - top, headerPx, ratio);
+    },
+    end: () => timeScale.endPinch(),
+  };
+
+  $effect(() => timeScale.start());
+
   // A new gesture cancels whatever the grid was easing towards, and its end — not the gaps inside
   // it — is what lands the week on a column.
   $effect(() =>
@@ -523,6 +555,7 @@
     bind:this={data.scrollerEl}
     bind:clientWidth={viewWidth}
     use:freeScroll
+    use:pinch={pinchTarget}
     {onscroll}
     style="scroll-padding-left:{GUTTER_PX}px"
     class="no-scrollbar h-full overflow-auto overscroll-none bg-surface"
@@ -539,11 +572,13 @@
         <!-- A rung smaller on a phone, where the gutter is narrower than the label it carries. -->
         <span class="{viewport.md ? 't-data-micro' : 't-data-nano'} text-fg-faint">{timeZoneLabel}</span>
       </div>
-      <div class="relative" style="height:{24 * HOUR_PX}px">
+      <div class="relative" style="height:{24 * hourPx}px">
         {#each HOURS as hour (hour)}
-          <div class="t-data-micro absolute right-2 -translate-y-1/2 text-fg-faint" style="top:{hour * HOUR_PX}px">
-            {hour === 0 ? "" : `${pad(hour)}:00`}
-          </div>
+          {#if hour % hourLabelStep === 0}
+            <div class="t-data-micro absolute right-2 -translate-y-1/2 text-fg-faint" style="top:{hour * hourPx}px">
+              {hour === 0 ? "" : `${pad(hour)}:00`}
+            </div>
+          {/if}
         {/each}
       </div>
     </div>
@@ -616,7 +651,7 @@
         onpointercancel={() => data.endMarquee()}
         class="relative grid"
         style="grid-template-columns:{columns};height:{24 *
-          HOUR_PX}px;background-image:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px {HOUR_PX}px)"
+          hourPx}px;background-image:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px {hourPx}px)"
       >
         {#each days as day, index}
           {@const weekend = day.getDay() === 0 || day.getDay() === 6}
@@ -719,8 +754,8 @@
               class="pointer-events-none absolute z-40 rounded-sm border-2 border-fg/50 border-dashed"
               style="left:{(snappedIndex + span.dayOffset) * dayWidth +
                 (ghostLeftPercent / 100) * dayWidth}px;width:{(ghostWidthPercent / 100) * dayWidth -
-                10}px;top:{(span.startMinutes / 60) * HOUR_PX}px;height:{((span.endMinutes - span.startMinutes) / 60) *
-                HOUR_PX}px"
+                10}px;top:{(span.startMinutes / 60) * hourPx}px;height:{((span.endMinutes - span.startMinutes) / 60) *
+                hourPx}px"
             ></div>
           {/each}
         {/if}
@@ -733,8 +768,8 @@
               class="pointer-events-none absolute z-40"
               style="left:{(data.drag.freeDayIndex + span.dayOffset) * dayWidth +
                 (ghostLeftPercent / 100) * dayWidth}px;width:{(ghostWidthPercent / 100) * dayWidth -
-                10}px;top:{(span.startMinutes / 60) * HOUR_PX}px;height:{((span.endMinutes - span.startMinutes) / 60) *
-                HOUR_PX}px"
+                10}px;top:{(span.startMinutes / 60) * hourPx}px;height:{((span.endMinutes - span.startMinutes) / 60) *
+                hourPx}px"
             >
               <EventBlock
                 event={ghostEvent}

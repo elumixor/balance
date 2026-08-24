@@ -222,6 +222,17 @@ describe("placeDay", () => {
     expect(squeezed?.height).toBe(1);
   });
 
+  it("draws the day at the pinched scale, floor and all", () => {
+    const zoomed = 4 * HOUR_PX;
+    const [block] = placeDay([segment(0, 60, 120)], zoomed);
+    expect(block.top).toBe(zoomed);
+    expect(block.height).toBe(zoomed);
+    // The quarter-hour floor is a quarter of an hour, not a fixed number of pixels: pinched right
+    // down it must not become the tallest thing on the grid.
+    const [squeezed] = placeDay([segment(0, 0, 5)], HOUR_PX / 2);
+    expect(squeezed.height).toBe(((15 / 60) * HOUR_PX) / 2);
+  });
+
   it("has nothing to place for an empty day", () => {
     expect(placeDay([])).toEqual([]);
   });

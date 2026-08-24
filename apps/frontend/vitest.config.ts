@@ -42,6 +42,7 @@ export default defineConfig({
         "src/lib/store.svelte.ts",
         "src/lib/calendar/event-category.ts",
         "src/lib/calendar/history.svelte.ts",
+        "src/lib/calendar/time-scale.svelte.ts",
         "src/lib/calendar/week-grid.ts",
         "src/lib/calendar/week-totals.ts",
       ],

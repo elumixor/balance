@@ -528,6 +528,19 @@ class CalendarData {
   }
 
   /**
+   * Drops whatever the pointer had started — a pending or running drag, a gathering box — without
+   * applying any of it. A pinch is what calls this: its first finger looks exactly like the start
+   * of a drag, and the block must not move because the second finger arrived.
+   */
+  abortGesture() {
+    this.#cancelPending();
+    this.#stopAutoscroll();
+    this.#pressAt = null;
+    this.drag = null;
+    this.marquee = null;
+  }
+
+  /**
    * Two quick taps on empty grid make an hour there and open it — the way onto the week that
    * doesn't start at the palette. A press that travelled was a drag or a scroll of the week, and
    * one that landed on a block belongs to that block.
