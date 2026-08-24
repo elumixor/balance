@@ -13,6 +13,7 @@ import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
 import { report } from "./report";
 import { type RasterIcon, trayIcons } from "./tray-icons.svelte";
+import { desktopUpdates } from "./updates.svelte";
 
 /** A macOS menu that runs past the bottom of the screen scrolls, which nobody wants. */
 const MAX_ROWS = 16;
@@ -27,6 +28,8 @@ interface TrayState {
   tooltip: string | null;
   /** The call you're about to be late for, as a row that opens it. */
   join: { label: string; url: string } | null;
+  /** An update already written over the bundle, waiting for the relaunch that runs it. */
+  update: { label: string } | null;
   sections: { heading: string; rows: { id: string; label: string; icon: RasterIcon }[] }[];
 }
 
@@ -111,6 +114,7 @@ class DesktopTray {
       icon: headline ? icon(headline) : null,
       tooltip: headline ? `${label(headline)} — ${when(headline, current === headline, now)}` : "Balance",
       join: join(current ?? null) ?? join(next),
+      update: desktopUpdates.installed ? { label: `Restart to update to ${desktopUpdates.installed}` } : null,
       sections,
     };
   }

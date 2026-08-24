@@ -64,7 +64,10 @@ class DesktopUpdates {
     this.stage = "checking";
     try {
       const update = await check();
-      if (!update) return void (this.stage = "idle");
+      if (!update) {
+        this.stage = "idle";
+        return;
+      }
 
       this.stage = "downloading";
       let total = 0;

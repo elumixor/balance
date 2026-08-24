@@ -3,7 +3,7 @@
   import { auth } from "$lib/auth.svelte";
   import { buildInfo } from "$lib/build-info";
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
-  import { isNativeShell } from "$lib/desktop/platform";
+  import { isDesktop, isNativeShell } from "$lib/desktop/platform";
   import { preferences, TRAVEL_MODES } from "$lib/preferences.svelte";
   import { settings } from "$lib/settings.svelte";
   import { clearStore } from "$lib/store.svelte";
@@ -11,6 +11,7 @@
   import Button from "./Button.svelte";
   import Chip from "./Chip.svelte";
   import DesktopDownload from "./DesktopDownload.svelte";
+  import DesktopUpdate from "./DesktopUpdate.svelte";
   import Dialog from "./Dialog.svelte";
   import Field from "./Field.svelte";
   import NumberField from "./NumberField.svelte";
@@ -210,6 +211,11 @@
   <!-- Only in a browser: the two app shells are already what it would install. -->
   {#if !isNativeShell}
     <DesktopDownload />
+  {/if}
+
+  <!-- And only in the Mac app, which is the one build that replaces itself. -->
+  {#if isDesktop}
+    <DesktopUpdate />
   {/if}
 
   <!-- Which build this is: the native shells carry their own copy of the frontend, and this is the

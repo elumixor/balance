@@ -172,6 +172,19 @@ carries a quarantine flag) and not fine for anyone else, who would need a Develo
 `bundle.macOS.signingIdentity`. Deep links also only resolve to an installed `.app`, so a
 `bun run desktop` session hands its ticket to whatever is in `/Applications`.
 
+The app keeps itself current. A menu bar item is opened once and then left running for weeks, so a
+download nobody goes looking for again leaves everybody a month behind.
+`src/lib/desktop/updates.svelte.ts` asks `/download/latest.json` on launch and every six hours, and
+installs whatever is newer without asking — it only replaces files on disk, and nothing on screen
+changes until the app restarts. The restart is what gets offered rather than taken: a row in the
+menu bar, and a button in settings.
+
+What makes that safe is the signature. Every update is signed with the key in
+`TAURI_SIGNING_PRIVATE_KEY` and checked against the public key committed in `tauri.conf.json`, so a
+deployment somebody else controls still can't put code on a machine. **Losing that private key means
+no installed copy can ever be updated again** — it lives in the repo's `.env`, and in
+`~/.tauri/balance.key` on the machine that made it.
+
 ## Linting
 
 ```bash
@@ -186,14 +199,15 @@ bun run check      # svelte-check over the frontend
 bun run deploy          # all of the below, with their logs interleaved and labelled
 bun run deploy:vercel   # builds here, uploads the finished output (`vercel deploy --prebuilt --prod`)
 bun run deploy:ios      # web bundle -> Xcode project -> fastlane `beta` -> TestFlight
-bun run deploy:desktop  # macOS app -> `dist/download`, which the web deployment then serves
+bun run deploy:desktop  # macOS app + updater manifest -> `dist/download`, which the web serves
 ```
 
 The targets, what each one runs and what it waits for live in the `devkit.deploy` block of the root
 `package.json`; `devkit deploy` runs them, drawing a line per target and keeping the full logs in
 `.devkit/deploy/`. The iOS half runs alongside the other two. The macOS app doesn't: the website
 hands it out, so the DMG has to exist before Vercel packages the site, and a web deploy builds it
-first.
+first. `updater` runs between them, packing the same `.app` as a signed tarball beside the DMG —
+see `apps/frontend/scripts/stage-updater.ts`.
 
 Everything is built on this machine — there is no CI doing it, and no tag to push. The iOS half
 needs a working release setup locally: Homebrew Ruby (`brew install ruby`, macOS's own 2.6 is too
@@ -226,6 +240,10 @@ draws the button from `desktop.json`, so a deployment that carries no DMG simply
 
 The bundle is unsigned (there is no Developer ID certificate on this account yet), so the first
 launch of a downloaded copy needs a right-click → Open. The panel says so.
+
+The same deploy stages what the installed app reads: `Balance.app.tar.gz`, and a `latest.json`
+naming its version and its signature. Nothing else has to happen for an update to reach a Mac —
+bump the version (`bun run version:sync`), deploy, and every copy picks it up within six hours.
 
 ### Shipping without this machine
 

@@ -22,7 +22,7 @@
     "deploy": "devkit deploy",
     "deploy:vercel": "devkit deploy vercel",
     "deploy:ios": "devkit deploy ios",
-    "deploy:desktop": "devkit deploy desktop",
+    "deploy:desktop": "devkit deploy desktop updater",
     "release:ios": "devkit release ios",
     "version:sync": "devkit version"
   },
@@ -47,10 +47,16 @@
       "desktop": {
         "type": "tauri-macos"
       },
+      "updater": {
+        "command": "bun apps/frontend/scripts/stage-updater.ts",
+        "needs": [
+          "desktop"
+        ]
+      },
       "vercel": {
         "type": "vercel",
         "needs": [
-          "desktop"
+          "updater"
         ]
       },
       "ios": {
