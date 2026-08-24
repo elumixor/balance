@@ -1,7 +1,7 @@
 import { handler } from "@elumixor/nitro-client/server";
 import { handleApiError } from "../../../lib/api-error";
 import { getDbUserForRequest } from "../../../lib/current-user";
-import { PreferencesService, remindersSchema, travelSchema } from "../../../lib/preferences-service";
+import { PreferencesService, remindersSchema, sessionsSchema, travelSchema } from "../../../lib/preferences-service";
 
 /**
  * One setting at a time. The panel has no Save button — every switch writes as it is flipped —
@@ -12,6 +12,7 @@ export default handler(
     body: {
       reminders: remindersSchema.partial().optional(),
       travel: travelSchema.partial().optional(),
+      sessions: sessionsSchema.partial().optional(),
     },
   },
   async ({ body, event }) => {

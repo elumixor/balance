@@ -35,12 +35,49 @@ export const travelSchema = z.object({
   bufferMinutes: z.number().int().min(0).max(120),
 });
 
-export const preferencesSchema = z.object({ reminders: remindersSchema, travel: travelSchema });
+/** A wall-clock time of day, as the settings panel writes it. */
+const timeOfDay = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "must be a time like 18:00");
+
+export const sessionsSchema = z.object({
+  enabled: z.boolean(),
+  /** Looking back on the day, and planning tomorrow while it is still tonight. */
+  eveningTime: timeOfDay,
+  /** Yesterday, and what today could be — for whoever would rather plan over coffee. */
+  morningTime: timeOfDay,
+  /** 1 is Monday, 7 is Sunday. The longer sitting rides on that evening's reminder. */
+  weeklyWeekday: z.number().int().min(1).max(7),
+  weeklyTime: timeOfDay,
+  /** Which of the two sittings the user means to plan in. The other one only reviews. */
+  planWhen: z.enum(["evening", "morning"]),
+  /** How full a day has to be before it counts as planned, as a percentage of its budget. */
+  coveragePercent: z.number().int().min(10).max(100),
+  /**
+   * The zone the phone last said it was in. Written by the app rather than chosen in the panel:
+   * a day is a day in a place, and the server has no other way to know which place.
+   */
+  timeZone: z.string().max(64),
+});
+
+export const preferencesSchema = z.object({
+  reminders: remindersSchema,
+  travel: travelSchema,
+  sessions: sessionsSchema,
+});
 export type Preferences = z.infer<typeof preferencesSchema>;
 
 const DEFAULTS: Preferences = {
   reminders: { enabled: true, leadMinutes: 5, useCalendarReminders: true, leaveInTime: true, sound: true },
   travel: { origin: "", modes: ["transit", "drive"], bufferMinutes: 5 },
+  sessions: {
+    enabled: true,
+    eveningTime: "18:00",
+    morningTime: "08:00",
+    weeklyWeekday: 7,
+    weeklyTime: "18:00",
+    planWhen: "evening",
+    coveragePercent: 70,
+    timeZone: "UTC",
+  },
 };
 
 export class PreferencesService {
@@ -57,11 +94,16 @@ export class PreferencesService {
   }
 
   /** A patch of a patch: one section at a time, one setting at a time, both partial. */
-  async update(patch: { reminders?: Partial<Preferences["reminders"]>; travel?: Partial<Preferences["travel"]> }) {
+  async update(patch: {
+    reminders?: Partial<Preferences["reminders"]>;
+    travel?: Partial<Preferences["travel"]>;
+    sessions?: Partial<Preferences["sessions"]>;
+  }) {
     const current = await this.get();
     const next: Preferences = {
       reminders: { ...current.reminders, ...patch.reminders },
       travel: { ...current.travel, ...patch.travel },
+      sessions: { ...current.sessions, ...patch.sessions },
     };
 
     await db
@@ -80,6 +122,7 @@ export class PreferencesService {
 const storedSchema = z.object({
   reminders: remindersSchema.partial().optional(),
   travel: travelSchema.partial().optional(),
+  sessions: sessionsSchema.partial().optional(),
 });
 
 /** Whatever is stored, read through the current shape — anything unreadable falls back. */
@@ -89,5 +132,6 @@ function merge(stored: unknown): Preferences {
   return {
     reminders: { ...DEFAULTS.reminders, ...value.reminders },
     travel: { ...DEFAULTS.travel, ...value.travel },
+    sessions: { ...DEFAULTS.sessions, ...value.sessions },
   };
 }
