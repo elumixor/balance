@@ -71,7 +71,9 @@ extension WatchSnapshot {
         nextEvent: SnapshotEvent(
             title: "Standup",
             start: Date().addingTimeInterval(5 * 60),
-            end: Date().addingTimeInterval(20 * 60)
+            end: Date().addingTimeInterval(20 * 60),
+            categoryColor: "#3E7BB5",
+            categoryIcon: "brain"
         ),
         active: nil,
         updatedAt: Date()
@@ -207,9 +209,9 @@ struct BalanceWidgetView: View {
                 .font(.title2)
                 .widgetLabel { timerLabel(session) }
         } else if let event = upcoming {
-            Image(systemName: "calendar")
+            Image(systemName: event.symbol)
                 .font(.title2)
-                .widgetLabel { Text(event.title) }
+                .widgetLabel { relative(event) + Text(" · \(event.title)") }
         } else if let category = entry.snapshot?.mostBehind {
             Image(systemName: Icons.symbol(for: category.icon))
                 .font(.title2)
@@ -238,7 +240,7 @@ struct BalanceWidgetView: View {
             Label {
                 Text("\(event.title) · ") + relative(event)
             } icon: {
-                Image(systemName: "calendar")
+                Image(systemName: event.symbol)
             }
         } else if let category = entry.snapshot?.mostBehind {
             Label("\(category.name) \(hours(category))", systemImage: "scalemass")
@@ -270,14 +272,20 @@ struct BalanceWidgetView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let event = upcoming {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title)
-                    .font(.headline)
-                    .lineLimit(2)
+            VStack(alignment: .leading, spacing: 1) {
+                Label {
+                    Text(event.title)
+                } icon: {
+                    Image(systemName: event.symbol)
+                        .foregroundStyle(event.categoryColor.map { Color(hex: $0) } ?? .primary)
+                }
+                .font(.headline)
+                .lineLimit(1)
                 relative(event)
-                    .font(.caption)
+                    .font(.system(.title3, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let category = entry.snapshot?.mostBehind {

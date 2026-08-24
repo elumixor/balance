@@ -31,11 +31,28 @@ public struct SnapshotEvent: Codable, Sendable, Equatable {
     public let title: String
     public let start: Date
     public let end: Date?
+    /// The category the event counts most towards, absent when it counts towards nothing. Both are
+    /// optional for the same reason `end` is: a blob written by an older build still decodes, and
+    /// falls back to the calendar's own glyph.
+    public let categoryColor: String?
+    public let categoryIcon: String?
 
-    public init(title: String, start: Date, end: Date? = nil) {
+    public init(
+        title: String, start: Date, end: Date? = nil,
+        categoryColor: String? = nil, categoryIcon: String? = nil
+    ) {
         self.title = title
         self.start = start
         self.end = end
+        self.categoryColor = categoryColor
+        self.categoryIcon = categoryIcon
+    }
+
+    /// The glyph to draw beside the title: the category's, or a calendar page when the event counts
+    /// towards nothing — which is a truer picture there than ``Icons/fallback``'s bare circle.
+    public var symbol: String {
+        guard let categoryIcon else { return "calendar" }
+        return Icons.symbol(for: categoryIcon)
     }
 
     /// How long this event still has to run, from `now`, or nil when it hasn't started or its end
@@ -116,7 +133,10 @@ extension WatchSnapshot {
                 )
             },
             nextEvent: summary.nextEvent.map {
-                SnapshotEvent(title: $0.title, start: $0.start, end: $0.end)
+                SnapshotEvent(
+                    title: $0.title, start: $0.start, end: $0.end,
+                    categoryColor: $0.categoryColor, categoryIcon: $0.categoryIcon
+                )
             },
             active: summary.active.map(SnapshotSession.init(session:)),
             updatedAt: summary.now
