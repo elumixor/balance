@@ -258,7 +258,9 @@ struct BalanceWidgetView: View {
             }
         } else if let event = upcoming {
             Label {
-                Text("\(event.title) · ") + relative(event)
+                // The countdown leads here for the same reason it does in the corner: one line, and
+                // a long title would otherwise push the only thing that changes off the end of it.
+                relative(event) + Text(" · \(event.title)")
             } icon: {
                 Image(systemName: event.symbol)
             }
