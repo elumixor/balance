@@ -126,6 +126,16 @@ paired watch, which draws it with a scene of its own (`EventNotificationView.swi
 of whatever the event counts as. `EventAlarm.swift` covers only the case the phone cannot — a watch
 worn without the companion app installed — because a reminder scheduled on both sides buzzes twice.
 
+An `.ics` file shared into the app — an invitation from Mail, a timetable downloaded in Safari —
+opens as a list of what it holds, everything ticked, and the ticked events are written into Google
+Calendar through the same API every other write goes through. That is why the file goes to the app
+and not to a share extension: the Clerk session lives in the webview, and an extension would need a
+second copy of it to do the same work. `Info.plist` declares the calendar file types,
+`IcsImportPlugin.swift` reads the URL iOS hands over and holds it if the file is what launched the
+app, and `src/lib/ics.ts` — parser, no side effects, tested — decides what the file actually says.
+Recurrence is read far enough to say "this repeats": the first occurrence is imported, and the row
+says so.
+
 ## macOS
 
 ```bash

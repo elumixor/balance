@@ -87,7 +87,9 @@ and `CalendarEventsService.resolve` is still the one read path.
   (`DialLayout`), the hours formatting, the Lucide-to-SF-Symbols map — because the widget runs in
   its own process and a second copy of that maths is a second, quietly different answer. The watch
   reads `/mobile/watch/summary` and writes through `/mobile/tracking/*`; `SessionController` is the
-  one place that knows what is running, and the only writer of the App Group snapshot.
+  one place that knows what is running, and the only writer of the App Group snapshot. A calendar file shared into the
+  phone app arrives the same native-to-webview way: `IcsImportPlugin.swift` only carries it,
+  `$lib/ics.ts` parses it, and the events are written through the ordinary calendar API.
 
 ## Reminders are worked out once and shown three ways
 
