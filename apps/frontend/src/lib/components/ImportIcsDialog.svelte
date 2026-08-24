@@ -6,6 +6,7 @@
   import Dot from "$lib/components/Dot.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
   import Popover from "$lib/components/Popover.svelte";
+  import ProgressBar from "$lib/components/ProgressBar.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import { restColor } from "$lib/colors";
   import { DEFAULT_ICON } from "$lib/icons";
@@ -60,6 +61,11 @@
     if (icsImport.open) void store.calendars.ensure();
   });
 
+  /** The buffer is rest, and rest has a colour of its own — see `week-totals.ts`. */
+  function markColor(category: Category | null) {
+    return category && !category.isBuffer ? category.color : restColor;
+  }
+
   /** "Fri Aug 14 · 09:00 – 10:30", or the day alone when the event is a day rather than a time. */
   function when(event: IcsEvent) {
     if (event.allDay) {
@@ -89,11 +95,7 @@
 
 <!-- The buffer is drawn as rest wherever it is drawn — see `week-totals.ts`. -->
 {#snippet categoryMark(category: Category)}
-  <CategoryIcon
-    icon={category.isBuffer ? DEFAULT_ICON : category.icon}
-    color={category.isBuffer ? restColor : category.color}
-    size={20}
-  />
+  <CategoryIcon icon={category.isBuffer ? DEFAULT_ICON : category.icon} color={markColor(category)} size={20} />
 {/snippet}
 
 <!-- What both rows open with: whatever is chosen, drawn the way the rest of the app draws it. -->
@@ -246,6 +248,16 @@
           {/if}
         </div>
       </div>
+
+      {#if icsImport.progress}
+        <!-- A file of forty events is a wait worth showing the shape of, rather than a spinner
+             that says only that something is happening. -->
+        {@const { done, total } = icsImport.progress}
+        <div class="space-y-1.5">
+          <ProgressBar ratio={done / total} color={markColor(chosenCategory)} />
+          <p class="t-micro text-fg-muted">{done} of {total} imported</p>
+        </div>
+      {/if}
 
       <Button
         full

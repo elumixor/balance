@@ -131,7 +131,8 @@ worn without the companion app installed — because a reminder scheduled on bot
 
 An `.ics` file given to the app — shared into the phone from Mail, or dropped onto the Mac app or a
 browser tab — opens as a list of what it holds, everything ticked, and the ticked events are written into Google
-Calendar through the same API every other write goes through. That is why the file goes to the app
+Calendar through the same API every other write goes through — five at a time, behind a bar, since
+a term's timetable written one event after another takes as long as the round trips add up to. That is why the file goes to the app
 and not to a share extension: the Clerk session lives in the webview, and an extension would need a
 second copy of it to do the same work. `Info.plist` declares the calendar file types,
 `IcsImportPlugin.swift` reads the URL iOS hands over and holds it if the file is what launched the

@@ -19,6 +19,21 @@ beforeEach(() => {
   mapped.mockResolvedValue(undefined as never);
 });
 
+/** A file of `count` events, so a run has something to spread across several writes at once. */
+function calendarOf(count: number) {
+  const events = Array.from({ length: count }, (_, i) =>
+    [
+      "BEGIN:VEVENT",
+      `UID:${i}@example.com`,
+      `SUMMARY:Event ${i}`,
+      "DTSTART:20260824T090000Z",
+      "DTEND:20260824T091500Z",
+      "END:VEVENT",
+    ].join("\r\n"),
+  );
+  return ["BEGIN:VCALENDAR", ...events, "END:VCALENDAR"].join("\r\n");
+}
+
 const CALENDAR = [
   "BEGIN:VCALENDAR",
   "BEGIN:VEVENT",
@@ -130,5 +145,81 @@ describe("what the import is pointed at", () => {
     ics.dismiss();
     expect(ics.calendarId).toBeNull();
     expect(ics.categoryId).toBeNull();
+  });
+});
+
+describe("a run of many events", () => {
+  /** Resolves nothing until it is told to, so a run can be caught with writes still in the air. */
+  function held() {
+    const releases: (() => void)[] = [];
+    let live = 0;
+    let peak = 0;
+    const call = () => {
+      live += 1;
+      peak = Math.max(peak, live);
+      return new Promise<void>((resolve) => releases.push(() => {
+        live -= 1;
+        resolve();
+      }));
+    };
+    return { call, releases, peak: () => peak };
+  }
+
+  it("writes several at once rather than one after another", async () => {
+    const gate = held();
+    created.mockImplementation(async () => {
+      await gate.call();
+      return { id: "made", calendarId: "primary" } as never;
+    });
+
+    const ics = new IcsImport();
+    await ics.receiveFile(drop("term.ics", calendarOf(12)));
+    let finished = false;
+    const run = ics.import().then(() => (finished = true));
+
+    // Everything the pool can hold is in flight before any of it has come back.
+    await vi.waitFor(() => expect(gate.releases).toHaveLength(5));
+    expect(ics.progress).toEqual({ done: 0, total: 12 });
+
+    while (!finished) {
+      for (const release of gate.releases.splice(0)) release();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await run;
+
+    expect(created).toHaveBeenCalledTimes(12);
+    expect(gate.peak()).toBe(5);
+    expect(ics.imported).toBe(12);
+    expect(ics.progress).toBeNull();
+    expect(ics.candidates).toEqual([]);
+  });
+
+  it("keeps the rows it never wrote when one of them fails", async () => {
+    created.mockImplementation(async (input) => {
+      if (input.title === "Event 1") throw new Error("Google said no");
+      return { id: "made", calendarId: "primary" } as never;
+    });
+
+    const ics = new IcsImport();
+    await ics.receiveFile(drop("term.ics", calendarOf(12)));
+    await ics.import();
+
+    expect(ics.error).toBe("Google said no");
+    // The failure stops anything else starting, so what is left is what was never attempted —
+    // and every row still listed is one the calendar has never seen.
+    expect(ics.candidates.some((candidate) => candidate.event.title === "Event 1")).toBe(true);
+    expect(ics.candidates.length).toBe(12 - (ics.imported ?? 0));
+    expect(created).toHaveBeenCalledTimes(12 - ics.candidates.length + 1);
+  });
+
+  it("does nothing at all when nothing is ticked", async () => {
+    const ics = new IcsImport();
+    await ics.receiveFile(drop("term.ics", calendarOf(3)));
+    ics.toggleAll(false);
+    await ics.import();
+
+    expect(created).not.toHaveBeenCalled();
+    expect(ics.progress).toBeNull();
+    expect(ics.candidates).toHaveLength(3);
   });
 });

@@ -40,11 +40,20 @@ export interface ImportCandidate {
   selected: boolean;
 }
 
+/**
+ * How many events are written at once. The writes are round trips to Google and spend nearly all
+ * of their time waiting, so doing them one at a time made a forty-event timetable take about as
+ * long as forty events take — but a whole file fired at once is what a rate limiter is for.
+ */
+const CONCURRENCY = 5;
+
 export class IcsImport {
   /** The file being looked at, or null when the sheet is closed. */
   fileName = $state<string | null>(null);
   candidates = $state<ImportCandidate[]>([]);
   importing = $state(false);
+  /** How far the run has got, for the bar the sheet draws. Null when nothing is being written. */
+  progress = $state<{ done: number; total: number } | null>(null);
   error = $state<string | null>(null);
   /** What the last import did, kept until the sheet is dismissed. */
   imported = $state<number | null>(null);
@@ -117,56 +126,76 @@ export class IcsImport {
   }
 
   /**
-   * Writes the ticked events into the calendar, one at a time — a file of forty events fired at
-   * Google at once is what its rate limiter is for, and the count that comes back has to be true.
-   * A failure stops the run and says how far it got, so pressing the button again after fixing
-   * the connection doesn't duplicate what already landed.
+   * Writes the ticked events into the calendar, a few at a time. The count that comes back has to
+   * be true, so an event counts as imported the moment the calendar has it — the mapping written
+   * straight after can fail on its own, and an event that is already there must not be written a
+   * second time by pressing the button again.
+   *
+   * The first failure stops anything else being started, but not what is already in the air: a
+   * write that has left cannot be taken back, and pretending otherwise is what would duplicate it.
    */
   async import() {
     if (this.importing) return;
+    const queue = this.candidates.filter((candidate) => candidate.selected);
+    if (queue.length === 0) return;
+
     this.importing = true;
     this.error = null;
+    this.progress = { done: 0, total: queue.length };
+
+    /** The keys of the events the calendar has taken — the rows that must not be offered again. */
+    const landed = new Set<string>();
+    let failure: string | null = null;
+    let next = 0;
     let done = 0;
 
-    try {
-      for (const { event } of this.candidates.filter((c) => c.selected)) {
-        const created = await createCalendarEvent({
-          title: event.title || "Untitled",
-          description: event.description ?? undefined,
-          location: event.location ?? undefined,
-          start: event.start.toISOString(),
-          end: event.end.toISOString(),
-          allDay: event.allDay,
-          calendarId: this.calendarId ?? undefined,
-        });
-        // Counted the moment the calendar has it: a mapping that fails afterwards leaves an event
-        // that is in the calendar and uncategorised, and importing it a second time would leave
-        // two of them.
-        done += 1;
-        if (this.categoryId) {
-          await saveEventMapping({
-            calendarId: created.calendarId,
-            externalEventId: created.id,
-            scope: "instance",
-            weights: [{ categoryId: this.categoryId, weightPercent: 100 }],
-          });
+    const worker = async () => {
+      while (next < queue.length && !failure) {
+        const candidate = queue[next++];
+        try {
+          await this.#write(candidate, landed);
+        } catch (e) {
+          failure ??= e instanceof Error ? e.message : "Something went wrong importing that file";
+        } finally {
+          done += 1;
+          this.progress = { done, total: queue.length };
         }
       }
-      this.candidates = [];
-      this.imported = done;
-    } catch (e) {
-      this.error = e instanceof Error ? e.message : "Something went wrong importing that file";
-      // Whatever did land drops out of the list, so pressing the button again writes only the rest.
-      let landed = done;
-      this.candidates = this.candidates.filter((candidate) => {
-        if (!candidate.selected || landed === 0) return true;
-        landed -= 1;
-        return false;
-      });
-      this.imported = done > 0 ? done : null;
+    };
+
+    try {
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker));
     } finally {
+      // Whatever landed drops out of the list, so pressing the button again writes only the rest.
+      this.candidates = this.candidates.filter((candidate) => !landed.has(candidate.key));
+      this.error = failure;
+      this.imported = landed.size > 0 ? landed.size : null;
       this.importing = false;
-      if (done > 0) invalidate.calendar();
+      this.progress = null;
+      if (landed.size > 0) invalidate.calendar();
+    }
+  }
+
+  /** One event: into the calendar, and then into whatever it counts as. */
+  async #write(candidate: ImportCandidate, landed: Set<string>) {
+    const { event } = candidate;
+    const created = await createCalendarEvent({
+      title: event.title || "Untitled",
+      description: event.description ?? undefined,
+      location: event.location ?? undefined,
+      start: event.start.toISOString(),
+      end: event.end.toISOString(),
+      allDay: event.allDay,
+      calendarId: this.calendarId ?? undefined,
+    });
+    landed.add(candidate.key);
+    if (this.categoryId) {
+      await saveEventMapping({
+        calendarId: created.calendarId,
+        externalEventId: created.id,
+        scope: "instance",
+        weights: [{ categoryId: this.categoryId, weightPercent: 100 }],
+      });
     }
   }
 
