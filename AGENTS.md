@@ -92,6 +92,56 @@ and `CalendarEventsService.resolve` is still the one read path.
   `$lib/ics.ts` parses it, and the events are written through the ordinary calendar API. A file
   dropped on the Mac app or a browser tab goes to the same sheet through `IcsDropZone.svelte`.
 
+## The ritual is the product
+
+Nobody opens a time tracker to admire it. `server/lib/planning/` is the loop that makes the rest of
+the app worth having: twice a day the phone asks you to look at what happened and to decide what
+happens next, and committing that decision is what earns stars.
+
+Four pure modules hold every rule, and they are the only things here with tests
+(`bun run test:backend`): `stars.ts` says what a commit pays and what a total means, `coverage.ts`
+says how full a day is and how closely it was kept, `days.ts` turns `YYYY-MM-DD` plus a zone into
+instants, and `schedule.ts` says when the next reminders fall. Everything else is a database or a
+calendar away from them.
+
+Three decisions are load-bearing. **A planning day is a day in a place** — the device sends
+`YYYY-MM-DD` and its IANA zone, because a server doing that arithmetic in UTC is wrong for half the
+world after 5pm. **The plan is snapshotted at commit** (`planned_days.blocks`), because the
+calendar only ever holds how a day ended up, so "did it go as planned" has no answer otherwise.
+And **nothing is settled by a cron**: `PlanningService.settle` charges missed days, pays yesterday's
+schedule bonus and last week's balance bonus whenever a session is opened, which is the only moment
+anyone can see the result. Every ledger row is unique per day and reason, so running it twice writes
+nothing the second time.
+
+Coverage is what unlocks the commit button, and only *mapped* hours count toward it — a calendar
+full of meetings other people booked is not a planned day, and deciding what those meetings are for
+is the work. The threshold is a preference (70% by default) because a rule you fail daily is a rule
+you delete.
+
+## The words arrive before the phone wakes up
+
+`server/lib/planning/copy.ts` writes what a session says, once per slot per day, into `session_copy`.
+It has to be written ahead: the phone is asleep at six in the evening, so the notification's text is
+handed to `UNUserNotificationCenter` hours early (`mobile/session-reminders.svelte.ts`), and the
+screen that opens when it is tapped reads the same stored row rather than asking for a fresh
+sentence that would contradict the banner.
+
+Copy is only generated for real once a slot is close (`isFresh`) — an evening's summary composed at
+breakfast would describe a day that has not happened — and until then the arithmetic `fallback` is
+scheduled instead. That fallback is a real answer, not an error message: with no AI key configured
+the app behaves identically, and a model that is down can never cost someone their reminder.
+
+The voice is a rule, not a preference: write from the far side of the thing, how it will feel to
+have already done it, and never name a failure, a miss or a broken streak. Reviews are payouts.
+
+## Planning is the calendar, not a screen
+
+`?plan=YYYY-MM-DD` on `/calendar` lights one day and hangs `PlanningBar` off the bottom. Everything
+that makes the calendar good — dragging a block in from tomorrow, seeing what sits either side — is
+the point, and the parameter rather than a flag is what survives a reload. `planMode` works coverage
+out on the device so the meter answers a drag immediately; the server checks it again on commit,
+because that is where the star is actually earned.
+
 ## Reminders are worked out once and shown three ways
 
 `$lib/reminders.ts` answers when a reminder is due — the event's own calendar reminder or the
@@ -108,8 +158,10 @@ companion app installed — and holds nothing pending otherwise, or the same eve
 
 ## Tests
 
-`bun run test` runs the unit tests (`bun run test:coverage` for the report); they live beside what they
-cover, as `*.test.ts` under `apps/frontend/src/lib/`. Vitest compiles `.svelte.ts` through the
+`bun run test` runs both suites. The frontend's are Vitest (`bun run test:coverage` for the report),
+beside what they cover as `*.test.ts` under `apps/frontend/src/lib/`; the backend's are `bun test`
+(`bun run test:backend`), and cover `server/lib/planning/`'s pure rules — the star arithmetic, the
+coverage and match formulas, zoned days, and the reminder schedule. Vitest compiles `.svelte.ts` through the
 Svelte plugin, so runes work — see `apps/frontend/vitest.config.ts`.
 
 The suite is not a net cast over the whole app. It covers the modules named in that config's

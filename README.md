@@ -3,6 +3,9 @@
 A time-balance tracker: decide how the 168 hours in your week should be spent, then let your own
 calendar say what actually happened, and see the drift.
 
+Twice a day it asks you to sit with that for two minutes — how the day went, and what tomorrow is
+for — and planning tomorrow earns stars, which is the only reason anyone keeps doing anything.
+
 Google Calendar is the source of truth for events — nothing about them is stored here. What this
 app adds is meaning: each event is mapped to an *activity* (a template that splits one hour across
 several categories), or, as an exception, straight to categories. Drag an activity onto the week
