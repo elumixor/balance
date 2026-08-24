@@ -1,13 +1,19 @@
 <script lang="ts">
-  import { Check, Repeat } from "lucide-svelte";
+  import { Check, ChevronDown, Repeat } from "lucide-svelte";
   import Button from "$lib/components/Button.svelte";
+  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Dialog from "$lib/components/Dialog.svelte";
+  import Dot from "$lib/components/Dot.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
+  import Popover from "$lib/components/Popover.svelte";
+  import PopoverItem from "$lib/components/PopoverItem.svelte";
+  import { restColor } from "$lib/colors";
   import { formatClock, formatDayDate } from "$lib/format";
   import type { IcsEvent } from "$lib/ics";
   import { icsImport } from "$lib/ics-import.svelte";
   import { store } from "$lib/store.svelte";
   import { categories } from "$lib/synced.svelte";
+  import type { Snippet } from "svelte";
 
   /**
    * What an `.ics` file shared into the app looks like before any of it is in the calendar: the
@@ -16,29 +22,29 @@
    */
 
   /**
-   * Where the file's events can go: every calendar of every connected account that takes writes.
-   * A read-only calendar — a subscribed timetable, somebody else's shared week — would refuse
-   * them, so it isn't offered.
+   * Where the file's events can go: every calendar of every connected account that takes writes,
+   * grouped the way the rail groups them — two accounts can hold the same names and colours, and
+   * the address above the group is what tells them apart. A read-only calendar — a subscribed
+   * timetable, somebody else's shared week — would refuse the write, so it isn't offered.
    */
-  const writable = $derived(
-    (store.calendars.value?.accounts ?? []).flatMap((account) =>
-      account.calendars.filter((calendar) => !calendar.readOnly).map((calendar) => ({ account, calendar })),
-    ),
+  const byAccount = $derived(
+    (store.calendars.value?.accounts ?? [])
+      .map((account) => ({ account, calendars: account.calendars.filter((calendar) => !calendar.readOnly) }))
+      .filter((group) => group.calendars.length > 0),
   );
   /** Null in the store means "wherever new events go", which is the calendar prefs' own answer. */
   const calendarId = $derived(icsImport.calendarId ?? store.calendars.value?.writeCalendarId ?? "");
+  const chosenCalendar = $derived(
+    byAccount.flatMap((group) => group.calendars).find((calendar) => calendar.id === calendarId) ?? null,
+  );
   const plan = $derived(categories.all);
+  const chosenCategory = $derived(plan.find((category) => category.id === icsImport.categoryId) ?? null);
 
   // The pickers are the reason: the sheet can open on any screen, including one that has never
   // needed the list of calendars.
   $effect(() => {
     if (icsImport.open) void store.calendars.ensure();
   });
-
-  /** Two accounts can both have a "Work", so the address is what tells them apart. */
-  function calendarLabel(account: { email: string | null }, calendar: { name: string }) {
-    return account.email ? `${calendar.name} — ${account.email}` : calendar.name;
-  }
 
   /** "Fri Aug 14 · 09:00 – 10:30", or the day alone when the event is a day rather than a time. */
   function when(event: IcsEvent) {
@@ -57,9 +63,34 @@
   }
 </script>
 
+{#snippet calendarBadge()}
+  <Dot color={chosenCalendar?.color ?? restColor} size={10} />
+{/snippet}
+
+{#snippet categoryBadge()}
+  {#if chosenCategory}
+    <CategoryIcon icon={chosenCategory.icon} color={chosenCategory.color} size={20} />
+  {/if}
+{/snippet}
+
+<!-- What both rows open with: whatever is chosen, drawn the way the rest of the app draws it. -->
+{#snippet chooser(open: () => void, ariaLabel: string, label: string, badge: Snippet)}
+  <button
+    type="button"
+    onclick={open}
+    aria-label={ariaLabel}
+    class="hoverable press-sm flex min-w-0 max-w-[64%] items-center gap-2 rounded-md border border-line px-2 py-1.5
+      text-left"
+  >
+    {@render badge()}
+    <span class="t-label min-w-0 flex-1 truncate">{label}</span>
+    <ChevronDown size={14} class="shrink-0 text-fg-faint" />
+  </button>
+{/snippet}
+
 <Dialog title="Import from file" open={icsImport.open} onclose={() => icsImport.dismiss()}>
   <div class="space-y-4">
-    <p class="t-caption text-fg-muted">{icsImport.fileName}</p>
+    <p class="t-micro text-fg-muted">{icsImport.fileName}</p>
 
     {#if icsImport.imported !== null}
       <p class="t-body flex items-center gap-2">
@@ -74,12 +105,12 @@
 
     {#if icsImport.candidates.length > 0}
       <div class="flex items-center justify-between">
-        <span class="t-caption text-fg-muted">
+        <span class="t-micro text-fg-muted">
           {icsImport.selectedCount} of {icsImport.candidates.length} selected
         </span>
         <button
           type="button"
-          class="t-caption press-sm rounded-md px-2 py-1 text-fg-muted hoverable"
+          class="t-micro press-sm rounded-md px-2 py-1 text-fg-muted hoverable"
           onclick={() => icsImport.toggleAll(icsImport.selectedCount < icsImport.candidates.length)}
         >
           {icsImport.selectedCount < icsImport.candidates.length ? "Select all" : "Select none"}
@@ -104,12 +135,12 @@
               </span>
               <span class="min-w-0 flex-1">
                 <span class="t-body block truncate">{candidate.event.title || "Untitled"}</span>
-                <span class="t-caption block text-fg-muted">{when(candidate.event)}</span>
+                <span class="t-micro block text-fg-muted">{when(candidate.event)}</span>
                 {#if candidate.event.location}
-                  <span class="t-caption block truncate text-fg-muted">{candidate.event.location}</span>
+                  <span class="t-micro block truncate text-fg-muted">{candidate.event.location}</span>
                 {/if}
                 {#if candidate.event.recurring}
-                  <span class="t-caption mt-1 flex items-center gap-1 text-fg-muted">
+                  <span class="t-micro mt-1 flex items-center gap-1 text-fg-muted">
                     <Repeat size={12} /> Repeats — only the first one is imported
                   </span>
                 {/if}
@@ -120,39 +151,83 @@
       </ul>
 
       <!-- One calendar and one category for the whole file: decided here, once, above the button
-           that acts on them. -->
-      <div class="space-y-2">
+           that acts on them. Both are the app's own popover rather than a system dropdown — a
+           calendar is its colour and a category is its glyph, and neither survives an `<option>`. -->
+      <div class="space-y-1">
         <div class="flex items-center justify-between gap-3">
-          <span class="t-body">Calendar</span>
-          <select
-            value={calendarId}
-            aria-label="Calendar to import into"
-            disabled={writable.length === 0}
-            onchange={(e) => (icsImport.calendarId = e.currentTarget.value)}
-            class="t-body min-w-0 max-w-[62%] truncate rounded-md border border-line-strong bg-surface px-2 py-1"
-          >
-            {#if writable.length === 0}
-              <option value="">Your calendar</option>
-            {/if}
-            {#each writable as { account, calendar } (calendar.id)}
-              <option value={calendar.id}>{calendarLabel(account, calendar)}</option>
-            {/each}
-          </select>
+          <span class="t-label text-fg-muted">Calendar</span>
+          {#if chosenCalendar}
+            <Popover width={260}>
+              {#snippet trigger(open)}
+                {@render chooser(open, "Calendar to import into", chosenCalendar?.name ?? "", calendarBadge)}
+              {/snippet}
+              {#snippet content(close)}
+                {#each byAccount as group (group.account.accountId)}
+                  <div class="t-micro truncate px-3 pt-2 pb-1 text-fg-faint">
+                    {group.account.email ?? "Unknown account"}
+                  </div>
+                  {#each group.calendars as calendar (calendar.id)}
+                    <PopoverItem
+                      label={calendar.name}
+                      selected={calendar.id === calendarId}
+                      onclick={() => {
+                        icsImport.calendarId = calendar.id;
+                        close();
+                      }}
+                    >
+                      {#snippet icon()}
+                        <Dot color={calendar.color ?? restColor} size={10} />
+                      {/snippet}
+                    </PopoverItem>
+                  {/each}
+                {/each}
+              {/snippet}
+            </Popover>
+          {:else}
+            <!-- Before the calendar list has loaded, and for an account with nothing writable:
+                 the events still go somewhere, and the server is the one that knows where. -->
+            <span class="t-label px-2 py-1.5 text-fg-faint">Your calendar</span>
+          {/if}
         </div>
 
         <div class="flex items-center justify-between gap-3">
-          <span class="t-body">Counts as</span>
-          <select
-            value={icsImport.categoryId ?? ""}
-            aria-label="Category the imported events count as"
-            onchange={(e) => (icsImport.categoryId = e.currentTarget.value || null)}
-            class="t-body min-w-0 max-w-[62%] truncate rounded-md border border-line-strong bg-surface px-2 py-1"
-          >
-            <option value="">Nothing yet</option>
-            {#each plan as category (category.id)}
-              <option value={category.id}>{category.name}</option>
-            {/each}
-          </select>
+          <span class="t-label text-fg-muted">Counts as</span>
+          <Popover width={240}>
+            {#snippet trigger(open)}
+              {@render chooser(
+                open,
+                "Category the imported events count as",
+                chosenCategory?.name ?? "Nothing yet",
+                categoryBadge,
+              )}
+            {/snippet}
+            {#snippet content(close)}
+              <div class="max-h-64 overflow-y-auto">
+                <PopoverItem
+                  label="Nothing yet"
+                  selected={chosenCategory === null}
+                  onclick={() => {
+                    icsImport.categoryId = null;
+                    close();
+                  }}
+                />
+                {#each plan as category (category.id)}
+                  <PopoverItem
+                    label={category.name}
+                    selected={category.id === chosenCategory?.id}
+                    onclick={() => {
+                      icsImport.categoryId = category.id;
+                      close();
+                    }}
+                  >
+                    {#snippet icon()}
+                      <CategoryIcon icon={category.icon} color={category.color} size={20} />
+                    {/snippet}
+                  </PopoverItem>
+                {/each}
+              </div>
+            {/snippet}
+          </Popover>
         </div>
       </div>
 
