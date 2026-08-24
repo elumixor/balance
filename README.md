@@ -136,7 +136,9 @@ and not to a share extension: the Clerk session lives in the webview, and an ext
 second copy of it to do the same work. `Info.plist` declares the calendar file types,
 `IcsImportPlugin.swift` reads the URL iOS hands over and holds it if the file is what launched the
 app, and `src/lib/ics.ts` — parser, no side effects, tested — decides what the file actually says.
-A drop is the same thing without the native half: `IcsDropZone.svelte` reads the file the window
+The sheet asks two things of the whole file rather than of each event: which calendar the events
+go to — every writable calendar of every connected account — and what they count as, which is
+nothing until somebody says otherwise. A drop is the same thing without the native half: `IcsDropZone.svelte` reads the file the window
 was given and hands it to the same sheet, and the macOS shell has to build its window with
 `disable_drag_drop_handler()` or it catches the drop before the webview ever sees it.
 Recurrence is read far enough to say "this repeats": the first occurrence is imported, and the row

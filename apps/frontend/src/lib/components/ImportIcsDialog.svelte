@@ -6,12 +6,39 @@
   import { formatClock, formatDayDate } from "$lib/format";
   import type { IcsEvent } from "$lib/ics";
   import { icsImport } from "$lib/ics-import.svelte";
+  import { store } from "$lib/store.svelte";
+  import { categories } from "$lib/synced.svelte";
 
   /**
    * What an `.ics` file shared into the app looks like before any of it is in the calendar: the
    * events it holds, ticked, with the ones nobody wants to import unticked first. The file is
    * never the decision — see `ics-import.svelte.ts`.
    */
+
+  /**
+   * Where the file's events can go: every calendar of every connected account that takes writes.
+   * A read-only calendar — a subscribed timetable, somebody else's shared week — would refuse
+   * them, so it isn't offered.
+   */
+  const writable = $derived(
+    (store.calendars.value?.accounts ?? []).flatMap((account) =>
+      account.calendars.filter((calendar) => !calendar.readOnly).map((calendar) => ({ account, calendar })),
+    ),
+  );
+  /** Null in the store means "wherever new events go", which is the calendar prefs' own answer. */
+  const calendarId = $derived(icsImport.calendarId ?? store.calendars.value?.writeCalendarId ?? "");
+  const plan = $derived(categories.all);
+
+  // The pickers are the reason: the sheet can open on any screen, including one that has never
+  // needed the list of calendars.
+  $effect(() => {
+    if (icsImport.open) void store.calendars.ensure();
+  });
+
+  /** Two accounts can both have a "Work", so the address is what tells them apart. */
+  function calendarLabel(account: { email: string | null }, calendar: { name: string }) {
+    return account.email ? `${calendar.name} — ${account.email}` : calendar.name;
+  }
 
   /** "Fri Aug 14 · 09:00 – 10:30", or the day alone when the event is a day rather than a time. */
   function when(event: IcsEvent) {
@@ -59,7 +86,7 @@
         </button>
       </div>
 
-      <ul class="max-h-[46vh] space-y-1 overflow-y-auto">
+      <ul class="max-h-[34vh] space-y-1 overflow-y-auto">
         {#each icsImport.candidates as candidate (candidate.key)}
           <li>
             <button
@@ -91,6 +118,43 @@
           </li>
         {/each}
       </ul>
+
+      <!-- One calendar and one category for the whole file: decided here, once, above the button
+           that acts on them. -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between gap-3">
+          <span class="t-body">Calendar</span>
+          <select
+            value={calendarId}
+            aria-label="Calendar to import into"
+            disabled={writable.length === 0}
+            onchange={(e) => (icsImport.calendarId = e.currentTarget.value)}
+            class="t-body min-w-0 max-w-[62%] truncate rounded-md border border-line-strong bg-surface px-2 py-1"
+          >
+            {#if writable.length === 0}
+              <option value="">Your calendar</option>
+            {/if}
+            {#each writable as { account, calendar } (calendar.id)}
+              <option value={calendar.id}>{calendarLabel(account, calendar)}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <span class="t-body">Counts as</span>
+          <select
+            value={icsImport.categoryId ?? ""}
+            aria-label="Category the imported events count as"
+            onchange={(e) => (icsImport.categoryId = e.currentTarget.value || null)}
+            class="t-body min-w-0 max-w-[62%] truncate rounded-md border border-line-strong bg-surface px-2 py-1"
+          >
+            <option value="">Nothing yet</option>
+            {#each plan as category (category.id)}
+              <option value={category.id}>{category.name}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
 
       <Button
         full

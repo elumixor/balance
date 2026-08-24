@@ -1,7 +1,7 @@
 import { registerPlugin } from "@capacitor/core";
 import { type IcsEvent, parseIcs } from "$lib/ics";
 import { isIOSApp } from "$lib/mobile/platform";
-import { createCalendarEvent } from "$lib/queries";
+import { createCalendarEvent, saveEventMapping } from "$lib/queries";
 import { invalidate } from "$lib/store.svelte";
 
 /**
@@ -48,6 +48,16 @@ export class IcsImport {
   error = $state<string | null>(null);
   /** What the last import did, kept until the sheet is dismissed. */
   imported = $state<number | null>(null);
+  /**
+   * Where the events are going, and what they will count as. Both are decided once for the whole
+   * file rather than per event: a file is a timetable or a season's fixtures, and forty rows each
+   * with their own two pickers is a form, not a sheet.
+   *
+   * The calendar defaults to the one new events already land in, and the category to none at all
+   * — an unmapped event still draws on the week, and guessing wrong is worse than leaving it.
+   */
+  calendarId = $state<string | null>(null);
+  categoryId = $state<string | null>(null);
 
   #stop: (() => void) | null = null;
 
@@ -92,6 +102,8 @@ export class IcsImport {
     this.candidates = [];
     this.error = null;
     this.imported = null;
+    this.calendarId = null;
+    this.categoryId = null;
   }
 
   toggle(key: string) {
@@ -118,15 +130,27 @@ export class IcsImport {
 
     try {
       for (const { event } of this.candidates.filter((c) => c.selected)) {
-        await createCalendarEvent({
+        const created = await createCalendarEvent({
           title: event.title || "Untitled",
           description: event.description ?? undefined,
           location: event.location ?? undefined,
           start: event.start.toISOString(),
           end: event.end.toISOString(),
           allDay: event.allDay,
+          calendarId: this.calendarId ?? undefined,
         });
+        // Counted the moment the calendar has it: a mapping that fails afterwards leaves an event
+        // that is in the calendar and uncategorised, and importing it a second time would leave
+        // two of them.
         done += 1;
+        if (this.categoryId) {
+          await saveEventMapping({
+            calendarId: created.calendarId,
+            externalEventId: created.id,
+            scope: "instance",
+            weights: [{ categoryId: this.categoryId, weightPercent: 100 }],
+          });
+        }
       }
       this.candidates = [];
       this.imported = done;

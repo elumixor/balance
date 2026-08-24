@@ -1,5 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IcsImport } from "./ics-import.svelte";
+import { createCalendarEvent, saveEventMapping } from "./queries";
+
+// Only the two writes an import makes: the rest of the module is what the store is built out of,
+// and mocking it away would take the store with it.
+vi.mock("./queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./queries")>()),
+  createCalendarEvent: vi.fn(),
+  saveEventMapping: vi.fn(),
+}));
+
+const created = vi.mocked(createCalendarEvent);
+const mapped = vi.mocked(saveEventMapping);
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  created.mockImplementation(async (input) => ({ id: "made", calendarId: input.calendarId ?? "primary" }) as never);
+  mapped.mockResolvedValue(undefined as never);
+});
 
 const CALENDAR = [
   "BEGIN:VCALENDAR",
@@ -58,5 +76,59 @@ describe("a file dropped on the window", () => {
     ics.dismiss();
     expect(ics.open).toBe(false);
     expect(ics.candidates).toEqual([]);
+  });
+});
+
+describe("what the import is pointed at", () => {
+  async function ready() {
+    const ics = new IcsImport();
+    await ics.receiveFile(drop("invite.ics", CALENDAR));
+    return ics;
+  }
+
+  it("writes into the chosen calendar and maps to the chosen category", async () => {
+    const ics = await ready();
+    ics.calendarId = "work@example.com";
+    ics.categoryId = "deep-work";
+    await ics.import();
+
+    expect(created).toHaveBeenCalledWith(expect.objectContaining({ calendarId: "work@example.com" }));
+    expect(mapped).toHaveBeenCalledWith({
+      calendarId: "work@example.com",
+      externalEventId: "made",
+      scope: "instance",
+      weights: [{ categoryId: "deep-work", weightPercent: 100 }],
+    });
+    expect(ics.imported).toBe(1);
+  });
+
+  it("leaves both to the server when neither was chosen", async () => {
+    const ics = await ready();
+    await ics.import();
+
+    expect(created).toHaveBeenCalledWith(expect.objectContaining({ calendarId: undefined }));
+    expect(mapped).not.toHaveBeenCalled();
+  });
+
+  // The event is in the calendar by the time the mapping is written, so importing again would
+  // leave two of it — the row has to be gone whether or not the second half worked.
+  it("counts an event whose mapping failed, so a retry can't duplicate it", async () => {
+    const ics = await ready();
+    ics.categoryId = "deep-work";
+    mapped.mockRejectedValue(new Error("Mapping refused"));
+    await ics.import();
+
+    expect(ics.error).toBe("Mapping refused");
+    expect(ics.imported).toBe(1);
+    expect(ics.candidates).toEqual([]);
+  });
+
+  it("forgets both choices when the sheet is dismissed", async () => {
+    const ics = await ready();
+    ics.calendarId = "work@example.com";
+    ics.categoryId = "deep-work";
+    ics.dismiss();
+    expect(ics.calendarId).toBeNull();
+    expect(ics.categoryId).toBeNull();
   });
 });
