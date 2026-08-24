@@ -7,7 +7,9 @@ import BalanceKit
 /// only ever show the "open Balance on your iPhone" card — and the ring, the close-up under a drag
 /// and the duration dial are all gestures, which have to be felt rather than reasoned about. With
 /// `BALANCE_WATCH_PREVIEW=1` in the environment the screens are drawn from this instead of from the
-/// API, and nothing is ever written back. `bun run sim:watch` sets it; see `scripts/sim.ts`.
+/// API, and nothing is ever written back. Set it by hand in an Xcode scheme — `devkit dev:iwatch`
+/// launches with `BALANCE_DEV_AUTH=1` instead, which is the same simulator against real data (see
+/// `DevAuth`). This is what is left for the case where there is no backend to talk to at all.
 ///
 /// It is compiled into debug builds only, so there is no path from a shipped app to this data.
 enum WatchPreview {

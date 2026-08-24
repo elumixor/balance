@@ -19,8 +19,9 @@ public enum APIError: Error, LocalizedError {
 public final class APIClient {
     public static let shared = APIClient()
 
-    /// Defaults to the deployed production backend — no local dev server needed.
-    public var baseURL = URL(string: "https://balance-app-mauve.vercel.app")!
+    /// Defaults to the deployed production backend — no local dev server needed. A simulator run
+    /// with the sign-in bypass on points at the local one instead (see `DevAuth`).
+    public var baseURL = DevAuth.apiBaseURL ?? URL(string: "https://balance-app-mauve.vercel.app")!
 
     private let session = URLSession.shared
     private let decoder: JSONDecoder = {
@@ -48,7 +49,14 @@ public final class APIClient {
     private func authorizedRequest(
         path: String, method: String, query: [String: String] = [:], body: (any Encodable)? = nil
     ) async throws -> URLRequest {
-        guard let token = try await Clerk.shared.session?.getToken() else {
+        // With the bypass on there is no Clerk session to ask, and the backend isn't reading the
+        // header anyway — it answers as `DEV_AUTH_EMAIL` whatever the token says.
+        let token: String
+        if DevAuth.isEnabled {
+            token = DevAuth.token
+        } else if let session = try await Clerk.shared.session?.getToken() {
+            token = session
+        } else {
             throw APIError.notAuthenticated
         }
         var request = URLRequest(url: url(path: path, query: query))

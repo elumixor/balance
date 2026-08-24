@@ -1,3 +1,4 @@
+import BalanceKit
 import ClerkKit
 import Foundation
 import WatchConnectivity
@@ -38,6 +39,9 @@ final class WatchPairing: NSObject, WCSessionDelegate {
     /// Called when the watch app appears and whenever it finds itself without a session: redeems
     /// whatever the phone has already left waiting, and otherwise asks for something to redeem.
     func ensureSession() {
+        // Nothing to pair when the sign-in is being skipped: the requests go out without a session
+        // at all, and asking the phone for a ticket every time the wrist comes up is noise.
+        guard !DevAuth.isEnabled else { return }
         guard Clerk.shared.session == nil, !isPairing else { return }
 
         if let ticket = pendingTicket ?? ticketFromContext() {

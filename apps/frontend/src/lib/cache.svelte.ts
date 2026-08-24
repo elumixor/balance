@@ -1,3 +1,4 @@
+import { diagnostics } from "./diagnostics.svelte";
 import * as persist from "./persist";
 
 /**
@@ -37,11 +38,20 @@ export class Cached<T> {
   #inflight: Promise<void> | null = null;
   readonly #key: string | undefined;
 
+  /**
+   * What the banner calls this when it fails — "Calendars", "Settings". Only for the caches no
+   * screen shows the failure of: a week has its own card with its own retry, and reporting that
+   * as well would say the same thing twice on the screen it happened on.
+   */
+  readonly #scope: string | undefined;
+
   constructor(
     private readonly fetcher: () => Promise<T>,
     private readonly fallbackError: string,
     key?: string,
+    scope?: string,
   ) {
+    this.#scope = scope;
     this.#key = key;
     if (key === undefined) return;
     const stored = persist.read<T>(key);
@@ -75,6 +85,7 @@ export class Cached<T> {
       if (generation !== this.#generation) this.#stale = true;
     } catch (e) {
       this.error = e instanceof Error ? e.message : this.fallbackError;
+      if (this.#scope) diagnostics.report(this.#scope, e);
     } finally {
       this.loading = false;
     }

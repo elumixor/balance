@@ -157,10 +157,12 @@ describe("a run of many events", () => {
     const call = () => {
       live += 1;
       peak = Math.max(peak, live);
-      return new Promise<void>((resolve) => releases.push(() => {
-        live -= 1;
-        resolve();
-      }));
+      return new Promise<void>((resolve) =>
+        releases.push(() => {
+          live -= 1;
+          resolve();
+        }),
+      );
     };
     return { call, releases, peak: () => peak };
   }

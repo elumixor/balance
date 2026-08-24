@@ -71,6 +71,9 @@
       "iwatch": {
         "type": "xcode-sim",
         "color": "cyan",
+        "needs": [
+          "web"
+        ],
         "options": {
           "project": "apps/frontend/ios/App/App.xcodeproj",
           "scheme": "BalanceWatch",
@@ -78,7 +81,7 @@
           "bundleId": "com.elumixor.balance.watchkitapp",
           "device": "Apple Watch Series 11 (46mm)",
           "derivedDataDir": "apps/frontend/ios/App/build/sim",
-          "previewEnv": "BALANCE_WATCH_PREVIEW",
+          "previewEnv": "BALANCE_DEV_AUTH",
           "watch": [
             "apps/frontend/ios/App/WatchApp",
             "apps/frontend/ios/App/WatchWidget",

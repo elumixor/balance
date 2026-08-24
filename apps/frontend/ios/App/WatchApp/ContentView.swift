@@ -58,7 +58,7 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if clerk.session != nil || WatchPreview.isEnabled {
+            if clerk.session != nil || WatchPreview.isEnabled || DevAuth.isEnabled {
                 tracker
             } else {
                 NotSignedInView(isPairing: pairing.isPairing)

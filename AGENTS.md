@@ -162,6 +162,40 @@ with its own scene (`EventNotificationView.swift`) off the colour and glyph trav
 notification. `EventAlarm.swift` only covers the case the phone cannot — a watch worn without the
 companion app installed — and holds nothing pending otherwise, or the same event would buzz twice.
 
+## A failure has to reach the screen
+
+Three things kept a broken app looking like a loading one, and all three are now closed.
+
+`$lib/diagnostics.svelte.ts` collects what no screen was ever going to show — an unhandled
+rejection, a render that threw, a background refresh that failed — and `ProblemBanner` puts it
+along the top of every screen with the technical half one tap away, because a webview on a phone
+has no console anybody can open. A screen's own failure still belongs to that screen: a week that
+didn't load has its `LoadError` card with its own retry, and caches whose failure a screen shows
+are the ones constructed without a `scope`.
+
+A screen that throws while rendering is caught by the `<svelte:boundary>` in the app layout, so the
+shell around it — the tabs, the rail — stays alive and answers. Before that, one screen's error
+took every effect in the app with it, which reads as a tab bar that has stopped working.
+
+And an API address that isn't the API is now said out loud. A native shell serves its bundle from
+`https://localhost`, so a relative base points every request at the app itself, which answers with
+`index.html` and a 200 — data-shaped nothing that used to be parsed as a week. `vite.config.ts`
+gives a native build the deployed address when nothing else says otherwise, and `lib/env.ts`
+refuses to make requests at all when the address it has can't be one.
+
+## Signing in is skippable in development
+
+A simulator asking for a Google consent screen on every clean install is a minute of clicking
+before anything can be looked at. `DEV_AUTH_EMAIL` in `.env` makes every backend request that
+account — the real Clerk user, the real calendar — and `VITE_DEV_AUTH=1` makes the app skip its
+sign-in to match. Both halves are fenced: `vite.config.ts` only defines the flag for a development
+build, and the backend ignores its half in production and on Vercel.
+
+The watch has the same bypass one level down (`BalanceKit/DevAuth.swift`): `bunx devkit dev:iwatch`
+launches it with `BALANCE_DEV_AUTH=1`, which points `APIClient` at `http://localhost:3100` and
+sends requests without a Clerk session, so a watch on a simulator with no paired phone shows the
+real week rather than the "open Balance on your phone" card. `--real` launches it without the flag.
+
 ## Tests
 
 `bun run test` runs both suites. The frontend's are Vitest, beside what they cover as `*.test.ts`

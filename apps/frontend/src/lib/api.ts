@@ -1,12 +1,9 @@
 import { NitroAPI } from "./api-client";
 import { auth } from "./auth.svelte";
+import { diagnostics } from "./diagnostics.svelte";
+import { API_BASE_URL, apiBaseUrlProblem } from "./env";
 
-/**
- * Empty on a release web build: the app is served by the same Nitro deployment that owns
- * `/mobile/*`, so a relative base keeps requests same-origin (no CORS preflight). Dev servers
- * and native builds get an absolute URL from `vite.config.ts`.
- */
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+export { API_BASE_URL };
 
 export class ApiClientError extends Error {}
 
@@ -37,6 +34,10 @@ async function withTimeout<T>(promise: Promise<T>, message: string) {
 }
 
 async function authenticatedFetch(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
+  // A build that doesn't know where its backend is can only fail one request at a time, forever,
+  // with a different-looking message each time. Say the real thing instead, before going out.
+  if (apiBaseUrlProblem) throw new ApiClientError(apiBaseUrlProblem);
+
   // Clerk refreshes the session token over the network, so this hangs for the same reasons a
   // request does — and a request that never gets its token never even starts.
   const token = await withTimeout(auth.token(), "Can't reach the server. Check your connection and try again.");
@@ -46,10 +47,15 @@ async function authenticatedFetch(input: Parameters<typeof fetch>[0], init?: Par
   headers.set("Authorization", `Bearer ${token}`);
   try {
     return await fetch(input, { ...init, headers, signal: init?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  } catch {
+  } catch (e) {
     // A transport failure (offline, DNS, server down) surfaces as `TypeError: Failed to fetch`,
     // and a timeout as an `AbortError` — neither means anything to the person holding the phone.
-    throw new ApiClientError("Can't reach the server. Check your connection and try again.");
+    // What it was trying to reach does mean something to whoever is asked about it later.
+    throw new ApiClientError(
+      `Can't reach the server. Check your connection and try again.\n(${describe(input)} — ${
+        e instanceof Error ? e.message : String(e)
+      })`,
+    );
   }
 }
 
@@ -65,14 +71,16 @@ export async function callApi<T>(promise: Promise<T>): Promise<T> {
     return await promise;
   } catch (e) {
     if (e instanceof Error) {
-      const match = e.message.match(/^API error \d+: (.*)$/s);
+      const match = e.message.match(/^API error (\d+): (.*)$/s);
       if (match) {
-        const parsed = safeJsonParse(match[1]);
+        const status = Number(match[1]);
+        const parsed = safeJsonParse(match[2]);
         if (parsed && typeof parsed === "object" && "error" in parsed) {
           throw new ApiClientError(String((parsed as { error: unknown }).error));
         }
-        // Non-JSON body (gateway HTML, empty 500) — the raw text is noise to the user.
-        throw new ApiClientError("The server had a problem. Try again in a moment.");
+        // Non-JSON body (gateway HTML, empty 500, or — on a native build with the wrong base URL —
+        // the app's own index.html) — the raw text is noise, its shape is not.
+        throw new ApiClientError(serverProblem(status, match[2]));
       }
     }
     throw e;
@@ -110,15 +118,51 @@ export async function apiGet<T>(path: string, query: Record<string, string | num
     if (value !== undefined) search.set(key, String(value));
   }
   const suffix = search.size > 0 ? `?${search.toString()}` : "";
+  const url = `${API_BASE_URL}/mobile${path}${suffix}`;
 
-  const res = await authenticatedFetch(`${API_BASE_URL}/mobile${path}${suffix}`);
-  const json = await res.json().catch(() => null);
+  const res = await authenticatedFetch(url);
+  const body = await res.text().catch(() => "");
+  const json = safeJsonParse(body);
+
   if (!res.ok) {
     const message =
       json && typeof json === "object" && "error" in json
-        ? String(json.error)
-        : "The server had a problem. Try again in a moment.";
+        ? String((json as { error: unknown }).error)
+        : serverProblem(res.status, body);
     throw new ApiClientError(message);
   }
+  // An OK response that isn't JSON is not data — and used to be handed on as `null`, which every
+  // screen then read fields off as though the request had worked. The commonest cause is a base
+  // URL pointing at something that isn't the API, which the shape of the body gives away.
+  if (json === null || typeof json !== "object") throw new ApiClientError(notTheApi(url, body));
   return json as T;
+}
+
+/** What a non-JSON body means, said in one sentence rather than dumped. */
+function serverProblem(status: number, body: string) {
+  if (looksLikeHtml(body)) return `The address the app is using isn't the API — it answered ${status} with a web page.`;
+  return `The server had a problem (${status}). Try again in a moment.`;
+}
+
+function notTheApi(url: string, body: string) {
+  const what = looksLikeHtml(body) ? "a web page" : `${body.slice(0, 60) || "nothing"}…`;
+  return `The app asked ${url} for data and got ${what}. Its API address is probably wrong.`;
+}
+
+function looksLikeHtml(body: string) {
+  return /^\s*(<!doctype html|<html)/i.test(body);
+}
+
+function describe(input: Parameters<typeof fetch>[0]) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+/**
+ * Reports a failure nobody on screen is going to be told about — a background refresh, a write
+ * replayed by the queue — so the app can say something went wrong instead of quietly stopping.
+ */
+export function reportApiFailure(scope: string, error: unknown) {
+  diagnostics.report(scope, error);
 }

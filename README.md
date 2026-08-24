@@ -49,8 +49,17 @@ answers `{ available: false }`, `/mobile/travel/places` suggests nothing, and th
 journeys at all. The frontend
 needs `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL`. With
 no `VITE_API_BASE_URL`, dev falls back to this machine's LAN address (so a phone on the same
-network reaches the backend) and a release build falls back to the empty string, which is what
-makes the deployed web app talk to its own origin.
+network reaches the backend), a web release build falls back to the empty string, which is what
+makes the deployed web app talk to its own origin, and a build for one of the native shells falls
+back to the deployed address — those carry their own copy of the bundle and serve it from
+`https://localhost`, where an empty base would point every request at the app itself.
+
+Two more are development-only and off by default in a release however they are set:
+`DEV_AUTH_EMAIL` makes every backend request that account instead of authenticating one, and
+`VITE_DEV_AUTH=1` makes the app skip its sign-in screen to match. Together they are a simulator
+that opens on real data with nothing to click. The watch app has the same bypass:
+`bunx devkit dev:iwatch` launches it with `BALANCE_DEV_AUTH=1` (add `--real` to launch without),
+which points it at `http://localhost:3100` and needs no paired phone.
 
 ### The database
 
@@ -97,7 +106,7 @@ something you trigger, not something a push causes.
 
 ```bash
 bunx devkit dev:iphone    # simulator, loading the dev server — web edits are live, native ones rebuild
-bunx devkit dev:iwatch    # the watch app on its own simulator, with sample data (--real for the API)
+bunx devkit dev:iwatch    # the watch app on its own simulator, signed in as DEV_AUTH_EMAIL (--real to pair)
 bunx devkit build:iphone  # web bundle -> Xcode project -> compiles the app, no signing
 cd apps/frontend && bun run assets  # regenerates icons + splash screens from assets/icon.png
 ```

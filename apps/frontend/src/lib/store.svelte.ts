@@ -1,3 +1,4 @@
+import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { Cached } from "./cache.svelte";
 import { weekKey, weekRange } from "./dates";
@@ -16,9 +17,9 @@ import type { CalendarEvent, CalendarWeek } from "./types";
  * read, so they live in `synced.svelte.ts`, where a write is a queue entry rather than a refetch.
  */
 export const store = {
-  integrations: new Cached(getIntegrations, "Couldn't check your connected calendars.", "integrations"),
-  calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars.", "calendars"),
-  preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences"),
+  integrations: new Cached(getIntegrations, "Couldn't check your connected calendars.", "integrations", "Calendars"),
+  calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars.", "calendars", "Calendars"),
+  preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences", "Settings"),
 };
 
 /**
@@ -43,6 +44,12 @@ const WEEKS_STORED = 12;
  * nothing, so it has nothing to write.
  */
 export function calendarWeek(key: string) {
+  // Untracked as well as documented: the note above is the rule, and this is what makes breaking
+  // it cost a re-render rather than the whole app — see `agenda.svelte.ts`.
+  return untrack(() => resolveWeek(key));
+}
+
+function resolveWeek(key: string) {
   const cached = weeks.get(key);
   if (cached) {
     // Asking for a week again makes it the newest, so the map drops the weeks nobody has come back

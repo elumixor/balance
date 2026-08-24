@@ -1,3 +1,4 @@
+import { untrack } from "svelte";
 import type { Cached } from "$lib/cache.svelte";
 import { addDays, DAYS_PER_WEEK, startOfWeek, weekKey } from "$lib/dates";
 import { calendarWeek, invalidate } from "$lib/store.svelte";
@@ -80,16 +81,25 @@ export class Agenda {
    * This week and next: "what's next" on a Sunday evening is in a week no screen is showing.
    * The array is only replaced when it actually changed, so a tick costs nothing downstream —
    * and it is replaced when the calendar screen's paging drops one of these weeks from the map.
+   *
+   * Untracked, because `tick()` is called from an `$effect` on the phone (`mobile/reminders`) and
+   * asking for a week both reads the week map and writes it — the cache it hands back is moved to
+   * the end of the map to keep it from being dropped. An effect that reads and writes the same
+   * state re-runs itself until Svelte gives up, and what it gives up is every effect in the app:
+   * on iOS that was a tab bar that had stopped answering and a calendar that never arrived, with
+   * nothing on screen to say why.
    */
   #sync() {
-    const monday = startOfWeek(this.now);
-    const next = [monday, addDays(monday, DAYS_PER_WEEK)].map((start) => calendarWeek(weekKey(start)));
-    if (next.length !== this.#weeks.length || next.some((week, i) => week !== this.#weeks[i])) this.#weeks = next;
+    untrack(() => {
+      const monday = startOfWeek(this.now);
+      const next = [monday, addDays(monday, DAYS_PER_WEEK)].map((start) => calendarWeek(weekKey(start)));
+      if (next.length !== this.#weeks.length || next.some((week, i) => week !== this.#weeks[i])) this.#weeks = next;
+    });
   }
 
   /** Fetches only what's missing or stale — which on a cold start is both weeks. */
   #ensure() {
-    return Promise.all([synced.ensure(), ...this.#weeks.map((week) => week.ensure())]);
+    return untrack(() => Promise.all([synced.ensure(), ...this.#weeks.map((week) => week.ensure())]));
   }
 }
 

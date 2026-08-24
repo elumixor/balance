@@ -2,7 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Clerk } from "@clerk/clerk-js";
-import { API_BASE_URL } from "./api";
+import { API_BASE_URL, DEV_AUTH, DEV_AUTH_EMAIL } from "./env";
 
 // Clerk publishable keys are public identifiers (not secrets) — safe to ship in the client bundle.
 const PUBLISHABLE_KEY =
@@ -12,15 +12,6 @@ const PUBLISHABLE_KEY =
 const SIGNED_IN_KEY = "balance:signed-in";
 
 const isNativeApp = Capacitor.isNativePlatform();
-
-/**
- * Skip the sign-in entirely, for a simulator pointed at a local backend.
- *
- * Only ever set on a build made by hand for that purpose; the deployed build never carries it, and
- * a build that did would still be useless, because the backend refuses the bypass on Vercel and in
- * production. The server is the fence — this half only saves the clicks.
- */
-const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
 
 /** The device's standing permission to sign itself back in — see `restoreNativeSession`. */
 const DEVICE_GRANT_KEY = "balance:device-grant";
@@ -93,7 +84,10 @@ class Auth {
     if (DEV_AUTH) {
       this.signedIn = true;
       this.loaded = true;
-      this.email = "dev@localhost";
+      this.email = DEV_AUTH_EMAIL;
+      // A stable id, because the store throws away what it holds when the account changes — and
+      // an empty one would read as "nobody" on every launch.
+      this.userId = "dev-auth";
       // Nothing here ever touches Clerk, so nothing can await a client that will never exist.
       return (this.#ready ??= Promise.resolve(null as unknown as Clerk));
     }

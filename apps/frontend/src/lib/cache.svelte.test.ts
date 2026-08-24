@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Cached } from "./cache.svelte";
+import { diagnostics } from "./diagnostics.svelte";
 import * as persist from "./persist";
 
 /** A fetcher whose answers the test hands out one at a time. */
@@ -16,6 +17,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   localStorage.clear();
+  diagnostics.clear();
 });
 
 afterEach(() => {
@@ -92,6 +94,24 @@ describe("failure", () => {
     );
     await cached.ensure();
     expect(cached.error).toBe("Couldn't load that week.");
+  });
+
+  /**
+   * A cache with a scope is one no screen shows the failure of — the settings behind a dialog
+   * nobody has open, the list of calendars. Failing quietly is how those stopped working without
+   * anybody being told.
+   */
+  it("reports a failure the app has nowhere else to show", async () => {
+    const cached = new Cached(() => Promise.reject(new Error("offline")), "nope", undefined, "Settings");
+    await cached.ensure();
+    expect(diagnostics.latest?.scope).toBe("Settings");
+    expect(diagnostics.latest?.message).toBe("offline");
+  });
+
+  it("says nothing to the banner for a cache whose own screen shows the failure", async () => {
+    const cached = new Cached(() => Promise.reject(new Error("offline")), "nope");
+    await cached.ensure();
+    expect(diagnostics.problems).toHaveLength(0);
   });
 
   it("tries again on the next mount instead of showing an empty screen forever", async () => {

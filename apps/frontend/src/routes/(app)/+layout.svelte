@@ -10,6 +10,7 @@
   import { desktopTray } from "$lib/desktop/tray.svelte";
   import { desktopUpdates } from "$lib/desktop/updates.svelte";
   import { isBareKey, isSettingsKey } from "$lib/keys";
+  import { syncStatus } from "$lib/synced.svelte";
   import { icsImport } from "$lib/ics-import.svelte";
   import IcsDropZone from "$lib/components/IcsDropZone.svelte";
   import ImportIcsDialog from "$lib/components/ImportIcsDialog.svelte";
@@ -18,6 +19,8 @@
   import { isActive, NAV_TABS } from "$lib/nav";
   import { settings } from "$lib/settings.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
+  import { diagnostics } from "$lib/diagnostics.svelte";
+  import ScreenFailed from "$lib/components/ScreenFailed.svelte";
   import { startWatchHandoff } from "$lib/watch/handoff";
   import { untrack, type Snippet } from "svelte";
   import { page } from "$app/state";
@@ -49,8 +52,16 @@
     untrack(() => {
       // Before the first request, in case what's on screen belongs to whoever signed in last.
       if (userId) adoptUser(userId);
-      void warmStore();
+      warmStore().catch((e) => diagnostics.report("Loading", e));
     });
+  });
+
+  // The write queue answers to nobody: it runs whether or not a screen is open, and a transport
+  // failure there is why categories can quietly stop arriving. A refused write has a screen to
+  // show it — see `syncStatus.rejected` — but a sync that can't reach the server has none.
+  $effect(() => {
+    const error = syncStatus.error;
+    if (error) diagnostics.report("Sync", error);
   });
 
   // On macOS the app is also the menu bar item, which outlives every screen — so it starts with
@@ -113,7 +124,16 @@
       <!-- The screen scrolls itself, not the page: the rail and the tab bar stay put, and a
            screen that wants the whole height (the calendar) can take it. -->
       <main class="min-h-0 flex-1 overflow-hidden">
-        {@render children()}
+        <!-- A screen that throws while rendering used to take the whole shell down with it: the
+             tabs stayed drawn and stopped answering, which reads as an app that is still loading.
+             The boundary keeps the shell alive, says what happened, and lets the screen be built
+             again — nothing here holds state that the store doesn't hold for it. -->
+        <svelte:boundary onerror={(e) => diagnostics.report("Screen", e)}>
+          {@render children()}
+          {#snippet failed(error, reset)}
+            <ScreenFailed {error} {reset} />
+          {/snippet}
+        </svelte:boundary>
       </main>
       <TabBar />
     </div>
