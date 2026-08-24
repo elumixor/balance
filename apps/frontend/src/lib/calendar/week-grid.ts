@@ -56,7 +56,7 @@ export function gridLines(hourPx: number): GridLine[] {
 export interface TimeTick {
   readonly minutes: number;
   readonly label: string;
-  /** Whole hours carry the clock time; the divisions between them carry only their minutes. */
+  /** Whole hours are drawn louder than the divisions between them. */
   readonly major: boolean;
 }
 
@@ -68,6 +68,9 @@ export interface TimeTick {
  * noise. Squeezed the other way the hours themselves thin out to every second one, since a label is
  * taller than the gap between two hours down there.
  *
+ * Every label is the whole clock time — a bare `:30` makes you find the hour above it before it
+ * means anything, which is work the column exists to save.
+ *
  * Midnight is left out: it sits on the very top edge of the grid, where half of it would be cut off.
  */
 export function gutterTicks(hourPx: number): TimeTick[] {
@@ -75,11 +78,10 @@ export function gutterTicks(hourPx: number): TimeTick[] {
     hourPx < CROWDED_HOUR_PX ? 120 : hourPx < HALF_HOUR_LINE_PX ? 60 : hourPx < QUARTER_HOUR_LINE_PX ? 30 : 15;
   const ticks: TimeTick[] = [];
   for (let minutes = step; minutes < MINUTES_PER_DAY; minutes += step) {
-    const hour = Math.floor(minutes / 60);
     const minute = minutes % 60;
     ticks.push({
       minutes,
-      label: minute === 0 ? `${pad(hour)}:00` : `:${pad(minute)}`,
+      label: `${pad(Math.floor(minutes / 60))}:${pad(minute)}`,
       major: minute === 0,
     });
   }

@@ -286,11 +286,11 @@ describe("gutterTicks", () => {
     ]);
   });
 
-  it("names the divisions the grid draws, and only by their minutes", () => {
-    expect(at(HALF_HOUR_LINE_PX, 30)).toEqual({ minutes: 30, label: ":30", major: false });
+  it("names the divisions the grid draws, by the whole clock time", () => {
+    expect(at(HALF_HOUR_LINE_PX, 30)).toEqual({ minutes: 30, label: "00:30", major: false });
     expect(at(HALF_HOUR_LINE_PX, 15)).toBeUndefined();
-    expect(at(QUARTER_HOUR_LINE_PX, 45)).toEqual({ minutes: 45, label: ":45", major: false });
-    expect(at(QUARTER_HOUR_LINE_PX, 15)).toEqual({ minutes: 15, label: ":15", major: false });
+    expect(at(QUARTER_HOUR_LINE_PX, 14 * 60 + 45)).toEqual({ minutes: 885, label: "14:45", major: false });
+    expect(at(QUARTER_HOUR_LINE_PX, 14 * 60 + 15)).toEqual({ minutes: 855, label: "14:15", major: false });
   });
 
   it("says as much as the grid draws, never more", () => {
