@@ -1,7 +1,7 @@
 import { model, type Signals, type SyncedStorage, syncedClient } from "@elumixor/synced/client";
 import type { SyncResponse } from "@elumixor/synced/protocol";
 import { api, callApi } from "./api";
-import type { Activity, Category } from "./types";
+import type { Activity, Category, GateEvent, Goal, Practice, Project, Stage, StageOutcome, Task } from "./types";
 
 /**
  * The app's own records — the ones this server owns, as opposed to the calendar's.
@@ -10,9 +10,53 @@ import type { Activity, Category } from "./types";
  * hand. This is that, once: `@elumixor/synced` holds the queue, the retries and the undo, and what
  * a screen sees is always the server's records with its own unacknowledged writes on top.
  */
+/** What the client sends when a stage is decided — see `stages.ts` on the server. */
+export interface DecidePayload {
+  outcome: StageOutcome;
+  day: string;
+  note: string;
+  restart?: {
+    name: string;
+    sentence: string;
+    metric: Stage["metric"];
+    threshold: number;
+    windowDays: number;
+    budgetHours: number;
+    hoursPerWeek?: number;
+  };
+}
+
 const models = {
   categories: model<Category>()({}),
   activities: model<Activity>()({}),
+  goals: model<Goal>()({}),
+  practices: model<Practice>()({}),
+  projects: model<Project>()({}),
+  /**
+   * The two writes a stage has that are not fields: both belong to the server, which owns the
+   * date and the rule that an outcome is chosen once. Neither is undoable — a decision taken back
+   * would be a decision, and the app would rather have that said out loud.
+   */
+  stages: model<Stage>()({
+    compare: (a, b) => a.ordinal - b.ordinal,
+    actions: {
+      decide: {
+        optimistic: (_stage, payload: DecidePayload) => ({
+          outcome: payload.outcome,
+          decidedOn: payload.day,
+          decisionNote: payload.note,
+        }),
+      },
+      extend: {
+        optimistic: (_stage, payload: { day: string; note: string }) => ({
+          extendedOn: payload.day,
+          extensionNote: payload.note,
+        }),
+      },
+    },
+  }),
+  tasks: model<Task>()({ compare: (a, b) => a.ordinal - b.ordinal }),
+  gateEvents: model<GateEvent>()({ compare: (a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0) }),
 };
 
 /** `$state` in a box, which is the only thing the library wants from Svelte. */
@@ -103,6 +147,12 @@ export const syncStatus = {
 
 export const categories = synced.models.categories;
 export const activities = synced.models.activities;
+export const goals = synced.models.goals;
+export const practices = synced.models.practices;
+export const projects = synced.models.projects;
+export const stages = synced.models.stages;
+export const tasks = synced.models.tasks;
+export const gateEvents = synced.models.gateEvents;
 
 if (typeof window !== "undefined") {
   // Before the first frame, and before there's a session: what the device holds is what the last

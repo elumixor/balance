@@ -46,6 +46,10 @@ export interface CalendarEvent {
   activityId: string | null;
   activityName: string | null;
   weights: ActivityWeight[];
+  /** What the hour was for — a project, a practice, a task — on top of what it counts as. */
+  projectId: string | null;
+  practiceId: string | null;
+  taskId: string | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
   location: string | null;
   /** The link that means "you are in the call". */
@@ -66,6 +70,9 @@ export interface CalendarEvent {
  * Drafts and drag ghosts are events on the grid without being events in anyone's calendar yet.
  */
 export const NOT_A_MEETING = {
+  projectId: null,
+  practiceId: null,
+  taskId: null,
   location: null,
   conferenceUrl: null,
   conferenceName: null,
@@ -76,7 +83,7 @@ export const NOT_A_MEETING = {
   reminders: [],
 } satisfies Pick<
   CalendarEvent,
-  "location" | "conferenceUrl" | "conferenceName" | "attendees" | "organizer" | "invited" | "response" | "reminders"
+  "projectId" | "practiceId" | "taskId" | "location" | "conferenceUrl" | "conferenceName" | "attendees" | "organizer" | "invited" | "response" | "reminders"
 >;
 
 export type EventResponse = "accepted" | "declined" | "tentative" | "needsAction";
@@ -143,3 +150,140 @@ export type RingSegment = {
   /** Values share one unit; the ring maps their sum onto 360°. */
   value: number;
 };
+
+// --- Projects ------------------------------------------------------------
+
+/** A statement about the world. Holds no hours, ever — there is no field for them. */
+export interface Goal {
+  id: string;
+  /** The sphere it belongs to — a category on the ring. */
+  categoryId: string;
+  statement: string;
+  measure: string | null;
+  /** `YYYY-MM-DD`, or null for "ongoing". */
+  horizon: string | null;
+}
+
+/** Something recurring that never completes, measured only by whether it kept happening. */
+export interface Practice {
+  id: string;
+  goalId: string | null;
+  categoryId: string;
+  name: string;
+  unit: "times" | "hours";
+  targetPerWeek: number;
+}
+
+export type ProjectStatus = "active" | "held" | "parked" | "shipped" | "killed";
+export type ProjectTemplate = "build" | "search" | "delivery" | "exit" | "evergreen" | "simple";
+
+export interface ProjectLink {
+  label: string;
+  url: string;
+}
+
+/** Bounded work that claims hours a week from a sphere and ends in a decision. */
+export interface Project {
+  id: string;
+  goalId: string | null;
+  categoryId: string;
+  name: string;
+  description: string;
+  template: ProjectTemplate;
+  hoursPerWeek: number;
+  status: ProjectStatus;
+  /** An emoji, or an image URL. Null falls back to the sphere's icon. */
+  cover: string | null;
+  links: ProjectLink[];
+  people: string[];
+  /** Delivery-type projects take an external date instead of deriving one. */
+  deadline: string | null;
+  unparkTrigger: string | null;
+}
+
+export type GateMetric = "days" | "people" | "throughput" | "event" | "hours";
+export type StageOutcome = "ship" | "park" | "kill" | "restart";
+
+export interface Checkpoint {
+  day: string;
+  count: number;
+  moved: boolean;
+  note: string;
+}
+
+/** One gate on the way through a project. The date is the server's, derived once and never edited. */
+export interface Stage {
+  id: string;
+  projectId: string;
+  ordinal: number;
+  name: string;
+  sentence: string;
+  metric: GateMetric;
+  threshold: number;
+  windowDays: number;
+  budgetHours: number;
+  startedOn: string | null;
+  decideOn: string | null;
+  extendedOn: string | null;
+  extensionNote: string | null;
+  outcome: StageOutcome | null;
+  decidedOn: string | null;
+  decisionNote: string | null;
+  checkpoints: Checkpoint[];
+}
+
+export interface Task {
+  id: string;
+  stageId: string;
+  title: string;
+  estimateHours: number | null;
+  done: boolean;
+  ordinal: number;
+}
+
+export type GateSource = "manual" | "product" | "timer";
+
+/** One thing a gate counts that the calendar can't see. */
+export interface GateEvent {
+  id: string;
+  stageId: string;
+  day: string;
+  source: GateSource;
+  actorKey: string | null;
+  note: string | null;
+  quantity: number;
+}
+
+/** What a gate has counted so far — see `gates.ts` on the server. */
+export interface GateProgress {
+  count: number;
+  threshold: number;
+  windowStart: string;
+  windowEnd: string;
+  /** False until the window has opened: not measurable is not the same as failing. */
+  measurable: boolean;
+  passed: boolean;
+}
+
+export interface ProjectProgress {
+  /** Hours logged per week, oldest first, this week last. Same length as `Progress.weeks`. */
+  hoursByWeek: number[];
+  stageId: string | null;
+  gate: GateProgress | null;
+}
+
+export interface PracticeProgress {
+  byWeek: number[];
+  /** Kept over the last four whole weeks, as a share of the target. */
+  adherence: number;
+}
+
+/** The calendar's answer to every project and practice at once — `/mobile/projects/progress`. */
+export interface Progress {
+  connected: boolean;
+  needsReconnect: boolean;
+  /** The Monday of each column, `YYYY-MM-DD`. */
+  weeks: string[];
+  projects: Record<string, ProjectProgress>;
+  practices: Record<string, PracticeProgress>;
+}

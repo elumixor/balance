@@ -8,6 +8,7 @@ import type {
   CalendarWeek,
   IntegrationStatus,
   MappingScope,
+  Progress,
 } from "./types";
 
 // Auth
@@ -51,6 +52,10 @@ export const getCalendarWeek = (from: string, to: string) => apiGet<CalendarWeek
 export const createCalendarEvent = (input: {
   /** Absent for an event that counts as nothing — putting back a deleted one, say. */
   activityId?: string;
+  /** For a block that counts straight toward categories — a project's sphere, say. */
+  weights?: ActivityWeight[];
+  projectId?: string;
+  taskId?: string;
   start: string;
   end: string;
   calendarId?: string;
@@ -89,6 +94,15 @@ export const saveEventMapping = (input: {
   scope: MappingScope;
   activityId?: string | null;
   weights?: ActivityWeight[];
+  /** What the hour was for. Absent leaves it alone; null clears it. */
+  projectId?: string | null;
+  practiceId?: string | null;
+  taskId?: string | null;
 }) => callApi(api.calendar.mappings.$post(input)).then(unwrapOk);
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
   callApi(api.calendar.mappings.$delete(input)).then(unwrapOk);
+
+// Projects
+/** The device's day and zone travel with the ask, the same way the planning sessions send theirs. */
+export const getProjectProgress = (timeZone: string, today: string) =>
+  apiGet<Progress>("/projects/progress", { timeZone, today });

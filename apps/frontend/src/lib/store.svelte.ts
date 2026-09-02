@@ -3,7 +3,8 @@ import { SvelteMap } from "svelte/reactivity";
 import { Cached } from "./cache.svelte";
 import { weekKey, weekRange } from "./dates";
 import * as persist from "./persist";
-import { getCalendarPrefs, getCalendarWeek, getIntegrations, getPreferences } from "./queries";
+import { deviceTimeZone, localDay } from "./planning/zone";
+import { getCalendarPrefs, getCalendarWeek, getIntegrations, getPreferences, getProjectProgress } from "./queries";
 import { synced } from "./synced.svelte";
 import type { CalendarEvent, CalendarWeek } from "./types";
 
@@ -20,6 +21,15 @@ export const store = {
   integrations: new Cached(getIntegrations, "Couldn't check your connected calendars.", "integrations", "Calendars"),
   calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars.", "calendars", "Calendars"),
   preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences", "Settings"),
+  /**
+   * What the calendar says every project has had — read fresh from the device's own day, since a
+   * week is a week where the person is. Its failure is the projects screen's to show.
+   */
+  progress: new Cached(
+    () => getProjectProgress(deviceTimeZone(), localDay()),
+    "Couldn't read your projects' hours.",
+    "progress",
+  ),
 };
 
 /**
@@ -85,6 +95,9 @@ export const syncing = {
   get planning() {
     return synced.syncing;
   },
+  get projects() {
+    return synced.syncing || store.progress.syncing;
+  },
 };
 
 /**
@@ -101,9 +114,14 @@ export const invalidate = {
   activities() {
     invalidateWeeks();
   },
-  /** An event moved, or started counting as something else. */
+  /** An event moved, or started counting as something else — or for something else. */
   calendar() {
     invalidateWeeks();
+    store.progress.invalidate();
+  },
+  /** A stage opened or decided, a manual count added: what the cards say about evidence moved. */
+  projects() {
+    store.progress.invalidate();
   },
   /** Connecting or disconnecting replaces every event on screen. */
   integrations() {
@@ -127,6 +145,7 @@ export function warmStore() {
     synced.ensure(),
     store.integrations.ensure(),
     store.preferences.ensure(),
+    store.progress.ensure(),
     calendarWeek(weekKey(new Date())).ensure(),
   ]);
 }

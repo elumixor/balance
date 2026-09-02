@@ -1,8 +1,9 @@
-import { CalendarDays, ChartPie } from "lucide-svelte";
+import { CalendarDays, ChartPie, Hexagon } from "lucide-svelte";
 import { syncing } from "./store.svelte";
 
 /**
- * The two halves of the app: the week as it happens, and the week as you meant it to go.
+ * The three views of the app: the week as it happens, the week as you meant it to go, and the
+ * projects those hours are for.
  * The daily sitting is not among them — it is something the app asks for on the two days a day it
  * is worth asking, and a tab for it sat there saying nothing for the other twenty-three hours.
  * `SessionNudge` is where it appears instead, only while it is owed.
@@ -17,6 +18,7 @@ import { syncing } from "./store.svelte";
 export const NAV_TABS = [
   { href: "/calendar", label: "Calendar", key: "c", icon: CalendarDays, syncing: () => syncing.calendar },
   { href: "/planning", label: "Planning", key: "p", icon: ChartPie, syncing: () => syncing.planning },
+  { href: "/projects", label: "Projects", key: "j", icon: Hexagon, syncing: () => syncing.projects },
 ];
 
 /** A tab stays lit for everything under it, so Planning's own sections don't unlight the rail. */
