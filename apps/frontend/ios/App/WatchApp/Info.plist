@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BalancePostHogHost</key>
+	<string></string>
+	<key>BalancePostHogKey</key>
+	<string></string>
+	<key>BalanceSentryDSN</key>
+	<string></string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -19,7 +25,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>34</string>
+	<string>35</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSAppTransportSecurity</key>
@@ -31,11 +37,5 @@
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
 	<string>com.elumixor.balance</string>
-	<key>BalanceSentryDSN</key>
-	<string></string>
-	<key>BalancePostHogKey</key>
-	<string></string>
-	<key>BalancePostHogHost</key>
-	<string></string>
 </dict>
 </plist>
