@@ -4,6 +4,7 @@
   import AppLoading from "$lib/components/AppLoading.svelte";
   import SideNav from "$lib/components/nav/SideNav.svelte";
   import TabBar from "$lib/components/nav/TabBar.svelte";
+  import SessionNudge from "$lib/components/SessionNudge.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import { desktopDock } from "$lib/desktop/dock";
   import { desktopReminders } from "$lib/desktop/reminders.svelte";
@@ -17,6 +18,8 @@
   import { mobileReminders } from "$lib/mobile/reminders.svelte";
   import { sessionReminders } from "$lib/mobile/session-reminders.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
+  import { clock } from "$lib/clock.svelte";
+  import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings.svelte";
   import { adoptUser, warmStore } from "$lib/store.svelte";
   import { diagnostics } from "$lib/diagnostics.svelte";
@@ -79,6 +82,7 @@
     desktopReminders.start();
     mobileReminders.start();
     sessionReminders.start();
+    sessionNudge.start();
     icsImport.start();
     const stopWatchHandoff = startWatchHandoff();
     return () => {
@@ -88,9 +92,18 @@
       desktopReminders.stop();
       mobileReminders.stop();
       sessionReminders.stop();
+      sessionNudge.stop();
       icsImport.stop();
       stopWatchHandoff();
     };
+  });
+
+  // The sitting is owed on a clock, not on a route: the tick is what notices the slot coming round
+  // while somebody is looking at the week. Only the clock is read here — asking costs a request at
+  // most twice a day, and the answer is state the nudge reads for itself.
+  $effect(() => {
+    void clock.now;
+    void untrack(() => sessionNudge.check());
   });
 
   /**
@@ -135,6 +148,8 @@
           {/snippet}
         </svelte:boundary>
       </main>
+      <!-- Under the thumb, above the bar: the phone has no rail to hang a mark off. -->
+      <SessionNudge variant="floating" />
       <TabBar />
     </div>
   </div>

@@ -1,3 +1,4 @@
+import { untrack } from "svelte";
 import { getSessionSummary } from "$lib/queries";
 import type { SessionSummary, Slot } from "./types";
 import { deviceTimeZone } from "./zone";
@@ -18,17 +19,33 @@ class SessionData {
   /** Where the review's category bar is drawn from — hours first, biggest first. */
   readonly categories = $derived((this.summary?.review.categories ?? []).filter((category) => category.hours > 0));
 
+  /**
+   * Asks for a slot, once.
+   *
+   * Untracked throughout, because the screen calls this from an `$effect` and every field it looks
+   * at here is one loading writes to. Tracked, a failed load was a loop: the effect read `error`,
+   * the load that answered it cleared `error`, and the effect ran again — until Svelte gave up on
+   * every effect in the app, which reads as tabs that have stopped answering.
+   */
   async enter(slot: Slot) {
-    if (this.summary?.slot === slot && !this.error) return;
+    if (untrack(() => this.summary?.slot === slot && !this.error)) return;
     this.slot = slot;
     await this.load();
+  }
+
+  /** Asks again for the slot already on screen — after a commit, or from a retry button. */
+  refresh() {
+    return this.load();
   }
 
   async load() {
     this.loading = true;
     this.error = null;
     try {
-      this.summary = await getSessionSummary(this.slot, deviceTimeZone());
+      this.summary = await getSessionSummary(
+        untrack(() => this.slot),
+        deviceTimeZone(),
+      );
     } catch (e) {
       this.error = e instanceof Error ? e.message : "Couldn't open your session.";
     } finally {

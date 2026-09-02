@@ -5,6 +5,7 @@
   import Tooltip from "$lib/components/Tooltip.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
+  import SessionNudge from "$lib/components/SessionNudge.svelte";
   import { sidePanel } from "./side-panel.svelte";
 
   /**
@@ -34,6 +35,10 @@
     data-tauri-drag-region={isDesktop ? true : undefined}
     class="mb-4 flex items-center gap-1 {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}"
   >
+    <!-- Before the screens rather than among them: it is not somewhere to be, it is something
+         waiting — and the corner nearest the edge is where an app puts one. -->
+    <SessionNudge variant="rail" />
+
     {#each NAV_TABS as tab (tab.href)}
       {@const active = isActive(page.url.pathname, tab.href)}
       <Tooltip label={tab.label} hotkey={tab.key}>

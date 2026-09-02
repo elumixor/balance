@@ -1,7 +1,10 @@
 import { goto } from "$app/navigation";
+import type { Cached } from "$lib/cache.svelte";
 import { weekKey } from "$lib/dates";
 import { commitPlannedDay, commitPlannedWeek } from "$lib/queries";
 import { calendarWeek } from "$lib/store.svelte";
+import type { CalendarWeek } from "$lib/types";
+import { sessionData } from "./session-data.svelte";
 import type { StarAward } from "./types";
 import { deviceTimeZone, localDay } from "./zone";
 
@@ -19,8 +22,25 @@ import { deviceTimeZone, localDay } from "./zone";
  * because that is where the star is actually earned.
  */
 class PlanMode {
+  #day = $state<string | null>(null);
+  /**
+   * The cache holding the day being planned, resolved when the day is set rather than when the
+   * meter is read. Asking the store for a week makes it if it hasn't got one, and making it writes
+   * the store's map — a write no `$derived` is allowed to make, and one that used to take every
+   * effect in the app down with it the moment the planning bar was drawn.
+   */
+  #week = $state<Cached<CalendarWeek> | null>(null);
+
   /** The day being planned, `YYYY-MM-DD`, or null when the calendar is just the calendar. */
-  day = $state<string | null>(null);
+  get day() {
+    return this.#day;
+  }
+
+  set day(value: string | null) {
+    this.#day = value;
+    this.#week = value ? calendarWeek(weekKey(new Date(dayBounds(value).start))) : null;
+  }
+
   /** Hours the ring gives this day — a seventh of what it claims for the week. */
   budgetHours = $state(0);
   /** How full the day has to be, 0..1. */
@@ -44,8 +64,7 @@ class PlanMode {
     if (!day) return 0;
 
     const { start, end } = dayBounds(day);
-    const week = calendarWeek(weekKey(new Date(start)));
-    const events = week.value?.events ?? [];
+    const events = this.#week?.value?.events ?? [];
 
     let hours = 0;
     for (const event of events) {
@@ -112,6 +131,8 @@ class PlanMode {
         awarded.push(...week.awarded);
       }
       this.awarded = awarded;
+      // The nudge asks whether the day has been planned, and it just has.
+      void sessionData.refresh();
     } catch (e) {
       this.error = e instanceof Error ? e.message : "Couldn't save that.";
     } finally {

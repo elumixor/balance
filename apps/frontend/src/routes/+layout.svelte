@@ -6,6 +6,7 @@
   import { watchDesktopSignIn } from "$lib/desktop/sign-in";
   import { theme } from "$lib/theme.svelte";
   import { viewport } from "$lib/viewport.svelte";
+  import { watchdog } from "$lib/watchdog.svelte";
   import type { Snippet } from "svelte";
   import "../app.css";
 
@@ -14,6 +15,7 @@
   // Before anything else can fail: a rejection thrown while the app is still starting is exactly
   // the one nobody sees otherwise.
   diagnostics.start();
+  watchdog.start();
   theme.start();
   viewport.start();
   // Failures also surface through `auth.startupError`, which the splash reads; this keeps the
@@ -25,6 +27,12 @@
   // Same reasoning, different signal: the window never remounts, so it can't rely on a screen
   // revisit to notice a calendar connected elsewhere while it sat in the background.
   $effect(watchDesktopFocus);
+  // The heartbeat itself. Reading the counter is what makes this run again, and running is the
+  // whole message — see `watchdog.svelte.ts`, which is watching for it to stop.
+  $effect(() => {
+    void watchdog.ping;
+    watchdog.beat();
+  });
 </script>
 
 {@render children()}
