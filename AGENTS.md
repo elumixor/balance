@@ -233,6 +233,21 @@ the block's card and its context menu, not hidden in a settings screen. Manual r
 opened is "not measurable", never "failing". Both rule modules are tested (`bun test`); the client
 keeps a copy of the date rule (`decide-on.ts`, covered) only to preview where a stage would land.
 
+Hours are allocated by ranking, not by a priority field. When a sphere's live claims exceed its
+hours on the ring, the gallery asks pairwise questions — "which matters more?", then "which would
+you rather do?" — only for pairs the answers so far don't already decide (`ranking.ts`, transitive
+closure over `project_comparisons`), and reports the pattern across the two orders as an
+observation. `allocate.ts` fits claims under the cap top-down; applying it is a write the person
+presses. Filling the week is a solver (`calendar/filler.ts`): remaining claims into free working
+hours, projects taking turns in rank order, shown as a diff of blocks to accept or trim.
+
+The model's five moments are `server/lib/projects/assist.ts` and the `projects/assist/*` routes,
+and all of them are proposals: gate sentences for a vague idea (including "this is a recurring
+event"), a note over the week's fill about what to drop, subtasks out of a stuck checkpoint's note,
+and a recommendation on decision day. None of them writes a record, moves a date, marks a gate or
+sets an outcome — the routes can only return text — and with no `VERCEL_AI_KEY` every screen
+behaves identically without them.
+
 `apps/backend/scripts/import-projects.ts` is the one-time import from Notion: a card per row of
 `scripts/projects.json`, with a link back and nothing that syncs.
 

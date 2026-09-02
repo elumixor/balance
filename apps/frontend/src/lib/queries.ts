@@ -3,12 +3,17 @@ import type { CommitResult, SessionNotification, SessionSummary, Slot } from "./
 import type { StoredPreferences } from "./preferences.svelte";
 import type {
   ActivityWeight,
+  Assisted,
   CalendarEvent,
   CalendarPrefs,
   CalendarWeek,
+  CheckpointHelp,
+  CreateSuggestion,
+  DecisionAdvice,
   IntegrationStatus,
   MappingScope,
   Progress,
+  WeekNote,
 } from "./types";
 
 // Auth
@@ -107,3 +112,33 @@ export const removeEventMapping = (input: { calendarId: string; externalEventId:
 /** The device's day and zone travel with the ask, the same way the planning sessions send theirs. */
 export const getProjectProgress = (timeZone: string, today: string) =>
   apiGet<Progress>("/projects/progress", { timeZone, today });
+
+// The assistant's five moments. Each is a proposal; the screen that asked decides what to do with it.
+export const assistCreate = (input: { idea: string; sphere: string; existingProjects: string[] }) =>
+  callApi(api.projects.assist.create.$post(input)).then((r) => unwrapOk(r) as Assisted<CreateSuggestion>);
+export const assistWeek = (input: {
+  freeHours: number;
+  projects: { id: string; name: string; claimed: number; logged: number; priority: number }[];
+  fixed: string[];
+}) => callApi(api.projects.assist.week.$post(input)).then((r) => unwrapOk(r) as Assisted<WeekNote>);
+export const assistCheckpoint = (input: {
+  project: string;
+  stage: string;
+  sentence: string;
+  count: number;
+  threshold: number;
+  note: string;
+}) => callApi(api.projects.assist.checkpoint.$post(input)).then((r) => unwrapOk(r) as Assisted<CheckpointHelp>);
+export const assistDecision = (input: {
+  project: string;
+  stage: string;
+  sentence: string;
+  count: number;
+  threshold: number;
+  measurable: boolean;
+  hoursInvested: number;
+  hoursPerWeek: number;
+  extended: boolean;
+  isLast: boolean;
+  checkpoints: { day: string; count: number; moved: boolean; note: string }[];
+}) => callApi(api.projects.assist.decision.$post(input)).then((r) => unwrapOk(r) as Assisted<DecisionAdvice>);

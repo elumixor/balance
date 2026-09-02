@@ -297,3 +297,49 @@ export interface Progress {
   projects: Record<string, ProjectProgress>;
   practices: Record<string, PracticeProgress>;
 }
+
+/** One answer to "A or B?" for two projects in the same sphere, on one dimension. */
+export interface ProjectComparison {
+  id: string;
+  aId: string;
+  bId: string;
+  dimension: "priority" | "fun";
+  winnerId: string;
+}
+
+// --- Assistant proposals. Never writes: every one of these is handed to a person to press on. ---
+
+export interface GateProposal {
+  sentence: string;
+  metric: GateMetric;
+  threshold: number;
+  windowDays: number;
+  countedBy: string;
+}
+
+export interface CreateSuggestion {
+  kind: "project" | "recurring";
+  reason: string;
+  template: ProjectTemplate;
+  hoursPerWeek: number;
+  budgetHours: number;
+  gates: GateProposal[];
+}
+
+export interface WeekNote {
+  note: string;
+  drop: { projectId: string; hours: number; why: string }[];
+}
+
+export interface CheckpointHelp {
+  blocker: string;
+  tasks: { title: string; estimateHours: number }[];
+}
+
+export interface DecisionAdvice {
+  recommendation: "ship" | "extend" | "park" | "kill" | "restart" | "hold";
+  why: string;
+}
+
+/** `available: false` is the whole answer when no model is configured or it is down. */
+export type Assisted<T> = { available: true; suggestion: T } | { available: false; suggestion: null };

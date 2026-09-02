@@ -16,6 +16,7 @@
   import { restColor } from "$lib/colors";
   import { formatHoursDecimal } from "$lib/format";
   import CheckpointCard from "$lib/projects/CheckpointCard.svelte";
+  import CreateAssist from "$lib/projects/CreateAssist.svelte";
   import DecisionSheet from "$lib/projects/DecisionSheet.svelte";
   import GoalPicker from "$lib/projects/GoalPicker.svelte";
   import HoursBars from "$lib/projects/HoursBars.svelte";
@@ -204,7 +205,11 @@
 
     <div class="space-y-8">
       {#if card.stage && card.checkpointDue}
-        <CheckpointCard stage={card.stage} gate={card.gate} day={card.checkpointDue} />
+        <CheckpointCard stage={card.stage} gate={card.gate} day={card.checkpointDue} projectName={project.name} />
+      {/if}
+
+      {#if stages.length === 0 && project.template !== "evergreen"}
+        <CreateAssist {project} category={card.category} />
       {/if}
 
       {#if project.template !== "evergreen" || stages.length > 0}

@@ -5,7 +5,8 @@
   import NumberField from "$lib/components/NumberField.svelte";
   import Select from "$lib/components/Select.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
-  import type { GateMetric, GateProgress, Project, Stage, StageOutcome } from "$lib/types";
+  import { assistDecision } from "$lib/queries";
+  import type { DecisionAdvice, GateMetric, GateProgress, Project, Stage, StageOutcome } from "$lib/types";
   import { formatHoursDecimal } from "$lib/format";
   import { formatDayKey } from "./decide-on";
   import { projectsData as data } from "./projects-data.svelte";
@@ -55,8 +56,38 @@
     if (!open) return;
     choice = null;
     note = "";
+    advice = null;
+    asked = false;
     restart = blankRestart();
   });
+
+  /** The model's recommendation, with its why — asked for, never volunteered, never pressed. */
+  let advice = $state<DecisionAdvice | null>(null);
+  let asked = $state(false);
+  let asking = $state(false);
+
+  async function askAdvice() {
+    asking = true;
+    try {
+      const r = await assistDecision({
+        project: project.name,
+        stage: stage.name,
+        sentence: stage.sentence,
+        count: gate?.count ?? 0,
+        threshold: gate?.threshold ?? stage.threshold,
+        measurable: gate?.measurable ?? false,
+        hoursInvested,
+        hoursPerWeek: project.hoursPerWeek,
+        extended: Boolean(stage.extendedOn),
+        isLast,
+        checkpoints: stage.checkpoints,
+      });
+      advice = r.available ? r.suggestion : null;
+      asked = true;
+    } finally {
+      asking = false;
+    }
+  }
 
   const passed = $derived(gate?.passed ?? false);
   const sameSentence = $derived(restart.sentence.trim().toLowerCase() === stage.sentence.trim().toLowerCase());
@@ -139,6 +170,17 @@
           </li>
         {/each}
       </ul>
+    {/if}
+
+    {#if advice}
+      <p class="t-label text-fg">
+        <span class="text-fg-muted">Would {OUTCOMES.find((o) => o.value === advice?.recommendation)?.label.toLowerCase() ?? advice.recommendation}.</span>
+        {advice.why}
+      </p>
+    {:else if asked}
+      <p class="t-micro text-fg-faint">No model is configured. The numbers above are the whole of it.</p>
+    {:else}
+      <Button size="sm" variant="outline" label="What would you do?" loading={asking} onclick={askAdvice} />
     {/if}
 
     <div class="grid grid-cols-2 gap-2">

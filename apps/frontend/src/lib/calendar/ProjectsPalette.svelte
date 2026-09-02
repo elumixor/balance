@@ -4,8 +4,9 @@
   import { formatHoursDecimal } from "$lib/format";
   import { projectsData } from "$lib/projects/projects-data.svelte";
   import type { Category } from "$lib/types";
-  import { GripVertical } from "lucide-svelte";
+  import { CalendarPlus, GripVertical } from "lucide-svelte";
   import { calendarData } from "./calendar-data.svelte";
+  import FillWeekSheet from "./FillWeekSheet.svelte";
 
   /**
    * The projects that want hours this week, as chips to drag onto the grid. A chip becomes a
@@ -20,6 +21,8 @@
     projectsData.cards.filter((card) => !card.archived && (card.project.hoursPerWeek > 0 || card.stage)),
   );
 
+  let planning = $state(false);
+
   function begin(projectId: string, taskId: string | null, e: PointerEvent) {
     const source = data.sourceForProject(projectId, taskId);
     if (source) data.beginCreate(source, e);
@@ -27,6 +30,15 @@
 </script>
 
 {#if live.length > 0}
+  <button
+    type="button"
+    onclick={() => (planning = true)}
+    class="press hoverable mb-2 flex w-full items-center gap-2 rounded-md border border-dashed border-line-strong px-2 py-1.5 text-fg-muted"
+  >
+    <CalendarPlus size={13} />
+    <span class="t-micro">Plan the week</span>
+  </button>
+  <FillWeekSheet open={planning} onclose={() => (planning = false)} {categories} />
   <ul class="space-y-1.5">
     {#each live as card (card.project.id)}
       {@const color = colorOf.get(card.project.categoryId) ?? restColor}

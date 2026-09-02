@@ -697,6 +697,11 @@ class CalendarData {
     this.#arm({ kind: "create", source, event: null, e, armed: false });
   }
 
+  /** A block the week filler proposed and the person accepted — the same write a drop makes. */
+  placeBlock(source: DragSource, start: Date, end: Date) {
+    return this.#create(source, source.title, start, end);
+  }
+
   /** A project from the rail: a block that counts toward its sphere and is evidence for its gate. */
   sourceForProject(projectId: string, taskId: string | null = null): DragSource | null {
     const project = projects.all.find((p) => p.id === projectId);

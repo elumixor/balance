@@ -570,6 +570,36 @@ export const gateEvents = pgTable("gate_events", {
     .$onUpdate(() => new Date()),
 });
 
+/**
+ * One answer to "A or B?" for two projects in the same sphere, on one dimension. Kept as answers
+ * rather than as a ranking: the order is derived, transitively, from whatever has been asked, so
+ * only the comparisons that are actually needed ever get asked — and the pattern across them
+ * (fun beating priority) is a thing the answers can say and a ranking cannot.
+ */
+export const projectComparisons = pgTable("project_comparisons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  aId: uuid("a_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  bId: uuid("b_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  /** "priority" or "fun". */
+  dimension: text("dimension").notNull(),
+  winnerId: uuid("winner_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  archived: boolean("archived").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const deviceGrantsRelations = relations(deviceGrants, ({ one }) => ({
   user: one(users, { fields: [deviceGrants.userId], references: [users.id] }),
 }));
@@ -590,6 +620,11 @@ export const usersRelations = relations(users, ({ many }) => ({
   stages: many(stages),
   tasks: many(tasks),
   gateEvents: many(gateEvents),
+  projectComparisons: many(projectComparisons),
+}));
+
+export const projectComparisonsRelations = relations(projectComparisons, ({ one }) => ({
+  user: one(users, { fields: [projectComparisons.userId], references: [users.id] }),
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({

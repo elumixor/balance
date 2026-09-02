@@ -1,6 +1,7 @@
 import { SyncServer } from "@elumixor/synced/server";
 import { activitiesModel } from "./activities";
 import { categoriesModel } from "./categories";
+import { comparisonsModel } from "./comparisons";
 import { gateEventsModel } from "./gate-events";
 import { goalsModel } from "./goals";
 import { DbMutationLog } from "./mutation-log";
@@ -11,6 +12,7 @@ import { tasksModel } from "./tasks";
 
 export { activitySchema, type SyncedActivity } from "./activities";
 export { categorySchema, type SyncedCategory } from "./categories";
+export { comparisonSchema, type SyncedComparison } from "./comparisons";
 export { gateEventSchema, type SyncedGateEvent } from "./gate-events";
 export { goalSchema, type SyncedGoal } from "./goals";
 export { practiceSchema, type SyncedPractice } from "./practices";
@@ -32,6 +34,7 @@ export const syncServer = new SyncServer(
     stagesModel,
     tasksModel,
     gateEventsModel,
+    comparisonsModel,
   ],
   new DbMutationLog(),
 );

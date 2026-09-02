@@ -1,7 +1,18 @@
 import { model, type Signals, type SyncedStorage, syncedClient } from "@elumixor/synced/client";
 import type { SyncResponse } from "@elumixor/synced/protocol";
 import { api, callApi } from "./api";
-import type { Activity, Category, GateEvent, Goal, Practice, Project, Stage, StageOutcome, Task } from "./types";
+import type {
+  Activity,
+  Category,
+  GateEvent,
+  Goal,
+  Practice,
+  Project,
+  ProjectComparison,
+  Stage,
+  StageOutcome,
+  Task,
+} from "./types";
 
 /**
  * The app's own records — the ones this server owns, as opposed to the calendar's.
@@ -57,6 +68,7 @@ const models = {
   }),
   tasks: model<Task>()({ compare: (a, b) => a.ordinal - b.ordinal }),
   gateEvents: model<GateEvent>()({ compare: (a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0) }),
+  comparisons: model<ProjectComparison>()({}),
 };
 
 /** `$state` in a box, which is the only thing the library wants from Svelte. */
@@ -153,6 +165,7 @@ export const projects = synced.models.projects;
 export const stages = synced.models.stages;
 export const tasks = synced.models.tasks;
 export const gateEvents = synced.models.gateEvents;
+export const comparisons = synced.models.comparisons;
 
 if (typeof window !== "undefined") {
   // Before the first frame, and before there's a session: what the device holds is what the last

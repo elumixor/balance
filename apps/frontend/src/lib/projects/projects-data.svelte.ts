@@ -3,6 +3,7 @@ import { localDay } from "$lib/planning/zone";
 import { invalidate, store } from "$lib/store.svelte";
 import {
   categories,
+  comparisons,
   type DecidePayload,
   gateEvents,
   goals,
@@ -14,7 +15,9 @@ import {
   tasks,
 } from "$lib/synced.svelte";
 import type { Category, GateProgress, Goal, Practice, Project, ProjectStatus, Stage, Task } from "$lib/types";
+import { allocate, overclaim } from "./allocate";
 import { daysBetweenKeys, dueCheckpoint } from "./decide-on";
+import { type Dimension, nextQuestion, pattern, type Question, rankOrder } from "./ranking";
 import { ARCHIVE_STATUSES, type StageTemplate, templateOf } from "./templates";
 
 /** How long after the last keystroke an edit burst counts as finished — one press of undo. */
@@ -47,6 +50,8 @@ export interface SphereGroup {
   readonly practices: readonly Practice[];
   /** Goals in this sphere with nothing under them — a wish, and the card says so quietly. */
   readonly wishes: readonly Goal[];
+  /** How far the sphere's live claims exceed its hours on the ring. Zero is fine. */
+  readonly over: number;
 }
 
 /**
@@ -100,8 +105,81 @@ class ProjectsData {
           !projects.all.some((p) => p.goalId === goal.id) &&
           !practices.all.some((p) => p.goalId === goal.id),
       ),
+      over: overclaim(category.targetHoursPerWeek, this.claimsIn(category.id)).over,
     })),
   );
+
+  // --- ranking -----------------------------------------------------------------
+
+  /** The live projects of a sphere as claims, in the order the priority ranking has settled so far. */
+  claimsIn(categoryId: string) {
+    const live = projects.all.filter((p) => p.categoryId === categoryId && p.status === "active");
+    const ordered = rankOrder(
+      live.map((p) => p.id),
+      comparisons.all,
+      "priority",
+    );
+    return ordered.map((id) => ({ id, claimed: live.find((p) => p.id === id)?.hoursPerWeek ?? 0 }));
+  }
+
+  /** The next thing worth asking about a sphere: priority first, then fun, or nothing. */
+  questionFor(categoryId: string): Question | null {
+    const ids = projects.all.filter((p) => p.categoryId === categoryId && p.status === "active").map((p) => p.id);
+    return nextQuestion(ids, comparisons.all, "priority") ?? nextQuestion(ids, comparisons.all, "fun");
+  }
+
+  observationFor(categoryId: string) {
+    const ids = projects.all.filter((p) => p.categoryId === categoryId && p.status === "active").map((p) => p.id);
+    return pattern(ids, comparisons.all);
+  }
+
+  answer(question: Question, winnerId: string) {
+    this.#closeBurst();
+    comparisons.create({ aId: question.aId, bId: question.bId, dimension: question.dimension, winnerId });
+  }
+
+  /** Forgets one dimension's answers for a sphere, so it can be asked again from the top. */
+  forgetRanking(categoryId: string, dimension: Dimension) {
+    const ids = new Set(projects.all.filter((p) => p.categoryId === categoryId).map((p) => p.id));
+    this.#closeBurst();
+    synced.transaction(() => {
+      for (const c of comparisons.all) if (c.dimension === dimension && ids.has(c.aId)) comparisons.delete(c.id);
+    });
+  }
+
+  /** What the ranking says each project should get under the sphere's cap. */
+  allocationFor(category: Category) {
+    return allocate(category.targetHoursPerWeek, this.claimsIn(category.id));
+  }
+
+  /** Writes the fitted hours onto the projects — one step of undo for the whole sphere. */
+  applyAllocation(category: Category) {
+    this.#closeBurst();
+    synced.transaction(() => {
+      for (const fit of this.allocationFor(category)) {
+        if (fit.hours !== fit.claimed) projects.update(fit.id, { hoursPerWeek: fit.hours });
+      }
+    });
+    invalidate.projects();
+  }
+
+  /** Hands a project over to being a practice: the assistant's "this is recurring" answer, accepted. */
+  convertToPractice(project: Project) {
+    this.#closeBurst();
+    const created = synced.transaction(() => {
+      const practice = practices.create({
+        categoryId: project.categoryId,
+        goalId: project.goalId,
+        name: project.name,
+        unit: "hours",
+        targetPerWeek: project.hoursPerWeek,
+      });
+      projects.delete(project.id);
+      return practice;
+    });
+    invalidate.projects();
+    return created;
+  }
 
   /** Every live card, nearest decision first; the dateless ones last. */
   byDecision = $derived(
