@@ -17,6 +17,9 @@
   import { theme } from "$lib/theme.svelte";
   import { viewport } from "$lib/viewport.svelte";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
+  import { decisionMarkers } from "./markers";
+  import { projects, stages } from "$lib/synced.svelte";
+  import { Flag } from "lucide-svelte";
   import {
     allDaySpansForRange,
     BLOCK_GUTTER_PX,
@@ -218,7 +221,16 @@
       0,
     );
   });
-  const headerPx = $derived(DAY_HEAD_PX + allDayRows * ALL_DAY_PX);
+  /**
+   * The projects' days on the strip: a decision day as a flag, a checkpoint as a tick. They take a
+   * row of their own under the banners, only when one of them is on the days in view.
+   */
+  const markers = $derived(decisionMarkers(stages.all, projects.all, [...categories.values()], data.stripStart, STRIP_DAYS));
+  const markerRows = $derived(
+    markers.some((m) => m.dayIndex >= liveDayOffset && m.dayIndex < liveDayOffset + VISIBLE_DAYS) ? 1 : 0,
+  );
+  const drawnMarkers = $derived(markers.filter((m) => m.dayIndex >= firstDrawn && m.dayIndex <= lastDrawn));
+  const headerPx = $derived(DAY_HEAD_PX + (allDayRows + markerRows) * ALL_DAY_PX);
 
   const todayStart = $derived(clock.todayStart);
   const nowTop = $derived((minutesIntoDay(clock.now) / 60) * hourPx);
@@ -307,6 +319,8 @@
       activityName: null,
       weights: drag.weights,
       ...NOT_A_MEETING,
+      projectId: drag.source?.projectId ?? null,
+      taskId: drag.source?.taskId ?? null,
     };
   });
 
@@ -638,6 +652,32 @@
             </div>
           {/each}
         </div>
+
+        {#if markerRows > 0}
+          <div class="grid" style="grid-template-columns:{columns};height:{ALL_DAY_PX}px">
+            {#each days as _, index}
+              <div class="border-line border-l" style="grid-row:1;grid-column:{index + 1}"></div>
+            {/each}
+            {#each drawnMarkers as marker (marker.key)}
+              <a
+                href="/projects/{marker.projectId}"
+                title={marker.label}
+                class="t-micro relative flex min-w-0 items-center gap-1 self-center truncate rounded-sm px-1 py-px
+                  {marker.kind === 'decision' ? 'text-fg' : 'text-fg-muted'}"
+                style="grid-row:1;grid-column:{marker.dayIndex + 1};margin-right:{BLOCK_GUTTER_PX}px;{marker.kind === 'decision'
+                  ? `background:color-mix(in oklab,${marker.color} 18%,transparent)`
+                  : ''}"
+              >
+                {#if marker.kind === "decision"}
+                  <Flag size={10} style="color:{marker.color}" class="shrink-0" />
+                {:else}
+                  <span class="size-1.5 shrink-0 rounded-full" style="background:{marker.color}"></span>
+                {/if}
+                <span class="truncate">{marker.label}</span>
+              </a>
+            {/each}
+          </div>
+        {/if}
 
         {#if allDayRows > 0}
           <div class="grid" style="grid-template-columns:{columns};height:{allDayRows * ALL_DAY_PX}px">

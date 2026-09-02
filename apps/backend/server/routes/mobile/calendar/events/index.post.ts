@@ -15,6 +15,7 @@ export default handler(
         .array(z.object({ categoryId: z.string(), weightPercent: z.number().int().min(0).max(100) }))
         .optional(),
       projectId: z.string().min(1).optional(),
+      practiceId: z.string().min(1).optional(),
       taskId: z.string().min(1).optional(),
       start: z.string(),
       end: z.string(),

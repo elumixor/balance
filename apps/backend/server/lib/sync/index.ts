@@ -11,10 +11,10 @@ import { tasksModel } from "./tasks";
 
 export { activitySchema, type SyncedActivity } from "./activities";
 export { categorySchema, type SyncedCategory } from "./categories";
-export { type SyncedGateEvent, gateEventSchema } from "./gate-events";
-export { type SyncedGoal, goalSchema } from "./goals";
-export { type SyncedPractice, practiceSchema } from "./practices";
-export { type SyncedProject, projectSchema } from "./projects";
+export { gateEventSchema, type SyncedGateEvent } from "./gate-events";
+export { goalSchema, type SyncedGoal } from "./goals";
+export { practiceSchema, type SyncedPractice } from "./practices";
+export { projectSchema, type SyncedProject } from "./projects";
 export { type SyncedStage, stageSchema } from "./stages";
 export { type SyncedTask, taskSchema } from "./tasks";
 
@@ -23,6 +23,15 @@ export { type SyncedTask, taskSchema } from "./tasks";
  * the queue, the retries, the ordering and the client's optimism are already written.
  */
 export const syncServer = new SyncServer(
-  [categoriesModel, activitiesModel, goalsModel, practicesModel, projectsModel, stagesModel, tasksModel, gateEventsModel],
+  [
+    categoriesModel,
+    activitiesModel,
+    goalsModel,
+    practicesModel,
+    projectsModel,
+    stagesModel,
+    tasksModel,
+    gateEventsModel,
+  ],
   new DbMutationLog(),
 );

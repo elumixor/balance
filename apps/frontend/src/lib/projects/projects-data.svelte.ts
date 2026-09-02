@@ -1,7 +1,18 @@
 import { clock } from "$lib/clock.svelte";
 import { localDay } from "$lib/planning/zone";
 import { invalidate, store } from "$lib/store.svelte";
-import { type DecidePayload, gateEvents, goals, practices, projects, stages, synced, syncStatus, tasks, categories } from "$lib/synced.svelte";
+import {
+  categories,
+  type DecidePayload,
+  gateEvents,
+  goals,
+  practices,
+  projects,
+  stages,
+  synced,
+  syncStatus,
+  tasks,
+} from "$lib/synced.svelte";
 import type { Category, GateProgress, Goal, Practice, Project, ProjectStatus, Stage, Task } from "$lib/types";
 import { daysBetweenKeys, dueCheckpoint } from "./decide-on";
 import { ARCHIVE_STATUSES, type StageTemplate, templateOf } from "./templates";
@@ -96,7 +107,9 @@ class ProjectsData {
   byDecision = $derived(
     this.cards
       .filter((card) => !card.archived)
-      .toSorted((a, b) => (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity) || a.project.name.localeCompare(b.project.name)),
+      .toSorted(
+        (a, b) => (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity) || a.project.name.localeCompare(b.project.name),
+      ),
   );
 
   archive = $derived(this.cards.filter((card) => card.archived));
@@ -165,9 +178,9 @@ class ProjectsData {
       for (const stage of existing) if (!stage.startedOn) stages.delete(stage.id);
       const kept = existing.filter((s) => s.startedOn);
       const running = kept.some((s) => !s.outcome);
-      template.stages.forEach((draft, i) =>
-        this.#createStage(project.id, draft, kept.length + i, i === 0 && !running),
-      );
+      template.stages.forEach((draft, i) => {
+        this.#createStage(project.id, draft, kept.length + i, i === 0 && !running);
+      });
     });
     invalidate.projects();
   }

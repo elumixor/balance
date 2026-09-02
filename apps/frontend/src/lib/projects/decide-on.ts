@@ -38,14 +38,23 @@ export function decideOnFor(input: {
 /** Every fortnight from the start up to, but not on, the decision day. */
 export function checkpointsBetween(startedOn: string, decideOn: string): string[] {
   const days: string[] = [];
-  for (let at = addDaysKey(startedOn, CHECKPOINT_DAYS); daysBetweenKeys(at, decideOn) > 0; at = addDaysKey(at, CHECKPOINT_DAYS)) {
+  for (
+    let at = addDaysKey(startedOn, CHECKPOINT_DAYS);
+    daysBetweenKeys(at, decideOn) > 0;
+    at = addDaysKey(at, CHECKPOINT_DAYS)
+  ) {
     days.push(at);
   }
   return days;
 }
 
 /** The checkpoint owed right now: the latest that has come round, unless it was looked at. */
-export function dueCheckpoint(input: { startedOn: string; decideOn: string; today: string; looked: readonly string[] }) {
+export function dueCheckpoint(input: {
+  startedOn: string;
+  decideOn: string;
+  today: string;
+  looked: readonly string[];
+}) {
   const latest = checkpointsBetween(input.startedOn, input.decideOn)
     .filter((day) => daysBetweenKeys(day, input.today) >= 0)
     .at(-1);

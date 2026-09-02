@@ -15,7 +15,9 @@
   import { respondToCalendarEvent } from "$lib/queries";
   import { applyCalendarEvent } from "$lib/store.svelte";
   import type { CalendarEvent, Category, EventResponse, MappingScope } from "$lib/types";
-  import { ArrowRight, Bell, Check, Clock, Copy, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
+  import ProjectPicker from "$lib/projects/ProjectPicker.svelte";
+  import { practices, projects } from "$lib/synced.svelte";
+  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
   import { accountEmailOf, calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import EventAttendees from "./EventAttendees.svelte";
@@ -115,6 +117,23 @@
 
   /** Set to the row's rect while the category list is open, null otherwise. */
   let pickerRect = $state<DOMRect | null>(null);
+  /** The same for the list of projects. */
+  let projectRect = $state<DOMRect | null>(null);
+
+  /** What the hour was for, by name — the tag is the id, the card says the thing. */
+  const purpose = $derived.by(() => {
+    if (event.projectId) return projects.all.find((p) => p.id === event.projectId)?.name ?? "A project";
+    if (event.practiceId) return practices.all.find((p) => p.id === event.practiceId)?.name ?? "A practice";
+    return null;
+  });
+  const purposeKey = $derived(
+    event.projectId ? `project:${event.projectId}` : event.practiceId ? `practice:${event.practiceId}` : "",
+  );
+
+  function choosePurpose(next: { projectId: string | null; practiceId: string | null }) {
+    projectRect = null;
+    void run(() => data.tagEvent(event, next));
+  }
 
   /**
    * A block counts as one category here: whichever it mostly counts toward, if it's split. Looked
@@ -377,7 +396,7 @@
   </button>
 {/snippet}
 
-<AnchoredPopup {rect} width={WIDTH} dismiss={!pickerRect} onclose={close}>
+<AnchoredPopup {rect} width={WIDTH} dismiss={!pickerRect && !projectRect} onclose={close}>
     <!-- Header: what it counts as and what it's called, beside the two things you can do to it. -->
     <div class="flex items-center gap-1 px-3 py-3">
       <!-- The same badge the block on the grid wears, opening the same list. -->
@@ -575,6 +594,21 @@
       </div>
     {/if}
 
+    <!-- What it was for: the project or practice whose evidence this hour is. Tagging after the
+         fact is how a real week is reconciled, so the row is always there, even when empty. -->
+    <div class="border-t border-line px-3 py-1.5">
+      <button
+        type="button"
+        onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
+        class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
+      >
+        <Hexagon size={16} class="shrink-0 {purpose ? 'text-fg-muted' : 'text-fg-faint'}" />
+        <span class="t-label min-w-0 flex-1 truncate {purpose ? 'text-fg' : 'text-fg-faint'}">
+          {purpose ?? "For a project or practice…"}
+        </span>
+      </button>
+    </div>
+
     <div class="border-t border-line px-3 py-2">
       {#if editable}
         <Textarea
@@ -607,6 +641,10 @@
       </div>
     {/if}
 </AnchoredPopup>
+
+{#if projectRect}
+  <ProjectPicker rect={projectRect} value={purposeKey} onchoose={choosePurpose} onclose={() => (projectRect = null)} />
+{/if}
 
 {#if pickerRect}
   <CategoryPicker

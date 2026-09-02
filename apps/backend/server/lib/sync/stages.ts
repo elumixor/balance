@@ -134,7 +134,8 @@ class StageStore extends TableStore<SyncedStage, typeof stages> {
     const open = await db.query.stages.findFirst({
       where: and(eq(stages.projectId, project.id), eq(stages.archived, false), eq(stages.outcome, null as never)),
     });
-    if (open?.startedOn) throw new RejectedError(`"${open.name}" is still open — decide it before starting another stage.`);
+    if (open?.startedOn)
+      throw new RejectedError(`"${open.name}" is still open — decide it before starting another stage.`);
     return today();
   }
 }
@@ -201,8 +202,15 @@ const decide = action(decidePayload, async (userId: string, id: string, payload)
         orderBy: asc(stages.ordinal),
       });
       if (next) {
-        const decideOn = dateFor({ budgetHours: Number(next.budgetHours), windowDays: next.windowDays }, project, payload.day);
-        await db.update(stages).set({ startedOn: payload.day, decideOn, updatedAt: new Date() }).where(eq(stages.id, next.id));
+        const decideOn = dateFor(
+          { budgetHours: Number(next.budgetHours), windowDays: next.windowDays },
+          project,
+          payload.day,
+        );
+        await db
+          .update(stages)
+          .set({ startedOn: payload.day, decideOn, updatedAt: new Date() })
+          .where(eq(stages.id, next.id));
       } else {
         await db.update(projects).set({ status: "shipped", updatedAt: new Date() }).where(eq(projects.id, project.id));
       }

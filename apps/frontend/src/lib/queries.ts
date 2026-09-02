@@ -55,6 +55,7 @@ export const createCalendarEvent = (input: {
   /** For a block that counts straight toward categories — a project's sphere, say. */
   weights?: ActivityWeight[];
   projectId?: string;
+  practiceId?: string;
   taskId?: string;
   start: string;
   end: string;

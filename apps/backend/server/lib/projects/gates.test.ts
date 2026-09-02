@@ -10,14 +10,21 @@ describe("gateProgress", () => {
   });
 
   it("counts distinct people by their key", () => {
-    const observations = [{ day: "2026-09-20", key: "dima" }, { day: "2026-09-21", key: "dima" }, { day: "2026-09-21", key: "tim" }];
+    const observations = [
+      { day: "2026-09-20", key: "dima" },
+      { day: "2026-09-21", key: "dima" },
+      { day: "2026-09-21", key: "tim" },
+    ];
     const progress = gateProgress({ ...base, metric: "people", observations });
     expect(progress.count).toBe(2);
     expect(progress.passed).toBe(false);
   });
 
   it("sums hours and throughput, rounding to a readable number", () => {
-    const observations = [{ day: "2026-09-20", quantity: 1.25 }, { day: "2026-09-21", quantity: 2.083333 }];
+    const observations = [
+      { day: "2026-09-20", quantity: 1.25 },
+      { day: "2026-09-21", quantity: 2.083333 },
+    ];
     expect(gateProgress({ ...base, metric: "hours", observations }).count).toBe(3.33);
     expect(gateProgress({ ...base, metric: "throughput", observations: [{ day: "2026-09-20" }] }).count).toBe(1);
   });

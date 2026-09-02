@@ -2,7 +2,8 @@
   import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import type { CalendarEvent, Category } from "$lib/types";
-  import { Copy, Tag, Trash2 } from "lucide-svelte";
+  import ProjectPicker from "$lib/projects/ProjectPicker.svelte";
+  import { Copy, Hexagon, Tag, Trash2 } from "lucide-svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import { calendarData } from "./calendar-data.svelte";
 
@@ -25,6 +26,7 @@
   const plannable = $derived(categories);
 
   let categoryRect = $state<DOMRect | null>(null);
+  let projectRect = $state<DOMRect | null>(null);
 
   function close() {
     data.closeContextMenu();
@@ -39,6 +41,13 @@
     close();
     if (batch) void data.mapEvents(targets, [{ categoryId: id, weightPercent: 100 }]);
     else void data.mapEvent(event, event.seriesId ? "series" : "instance", { weights: [{ categoryId: id, weightPercent: 100 }] });
+  }
+
+  /** What the block was for. On a batch, every gathered block is tagged the same way. */
+  function chooseProject(purpose: { projectId: string | null; practiceId: string | null }) {
+    projectRect = null;
+    close();
+    for (const target of targets) void data.tagEvent(target, purpose);
   }
 
   function duplicate() {
@@ -63,6 +72,10 @@
       {#snippet icon()}<Tag size={15} class="shrink-0 text-fg-faint" />{/snippet}
     </PopoverItem>
 
+    <PopoverItem label="Tag to project" onclick={() => (projectRect = rect)}>
+      {#snippet icon()}<Hexagon size={15} class="shrink-0 text-fg-faint" />{/snippet}
+    </PopoverItem>
+
     <PopoverItem label="Duplicate{batch ? ` ${targets.length}` : ''}" onclick={duplicate}>
       {#snippet icon()}<Copy size={15} class="shrink-0 text-fg-faint" />{/snippet}
     </PopoverItem>
@@ -82,5 +95,14 @@
     value={batch ? "" : (event.weights[0]?.categoryId ?? "")}
     onchoose={chooseCategory}
     onclose={() => (categoryRect = null)}
+  />
+{/if}
+
+{#if projectRect}
+  <ProjectPicker
+    rect={projectRect}
+    value={batch ? "" : event.projectId ? `project:${event.projectId}` : event.practiceId ? `practice:${event.practiceId}` : ""}
+    onchoose={chooseProject}
+    onclose={() => (projectRect = null)}
   />
 {/if}

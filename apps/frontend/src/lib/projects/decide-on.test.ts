@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  addDaysKey,
-  checkpointsBetween,
-  daysBetweenKeys,
-  decideOnFor,
-  dueCheckpoint,
-  formatDayKey,
-} from "./decide-on";
+import { addDaysKey, checkpointsBetween, daysBetweenKeys, decideOnFor, dueCheckpoint, formatDayKey } from "./decide-on";
 
 describe("day keys", () => {
   it("adds days across month and year ends without rolling", () => {

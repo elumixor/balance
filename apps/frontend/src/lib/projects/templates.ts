@@ -130,7 +130,14 @@ export const TEMPLATES: readonly Template[] = [
     dated: "derived",
     metrics: ["event"],
     stages: [
-      { name: "Decide", sentence: "The decision is written down", metric: "event", threshold: 1, windowDays: WEEK, budgetHours: 2 },
+      {
+        name: "Decide",
+        sentence: "The decision is written down",
+        metric: "event",
+        threshold: 1,
+        windowDays: WEEK,
+        budgetHours: 2,
+      },
       {
         name: "Tell people",
         sentence: "Everyone affected has heard it from me",
@@ -147,7 +154,14 @@ export const TEMPLATES: readonly Template[] = [
         windowDays: FORTNIGHT,
         budgetHours: 10,
       },
-      { name: "Close", sentence: "Nothing of mine is left running", metric: "event", threshold: 1, windowDays: WEEK, budgetHours: 4 },
+      {
+        name: "Close",
+        sentence: "Nothing of mine is left running",
+        metric: "event",
+        threshold: 1,
+        windowDays: WEEK,
+        budgetHours: 4,
+      },
     ],
   },
   {

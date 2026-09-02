@@ -10,8 +10,8 @@ import {
   updateCalendarEvent,
 } from "$lib/queries";
 import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
-import { activities, synced } from "$lib/synced.svelte";
-import { type Activity, type ActivityWeight, type CalendarEvent, type MappingScope, NOT_A_MEETING } from "$lib/types";
+import { activities, practices, projects, synced } from "$lib/synced.svelte";
+import { type ActivityWeight, type CalendarEvent, type MappingScope, NOT_A_MEETING } from "$lib/types";
 import { viewport } from "$lib/viewport.svelte";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
@@ -71,10 +71,33 @@ interface EventFields {
   readonly end: Date;
 }
 
+/** What the hour was for — a project, a practice, a task — on top of what it counts as. */
+export interface Purpose {
+  readonly projectId: string | null;
+  readonly practiceId: string | null;
+  readonly taskId: string | null;
+}
+
+const NO_PURPOSE: Purpose = { projectId: null, practiceId: null, taskId: null };
+
 /** What an event counts as, in the shape the mapping endpoints take. */
 interface Mapping {
   readonly scope: MappingScope;
   readonly choice: { activityId?: string; weights?: ActivityWeight[] };
+  readonly purpose: Purpose;
+}
+
+/**
+ * What a chip dragged in from the rail becomes: an activity, or a project (or one of its tasks)
+ * counting toward its sphere. Title and weights are what the ghost draws; the ids are what the
+ * event is mapped as when it lands.
+ */
+export interface DragSource {
+  readonly title: string;
+  readonly weights: ActivityWeight[];
+  readonly activityId: string | null;
+  readonly projectId: string | null;
+  readonly taskId: string | null;
 }
 
 /**
@@ -96,6 +119,8 @@ export interface DragState {
   readonly title: string;
   readonly weights: ActivityWeight[];
   readonly activityId: string | null;
+  /** What a create drag will make — null for every drag of an existing block. */
+  readonly source: DragSource | null;
   readonly event: CalendarEvent | null;
   /** Alt held right now: dropping makes a duplicate instead of moving the original. Live — toggles mid-drag. */
   copy: boolean;
@@ -148,7 +173,7 @@ interface PendingDrag {
   readonly pointerId: number;
   readonly originX: number;
   readonly originY: number;
-  readonly activity: Activity | null;
+  readonly source: DragSource | null;
   readonly event: CalendarEvent | null;
   /** An event someone else owns: it still opens on a tap, it just can't be dragged anywhere. */
   readonly locked: boolean;
@@ -667,9 +692,27 @@ class CalendarData {
 
   // --- dragging -------------------------------------------------------------
 
-  /** A palette chip: a tap opens the activity, so the drag only starts once the finger moves. */
-  beginCreate(activity: Activity, e: PointerEvent) {
-    this.#arm({ kind: "create", activity, event: null, e, armed: false });
+  /** A palette chip: a tap opens the thing, so the drag only starts once the finger moves. */
+  beginCreate(source: DragSource, e: PointerEvent) {
+    this.#arm({ kind: "create", source, event: null, e, armed: false });
+  }
+
+  /** A project from the rail: a block that counts toward its sphere and is evidence for its gate. */
+  sourceForProject(projectId: string, taskId: string | null = null): DragSource | null {
+    const project = projects.all.find((p) => p.id === projectId);
+    if (!project) return null;
+    const task = taskId ? this.#taskTitle(taskId) : null;
+    return {
+      title: task ? `${project.name}: ${task}` : project.name,
+      weights: [{ categoryId: project.categoryId, weightPercent: 100 }],
+      activityId: null,
+      projectId,
+      taskId,
+    };
+  }
+
+  #taskTitle(taskId: string) {
+    return synced.models.tasks.all.find((t) => t.id === taskId)?.title ?? null;
   }
 
   /** A block: a tap opens its editor, so moving it takes a hold rather than a nudge. */
@@ -684,7 +727,7 @@ class CalendarData {
     }
     this.#arm({
       kind: "move",
-      activity: null,
+      source: null,
       event,
       e,
       armed: false,
@@ -698,7 +741,7 @@ class CalendarData {
     if (event.readOnly) return;
     if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     e.stopPropagation();
-    this.#arm({ kind: "resize", activity: null, event, e, armed: true });
+    this.#arm({ kind: "resize", source: null, event, e, armed: true });
   }
 
   /** Same handle as `beginResize`, dragging the top edge — the end stays put, the start follows. */
@@ -706,7 +749,7 @@ class CalendarData {
     if (event.readOnly) return;
     if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     e.stopPropagation();
-    this.#arm({ kind: "resize-start", activity: null, event, e, armed: true });
+    this.#arm({ kind: "resize-start", source: null, event, e, armed: true });
   }
 
   moveDrag(e: PointerEvent) {
@@ -770,7 +813,7 @@ class CalendarData {
     const end = this.#instantAt(drag.day, drag.endMinutes);
     const detach = Boolean(e?.metaKey || e?.ctrlKey);
 
-    if (drag.kind === "create" && drag.activityId) void this.#create(drag.activityId, drag.title, start, end);
+    if (drag.kind === "create" && drag.source) void this.#create(drag.source, drag.title, start, end);
     else if (drag.event && drag.copy) void this.#copyBatch(drag, start, end);
     else if (drag.event && drag.others.length > 0) void this.#retimeBatch(drag, start, end);
     else if (drag.event) void this.retimeEvent(drag.event, start, end, detach);
@@ -848,19 +891,38 @@ class CalendarData {
     event: CalendarEvent,
     scope: MappingScope,
     choice: { activityId?: string; weights?: ActivityWeight[] },
+    purpose?: Purpose,
   ) {
     const ref = this.#ref(event);
     const before = mappingOf(event);
-    if (!(await this.#writeMapping(ref, event, scope, choice))) return;
+    if (!(await this.#writeMapping(ref, event, scope, choice, purpose))) return;
 
     this.history.push({
       // The write may have been a series mapping over an instance one: clearing what it wrote is
       // what lets the older, narrower mapping underneath count again.
       undo: async () =>
         (await this.#writeMapping(ref, event, scope, null)) &&
-        (before ? this.#writeMapping(ref, event, before.scope, before.choice) : true),
-      redo: () => this.#writeMapping(ref, event, scope, choice),
+        (before ? this.#writeMapping(ref, event, before.scope, before.choice, before.purpose) : true),
+      redo: () => this.#writeMapping(ref, event, scope, choice, purpose),
     });
+  }
+
+  /**
+   * What an hour was for, decided after the fact. Retro-tagging is how a real week gets
+   * reconciled: a grey block somebody else booked becomes evidence for a gate, and an hour that
+   * already counted toward a sphere is told which project in that sphere it belonged to. A block
+   * that counted as nothing starts counting toward the project's own sphere in the same write.
+   */
+  async tagEvent(event: CalendarEvent, purpose: Partial<Purpose>) {
+    const merged = mergePurpose(purposeOf(event), purpose);
+    const existing = mappingOf(event);
+    const scope: MappingScope = existing?.scope ?? (event.seriesId ? "series" : "instance");
+    const sphere =
+      projects.all.find((p) => p.id === merged.projectId)?.categoryId ??
+      practices.all.find((p) => p.id === merged.practiceId)?.categoryId;
+    const choice = existing?.choice ?? (sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null);
+    if (!choice) return;
+    await this.mapEvent(event, scope, choice, merged);
   }
 
   /** Context-menu duplicate: a new event with the same fields, placed right after the original. */
@@ -882,7 +944,7 @@ class CalendarData {
     if (!(await this.#writeMapping(ref, event, scope, null)) || !before) return;
 
     this.history.push({
-      undo: () => this.#writeMapping(ref, event, before.scope, before.choice),
+      undo: () => this.#writeMapping(ref, event, before.scope, before.choice, before.purpose),
       redo: () => this.#writeMapping(ref, event, scope, null),
     });
   }
@@ -1083,6 +1145,7 @@ class CalendarData {
     was: CalendarEvent,
     scope: MappingScope,
     choice: Mapping["choice"] | null,
+    purpose?: Purpose,
   ): Promise<boolean> {
     // Read when the write is actually sent: an event put back by an undo is a new event by then.
     const target = () => ({
@@ -1091,12 +1154,15 @@ class CalendarData {
       scope,
     });
     const activity = activities.all.find((a) => a.id === choice?.activityId) ?? null;
+    // Untagged with the mapping: what an hour was for is a fact about what it counted as.
+    const kept = choice ? (purpose ?? purposeOf(was)) : NO_PURPOSE;
     const restyle = (event: CalendarEvent): CalendarEvent => ({
       ...event,
       mappingScope: choice ? scope : null,
       activityId: choice?.activityId ?? null,
       activityName: choice ? (activity?.name ?? null) : null,
       weights: choice ? (choice.weights ?? activity?.weights ?? []) : [],
+      ...kept,
     });
     const drawn: Drawn[] =
       scope === "instance"
@@ -1108,7 +1174,7 @@ class CalendarData {
           : [];
 
     const done = await this.#run<unknown>(
-      () => (choice ? saveEventMapping({ ...target(), ...choice }) : removeEventMapping(target())),
+      () => (choice ? saveEventMapping({ ...target(), ...choice, ...(purpose ?? {}) }) : removeEventMapping(target())),
       drawn,
       // What an instance now counts as is worked out here in full, so the answer is already on
       // the screen — there is nothing to ask the server for. A series recolours instances this
@@ -1135,24 +1201,14 @@ class CalendarData {
   async #restore(ref: EventRef, was: CalendarEvent): Promise<boolean> {
     const created = await this.#run(
       async () => {
-        const event = await createCalendarEvent({
-          activityId: was.activityId ?? undefined,
+        return createCalendarEvent({
+          ...mappingFieldsOf(was),
           calendarId: was.calendarId,
           title: was.title,
           description: was.description ?? undefined,
           start: was.start,
           end: was.end,
         });
-        // An activity maps itself on the way in; a split of categories has to be written after.
-        if (!was.activityId && was.mappingScope === "instance" && was.weights.length > 0) {
-          await saveEventMapping({
-            calendarId: event.calendarId,
-            externalEventId: event.id,
-            scope: "instance",
-            weights: was.weights,
-          });
-        }
-        return event;
       },
       { id: ref.id, event: { ...was, id: ref.id, calendarId: ref.calendarId } },
       (event) => applyCalendarEvent(event, ref.id),
@@ -1192,7 +1248,8 @@ class CalendarData {
    * A new block has no id until the calendar gives it one, so it's drawn under a made-up one and
    * the real event takes its place when the refetch lands.
    */
-  async #create(activityId: string | null, title: string, start: Date, end: Date, openAt: DOMRect | null = null) {
+  async #create(source: DragSource | null, title: string, start: Date, end: Date, openAt: DOMRect | null = null) {
+    const activityId = source?.activityId ?? null;
     const activity = activities.all.find((a) => a.id === activityId) ?? null;
     const draft: CalendarEvent = {
       id: `${DRAFT_PREFIX}${this.#nextTempId++}`,
@@ -1208,11 +1265,13 @@ class CalendarData {
       readOnly: false,
       countsTowardHours: true,
       url: null,
-      mappingScope: activityId ? "instance" : null,
+      mappingScope: source ? "instance" : null,
       activityId,
       activityName: activity?.name ?? null,
-      weights: activity?.weights ?? [],
+      weights: activity?.weights ?? source?.weights ?? [],
       ...NOT_A_MEETING,
+      projectId: source?.projectId ?? null,
+      taskId: source?.taskId ?? null,
     };
     // The handle is taken on the draft, so the editor's writes queue up behind the create against
     // a made-up id and land on the real one — nothing here waits on Google to be usable.
@@ -1226,6 +1285,9 @@ class CalendarData {
       async () => {
         const event = await createCalendarEvent({
           activityId: activityId ?? undefined,
+          weights: source && !activityId ? source.weights : undefined,
+          projectId: source?.projectId ?? undefined,
+          taskId: source?.taskId ?? undefined,
           title,
           start: start.toISOString(),
           end: end.toISOString(),
@@ -1272,21 +1334,12 @@ class CalendarData {
     const created = await this.#run(
       async () => {
         const event = await createCalendarEvent({
-          activityId: was.activityId ?? undefined,
+          ...mappingFieldsOf(was),
           title: was.title,
           description: was.description ?? undefined,
           start: start.toISOString(),
           end: end.toISOString(),
         });
-        // An activity maps itself on the way in; a split of categories has to be written after.
-        if (!was.activityId && was.mappingScope === "instance" && was.weights.length > 0) {
-          await saveEventMapping({
-            calendarId: event.calendarId,
-            externalEventId: event.id,
-            scope: "instance",
-            weights: was.weights,
-          });
-        }
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },
@@ -1372,7 +1425,7 @@ class CalendarData {
 
   #arm(input: {
     kind: DragKind;
-    activity: Activity | null;
+    source: DragSource | null;
     event: CalendarEvent | null;
     e: PointerEvent;
     armed: boolean;
@@ -1389,7 +1442,7 @@ class CalendarData {
       pointerId: input.e.pointerId,
       originX: input.e.clientX,
       originY: input.e.clientY,
-      activity: input.activity,
+      source: input.source,
       event: input.event,
       locked: input.locked ?? false,
       copy: input.copy ?? false,
@@ -1416,13 +1469,14 @@ class CalendarData {
     this.#grabOffsetMinutes = 0;
     this.#grabOffsetDays = 0;
 
-    if (pending.kind === "create" && pending.activity) {
+    if (pending.kind === "create" && pending.source) {
       const dayIndex = daysBetween(this.stripStart, this.windowStart);
       this.drag = {
         kind: "create",
-        title: pending.activity.name,
-        weights: pending.activity.weights,
-        activityId: pending.activity.id,
+        title: pending.source.title,
+        weights: pending.source.weights,
+        activityId: pending.source.activityId,
+        source: pending.source,
         event: null,
         copy: false,
         others: [],
@@ -1468,6 +1522,7 @@ class CalendarData {
       title: pending.event.title,
       weights: pending.event.weights,
       activityId: pending.event.activityId,
+      source: null,
       event: pending.event,
       copy: pending.kind === "move" && pending.copy,
       others,
@@ -1589,6 +1644,31 @@ function mappingOf(event: CalendarEvent): Mapping | null {
   return {
     scope: event.mappingScope,
     choice: event.activityId ? { activityId: event.activityId } : { weights: event.weights },
+    purpose: purposeOf(event),
+  };
+}
+
+/** One purpose at a time: a task belongs to a project, and a project is not a practice. */
+function mergePurpose(was: Purpose, change: Partial<Purpose>): Purpose {
+  const merged = { ...was, ...change };
+  if (change.practiceId) return { projectId: null, taskId: null, practiceId: change.practiceId };
+  if (change.projectId === null) return { ...merged, taskId: null };
+  if (change.projectId || change.taskId) return { ...merged, practiceId: null };
+  return merged;
+}
+
+function purposeOf(event: CalendarEvent): Purpose {
+  return { projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId };
+}
+
+/** A copy or a restore counts as, and is for, what the original was — in the create itself. */
+function mappingFieldsOf(was: CalendarEvent) {
+  return {
+    activityId: was.activityId ?? undefined,
+    weights: !was.activityId && was.mappingScope === "instance" && was.weights.length > 0 ? was.weights : undefined,
+    projectId: was.projectId ?? undefined,
+    practiceId: was.practiceId ?? undefined,
+    taskId: was.taskId ?? undefined,
   };
 }
 

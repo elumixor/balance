@@ -3,6 +3,8 @@
   import { calendarData } from "./calendar-data.svelte";
   import CalendarsSection from "./CalendarsSection.svelte";
   import MonthGrid from "./MonthGrid.svelte";
+  import ProjectMeters from "./ProjectMeters.svelte";
+  import ProjectsPalette from "./ProjectsPalette.svelte";
   import WeekMeters from "./WeekMeters.svelte";
 
   /**
@@ -19,8 +21,13 @@
 <div class="space-y-6">
   {#if data.connected}
     <MonthGrid />
-    <section>
+    <section class="space-y-4">
       <WeekMeters events={data.eventsForTotals} categories={plan} weekStart={data.weekStart} />
+      <ProjectMeters events={data.eventsForTotals} categories={plan} weekStart={data.weekStart} />
+    </section>
+    <!-- The rail's palette: drag a project, or one of its tasks, onto the week. -->
+    <section>
+      <ProjectsPalette categories={plan} />
     </section>
   {/if}
 

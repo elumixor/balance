@@ -125,6 +125,7 @@ export class CalendarEventsService {
     activityId?: string;
     weights?: ActivityWeightInput[];
     projectId?: string;
+    practiceId?: string;
     taskId?: string;
     start: Date;
     end: Date;
@@ -170,6 +171,7 @@ export class CalendarEventsService {
       activityId: activity?.id ?? null,
       weights: activity ? undefined : weights,
       projectId: input.projectId ?? null,
+      practiceId: input.practiceId ?? null,
       taskId: input.taskId ?? null,
     });
     return {

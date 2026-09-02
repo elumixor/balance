@@ -9,7 +9,11 @@ export const goalSchema = z.object({
   categoryId: z.uuid(),
   statement: z.string().trim(),
   measure: z.string().trim().nullable().default(null),
-  horizon: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  horizon: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .default(null),
 });
 
 export type SyncedGoal = z.infer<typeof goalSchema>;

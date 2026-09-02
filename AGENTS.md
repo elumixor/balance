@@ -203,6 +203,39 @@ And an API address that isn't the API is now said out loud. A native shell serve
 gives a native build the deployed address when nothing else says otherwise, and `lib/env.ts`
 refuses to make requests at all when the address it has can't be one.
 
+## Projects are the layer between a sphere's hours and Tuesday 9:00
+
+A sphere is a category on the ring; `server/lib/projects/` and `src/lib/projects/` are what those
+hours are *for*. Four levels, each a valid end state: a recurring event, a goal with a practice
+under it, a project with one stage, a project with several. Everything but a name and a sphere is
+optional, and a project has to be creatable in ten seconds — if a flow feels heavy for "find a job",
+the flow is wrong, not the job.
+
+Goals hold no hours, ever: the schema has no field for them. Projects claim hours a week from a
+sphere and end in a decision; practices never complete and are measured by adherence over the last
+four whole weeks. All of them are synced models (`server/lib/sync/`, one `TableStore` each) and live
+in `src/lib/synced.svelte.ts`, so a card is written the way a category is.
+
+A stage is a gate — always a count in a window compared to a threshold — and a date. The date is
+derived when the stage starts (`decisions.ts`: budget ÷ the project's rate, never before the window
+can close) and is never edited; the one extension is its own action, logged on the stage. Outcomes
+are the `decide` action on `stages`, and only a person calls it: passing a gate offers promotion
+and never performs it, `held` is a real status, a restart with the same sentence is refused, and
+park zeroes the hours until a trigger. Templates are a table in `src/lib/projects/templates.ts`;
+the server never branches on them.
+
+Counts are derived, not typed. `ProjectProgressService` reads the calendar through the same
+`CalendarEventsService.resolve` as everything else and counts blocks whose mapping carries a
+`projectId` — the same `event_mappings` row that says what an hour counts as also says what it was
+for. Tagging a grey block to a project after the fact is how a real week is reconciled, so it is on
+the block's card and its context menu, not hidden in a settings screen. Manual rows
+(`gate_events`) exist for what nothing can observe and look manual. A gate whose window has not
+opened is "not measurable", never "failing". Both rule modules are tested (`bun test`); the client
+keeps a copy of the date rule (`decide-on.ts`, covered) only to preview where a stage would land.
+
+`apps/backend/scripts/import-projects.ts` is the one-time import from Notion: a card per row of
+`scripts/projects.json`, with a link back and nothing that syncs.
+
 ## Signing in is skippable in development
 
 A simulator asking for a Google consent screen on every clean install is a minute of clicking

@@ -13,6 +13,14 @@ vi.mock("./queries", () => ({
   getIntegrations: async () => [],
   getCalendarPrefs: async () => ({ accounts: [], visibleCalendarIds: [] }),
   getPreferences: async () => ({}),
+  getProjectProgress: (timeZone: string, today: string) => progress(timeZone, today),
+}));
+const progress = vi.fn(async (_timeZone: string, _today: string) => ({
+  connected: true,
+  needsReconnect: false,
+  weeks: [],
+  projects: {},
+  practices: {},
 }));
 const syncedMock = { ensure: vi.fn(async () => undefined), clear: vi.fn(async () => undefined), syncing: false };
 vi.mock("./synced.svelte", () => ({ synced: syncedMock }));
@@ -237,6 +245,37 @@ describe("the session's rows", () => {
     expect(syncedMock.ensure).toHaveBeenCalledTimes(2);
     expect(store.integrations.hasValue && store.preferences.hasValue).toBe(true);
     expect(week).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for the projects' evidence as the device's own day, in its own zone", async () => {
+    progress.mockClear();
+    await store.progress.refresh();
+    const [timeZone, today] = progress.mock.calls[0];
+    expect(timeZone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // A tag on an event moves a card's hours, so the calendar's writes mark it stale too.
+    invalidate.calendar();
+    await store.progress.ensure();
+    invalidate.projects();
+    await store.progress.ensure();
+    expect(progress).toHaveBeenCalledTimes(3);
+  });
+
+  it("says the projects tab is checking while its evidence is being read", async () => {
+    await store.progress.ensure();
+    expect(syncing.projects).toBe(false);
+    let release: (() => void) | undefined;
+    progress.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve({ connected: true, needsReconnect: false, weeks: [], projects: {}, practices: {} });
+        }),
+    );
+    const out = store.progress.refresh();
+    expect(syncing.projects).toBe(true);
+    release?.();
+    await out;
+    expect(syncing.projects).toBe(false);
   });
 
   it("says a week is being checked only behind rows already on screen", async () => {

@@ -83,7 +83,17 @@ export const NOT_A_MEETING = {
   reminders: [],
 } satisfies Pick<
   CalendarEvent,
-  "projectId" | "practiceId" | "taskId" | "location" | "conferenceUrl" | "conferenceName" | "attendees" | "organizer" | "invited" | "response" | "reminders"
+  | "projectId"
+  | "practiceId"
+  | "taskId"
+  | "location"
+  | "conferenceUrl"
+  | "conferenceName"
+  | "attendees"
+  | "organizer"
+  | "invited"
+  | "response"
+  | "reminders"
 >;
 
 export type EventResponse = "accepted" | "declined" | "tentative" | "needsAction";

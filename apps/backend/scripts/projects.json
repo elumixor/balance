@@ -1,0 +1,24 @@
+[
+  {
+    "name": "Hypocrisy",
+    "sphere": "Projects",
+    "template": "build",
+    "description": "Action adventure rogue-lite with RPG elements.",
+    "notion": "https://app.notion.com/p/19526381fbfd816ba133ce6806c3257f",
+    "people": ["Dima", "Ernesto", "Tim"]
+  },
+  {
+    "name": "Kenoverse",
+    "sphere": "Projects",
+    "template": "build",
+    "description": "Things worth remembering, as spaced-repetition training.",
+    "links": [{ "label": "kenoverse", "url": "https://kenoverse.com" }]
+  },
+  {
+    "name": "Balance",
+    "sphere": "Projects",
+    "template": "build",
+    "description": "Decide how the 168 hours should be spent, and see the drift.",
+    "links": [{ "label": "github", "url": "https://github.com/elumixor/balance-app" }]
+  }
+]

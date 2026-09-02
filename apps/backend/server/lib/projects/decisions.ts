@@ -1,4 +1,4 @@
-import { addDays, daysBetween, type Day } from "../planning/days";
+import { addDays, type Day, daysBetween } from "../planning/days";
 
 /** The one extension a stage may take: a named fix, two weeks, once. */
 export const EXTENSION_DAYS = 14;

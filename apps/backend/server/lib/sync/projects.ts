@@ -23,7 +23,11 @@ export const projectSchema = z.object({
   cover: z.string().trim().nullable().default(null),
   links: z.array(z.object({ label: z.string(), url: z.string() })).default([]),
   people: z.array(z.string()).default([]),
-  deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  deadline: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .default(null),
   unparkTrigger: z.string().nullable().default(null),
 });
 
