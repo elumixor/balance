@@ -1,5 +1,6 @@
 import SwiftUI
 import BalanceKit
+import BalanceTelemetry
 import ClerkKit
 import WatchKit
 
@@ -11,6 +12,9 @@ struct BalanceWatchApp: App {
     @State private var router = WatchRouter()
 
     init() {
+        // The watch has no console and a screen too small for an error card, so a failure here has
+        // nowhere to go but out. Started before Clerk, which is one of the things that can fail.
+        Telemetry.start(platform: "watchOS")
         configureClerk()
     }
 

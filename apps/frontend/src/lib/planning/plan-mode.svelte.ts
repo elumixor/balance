@@ -3,6 +3,7 @@ import type { Cached } from "$lib/cache.svelte";
 import { weekKey } from "$lib/dates";
 import { commitPlannedDay, commitPlannedWeek } from "$lib/queries";
 import { calendarWeek } from "$lib/store.svelte";
+import { telemetry } from "$lib/telemetry";
 import type { CalendarWeek } from "$lib/types";
 import { sessionData } from "./session-data.svelte";
 import type { StarAward } from "./types";
@@ -131,6 +132,11 @@ class PlanMode {
         awarded.push(...week.awarded);
       }
       this.awarded = awarded;
+      telemetry.event("plan_committed", {
+        day,
+        rest: options.rest === true,
+        stars: awarded.reduce((s, a) => s + a.delta, 0),
+      });
       // The nudge asks whether the day has been planned, and it just has.
       void sessionData.refresh();
     } catch (e) {

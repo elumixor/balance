@@ -1,6 +1,7 @@
 import type { H3Event } from "h3";
 import { send, setResponseHeader, setResponseStatus } from "h3";
 import { ApiError } from "./lib/api-error";
+import { captureError } from "./lib/telemetry";
 
 /**
  * Nitro treats anything it didn't create itself as unhandled and replaces the message with
@@ -11,7 +12,14 @@ import { ApiError } from "./lib/api-error";
  */
 export default async function errorHandler(error: Error & { cause?: unknown }, event: H3Event) {
   const apiError = [error, error.cause].find((e): e is ApiError => e instanceof ApiError);
-  if (!apiError) return;
+
+  // An `ApiError` is an answer — "reconnect your calendar", "that day is already planned" — and
+  // filing those as crashes would bury the ones that are. Everything else got here by surprise,
+  // and this is the only place that sees it, so it is reported before the body is written.
+  if (!apiError) {
+    await captureError(error, { path: event.path, method: event.method, status: 500 });
+    return;
+  }
 
   setResponseStatus(event, apiError.status);
   setResponseHeader(event, "content-type", "application/json");

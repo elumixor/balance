@@ -4,6 +4,8 @@
   import { diagnostics } from "$lib/diagnostics.svelte";
   import { watchDesktopFocus } from "$lib/desktop/focus-sync";
   import { watchDesktopSignIn } from "$lib/desktop/sign-in";
+  import { page } from "$app/state";
+  import { telemetry } from "$lib/telemetry";
   import { theme } from "$lib/theme.svelte";
   import { viewport } from "$lib/viewport.svelte";
   import { watchdog } from "$lib/watchdog.svelte";
@@ -12,8 +14,9 @@
 
   let { children }: { children: Snippet } = $props();
 
-  // Before anything else can fail: a rejection thrown while the app is still starting is exactly
-  // the one nobody sees otherwise.
+  // Before anything else can fail — including `diagnostics` itself, which reports into it: a
+  // rejection thrown while the app is still starting is exactly the one nobody sees otherwise.
+  telemetry.start();
   diagnostics.start();
   watchdog.start();
   theme.start();
@@ -27,6 +30,10 @@
   // Same reasoning, different signal: the window never remounts, so it can't rely on a screen
   // revisit to notice a calendar connected elsewhere while it sat in the background.
   $effect(watchDesktopFocus);
+  // One URL is a week, a day and a plan in turn, so a screen is counted when it is opened rather
+  // than left to a router that sees the same address throughout.
+  $effect(() => telemetry.screen(page.url.pathname));
+
   // The heartbeat itself. Reading the counter is what makes this run again, and running is the
   // whole message — see `watchdog.svelte.ts`, which is watching for it to stop.
   $effect(() => {

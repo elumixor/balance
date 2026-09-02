@@ -177,6 +177,26 @@ A screen that throws while rendering is caught by the `<svelte:boundary>` in the
 shell around it — the tabs, the rail — stays alive and answers. Before that, one screen's error
 took every effect in the app with it, which reads as a tab bar that has stopped working.
 
+A screen is not the only place a failure has to reach. `$lib/telemetry.ts` hangs off
+`diagnostics.report`, so every failure the app already knows how to say is also sent to Sentry, with
+what the person was doing before it sent to PostHog — one call, because a second thing to remember
+is a thing that gets forgotten. The API reports the same way (`server/lib/telemetry.ts`, wired into
+`server/error.ts`, and an `ApiError` is an answer rather than a crash), and the two Apple targets
+that are not a webview report through `BalanceTelemetry` — the phone's Swift shell, which runs
+before there is a webview, and the watch, which has no console and no room for an error card. All
+of it is optional: with no keys set nothing is sent and every platform behaves identically, the
+same rule `GOOGLE_MAPS_API_KEY` follows. The client keys are public by design and live in one place
+(`VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`), which the release lane writes into the iOS and watchOS
+`Info.plist`s so all four platforms report to one project.
+
+Last of all, `$lib/watchdog.svelte.ts` watches the thing none of that can watch: Svelte flushes
+every effect in one pass, so one effect that re-triggers itself doesn't fail alone — the scheduler
+gives up and takes the whole tree with it, leaving a calendar that still scrolls and a tab bar that
+has stopped answering. A timer outside the reactive system bumps a counter, an `$effect` stamps the
+time, and when the stamp stops moving while the timer keeps firing the card that says so is built
+from plain DOM nodes, because every other way of putting something on screen has just been proved
+unable.
+
 And an API address that isn't the API is now said out loud. A native shell serves its bundle from
 `https://localhost`, so a relative base points every request at the app itself, which answers with
 `index.html` and a 200 — data-shaped nothing that used to be parsed as a week. `vite.config.ts`

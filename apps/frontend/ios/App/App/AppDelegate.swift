@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import BalanceTelemetry
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,6 +8,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Before anything else: the webview reports its own failures once it is up, but a crash in
+        // the shell happens with no webview to report it.
+        Telemetry.start(platform: "iOS-shell")
         DailyIconManager.applyForToday()
         return true
     }

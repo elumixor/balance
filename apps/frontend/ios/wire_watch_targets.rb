@@ -102,6 +102,19 @@ def link_package_product(project, target, package_ref, product_name)
   target.frameworks_build_phase.files << build_file
 end
 
+# The same, for a target this script doesn't rebuild from scratch on every run — the host app.
+def ensure_package_product(project, target, package_ref, product_name)
+  return if target.package_product_dependencies.any? { |d| d.product_name == product_name }
+
+  link_package_product(project, target, package_ref, product_name)
+end
+
+# The phone app reports its own crashes: the Swift shell runs before there is a webview to report
+# into, and `IcsImportPlugin` and `WatchHandoffPlugin` are native code the web app never sees fail.
+# `BalanceTelemetry` only, not `BalanceKit` — the rest of that package is Clerk's native SDK, and
+# this app's sign-in lives in the webview.
+ensure_package_product(project, app_target, package_ref, "BalanceTelemetry")
+
 # ---------------------------------------------------------------------------
 # Widget extension (watchOS)
 # ---------------------------------------------------------------------------
@@ -135,6 +148,7 @@ watch.add_file_references(
 watch.add_resources([watch_group.new_reference(File.join(src_root, "WatchApp/Assets.xcassets"))])
 watch_group.new_reference(File.join(src_root, "WatchApp/#{WATCH_NAME}.entitlements"))
 link_package_product(project, watch, package_ref, "BalanceKit")
+link_package_product(project, watch, package_ref, "BalanceTelemetry")
 link_package_product(project, watch, package_ref, "ClerkKit")
 
 add_settings(watch, COMMON.merge(

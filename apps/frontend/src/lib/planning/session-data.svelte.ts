@@ -1,5 +1,6 @@
 import { untrack } from "svelte";
 import { getSessionSummary } from "$lib/queries";
+import { telemetry } from "$lib/telemetry";
 import type { SessionSummary, Slot } from "./types";
 import { deviceTimeZone } from "./zone";
 
@@ -42,10 +43,12 @@ class SessionData {
     this.loading = true;
     this.error = null;
     try {
-      this.summary = await getSessionSummary(
+      const summary = await getSessionSummary(
         untrack(() => this.slot),
         deviceTimeZone(),
       );
+      this.summary = summary;
+      telemetry.event("session_loaded", { slot: summary.slot, planned: summary.target.planned });
     } catch (e) {
       this.error = e instanceof Error ? e.message : "Couldn't open your session.";
     } finally {

@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "2577C1FB8226AA62886EC54E"
+               BlueprintIdentifier = "EA317A82D4BCA89D04E8D88A"
                BuildableName = "BalanceWatchWidget.appex"
                BlueprintName = "BalanceWatchWidget"
                ReferencedContainer = "container:App.xcodeproj">

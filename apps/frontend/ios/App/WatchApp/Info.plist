@@ -31,5 +31,11 @@
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
 	<string>com.elumixor.balance</string>
+	<key>BalanceSentryDSN</key>
+	<string></string>
+	<key>BalancePostHogKey</key>
+	<string></string>
+	<key>BalancePostHogHost</key>
+	<string></string>
 </dict>
 </plist>

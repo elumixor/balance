@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/auth.svelte";
+  import { telemetry } from "$lib/telemetry";
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
   import GeneralPane from "$lib/settings/GeneralPane.svelte";
   import { type Pane, PANES } from "$lib/settings/panes";
@@ -31,6 +32,8 @@
   async function signOut() {
     settings.hide();
     await auth.signOut();
+    // The next account is not this one, and nothing it does should be filed under this one.
+    telemetry.forget();
     // Whatever is cached belongs to the account that just left.
     await clearStore();
     await goto("/sign-in");

@@ -1,6 +1,7 @@
 import { untrack } from "svelte";
 import { buildInfo } from "./build-info";
 import { API_BASE_URL } from "./env";
+import { telemetry } from "./telemetry";
 
 /** One thing that went wrong, in the shape the banner shows it. */
 export interface Problem {
@@ -72,6 +73,9 @@ class Diagnostics {
     if (this.problems.length > KEPT) this.problems.shift();
     this.dismissed = false;
     console.error(`[${scope}]`, error);
+    // The banner is what the person sees; this is what the person fixing it sees. Every failure
+    // the app knows how to say already comes through here, so there is nothing else to remember.
+    telemetry.capture(scope, error, fullDetail || undefined);
   }
 
   dismiss() {

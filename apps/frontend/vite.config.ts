@@ -89,6 +89,23 @@ function buildStamp() {
   return `${commit}${dirty}`;
 }
 
+/**
+ * The keys that let a build report its own failures — see `lib/telemetry.ts`.
+ *
+ * Read here rather than left to Vite's own `VITE_` handling because the native shells are built by
+ * fastlane and by CI, where the values arrive in the environment and there is no `.env` beside
+ * this file at all. Both are public identifiers: a Sentry DSN and a PostHog project key are meant
+ * to be shipped, the same way the Clerk publishable key already is.
+ */
+function telemetryEnv(mode: string, cwd: string) {
+  const env = { ...loadEnv(mode, cwd, "VITE_"), ...process.env };
+  return {
+    sentryDsn: env.VITE_SENTRY_DSN ?? "",
+    posthogKey: env.VITE_POSTHOG_KEY ?? "",
+    posthogHost: env.VITE_POSTHOG_HOST ?? "",
+  };
+}
+
 /** One version for all three shells, kept where the macOS bundle already reads it from. */
 function appVersion(cwd: string) {
   const config = JSON.parse(readFileSync(resolve(cwd, "src-tauri/tauri.conf.json"), "utf8"));
@@ -97,6 +114,7 @@ function appVersion(cwd: string) {
 
 export default defineConfig(({ mode }) => {
   const dev = devAuth(mode, process.cwd());
+  const telemetry = telemetryEnv(mode, process.cwd());
   return {
     plugins: [tailwindcss(), sveltekit()],
     // Rust build artefacts are far too many files to watch, and none of them change the page.
@@ -111,6 +129,9 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_BUILD_TIME": JSON.stringify(new Date().toISOString()),
       "import.meta.env.VITE_DEV_AUTH": JSON.stringify(dev.on),
       "import.meta.env.VITE_DEV_AUTH_EMAIL": JSON.stringify(dev.email),
+      "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(telemetry.sentryDsn),
+      "import.meta.env.VITE_POSTHOG_KEY": JSON.stringify(telemetry.posthogKey),
+      "import.meta.env.VITE_POSTHOG_HOST": JSON.stringify(telemetry.posthogHost),
     },
   };
 });

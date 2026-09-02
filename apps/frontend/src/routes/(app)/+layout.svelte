@@ -21,6 +21,7 @@
   import { clock } from "$lib/clock.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings.svelte";
+  import { telemetry } from "$lib/telemetry";
   import { adoptUser, warmStore } from "$lib/store.svelte";
   import { diagnostics } from "$lib/diagnostics.svelte";
   import ScreenFailed from "$lib/components/ScreenFailed.svelte";
@@ -55,6 +56,8 @@
     untrack(() => {
       // Before the first request, in case what's on screen belongs to whoever signed in last.
       if (userId) adoptUser(userId);
+      // Everything reported from here on belongs to an account rather than to a browser.
+      telemetry.identify(userId, auth.email);
       warmStore().catch((e) => diagnostics.report("Loading", e));
     });
   });

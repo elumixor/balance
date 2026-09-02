@@ -1,0 +1,132 @@
+import * as Sentry from "@sentry/svelte";
+import posthog from "posthog-js";
+import { buildInfo } from "./build-info";
+import { API_BASE_URL } from "./env";
+
+/**
+ * Where a failure goes once the app has said it out loud.
+ *
+ * `diagnostics` is what the person holding the phone sees; this is what the person fixing it sees.
+ * The two are one call — every report already funnels through `diagnostics.report`, so this hangs
+ * off that rather than asking every module to remember a second thing. A webview on a phone has no
+ * console anybody can open, and the last two times the app died on iOS the only evidence was a
+ * screenshot; that is the problem being solved here.
+ *
+ * Sentry takes the failures, PostHog takes what happened before them. Both are optional: with no
+ * keys configured the app behaves exactly as it did, because a build without them is still a build
+ * somebody is using.
+ */
+
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN ?? "";
+const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY ?? "";
+/** PostHog's EU and US clouds are different hosts, and a self-hosted one is a third. */
+const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
+
+/**
+ * Which build this is, in the form Sentry groups releases by. The commit is what makes a stack
+ * trace mean something a week later, and it is already on the settings screen for the same reason.
+ */
+const RELEASE = `balance@${buildInfo.version}+${buildInfo.commit}`;
+
+class Telemetry {
+  #sentry = false;
+  #posthog = false;
+  #started = false;
+
+  /** Whether anything is being sent at all — the settings screen says so rather than implying it. */
+  get enabled() {
+    return this.#sentry || this.#posthog;
+  }
+
+  /**
+   * Started before the first request and before Clerk, from the root layout, so a start-up that
+   * fails is inside the window rather than in front of it.
+   */
+  start() {
+    if (this.#started || typeof window === "undefined") return;
+    this.#started = true;
+
+    if (SENTRY_DSN) {
+      Sentry.init({
+        dsn: SENTRY_DSN,
+        release: RELEASE,
+        environment: import.meta.env.DEV ? "development" : "production",
+        // Errors, not traces: this ships inside a webview on a phone, and a performance sample is
+        // a request that competes with the week the person is waiting for.
+        tracesSampleRate: 0,
+        // The account is named by `identify` once there is one; nothing else here is a person.
+        sendDefaultPii: false,
+        initialScope: { tags: { platform: buildInfo.platform, api: API_BASE_URL || "same-origin" } },
+      });
+      this.#sentry = true;
+    }
+
+    if (POSTHOG_KEY) {
+      posthog.init(POSTHOG_KEY, {
+        api_host: POSTHOG_HOST,
+        // A person is only worth a profile once they are somebody — see `identify`.
+        person_profiles: "identified_only",
+        // The router owns navigation here, and a calendar is one URL all week; `screen` says when
+        // a screen was actually opened, which is the thing worth counting.
+        capture_pageview: false,
+        // A week grid is thousands of positioned divs. Autocapture on it is noise with a bandwidth
+        // cost, and every event worth having is one this app names itself.
+        autocapture: false,
+        // Sentry owns failures. Two copies of the same stack in two places is one too many.
+        capture_exceptions: false,
+        persistence: "localStorage",
+      });
+      posthog.register({ platform: buildInfo.platform, version: buildInfo.version, commit: buildInfo.commit });
+      this.#posthog = true;
+    }
+  }
+
+  /** Whose session this is, once Clerk has said. Both SDKs key everything else off it. */
+  identify(userId: string, email?: string) {
+    if (!userId) return;
+    if (this.#sentry) Sentry.setUser({ id: userId, email });
+    if (this.#posthog) posthog.identify(userId, email ? { email } : undefined);
+  }
+
+  /** Signing out ends the person as well as the session — the next account is not this one. */
+  forget() {
+    if (this.#sentry) Sentry.setUser(null);
+    if (this.#posthog) posthog.reset();
+  }
+
+  /**
+   * A failure, with the scope the banner shows it under. Called from `diagnostics.report`, so
+   * everything the app already knows how to say arrives here without being told twice.
+   */
+  capture(scope: string, error: unknown, detail?: string) {
+    if (this.#sentry) {
+      Sentry.captureException(error, {
+        tags: { scope },
+        extra: detail ? { detail } : undefined,
+      });
+    }
+    if (this.#posthog) {
+      posthog.capture("app_error", { scope, message: messageOf(error), detail });
+    }
+  }
+
+  /** Something the app did on purpose, for the funnel that says whether the ritual is working. */
+  event(name: string, properties?: Record<string, unknown>) {
+    if (this.#posthog) posthog.capture(name, properties);
+    // A breadcrumb rather than an event: what Sentry wants from this is the trail before a crash.
+    if (this.#sentry) Sentry.addBreadcrumb({ category: "app", message: name, data: properties, level: "info" });
+  }
+
+  /** A screen was opened. Manual, because one URL can be a week, a day and a plan in turn. */
+  screen(path: string) {
+    if (this.#posthog) posthog.capture("$pageview", { $current_url: path, path });
+    if (this.#sentry) Sentry.addBreadcrumb({ category: "navigation", message: path, level: "info" });
+  }
+}
+
+export const telemetry = new Telemetry();
+
+function messageOf(error: unknown) {
+  if (error instanceof Error) return error.message || error.name;
+  return typeof error === "string" ? error : String(error);
+}

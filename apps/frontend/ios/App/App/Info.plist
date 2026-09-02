@@ -106,5 +106,11 @@
 	     place and no document to keep a handle on. -->
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
+	<key>BalanceSentryDSN</key>
+	<string></string>
+	<key>BalancePostHogKey</key>
+	<string></string>
+	<key>BalancePostHogHost</key>
+	<string></string>
 </dict>
 </plist>
