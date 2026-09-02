@@ -10,6 +10,12 @@ export default handler(
   {
     body: {
       activityId: z.string().min(1).optional(),
+      /** For a block that counts straight toward categories — a project's sphere, say. */
+      weights: z
+        .array(z.object({ categoryId: z.string(), weightPercent: z.number().int().min(0).max(100) }))
+        .optional(),
+      projectId: z.string().min(1).optional(),
+      taskId: z.string().min(1).optional(),
       start: z.string(),
       end: z.string(),
       calendarId: z.string().optional(),

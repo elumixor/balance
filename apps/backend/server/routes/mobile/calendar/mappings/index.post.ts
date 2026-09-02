@@ -15,6 +15,10 @@ export default handler(
       weights: z
         .array(z.object({ categoryId: z.string(), weightPercent: z.number().int().min(0).max(100) }))
         .optional(),
+      /** What the hour was for. Absent leaves it alone; null clears it. */
+      projectId: z.string().nullable().optional(),
+      practiceId: z.string().nullable().optional(),
+      taskId: z.string().nullable().optional(),
     },
   },
   async ({ body, event }) => {

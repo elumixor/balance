@@ -90,6 +90,10 @@ export class CalendarEventDTO {
   readonly activityId: string | null;
   readonly activityName: string | null;
   readonly weights: ActivityWeightDTO[];
+  /** What the hour was for — a project, a practice, a task — on top of what it counts as. */
+  readonly projectId: string | null;
+  readonly practiceId: string | null;
+  readonly taskId: string | null;
   readonly location: string | null;
   readonly conferenceUrl: string | null;
   readonly conferenceName: string | null;
@@ -118,6 +122,9 @@ export class CalendarEventDTO {
     this.activityId = e.mapping?.activityId ?? null;
     this.activityName = e.mapping?.activityName ?? null;
     this.weights = e.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent }));
+    this.projectId = e.mapping?.projectId ?? null;
+    this.practiceId = e.mapping?.practiceId ?? null;
+    this.taskId = e.mapping?.taskId ?? null;
     this.location = e.location;
     this.conferenceUrl = e.conferenceUrl;
     this.conferenceName = e.conferenceName;

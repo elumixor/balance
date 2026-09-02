@@ -11,13 +11,20 @@ export interface MappingKey {
   readonly externalEventId: string;
 }
 
-export interface MappingInput extends MappingKey {
+/** What an hour was for, on top of what it counts as. Any may be null; a task implies its project. */
+export interface MappingPurpose {
+  readonly projectId: string | null;
+  readonly practiceId: string | null;
+  readonly taskId: string | null;
+}
+
+export interface MappingInput extends MappingKey, Partial<MappingPurpose> {
   readonly activityId?: string | null;
   readonly weights?: ActivityWeightInput[];
 }
 
 /** A mapping with its category weights already worked out, whichever side they came from. */
-export interface ResolvedMapping extends MappingKey {
+export interface ResolvedMapping extends MappingKey, MappingPurpose {
   readonly activityId: string | null;
   readonly activityName: string | null;
   readonly weights: ActivityWeightInput[];
@@ -47,6 +54,9 @@ export class EventMappingService {
       scope: input.scope,
       externalEventId: input.externalEventId,
       activityId: input.activityId ?? null,
+      projectId: input.projectId ?? null,
+      practiceId: input.practiceId ?? null,
+      taskId: input.taskId ?? null,
     };
     const [mapping] = await db
       .insert(eventMappings)
@@ -59,7 +69,14 @@ export class EventMappingService {
           eventMappings.scope,
           eventMappings.externalEventId,
         ],
-        set: { activityId: values.activityId },
+        // A purpose left out of the write is left as it was: setting a category must not untag
+        // the project, and tagging a project must not touch what the event counts as.
+        set: {
+          activityId: values.activityId,
+          ...(input.projectId === undefined ? {} : { projectId: values.projectId }),
+          ...(input.practiceId === undefined ? {} : { practiceId: values.practiceId }),
+          ...(input.taskId === undefined ? {} : { taskId: values.taskId }),
+        },
       })
       .returning();
 
@@ -113,6 +130,9 @@ export class EventMappingService {
     scope: string;
     externalEventId: string;
     activityId: string | null;
+    projectId: string | null;
+    practiceId: string | null;
+    taskId: string | null;
     activity: { name: string; weights: { categoryId: string; weightPercent: number }[] } | null;
     weights: { categoryId: string; weightPercent: number }[];
   }): ResolvedMapping {
@@ -123,6 +143,9 @@ export class EventMappingService {
       externalEventId: row.externalEventId,
       activityId: row.activityId,
       activityName: row.activity?.name ?? null,
+      projectId: row.projectId,
+      practiceId: row.practiceId,
+      taskId: row.taskId,
       weights: source.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
     };
   }

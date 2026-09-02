@@ -29,6 +29,13 @@
       "when": 1787574440054,
       "tag": "0003_organic_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788373109257,
+      "tag": "0004_odd_hitman",
+      "breakpoints": true
     }
   ]
 }

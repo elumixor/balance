@@ -5,7 +5,7 @@ import { ApiError } from "../api-error";
 import type { ActivityWeightInput } from "../categories-service";
 import { ProviderNotConnectedError } from "./errors";
 import { eventCache } from "./event-cache";
-import { EventMappingService, type ResolvedMapping } from "./mappings-service";
+import { EventMappingService, type MappingPurpose, type ResolvedMapping } from "./mappings-service";
 import { type CalendarConnection, calendarConnections } from "./registry";
 import {
   type ExternalEvent,
@@ -16,11 +16,13 @@ import {
 } from "./types";
 
 export interface ResolvedEvent extends ExternalEvent {
-  readonly mapping: {
-    readonly scope: MappingScope;
-    readonly activityId: string | null;
-    readonly activityName: string | null;
-  } | null;
+  readonly mapping:
+    | ({
+        readonly scope: MappingScope;
+        readonly activityId: string | null;
+        readonly activityName: string | null;
+      } & MappingPurpose)
+    | null;
   /** Empty when the event counts as nothing. Otherwise sums to 100, buffer remainder included. */
   readonly weights: ActivityWeightInput[];
   /**
@@ -117,9 +119,13 @@ export class CalendarEventsService {
    *
    * The activity is optional because undoing a delete has to put back events that counted as
    * nothing, or as a split of categories the caller re-applies itself; those come with a title.
+   * A block dragged in from a project carries its sphere as weights and the project as purpose.
    */
   async create(input: {
     activityId?: string;
+    weights?: ActivityWeightInput[];
+    projectId?: string;
+    taskId?: string;
     start: Date;
     end: Date;
     calendarId?: string;
@@ -152,7 +158,8 @@ export class CalendarEventsService {
     });
     eventCache.invalidate(this.userId);
 
-    if (!activity) {
+    const weights = input.weights?.length ? input.weights : undefined;
+    if (!activity && !weights) {
       return { ...this.attachMappings([{ ...created, calendarId }], [])[0], accountId: connection.accountId };
     }
 
@@ -160,7 +167,10 @@ export class CalendarEventsService {
       calendarId,
       scope: "instance",
       externalEventId: created.id,
-      activityId: activity.id,
+      activityId: activity?.id ?? null,
+      weights: activity ? undefined : weights,
+      projectId: input.projectId ?? null,
+      taskId: input.taskId ?? null,
     });
     return {
       ...this.attachMappings([{ ...created, calendarId }], [mapping])[0],
@@ -279,7 +289,14 @@ export class CalendarEventsService {
       return {
         ...event,
         mapping: mapping
-          ? { scope: mapping.scope, activityId: mapping.activityId, activityName: mapping.activityName }
+          ? {
+              scope: mapping.scope,
+              activityId: mapping.activityId,
+              activityName: mapping.activityName,
+              projectId: mapping.projectId,
+              practiceId: mapping.practiceId,
+              taskId: mapping.taskId,
+            }
           : null,
         weights: mapping?.weights ?? [],
         countsTowardHours: !event.allDay && event.selfResponse !== "declined" && event.status !== "cancelled",
