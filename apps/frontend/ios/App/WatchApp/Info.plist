@@ -19,17 +19,14 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>33</string>
-	<!-- The only cleartext this app ever loads is a dev backend on the machine running the
-	     simulator — see `DevAuth`. `NSAllowsLocalNetworking` covers exactly that and nothing on
-	     the open internet, so a release keeps every other App Transport Security rule. -->
+	<string>34</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
