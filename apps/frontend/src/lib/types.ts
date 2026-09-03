@@ -50,6 +50,8 @@ export interface CalendarEvent {
   projectId: string | null;
   practiceId: string | null;
   taskId: string | null;
+  /** How a timer run for it is broken up; null when it just runs to the end. */
+  timer: EventTimer | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
   location: string | null;
   /** The link that means "you are in the call". */
@@ -73,6 +75,7 @@ export const NOT_A_MEETING = {
   projectId: null,
   practiceId: null,
   taskId: null,
+  timer: null,
   location: null,
   conferenceUrl: null,
   conferenceName: null,
@@ -86,6 +89,7 @@ export const NOT_A_MEETING = {
   | "projectId"
   | "practiceId"
   | "taskId"
+  | "timer"
   | "location"
   | "conferenceUrl"
   | "conferenceName"
@@ -95,6 +99,12 @@ export const NOT_A_MEETING = {
   | "response"
   | "reminders"
 >;
+
+/**
+ * How a timer for an event is broken up: a nudge every so many minutes, or the event split into
+ * equal parts. The length is the event's own, so it is never stored here.
+ */
+export type EventTimer = { kind: "every"; minutes: number } | { kind: "parts"; count: number };
 
 export type EventResponse = "accepted" | "declined" | "tentative" | "needsAction";
 

@@ -16,6 +16,9 @@ export default handler(
       /** Absent or null is an open-ended session — it runs until it's stopped. */
       durationMinutes: z.number().int().positive().nullable().optional(),
       title: z.string().trim().optional(),
+      /** An event already on the calendar to time, with its qualified calendar id — no new event. */
+      eventId: z.string().min(1).optional(),
+      calendarId: z.string().min(1).optional(),
     },
   },
   async ({ body, event }) => {

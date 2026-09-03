@@ -4,6 +4,8 @@
   import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
   import InlineError from "$lib/components/InlineError.svelte";
+  import Popover from "$lib/components/Popover.svelte";
+  import PopoverItem from "$lib/components/PopoverItem.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
   import { restColor } from "$lib/colors";
   import { openExternal } from "$lib/desktop/open";
@@ -14,10 +16,10 @@
   import { preferences } from "$lib/preferences.svelte";
   import { respondToCalendarEvent } from "$lib/queries";
   import { applyCalendarEvent } from "$lib/store.svelte";
-  import type { CalendarEvent, Category, EventResponse, MappingScope } from "$lib/types";
+  import type { CalendarEvent, Category, EventResponse, EventTimer, MappingScope } from "$lib/types";
   import ProjectPicker from "$lib/projects/ProjectPicker.svelte";
   import { practices, projects } from "$lib/synced.svelte";
-  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Sparkles, Trash2, Video, X } from "lucide-svelte";
+  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Sparkles, Timer, Trash2, Video, X } from "lucide-svelte";
   import { accountEmailOf, calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import EventAssist from "./EventAssist.svelte";
@@ -156,6 +158,34 @@
   function choosePurpose(next: { projectId: string | null; practiceId: string | null }) {
     projectRect = null;
     void run(() => data.tagEvent(event, next));
+  }
+
+  /**
+   * How a timer run for this block is broken up. The length is the block's own, so the only choice
+   * is the rhythm — and it rides on the mapping, so a block that counts as nothing has nowhere to
+   * keep it, which is why the row only shows once there is a category.
+   */
+  const TIMERS: { value: string; label: string; timer: EventTimer | null }[] = [
+    { value: "", label: "Runs to the end", timer: null },
+    ...[5, 10, 15, 25, 30].map((minutes) => ({
+      value: `every:${minutes}`,
+      label: `Nudge every ${minutes} min`,
+      timer: { kind: "every", minutes } as const,
+    })),
+    ...[2, 3, 4, 5].map((count) => ({
+      value: `parts:${count}`,
+      label: `Split in ${count}`,
+      timer: { kind: "parts", count } as const,
+    })),
+  ];
+  const timerKey = $derived(
+    event.timer ? (event.timer.kind === "every" ? `every:${event.timer.minutes}` : `parts:${event.timer.count}`) : "",
+  );
+  const timerLabel = $derived(TIMERS.find((t) => t.value === timerKey)?.label ?? "Timer");
+
+  function chooseTimer(value: string) {
+    const timer = TIMERS.find((t) => t.value === value)?.timer ?? null;
+    void run(() => data.tagEvent(event, { timer }));
   }
 
   /**
@@ -646,6 +676,38 @@
         </div>
       {/if}
     </div>
+
+    {#if category && !event.allDay}
+      <!-- The timer the watch runs for this block: the length is the block's, the rhythm is chosen. -->
+      <div class="border-t border-line px-3 py-1.5">
+        <Popover width={200} align="start">
+          {#snippet trigger(open)}
+            <button
+              type="button"
+              onclick={open}
+              class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
+            >
+              <Timer size={16} class="shrink-0 {event.timer ? 'text-fg-muted' : 'text-fg-faint'}" />
+              <span class="t-label min-w-0 flex-1 truncate {event.timer ? 'text-fg' : 'text-fg-faint'}">
+                {event.timer ? timerLabel : "Timer runs to the end"}
+              </span>
+            </button>
+          {/snippet}
+          {#snippet content(close)}
+            {#each TIMERS as option (option.value)}
+              <PopoverItem
+                label={option.label}
+                selected={option.value === timerKey}
+                onclick={() => {
+                  chooseTimer(option.value);
+                  close();
+                }}
+              />
+            {/each}
+          {/snippet}
+        </Popover>
+      </div>
+    {/if}
 
     <div class="border-t border-line px-3 py-2">
       {#if editable}

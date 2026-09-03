@@ -43,6 +43,13 @@
       "when": 1788379314169,
       "tag": "0005_curved_baron_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788422049952,
+      "tag": "0006_sharp_lila_cheney",
+      "breakpoints": true
     }
   ]
 }

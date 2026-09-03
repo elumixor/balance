@@ -8,6 +8,7 @@ import { eventCache } from "./event-cache";
 import { EventMappingService, type MappingPurpose, type ResolvedMapping } from "./mappings-service";
 import { type CalendarConnection, calendarConnections } from "./registry";
 import {
+  type EventTimer,
   type ExternalEvent,
   type MappingScope,
   PRIMARY_CALENDAR_ID,
@@ -127,6 +128,7 @@ export class CalendarEventsService {
     projectId?: string;
     practiceId?: string;
     taskId?: string;
+    timer?: EventTimer | null;
     start: Date;
     end: Date;
     calendarId?: string;
@@ -173,11 +175,22 @@ export class CalendarEventsService {
       projectId: input.projectId ?? null,
       practiceId: input.practiceId ?? null,
       taskId: input.taskId ?? null,
+      timer: input.timer ?? null,
     });
     return {
       ...this.attachMappings([{ ...created, calendarId }], [mapping])[0],
       accountId: connection.accountId,
     };
+  }
+
+  /** One event by id, with what it counts as — for a timer pointed at something already planned. */
+  async get(qualifiedCalendarId: string, eventId: string): Promise<ResolvedEvent> {
+    const { connection, calendarId } = await this.targetFor(qualifiedCalendarId);
+    const [found, mappings] = await Promise.all([
+      connection.provider.getEvent(calendarId, eventId),
+      new EventMappingService(this.userId).all(),
+    ]);
+    return { ...this.attachMappings([{ ...found, calendarId }], mappings)[0], accountId: connection.accountId };
   }
 
   /**
@@ -298,6 +311,7 @@ export class CalendarEventsService {
               projectId: mapping.projectId,
               practiceId: mapping.practiceId,
               taskId: mapping.taskId,
+              timer: mapping.timer,
             }
           : null,
         weights: mapping?.weights ?? [],

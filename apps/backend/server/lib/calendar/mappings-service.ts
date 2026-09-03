@@ -3,7 +3,7 @@ import { db } from "../../db";
 import { eventMappings, eventMappingWeights } from "../../db/schema";
 import { ApiError } from "../api-error";
 import { ActivityService, type ActivityWeightInput } from "../categories-service";
-import type { MappingScope } from "./types";
+import type { EventTimer, MappingScope } from "./types";
 
 export interface MappingKey {
   readonly calendarId: string;
@@ -16,6 +16,8 @@ export interface MappingPurpose {
   readonly projectId: string | null;
   readonly practiceId: string | null;
   readonly taskId: string | null;
+  /** How a timer for the event is broken up; null when it just runs to the end. */
+  readonly timer: EventTimer | null;
 }
 
 export interface MappingInput extends MappingKey, Partial<MappingPurpose> {
@@ -57,6 +59,7 @@ export class EventMappingService {
       projectId: input.projectId ?? null,
       practiceId: input.practiceId ?? null,
       taskId: input.taskId ?? null,
+      timer: input.timer ?? null,
     };
     const [mapping] = await db
       .insert(eventMappings)
@@ -76,6 +79,7 @@ export class EventMappingService {
           ...(input.projectId === undefined ? {} : { projectId: values.projectId }),
           ...(input.practiceId === undefined ? {} : { practiceId: values.practiceId }),
           ...(input.taskId === undefined ? {} : { taskId: values.taskId }),
+          ...(input.timer === undefined ? {} : { timer: values.timer }),
         },
       })
       .returning();
@@ -133,6 +137,7 @@ export class EventMappingService {
     projectId: string | null;
     practiceId: string | null;
     taskId: string | null;
+    timer: EventTimer | null;
     activity: { name: string; weights: { categoryId: string; weightPercent: number }[] } | null;
     weights: { categoryId: string; weightPercent: number }[];
   }): ResolvedMapping {
@@ -146,6 +151,7 @@ export class EventMappingService {
       projectId: row.projectId,
       practiceId: row.practiceId,
       taskId: row.taskId,
+      timer: row.timer,
       weights: source.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
     };
   }

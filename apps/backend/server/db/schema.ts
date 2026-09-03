@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { EventTimer } from "../lib/calendar/types";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -155,6 +156,12 @@ export const eventMappings = pgTable(
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     practiceId: uuid("practice_id").references(() => practices.id, { onDelete: "set null" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    /**
+     * How a timer run for this event is broken up — a nudge every N minutes, or the event split
+     * into N parts. The length is never stored: the event's own duration is the timer's. Null
+     * means a timer for this event simply runs to the end.
+     */
+    timer: jsonb("timer").$type<EventTimer>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -202,6 +209,17 @@ export const trackingSessions = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     plannedEndAt: timestamp("planned_end_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
+    /**
+     * Whether the event is the session's own — one the timer created, or one nobody else is
+     * invited to. A timer started for somebody else's meeting leaves that meeting's times alone.
+     */
+    ownsEvent: boolean("owns_event").notNull().default(true),
+    /**
+     * Whether the event was already in the calendar when the timer started — pointed at from a
+     * reminder, or matched afterwards — as opposed to one the timer wrote. Only a timer that wrote
+     * its own event is asked whether it was really for something planned.
+     */
+    fromEvent: boolean("from_event").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   // Two timers running at once would mean two overlapping events nobody asked for, so the

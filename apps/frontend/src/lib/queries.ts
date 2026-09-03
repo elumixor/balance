@@ -11,6 +11,7 @@ import type {
   CreateSuggestion,
   DecisionAdvice,
   EventPlan,
+  EventTimer,
   IntegrationStatus,
   MappingScope,
   Progress,
@@ -63,6 +64,7 @@ export const createCalendarEvent = (input: {
   projectId?: string;
   practiceId?: string;
   taskId?: string;
+  timer?: EventTimer;
   start: string;
   end: string;
   calendarId?: string;
@@ -105,6 +107,8 @@ export const saveEventMapping = (input: {
   projectId?: string | null;
   practiceId?: string | null;
   taskId?: string | null;
+  /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
+  timer?: EventTimer | null;
 }) => callApi(api.calendar.mappings.$post(input)).then(unwrapOk);
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
   callApi(api.calendar.mappings.$delete(input)).then(unwrapOk);

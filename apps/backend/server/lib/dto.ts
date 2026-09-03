@@ -1,6 +1,6 @@
 import type { activityCategoryWeights, categories } from "../db/schema";
 import { qualifyCalendarId, type ResolvedEvent } from "./calendar/events-service";
-import type { CalendarRef, MappingScope, SelfResponse } from "./calendar/types";
+import type { CalendarRef, EventTimer, MappingScope, SelfResponse } from "./calendar/types";
 
 /** Serializes a `categories` row into the shape the mobile app expects. */
 export class CategoryDTO {
@@ -94,6 +94,8 @@ export class CalendarEventDTO {
   readonly projectId: string | null;
   readonly practiceId: string | null;
   readonly taskId: string | null;
+  /** How a timer for it is broken up; null when it just runs to the end. */
+  readonly timer: EventTimer | null;
   readonly location: string | null;
   readonly conferenceUrl: string | null;
   readonly conferenceName: string | null;
@@ -125,6 +127,7 @@ export class CalendarEventDTO {
     this.projectId = e.mapping?.projectId ?? null;
     this.practiceId = e.mapping?.practiceId ?? null;
     this.taskId = e.mapping?.taskId ?? null;
+    this.timer = e.mapping?.timer ?? null;
     this.location = e.location;
     this.conferenceUrl = e.conferenceUrl;
     this.conferenceName = e.conferenceName;

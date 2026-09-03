@@ -17,6 +17,14 @@ export default handler(
       projectId: z.string().min(1).optional(),
       practiceId: z.string().min(1).optional(),
       taskId: z.string().min(1).optional(),
+      /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
+      timer: z
+        .union([
+          z.object({ kind: z.literal("every"), minutes: z.number().int().positive() }),
+          z.object({ kind: z.literal("parts"), count: z.number().int().min(2) }),
+        ])
+        .nullable()
+        .optional(),
       start: z.string(),
       end: z.string(),
       calendarId: z.string().optional(),

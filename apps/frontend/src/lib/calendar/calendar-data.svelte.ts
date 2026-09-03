@@ -11,7 +11,7 @@ import {
 } from "$lib/queries";
 import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
 import { activities, practices, projects, synced } from "$lib/synced.svelte";
-import { type ActivityWeight, type CalendarEvent, type MappingScope, NOT_A_MEETING } from "$lib/types";
+import { type ActivityWeight, type CalendarEvent, type EventTimer, type MappingScope, NOT_A_MEETING } from "$lib/types";
 import { viewport } from "$lib/viewport.svelte";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
@@ -71,14 +71,18 @@ interface EventFields {
   readonly end: Date;
 }
 
-/** What the hour was for — a project, a practice, a task — on top of what it counts as. */
+/**
+ * What the hour was for — a project, a practice, a task — on top of what it counts as, and how a
+ * timer run for it is broken up. All of it rides on the mapping, so all of it travels together.
+ */
 export interface Purpose {
   readonly projectId: string | null;
   readonly practiceId: string | null;
   readonly taskId: string | null;
+  readonly timer: EventTimer | null;
 }
 
-const NO_PURPOSE: Purpose = { projectId: null, practiceId: null, taskId: null };
+const NO_PURPOSE: Purpose = { projectId: null, practiceId: null, taskId: null, timer: null };
 
 /** What an event counts as, in the shape the mapping endpoints take. */
 interface Mapping {
@@ -1656,14 +1660,14 @@ function mappingOf(event: CalendarEvent): Mapping | null {
 /** One purpose at a time: a task belongs to a project, and a project is not a practice. */
 function mergePurpose(was: Purpose, change: Partial<Purpose>): Purpose {
   const merged = { ...was, ...change };
-  if (change.practiceId) return { projectId: null, taskId: null, practiceId: change.practiceId };
+  if (change.practiceId) return { ...merged, projectId: null, taskId: null, practiceId: change.practiceId };
   if (change.projectId === null) return { ...merged, taskId: null };
   if (change.projectId || change.taskId) return { ...merged, practiceId: null };
   return merged;
 }
 
 function purposeOf(event: CalendarEvent): Purpose {
-  return { projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId };
+  return { projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer };
 }
 
 /** A copy or a restore counts as, and is for, what the original was — in the create itself. */
@@ -1674,6 +1678,7 @@ function mappingFieldsOf(was: CalendarEvent) {
     projectId: was.projectId ?? undefined,
     practiceId: was.practiceId ?? undefined,
     taskId: was.taskId ?? undefined,
+    timer: was.timer ?? undefined,
   };
 }
 

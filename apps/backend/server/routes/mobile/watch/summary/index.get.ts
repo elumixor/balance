@@ -79,8 +79,13 @@ export default handler({ query: { weekStart: z.string().optional() } }, async ({
             inProgress: next.start <= now,
             // The watch wears this as the event's glyph, so it wants the one category the event is
             // mostly about rather than the split it is actually mapped to.
+            categoryId: nextCategory?.id ?? null,
+            categoryName: nextCategory?.name ?? null,
             categoryColor: nextCategory?.color ?? null,
             categoryIcon: nextCategory?.icon ?? null,
+            // How a timer for it wants to be broken up — the watch offers to start one as the
+            // event begins, and the rhythm is the event's own to say.
+            timer: next.mapping?.timer ?? null,
             // The soonest popup reminder the calendar itself carries, so a watch reminding on its
             // own honours the event's own lead time the way every other screen does.
             reminderMinutes: popupMinutes(next.reminders),

@@ -8,6 +8,12 @@ export type EventStatus = "confirmed" | "tentative" | "cancelled";
 export type SelfResponse = "accepted" | "declined" | "tentative" | "needsAction";
 export type MappingScope = "instance" | "series";
 
+/**
+ * How a timer run for an event is broken up. The length is always the event's own duration, so
+ * only the rhythm is a choice: a nudge every so many minutes, or the whole split into equal parts.
+ */
+export type EventTimer = { kind: "every"; minutes: number } | { kind: "parts"; count: number };
+
 export interface CalendarRef {
   readonly id: string;
   readonly name: string;
