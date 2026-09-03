@@ -17,7 +17,6 @@ export interface Problem {
   readonly detail?: string;
   /** What would fix it, if anything can — the card grows a button and clears itself when it works. */
   retry?: () => void | Promise<unknown>;
-  count: number;
 }
 
 /** What a caller knows about a failure beyond the error itself. */
@@ -66,16 +65,9 @@ class Diagnostics {
   #report(scope: string, error: unknown, options?: ReportOptions) {
     const message = messageOf(error);
     const fullDetail = [options?.detail, detailOf(error)].filter(Boolean).join("\n");
-    // The same failure every 30 seconds from a loop that keeps retrying is one problem with a
-    // count, not twenty entries pushing the first one off the end.
-    const existing = this.problems.find((problem) => problem.scope === scope && problem.message === message);
-    if (existing) {
-      existing.count += 1;
-      // The newest way out of it: the same failure from a screen that has since been left would
-      // otherwise offer a retry that refetches something nobody is looking at.
-      existing.retry = options?.retry;
-      return;
-    }
+    // The same failure every 30 seconds from a loop that keeps retrying is that many failures,
+    // each with its own time and its own stack. The card shows them as one leaning pile rather
+    // than a number, because "×12" was never something anybody could act on.
     this.problems.push({
       id: this.#nextId++,
       at: new Date(),
@@ -84,7 +76,6 @@ class Diagnostics {
       message,
       detail: fullDetail || undefined,
       retry: options?.retry,
-      count: 1,
     });
     if (this.problems.length > KEPT) this.problems.shift();
     console.error(`[${scope}]`, error);
@@ -93,9 +84,13 @@ class Diagnostics {
     telemetry.capture(scope, error, fullDetail || undefined);
   }
 
-  /** One card closed by hand. The problem is gone rather than hidden — it is in the copied report. */
-  dismiss(id: number) {
-    this.problems = this.problems.filter((problem) => problem.id !== id);
+  /**
+   * A pile closed by hand — every failure under it, since the pile is what a person sees as one
+   * thing. They are gone rather than hidden, which is why the copy comes before the close.
+   */
+  dismiss(...ids: number[]) {
+    const closing = new Set(ids);
+    this.problems = this.problems.filter((problem) => !closing.has(problem.id));
   }
 
   clear() {
@@ -141,12 +136,7 @@ class Diagnostics {
 export const diagnostics = new Diagnostics();
 
 function entryOf(problem: Problem) {
-  return [
-    `[${problem.at.toISOString()}] ${problem.scope}${problem.count > 1 ? ` ×${problem.count}` : ""}`,
-    problem.title,
-    problem.message,
-    problem.detail,
-  ]
+  return [`[${problem.at.toISOString()}] ${problem.scope}`, problem.title, problem.message, problem.detail]
     .filter(Boolean)
     .join("\n");
 }
