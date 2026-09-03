@@ -19,7 +19,11 @@
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import { decisionMarkers } from "./markers";
   import { projects, stages } from "$lib/synced.svelte";
-  import { Flag } from "lucide-svelte";
+  import { Flag, Minus, Plus } from "lucide-svelte";
+  import TimeZonePicker from "./TimeZonePicker.svelte";
+  import { preferences } from "$lib/preferences.svelte";
+  import { deviceTimeZone } from "$lib/planning/zone";
+  import { offsetMinutes, shortZoneName } from "$lib/time-zones";
   import {
     allDaySpansForRange,
     BLOCK_GUTTER_PX,
@@ -67,10 +71,53 @@
       )
       .join(","),
   );
-  /** The hours' column, which names as many of the rules behind the grid as there is room for. */
-  const ticks = $derived(gutterTicks(hourPx));
-  /** The hours' own column. Narrower on a phone, where every pixel it gives up is a pixel of day. */
-  const GUTTER_PX = $derived(viewport.md ? 56 : 48);
+  /** One column of hours per zone. Narrower on a phone, where every pixel it gives up is a pixel of day. */
+  const ZONE_COLUMN_PX = $derived(viewport.md ? 56 : 48);
+  /** How many zones the grid will name its hours in — past this the days have no room left. */
+  const MAX_ZONE_COLUMNS = 5;
+  const zoneColumns = $derived(preferences.zoneColumns);
+  const GUTTER_PX = $derived(ZONE_COLUMN_PX * zoneColumns.length);
+  /**
+   * The moment the columns are read at, since the gap between two zones moves with the clocks: the
+   * first day on screen, at midday, so a week with a clock change in it is named as of its start.
+   */
+  const zoneAt = $derived.by(() => {
+    const at = addDays(data.stripStart, liveDayOffset);
+    at.setHours(12);
+    return at;
+  });
+  /**
+   * The hours' columns, one per zone, each naming as many of the rules behind the grid as there is
+   * room for — the same ticks, read on another clock.
+   */
+  const zoneTicks = $derived(
+    zoneColumns.map((zone) => ({
+      zone,
+      label: shortZoneName(zone, zoneAt),
+      ticks: gutterTicks(hourPx, offsetMinutes(zone, zoneAt) - offsetMinutes(deviceTimeZone(), zoneAt)),
+    })),
+  );
+  /** Which column's zone is being picked, and where the picker hangs. */
+  let zonePick = $state<{ index: number; rect: DOMRect } | null>(null);
+
+  function chooseZone(zone: string) {
+    if (!zonePick) return;
+    preferences.setZoneColumns(zoneColumns.map((one, index) => (index === zonePick?.index ? zone : one)));
+    zonePick = null;
+  }
+
+  function addZoneColumn() {
+    if (!zonePick) return;
+    const index = zonePick.index + 1;
+    preferences.setZoneColumns([...zoneColumns.slice(0, index), zoneColumns[zonePick.index], ...zoneColumns.slice(index)]);
+    zonePick = { index, rect: zonePick.rect };
+  }
+
+  function removeZoneColumn() {
+    if (!zonePick) return;
+    preferences.setZoneColumns(zoneColumns.filter((_, index) => index !== zonePick?.index));
+    zonePick = null;
+  }
   const DAY_HEAD_PX = 28;
   const ALL_DAY_PX = 28;
   /** Three columns on a phone, a week on a wide screen — see `CalendarData.visibleDays`. */
@@ -285,11 +332,6 @@
         height: Math.max(2, ((span.endMinutes - span.startMinutes) / 60) * hourPx),
       }));
     });
-  });
-
-  const timeZoneLabel = $derived.by(() => {
-    const parts = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" }).formatToParts(new Date());
-    return parts.find((p) => p.type === "timeZoneName")?.value ?? "";
   });
 
   /** The drag ghost borrows the block's own look, so what you're dropping is what you'll get. */
@@ -597,28 +639,42 @@
     class:snap-proximity={!jumping}
   >
   <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
-    <!-- The hours stay put while the days slide past them. -->
-    <div class="sticky left-0 z-30 flex shrink-0 flex-col border-line border-r bg-surface" style="width:{GUTTER_PX}px">
-      <div
-        class="sticky top-0 z-10 flex shrink-0 items-end justify-center border-line border-b bg-surface pb-0.5 transition-[height] duration-150"
-        style="height:{headerPx}px"
-      >
-        <!-- A rung smaller on a phone, where the gutter is narrower than the label it carries. -->
-        <span class="{viewport.md ? 't-data-micro' : 't-data-nano'} text-fg-faint">{timeZoneLabel}</span>
-      </div>
-      <div class="relative" style="height:{24 * hourPx}px">
-        {#each ticks as tick (tick.minutes)}
-          <!-- A division between the hours is drawn quieter than they are, the same way its line is. -->
+    <!-- The hours stay put while the days slide past them — a column of them per zone. -->
+    <div class="sticky left-0 z-30 flex shrink-0 border-line border-r bg-surface" style="width:{GUTTER_PX}px">
+      {#each zoneTicks as column, index (index)}
+        <div class="flex shrink-0 flex-col {index > 0 ? 'border-line border-l' : ''}" style="width:{ZONE_COLUMN_PX}px">
           <div
-            class="absolute right-2 -translate-y-1/2 text-fg-faint {tick.major
-              ? 't-data-micro'
-              : 't-data-nano opacity-55'}"
-            style="top:{(tick.minutes / 60) * hourPx}px"
+            class="sticky top-0 z-10 flex shrink-0 items-end justify-center border-line border-b bg-surface pb-0.5 transition-[height] duration-150"
+            style="height:{headerPx}px"
           >
-            {tick.label}
+            <!-- A rung smaller on a phone, where the gutter is narrower than the label it carries. -->
+            <button
+              type="button"
+              title={column.zone}
+              aria-label="Time zone: {column.zone}"
+              onclick={(e) => (zonePick = { index, rect: e.currentTarget.getBoundingClientRect() })}
+              class="hoverable {viewport.md ? 't-data-micro' : 't-data-nano'} max-w-full truncate rounded-md px-1 {zonePick?.index === index
+                ? 'text-fg'
+                : 'text-fg-faint'}"
+            >
+              {column.label}
+            </button>
           </div>
-        {/each}
-      </div>
+          <div class="relative" style="height:{24 * hourPx}px">
+            {#each column.ticks as tick (tick.minutes)}
+              <!-- A division between the hours is drawn quieter than they are, the same way its line is. -->
+              <div
+                class="absolute right-2 -translate-y-1/2 text-fg-faint {tick.major
+                  ? 't-data-micro'
+                  : 't-data-nano opacity-55'}"
+                style="top:{(tick.minutes / 60) * hourPx}px"
+              >
+                {tick.label}
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/each}
     </div>
 
     <div
@@ -861,6 +917,39 @@
 {/if}
 
 <SeriesEditPrompt />
+
+{#if zonePick}
+  <TimeZonePicker
+    rect={zonePick.rect}
+    value={zoneColumns[zonePick.index]}
+    at={zoneAt}
+    onchoose={chooseZone}
+    onclose={() => (zonePick = null)}
+  >
+    {#snippet footer()}
+      {#if zoneColumns.length < MAX_ZONE_COLUMNS}
+        <button
+          type="button"
+          onclick={addZoneColumn}
+          class="hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left"
+        >
+          <Plus size={14} class="shrink-0 text-fg-faint" />
+          <span class="t-body text-fg">Add another zone</span>
+        </button>
+      {/if}
+      {#if zoneColumns.length > 1}
+        <button
+          type="button"
+          onclick={removeZoneColumn}
+          class="hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left"
+        >
+          <Minus size={14} class="shrink-0 text-fg-faint" />
+          <span class="t-body text-fg">Remove this column</span>
+        </button>
+      {/if}
+    {/snippet}
+  </TimeZonePicker>
+{/if}
 
 <style>
   /**

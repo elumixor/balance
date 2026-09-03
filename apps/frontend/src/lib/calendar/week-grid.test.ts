@@ -270,6 +270,13 @@ describe("gutterTicks", () => {
     expect(ticks.some((tick) => tick.minutes === 0)).toBe(false);
   });
 
+  it("reads the same ticks on another zone's clock, wrapping past midnight", () => {
+    const shifted = gutterTicks(HOUR_PX, 7 * 60);
+    expect(shifted[0]).toEqual({ minutes: 60, label: "08:00", major: true });
+    expect(shifted.at(-1)).toEqual({ minutes: 23 * 60, label: "06:00", major: true });
+    expect(gutterTicks(HOUR_PX, -90)[0]).toEqual({ minutes: 60, label: "23:30", major: true });
+  });
+
   it("thins out to every second hour when they're closer together than a label", () => {
     expect(gutterTicks(CROWDED_HOUR_PX - 1).map((tick) => tick.label)).toEqual([
       "02:00",

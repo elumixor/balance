@@ -72,16 +72,20 @@ export interface TimeTick {
  * means anything, which is work the column exists to save.
  *
  * Midnight is left out: it sits on the very top edge of the grid, where half of it would be cut off.
+ *
+ * A second zone's column is the same ticks read on another clock: `shiftMinutes` is how far ahead
+ * of the grid's own zone it runs, and only the labels move.
  */
-export function gutterTicks(hourPx: number): TimeTick[] {
+export function gutterTicks(hourPx: number, shiftMinutes = 0): TimeTick[] {
   const step =
     hourPx < CROWDED_HOUR_PX ? 120 : hourPx < HALF_HOUR_LINE_PX ? 60 : hourPx < QUARTER_HOUR_LINE_PX ? 30 : 15;
   const ticks: TimeTick[] = [];
   for (let minutes = step; minutes < MINUTES_PER_DAY; minutes += step) {
     const minute = minutes % 60;
+    const shown = (((minutes + shiftMinutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
     ticks.push({
       minutes,
-      label: `${pad(Math.floor(minutes / 60))}:${pad(minute)}`,
+      label: `${pad(Math.floor(shown / 60))}:${pad(shown % 60)}`,
       major: minute === 0,
     });
   }

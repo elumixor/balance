@@ -1,3 +1,4 @@
+import { deviceTimeZone } from "$lib/planning/zone";
 import { updatePreferences } from "./queries";
 import { store } from "./store.svelte";
 
@@ -90,6 +91,8 @@ export interface SavedZone {
 
 export interface ZonesPrefs {
   saved: SavedZone[];
+  /** The hours' columns beside the week grid, as IANA names. Empty means the device's own zone. */
+  columns: string[];
 }
 
 /** Which of an event card's sections are folded away, by the section's id. */
@@ -120,7 +123,7 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
     planWhen: "evening",
     timeZone: "UTC",
   },
-  zones: { saved: [] },
+  zones: { saved: [], columns: [] },
   card: { hidden: [] },
   travelAvailable: false,
 };
@@ -158,6 +161,16 @@ class Preferences {
 
   get zones(): SavedZone[] {
     return this.#value.zones.saved;
+  }
+
+  /** The zones the week grid names its hours in, the device's own until one is chosen. */
+  get zoneColumns(): string[] {
+    const columns = this.#value.zones.columns;
+    return columns.length > 0 ? columns : [deviceTimeZone()];
+  }
+
+  setZoneColumns(columns: string[]) {
+    this.#apply({ zones: { columns } });
   }
 
   /** The sections of an event card folded away. */

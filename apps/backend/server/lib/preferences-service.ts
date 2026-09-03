@@ -87,6 +87,8 @@ export const zoneSchema = z.object({
 
 export const zonesSchema = z.object({
   saved: z.array(zoneSchema).max(20),
+  /** The hours' columns beside the week grid, as IANA names. Empty means the device's own zone. */
+  columns: z.array(z.string().min(1).max(64)).max(5),
 });
 
 /** Which of an event card's sections are folded away. Empty means every section is drawn. */
@@ -115,7 +117,7 @@ const DEFAULTS: Preferences = {
     planWhen: "evening",
     timeZone: "UTC",
   },
-  zones: { saved: [] },
+  zones: { saved: [], columns: [] },
   card: { hidden: [] },
 };
 

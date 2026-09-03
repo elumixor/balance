@@ -8,6 +8,7 @@ import {
   offsetMinutes,
   searchZones,
   shiftZone,
+  shortZoneName,
 } from "./time-zones";
 
 const summer = new Date("2026-07-01T12:00:00Z");
@@ -94,5 +95,13 @@ describe("offsetMinutes and shiftZone", () => {
     // the same wall clock in Kyiv, which moved that morning, is UTC+3 rather than +2.
     const late = new Date("2026-03-28T23:30:00Z");
     expect(shiftZone(late, "Europe/London", "Europe/Kyiv").toISOString()).toBe("2026-03-28T21:30:00.000Z");
+  });
+});
+
+describe("shortZoneName", () => {
+  it("uses the short name the runtime has, and the zone itself when it has none", () => {
+    expect(shortZoneName("America/New_York", winter)).toBe("EST");
+    expect(shortZoneName("Europe/Kyiv", summer)).toBe("GMT+3");
+    expect(shortZoneName("Not/AZone", summer)).toBe("Not/AZone");
   });
 });

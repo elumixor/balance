@@ -5,6 +5,7 @@
   import { preferences } from "$lib/preferences.svelte";
   import { defaultZones, isValidZone, offsetLabel, searchZones, type ZoneOption } from "$lib/time-zones";
   import { Plus } from "lucide-svelte";
+  import type { Snippet } from "svelte";
 
   /**
    * A zone, by whatever name it goes by here.
@@ -21,12 +22,15 @@
     at,
     onchoose,
     onclose,
+    /** Whatever the caller wants under the search — the grid puts its column actions here. */
+    footer,
   }: {
     rect: DOMRect | null;
     value: string | null;
     at: Date;
     onchoose: (zone: string) => void;
     onclose: () => void;
+    footer?: Snippet;
   } = $props();
 
   let query = $state("");
@@ -97,6 +101,11 @@
           <Plus size={14} class="shrink-0 text-fg-faint" />
           <span class="t-body text-fg">Name a zone “{query.trim()}”</span>
         </button>
+      {/if}
+      {#if footer}
+        <div class="border-line border-t pt-1">
+          {@render footer()}
+        </div>
       {/if}
     {:else}
       <p class="t-micro px-1 pt-1 text-fg-muted">Which zone is “{naming}”?</p>

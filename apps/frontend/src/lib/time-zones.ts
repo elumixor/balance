@@ -60,6 +60,16 @@ export function offsetLabel(zone: string, at: Date): string {
   }
 }
 
+/** "CEST", "GMT+3" — the name a column of hours wears, as short as the runtime can make it. */
+export function shortZoneName(zone: string, at: Date): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "short" }).formatToParts(at);
+    return parts.find((part) => part.type === "timeZoneName")?.value ?? zone;
+  } catch {
+    return zone;
+  }
+}
+
 /** Whether the runtime accepts this as a zone at all — a typed name is checked before it's saved. */
 export function isValidZone(zone: string): boolean {
   try {
