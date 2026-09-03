@@ -30,7 +30,6 @@
     daySpans,
     gridLines,
     gutterTicks,
-    NARROW_BLOCK_PX,
     OPENING_HOUR,
     placeDay,
     resizeBands,
@@ -756,7 +755,7 @@
                   data.openContextMenu(span.event, e);
                 }}
               >
-                <EventBlock event={span.event} {categories} narrow />
+                <EventBlock event={span.event} {categories} />
               </div>
             {/each}
           </div>
@@ -818,7 +817,6 @@
                 <EventBlock
                   event={segment.event}
                   {categories}
-                  narrow={segment.width < NARROW_BLOCK_PX}
                   stacked={segment.depth > 0}
                   flatTop={segment.continuesBefore}
                   flatBottom={segment.continuesAfter}
@@ -899,7 +897,6 @@
                 event={ghostEvent}
                 {categories}
                 ghost
-                narrow
                 flatTop={i > 0}
                 flatBottom={i < ghostSpans.length - 1}
               />

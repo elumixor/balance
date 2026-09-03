@@ -215,8 +215,6 @@ export function allDaySpansForRange(
   });
 }
 
-/** A block narrower than this says its title and nothing else. */
-export const NARROW_BLOCK_PX = 56;
 /** The width a day column is laid out at when nobody says — tests and previews. */
 export const DEFAULT_COLUMN_PX = 160;
 /**

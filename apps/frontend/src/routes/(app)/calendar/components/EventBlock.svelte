@@ -19,7 +19,6 @@
   let {
     event,
     categories,
-    narrow = false,
     ghost = false,
     flatTop = false,
     flatBottom = false,
@@ -27,7 +26,6 @@
   }: {
     event: CalendarEvent;
     categories: Map<string, Category>;
-    narrow?: boolean;
     ghost?: boolean;
     flatTop?: boolean;
     flatBottom?: boolean;
@@ -64,7 +62,7 @@
   const PADDING_PX = 4;
   let boxHeight = $state(0);
   const titleLines = $derived(Math.floor((boxHeight - PADDING_PX - TIME_LINE_PX) / TITLE_LINE_PX));
-  const oneLine = $derived(narrow || titleLines < 1);
+  const oneLine = $derived(titleLines < 1);
 
   /**
    * On one line the title comes first and the time is a bonus: it shows only when the whole title
