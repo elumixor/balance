@@ -23,6 +23,7 @@
     ghost = false,
     flatTop = false,
     flatBottom = false,
+    stacked = false,
   }: {
     event: CalendarEvent;
     categories: Map<string, Category>;
@@ -30,6 +31,8 @@
     ghost?: boolean;
     flatTop?: boolean;
     flatBottom?: boolean;
+    /** Drawn over another block, so it casts a shadow to lift it off the one under it. */
+    stacked?: boolean;
   } = $props();
 
   const data = calendarData;
@@ -125,7 +128,7 @@
       {flatTop ? '' : 'rounded-t-sm'} {flatBottom ? '' : 'rounded-b-sm'}
       {event.declined ? 'border-dashed opacity-50' : ''}
       {event.tentative ? 'border-dotted' : ''}
-      {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''} {picked ? 'is-picked' : ''}"
+      {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''} {picked ? 'is-picked' : ''} {stacked ? 'is-stacked' : ''}"
     style="--c:{fillColor};border-color:{borderColor}"
   ></span>
 
