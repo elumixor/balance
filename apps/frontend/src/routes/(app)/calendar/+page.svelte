@@ -159,34 +159,33 @@
   <!-- The grid and everything that floats over it. Its own stacking context, under the bar rather
        than behind it, so a failure or a "connect" card can't land on the notch or on the month. -->
   <div class="relative min-h-0 flex-1">
-    {#if data.actionError}
-      <!-- A card of its own, not bare text: this floats over the day headings, and a message
-           printed straight onto them was two sentences reading as one. One line of it, since what
-           a refused write answers with can be the whole query — the rest is behind the copy. -->
-      <div class="absolute top-2 right-0 z-20 flex w-full max-w-sm justify-end px-3 md:px-4">
-        <div
-          class="flex min-w-0 items-center gap-1 rounded-md border border-danger/40 bg-surface py-1.5 pr-1 pl-3
-            shadow-(--shadow-float)"
-        >
-          <p class="t-micro min-w-0 flex-1 truncate text-danger" title={data.actionError}>{data.actionError}</p>
-          <CopyButton text={() => data.actionError ?? ""} label="Copy error details" size={13} />
-          <button
-            type="button"
-            class="press-sm shrink-0 rounded-md p-1 text-fg-faint hover:text-fg"
-            aria-label="Dismiss"
-            onclick={() => (data.actionError = null)}
+    <!-- Both of this screen's failures in one corner column, so a refused write and a week that
+         didn't load stack rather than land on each other. The week that failed still has its days,
+         hours and today's line, so the grid keeps the screen and the card only takes a corner of
+         it — and a message a whole query long is one line with the rest behind the copy. -->
+    {#if data.actionError || week.error}
+      <div class="absolute top-2 right-0 z-20 flex w-full max-w-sm flex-col items-end gap-2 px-3 md:px-4">
+        {#if data.actionError}
+          <div
+            class="flex w-full min-w-0 items-center gap-1 rounded-lg border border-danger/40 bg-surface py-1.5 pr-1
+              pl-3 shadow-(--shadow-float)"
           >
-            <X size={13} />
-          </button>
-        </div>
-      </div>
-    {/if}
+            <p class="t-micro min-w-0 flex-1 truncate text-danger" title={data.actionError}>{data.actionError}</p>
+            <CopyButton text={() => data.actionError ?? ""} label="Copy error details" size={13} />
+            <button
+              type="button"
+              class="press-sm shrink-0 rounded-md p-1 text-fg-faint hover:text-fg"
+              aria-label="Dismiss"
+              onclick={() => (data.actionError = null)}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        {/if}
 
-    <!-- The week that failed to load still has its days, hours and today's line, so the grid keeps
-         the screen and the failure asks for a retry from on top of it. -->
-    {#if week.error}
-      <div class="absolute inset-x-0 top-2 z-20 px-3 md:px-4">
-        <LoadError message={week.error} onretry={() => void week.refresh()} />
+        {#if week.error}
+          <LoadError message={week.error} onretry={() => void week.refresh()} />
+        {/if}
       </div>
     {/if}
 
