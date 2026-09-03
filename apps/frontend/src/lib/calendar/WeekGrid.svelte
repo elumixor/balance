@@ -30,7 +30,7 @@
     daySpans,
     gridLines,
     gutterTicks,
-    NARROW_BLOCK_PERCENT,
+    NARROW_BLOCK_PX,
     OPENING_HOUR,
     placeDay,
     resizeBands,
@@ -227,7 +227,7 @@
     for (const segment of segmentsForRange(data.events, data.stripStart, STRIP_DAYS)) {
       byDay[segment.dayIndex]?.push(segment);
     }
-    return byDay.map((segments) => placeDay(segments, hourPx));
+    return byDay.map((segments) => placeDay(segments, hourPx, dayWidth));
   });
 
   /** The dragged block's own slot, so the free-floating preview keeps its real width. */
@@ -240,8 +240,8 @@
     }
     return null;
   });
-  const ghostWidthPercent = $derived(draggedSegment?.widthPercent ?? 100);
-  const ghostLeftPercent = $derived(draggedSegment?.leftPercent ?? 0);
+  const ghostWidth = $derived(draggedSegment?.width ?? dayWidth - BLOCK_GUTTER_PX);
+  const ghostLeft = $derived(draggedSegment?.left ?? 0);
   const allDay = $derived(allDaySpansForRange(data.events, data.stripStart, STRIP_DAYS));
   /** Rows are reserved for the whole strip, so a banner keeps its row as it scrolls in — but only
    *  the banners near the window are built, the same way the blocks below them are. */
@@ -788,8 +788,9 @@
               <!-- The rest of a dragged batch stays where it is, faded, with its target outlined. -->
               {@const trailing =
                 !data.drag?.copy && (data.drag?.others.some((other) => other.id === segment.event.id) ?? false)}
-              <!-- The open block sits above its neighbours, so what you're working on is what the
-                   pointer finds — including its handles, which may hang outside a short block. -->
+              <!-- A block sits over the ones it collides with, and the open block over everything,
+                   so what you're working on is what the pointer finds — including its handles,
+                   which may hang outside a short block. -->
               {@const isSelected = data.selected?.id === segment.event.id}
               <!-- Resize bands sized off the drawn height, so the two can never meet and never eat
                    the middle, which is what opens the event. -->
@@ -798,10 +799,10 @@
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
                 data-event
-                class="absolute touch-none select-none {isSelected
-                  ? 'z-30'
-                  : ''} {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
-                style="top:{segment.top}px;height:{segment.height}px;left:{segment.leftPercent}%;width:calc({segment.widthPercent}% - {BLOCK_GUTTER_PX}px)"
+                class="absolute touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
+                style="top:{segment.top}px;height:{segment.height}px;left:{segment.left}px;width:{segment.width}px;z-index:{isSelected
+                  ? 30
+                  : segment.depth}"
                 in:appear={{ id: segment.event.id }}
                 onpointerdown={(e) => data.beginMove(segment.event, e)}
                 onpointermove={(e) => data.moveDrag(e)}
@@ -817,7 +818,8 @@
                 <EventBlock
                   event={segment.event}
                   {categories}
-                  narrow={segment.widthPercent < NARROW_BLOCK_PERCENT}
+                  narrow={segment.width < NARROW_BLOCK_PX}
+                  stacked={segment.depth > 0}
                   flatTop={segment.continuesBefore}
                   flatBottom={segment.continuesAfter}
                 />
@@ -877,8 +879,7 @@
             <div
               class="pointer-events-none absolute z-40 rounded-sm border-2 border-fg/50 border-dashed"
               style="left:{(snappedIndex + span.dayOffset) * dayWidth +
-                (ghostLeftPercent / 100) * dayWidth}px;width:{(ghostWidthPercent / 100) * dayWidth -
-                10}px;top:{(span.startMinutes / 60) * hourPx}px;height:{((span.endMinutes - span.startMinutes) / 60) *
+                ghostLeft}px;width:{ghostWidth}px;top:{(span.startMinutes / 60) * hourPx}px;height:{((span.endMinutes - span.startMinutes) / 60) *
                 hourPx}px"
             ></div>
           {/each}
@@ -891,8 +892,7 @@
             <div
               class="pointer-events-none absolute z-40"
               style="left:{(data.drag.freeDayIndex + span.dayOffset) * dayWidth +
-                (ghostLeftPercent / 100) * dayWidth}px;width:{(ghostWidthPercent / 100) * dayWidth -
-                10}px;top:{(span.startMinutes / 60) * hourPx}px;height:{((span.endMinutes - span.startMinutes) / 60) *
+                ghostLeft}px;width:{ghostWidth}px;top:{(span.startMinutes / 60) * hourPx}px;height:{((span.endMinutes - span.startMinutes) / 60) *
                 hourPx}px"
             >
               <EventBlock

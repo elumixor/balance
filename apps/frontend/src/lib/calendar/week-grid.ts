@@ -1,4 +1,9 @@
-import { addDays, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "$lib/dates";
+import {
+  addDays,
+  MINUTES_PER_DAY,
+  minutesIntoDay,
+  startOfDay,
+} from "$lib/dates";
 import type { CalendarEvent } from "$lib/types";
 
 /** An hour's height at rest. Pinching scales it — see `time-scale.svelte.ts`. */
@@ -24,9 +29,8 @@ export const HALF_HOUR_LINE_PX = 72;
 export const CROWDED_HOUR_PX = 32;
 export const QUARTER_HOUR_LINE_PX = 120;
 export const DEFAULT_EVENT_MINUTES = 60;
-/** Where the scroller opens, and where a block stops being wide enough to say anything. */
+/** Where the scroller opens. */
 export const OPENING_HOUR = 7;
-export const NARROW_BLOCK_PERCENT = 34;
 /** The gutter every block leaves on the right of its column, timed blocks and all-day alike. */
 export const BLOCK_GUTTER_PX = 10;
 
@@ -78,11 +82,19 @@ export interface TimeTick {
  */
 export function gutterTicks(hourPx: number, shiftMinutes = 0): TimeTick[] {
   const step =
-    hourPx < CROWDED_HOUR_PX ? 120 : hourPx < HALF_HOUR_LINE_PX ? 60 : hourPx < QUARTER_HOUR_LINE_PX ? 30 : 15;
+    hourPx < CROWDED_HOUR_PX
+      ? 120
+      : hourPx < HALF_HOUR_LINE_PX
+      ? 60
+      : hourPx < QUARTER_HOUR_LINE_PX
+      ? 30
+      : 15;
   const ticks: TimeTick[] = [];
   for (let minutes = step; minutes < MINUTES_PER_DAY; minutes += step) {
     const minute = minutes % 60;
-    const shown = (((minutes + shiftMinutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+    const shown =
+      (((minutes + shiftMinutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) %
+      MINUTES_PER_DAY;
     ticks.push({
       minutes,
       label: `${pad(Math.floor(shown / 60))}:${pad(shown % 60)}`,
@@ -103,11 +115,17 @@ export interface Segment {
   readonly continuesAfter: boolean;
 }
 
+/**
+ * A segment with its box worked out, in pixels of its day column. `depth` is how many blocks it
+ * sits on top of, and so its stacking order: a block drawn later is drawn over the one it collides
+ * with, never beside it.
+ */
 export interface PlacedSegment extends Segment {
   readonly top: number;
   readonly height: number;
-  readonly leftPercent: number;
-  readonly widthPercent: number;
+  readonly left: number;
+  readonly width: number;
+  readonly depth: number;
 }
 
 export interface AllDaySpan {
@@ -121,7 +139,11 @@ export interface AllDaySpan {
  * One segment per day an event touches. Splitting here is what makes a midnight-crossing event
  * draw on both days and a three-day event draw on three, without any special case downstream.
  */
-export function segmentsForRange(events: readonly CalendarEvent[], rangeStart: Date, dayCount: number): Segment[] {
+export function segmentsForRange(
+  events: readonly CalendarEvent[],
+  rangeStart: Date,
+  dayCount: number
+): Segment[] {
   const rangeEnd = addDays(rangeStart, dayCount);
   const segments: Segment[] = [];
 
@@ -132,7 +154,10 @@ export function segmentsForRange(events: readonly CalendarEvent[], rangeStart: D
     if (end <= rangeStart || start >= rangeEnd) continue;
 
     const firstDay = Math.max(0, dayIndexOf(start, rangeStart));
-    const lastDay = Math.min(dayCount - 1, dayIndexOf(new Date(end.getTime() - 1), rangeStart));
+    const lastDay = Math.min(
+      dayCount - 1,
+      dayIndexOf(new Date(end.getTime() - 1), rangeStart)
+    );
 
     for (let dayIndex = firstDay; dayIndex <= lastDay; dayIndex++) {
       const startsHere = dayIndex === firstDay && start >= rangeStart;
@@ -141,7 +166,9 @@ export function segmentsForRange(events: readonly CalendarEvent[], rangeStart: D
         event,
         dayIndex,
         startMinutes: startsHere ? minutesIntoDay(start) : 0,
-        endMinutes: endsHere ? minutesIntoDay(end) || MINUTES_PER_DAY : MINUTES_PER_DAY,
+        endMinutes: endsHere
+          ? minutesIntoDay(end) || MINUTES_PER_DAY
+          : MINUTES_PER_DAY,
         continuesBefore: !startsHere,
         continuesAfter: !endsHere,
       });
@@ -155,7 +182,7 @@ export function segmentsForRange(events: readonly CalendarEvent[], rangeStart: D
 export function allDaySpansForRange(
   events: readonly CalendarEvent[],
   rangeStart: Date,
-  dayCount: number,
+  dayCount: number
 ): AllDaySpan[] {
   const rangeEnd = addDays(rangeStart, dayCount);
 
@@ -168,7 +195,10 @@ export function allDaySpansForRange(
 
       const firstDay = Math.max(0, dayIndexOf(start, rangeStart));
       // Google's all-day end date is exclusive, so the last drawn day is the one before it.
-      const lastDay = Math.min(dayCount - 1, dayIndexOf(new Date(end.getTime() - 1), rangeStart));
+      const lastDay = Math.min(
+        dayCount - 1,
+        dayIndexOf(new Date(end.getTime() - 1), rangeStart)
+      );
       return [{ event, dayIndex: firstDay, days: lastDay - firstDay + 1 }];
     })
     .sort((a, b) => a.dayIndex - b.dayIndex || b.days - a.days);
@@ -185,61 +215,91 @@ export function allDaySpansForRange(
   });
 }
 
+/** A block narrower than this says its title and nothing else. */
+export const NARROW_BLOCK_PX = 56;
+/** The width a day column is laid out at when nobody says — tests and previews. */
+export const DEFAULT_COLUMN_PX = 160;
 /**
- * Packs one day's segments into columns so overlapping events sit side by side. Segments are
- * grouped into runs that actually collide, so a busy morning doesn't narrow a quiet evening.
+ * A block that starts this far below the block it sits inside is drawn nested in it: the parent
+ * keeps its title row, the child hangs below it inset from both sides, the way a meeting sits inside
+ * the bus ride it happens on. Any closer and the child would cover the parent's name, so it is
+ * staggered to the right instead, where both names stay readable.
  */
-export function placeDay(segments: readonly Segment[], hourPx: number = HOUR_PX): PlacedSegment[] {
+export const NEST_HEAD_PX = 40;
+export const NEST_INSET_LEFT_PX = 16;
+export const NEST_INSET_RIGHT_PX = 8;
+/** How far right a staggered block steps: half of the block under it, so both keep a readable half. */
+export const STAGGER_FRACTION = 0.5;
+
+/**
+ * Lays one day's segments out as a cascade rather than as columns.
+ *
+ * A block that collides with nothing is full width. One that collides with another is drawn on
+ * top of it, never beside it, so no block is ever narrowed by a neighbour it barely touches. Where
+ * it goes depends on how the two relate: a block that fits inside another and starts far enough
+ * below its top (`NEST_HEAD_PX`) is nested — inset from both edges under the parent's title row —
+ * and any other collision is staggered, stepping `STAGGER_FRACTION` of the way across the block it
+ * lands on and running to that block's right edge. Each step is one deeper in the stack.
+ *
+ * Collisions are measured on the drawn boxes, not the minutes: a short block is drawn at least a
+ * quarter-hour tall, and a block starting inside that floor has to be laid out over it or it would
+ * be drawn through it.
+ */
+export function placeDay(
+  segments: readonly Segment[],
+  hourPx: number = HOUR_PX,
+  columnPx: number = DEFAULT_COLUMN_PX
+): PlacedSegment[] {
   const minBlockPx = (SNAP_MINUTES / 60) * hourPx;
-  // Earliest first, and the longest of a simultaneous pair takes the leftmost column.
-  const ordered = [...segments].sort((a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes);
+  // Earliest first, and the longest of a simultaneous pair goes underneath.
+  const ordered = [...segments].sort(
+    (a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes
+  );
 
   const placed: PlacedSegment[] = [];
-  let cluster: { segment: Segment; column: number }[] = [];
-  let columnEnds: number[] = [];
-  let clusterEnd = -1;
-
-  const closeCluster = () => {
-    const widthPercent = 100 / columnEnds.length;
-    // Segments arrive in start order, so grouping by column keeps each column's own start order.
-    const byColumn = new Map<number, { segment: Segment; column: number }[]>();
-    for (const entry of cluster) {
-      const list = byColumn.get(entry.column) ?? [];
-      list.push(entry);
-      byColumn.set(entry.column, list);
-    }
-
-    for (const list of byColumn.values()) {
-      for (let i = 0; i < list.length; i++) {
-        const { segment, column } = list[i];
-        const top = (segment.startMinutes / 60) * hourPx;
-        const desired = Math.max(minBlockPx, ((segment.endMinutes - segment.startMinutes) / 60) * hourPx);
-        const next = list[i + 1];
-        const available = next ? (next.segment.startMinutes / 60) * hourPx - top : Infinity;
-        placed.push({
-          ...segment,
-          top,
-          height: Math.max(1, Math.min(desired, available)),
-          leftPercent: column * widthPercent,
-          widthPercent,
-        });
-      }
-    }
-    cluster = [];
-    columnEnds = [];
-  };
-
   for (const segment of ordered) {
-    if (segment.startMinutes >= clusterEnd && cluster.length > 0) closeCluster();
+    const top = (segment.startMinutes / 60) * hourPx;
+    const height = Math.max(
+      minBlockPx,
+      ((segment.endMinutes - segment.startMinutes) / 60) * hourPx
+    );
+    const bottom = top + height;
 
-    let column = columnEnds.findIndex((end) => end <= segment.startMinutes);
-    if (column === -1) column = columnEnds.push(segment.endMinutes) - 1;
-    else columnEnds[column] = segment.endMinutes;
+    // The block this one lands on: the latest placed that is still open at this top. Everything
+    // placed so far starts at or above it, and each placed block went over every open block before
+    // it, so the latest open one is also the one nearest the top of the stack.
+    let parent: PlacedSegment | null = null;
+    for (const other of placed)
+      if (other.top + other.height > top) parent = other;
 
-    cluster.push({ segment, column });
-    clusterEnd = Math.max(clusterEnd, segment.endMinutes);
+    if (!parent) {
+      placed.push({
+        ...segment,
+        top,
+        height,
+        left: 0,
+        width: columnPx - BLOCK_GUTTER_PX,
+        depth: 0,
+      });
+      continue;
+    }
+
+    const nested =
+      top - parent.top >= NEST_HEAD_PX && bottom <= parent.top + parent.height;
+    const left = nested
+      ? parent.left + NEST_INSET_LEFT_PX
+      : parent.left + parent.width * STAGGER_FRACTION;
+    const right =
+      parent.left + parent.width - (nested ? NEST_INSET_RIGHT_PX : 0);
+    placed.push({
+      ...segment,
+      top,
+      height,
+      left,
+      width: Math.max(1, right - left),
+      depth: parent.depth + 1,
+    });
   }
-  if (cluster.length > 0) closeCluster();
 
   return placed;
 }
@@ -273,7 +333,10 @@ export function resizeBands(height: number, selected: boolean): ResizeBands {
   const band = Math.min(RESIZE_BAND_MAX_PX, third);
   if (band >= RESIZE_BAND_MIN_PX) return { band, overhang: 0 };
   if (!selected) return { band: 0, overhang: 0 };
-  const grown = Math.min(RESIZE_BAND_MAX_PX, Math.max(RESIZE_BAND_SELECTED_PX, third));
+  const grown = Math.min(
+    RESIZE_BAND_MAX_PX,
+    Math.max(RESIZE_BAND_SELECTED_PX, third)
+  );
   return { band: grown, overhang: grown - third };
 }
 
@@ -298,7 +361,11 @@ export function daySpans(startMinutes: number, endMinutes: number): DaySpan[] {
     const dayOffset = Math.floor(from / MINUTES_PER_DAY);
     const dayStart = dayOffset * MINUTES_PER_DAY;
     const to = Math.min(endMinutes, dayStart + MINUTES_PER_DAY);
-    spans.push({ dayOffset, startMinutes: from - dayStart, endMinutes: to - dayStart });
+    spans.push({
+      dayOffset,
+      startMinutes: from - dayStart,
+      endMinutes: to - dayStart,
+    });
     from = to;
   }
   return spans;
@@ -317,5 +384,8 @@ export function snapMinutes(minutes: number): number {
  * Rounding a whole number of local midnights apart is right in both directions.
  */
 function dayIndexOf(date: Date, rangeStart: Date): number {
-  return Math.round((startOfDay(date).getTime() - startOfDay(rangeStart).getTime()) / (24 * 60 * 60 * 1000));
+  return Math.round(
+    (startOfDay(date).getTime() - startOfDay(rangeStart).getTime()) /
+      (24 * 60 * 60 * 1000)
+  );
 }

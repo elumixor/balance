@@ -25,7 +25,8 @@
   /* Modals take the page away entirely, so their scrim is heavier than a popover's. */
   --overlay-strong: rgba(21, 23, 26, 0.55);
   /* The one elevation in the app: what floats above the page — popovers, the event editor. */
-  --shadow-float: 0 10px 30px rgba(21, 23, 26, 0.13), 0 2px 6px rgba(21, 23, 26, 0.07);
+  --shadow-float: 0 10px 30px rgba(21, 23, 26, 0.13),
+    0 2px 6px rgba(21, 23, 26, 0.07);
 }
 
 html.dark {
@@ -199,9 +200,7 @@ html.dark {
 
 /* Every tappable surface in the app dips the same amount, so touch feels uniform. */
 @utility press {
-  transition:
-    transform 110ms ease,
-    opacity 110ms ease;
+  transition: transform 110ms ease, opacity 110ms ease;
   &:active:not(:disabled) {
     transform: scale(0.97);
     opacity: 0.85;
@@ -211,9 +210,7 @@ html.dark {
   }
 }
 @utility press-sm {
-  transition:
-    transform 110ms ease,
-    opacity 110ms ease;
+  transition: transform 110ms ease, opacity 110ms ease;
   &:active:not(:disabled) {
     transform: scale(0.9);
     opacity: 0.85;
@@ -238,7 +235,11 @@ html.dark {
  */
 .event-fill {
   --mix: 30%;
-  background: color-mix(in srgb, var(--bg) calc(100% - var(--mix)), var(--c) var(--mix));
+  background: color-mix(
+    in srgb,
+    var(--bg) calc(100% - var(--mix)),
+    var(--c) var(--mix)
+  );
   transition: background-color 110ms ease;
 }
 @media (hover: hover) {
@@ -257,6 +258,14 @@ html.dark {
 .event-fill.is-selected {
   --mix: 50%;
   box-shadow: inset 0 0 0 1.5px var(--fg);
+}
+/* Over another block: a hairline of the page's own colour, so the two fills never read as one. */
+.event-fill.is-stacked {
+  box-shadow: 0 0 0 1.5px var(--bg);
+}
+.event-fill.is-stacked.is-picked,
+.event-fill.is-stacked.is-selected {
+  box-shadow: inset 0 0 0 1.5px var(--fg), 0 0 0 1.5px var(--bg);
 }
 
 /*
