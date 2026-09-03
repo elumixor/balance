@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   allZones,
   defaultZones,
@@ -62,7 +62,9 @@ describe("searchZones", () => {
 
 describe("allZones and defaultZones", () => {
   it("restores the spaces in a city's name, and calls Kyiv what Kyiv calls itself", () => {
-    expect(allZones().find((z) => z.zone === "America/New_York")?.city).toBe("New York");
+    expect(allZones().find((z) => z.zone === "America/New_York")?.city).toBe(
+      "New York"
+    );
     expect(allZones().some((z) => z.zone === "Europe/Kiev")).toBe(false);
     expect(allZones().filter((z) => z.zone === "Europe/Kyiv")).toHaveLength(1);
   });
@@ -71,7 +73,10 @@ describe("allZones and defaultZones", () => {
     const zones = defaultZones("Europe/Kyiv").map((z) => z.zone);
     expect(zones[0]).toBe("Europe/Kyiv");
     expect(zones.filter((z) => z === "Europe/Kyiv")).toHaveLength(1);
-    expect(defaultZones("Pacific/Auckland")[0]).toEqual({ zone: "Pacific/Auckland", city: "Auckland" });
+    expect(defaultZones("Pacific/Auckland")[0]).toEqual({
+      zone: "Pacific/Auckland",
+      city: "Auckland",
+    });
   });
 });
 
@@ -85,16 +90,24 @@ describe("offsetMinutes and shiftZone", () => {
 
   it("keeps the wall clock and moves the instant", () => {
     const nineInPrague = new Date("2026-01-15T08:00:00Z");
-    expect(shiftZone(nineInPrague, "Europe/Prague", "Europe/Kyiv").toISOString()).toBe("2026-01-15T07:00:00.000Z");
-    expect(shiftZone(nineInPrague, "Europe/Prague", "America/New_York").toISOString()).toBe("2026-01-15T14:00:00.000Z");
-    expect(shiftZone(nineInPrague, "Europe/Prague", "Europe/Prague")).toEqual(nineInPrague);
+    expect(
+      shiftZone(nineInPrague, "Europe/Prague", "Europe/Kyiv").toISOString()
+    ).toBe("2026-01-15T07:00:00.000Z");
+    expect(
+      shiftZone(nineInPrague, "Europe/Prague", "America/New_York").toISOString()
+    ).toBe("2026-01-15T14:00:00.000Z");
+    expect(shiftZone(nineInPrague, "Europe/Prague", "Europe/Prague")).toEqual(
+      nineInPrague
+    );
   });
 
   it("copes with a target zone whose clocks have moved by the answer", () => {
     // 23:30 on 28 March in London is 23:30 on the last night before British Summer Time;
     // the same wall clock in Kyiv, which moved that morning, is UTC+3 rather than +2.
     const late = new Date("2026-03-28T23:30:00Z");
-    expect(shiftZone(late, "Europe/London", "Europe/Kyiv").toISOString()).toBe("2026-03-28T21:30:00.000Z");
+    expect(shiftZone(late, "Europe/London", "Europe/Kyiv").toISOString()).toBe(
+      "2026-03-28T21:30:00.000Z"
+    );
   });
 });
 
@@ -103,5 +116,16 @@ describe("shortZoneName", () => {
     expect(shortZoneName("America/New_York", winter)).toBe("EST");
     expect(shortZoneName("Europe/Kyiv", summer)).toBe("GMT+3");
     expect(shortZoneName("Not/AZone", summer)).toBe("Not/AZone");
+  });
+
+  it("falls back to the zone when the runtime formats it without naming it", () => {
+    const spy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, "formatToParts")
+      .mockReturnValue([]);
+    try {
+      expect(shortZoneName("Europe/Kyiv", summer)).toBe("Europe/Kyiv");
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
