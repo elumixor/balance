@@ -22,8 +22,8 @@
  */
 
 import { existsSync } from "node:fs";
-import { readdir, rm, stat } from "node:fs/promises";
-import { homedir } from "node:os";
+import { readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { $ } from "bun";
 
@@ -55,10 +55,24 @@ async function size(path: string) {
   return (Number(out.trim().split(/\s+/)[0]) || 0) * 1024;
 }
 
-/** How long ago anything under a tree was written — a derived data dir touched today is in use. */
+/**
+ * Whether anything near the top of a tree was written since the cutoff — a derived data directory
+ * touched today is one somebody is working in.
+ *
+ * The reference is a stamp file rather than `-newermt`, because the `find` on this machine may be
+ * bfs, which rejects the fractional seconds an ISO timestamp carries. A comparison that can't be
+ * made counts as recent: deleting a tree because the question failed is the one outcome worth
+ * ruling out.
+ */
 async function lastTouched(path: string) {
-  const out = await $`find ${path} -maxdepth 2 -newermt ${new Date(cutoff).toISOString()}`.quiet().nothrow().text();
-  return out.trim().length > 0 ? "recent" : "stale";
+  const stamp = join(tmpdir(), `space-cutoff-${process.pid}`);
+  if (!existsSync(stamp)) {
+    await writeFile(stamp, "");
+    await utimes(stamp, new Date(cutoff), new Date(cutoff));
+  }
+  const found = await $`find ${path} -maxdepth 3 -newer ${stamp}`.quiet().nothrow();
+  if (found.exitCode !== 0) return "recent";
+  return found.text().trim().length > 0 ? "recent" : "stale";
 }
 
 async function drop(path: string, label: string, { stale = true } = {}) {

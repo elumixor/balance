@@ -251,6 +251,21 @@ behaves identically without them.
 `apps/backend/scripts/import-projects.ts` is the one-time import from Notion: a card per row of
 `scripts/projects.json`, with a link back and nothing that syncs.
 
+## Integrations feed the calendar, they don't own it
+
+`src/lib/integrations/` is what knows some hours from outside — Apple Health today, its one feed
+being sleep. An integration offers feeds; each feed is switched on per device (Health data is only
+readable on the phone holding it, so the setting lives in `persist.readSetting`, which never ages
+it out), told what its hours count as, and synced on launch and on resume, at most every four
+hours. The device reads the source — `HealthKitPlugin.swift` hands raw samples up and decides
+nothing; `sleep-sessions.ts` turns stages into nights and is tested — and `POST
+/mobile/integrations/spans` writes them. The server owns the matching (`lib/integrations/spans.ts`,
+tested): a span overlapping an event the same `source` wrote before is that event, moved if its
+edges moved; anything else is new; an event the feed stops mentioning is left alone. Only events
+whose mapping carries the integration's `source` are ever candidates, so a night somebody typed in
+by hand is never adopted or moved. A new integration is one more entry in `INTEGRATIONS` and
+whatever native or OAuth code reads it; the server never learns its name.
+
 ## Signing in is skippable in development
 
 A simulator asking for a Google consent screen on every clean install is a minute of clicking
