@@ -166,12 +166,17 @@ companion app installed — and holds nothing pending otherwise, or the same eve
 
 Three things kept a broken app looking like a loading one, and all three are now closed.
 
-`$lib/diagnostics.svelte.ts` collects what no screen was ever going to show — an unhandled
-rejection, a render that threw, a background refresh that failed — and `ProblemBanner` puts it
-along the top of every screen with the technical half one tap away, because a webview on a phone
-has no console anybody can open. A screen's own failure still belongs to that screen: a week that
-didn't load has its `LoadError` card with its own retry, and caches whose failure a screen shows
-are the ones constructed without a `scope`.
+`$lib/diagnostics.svelte.ts` holds every failure the app knows about, and `ProblemToasts` is the
+only thing that draws one: a pile in the top-right corner, one card per failure, wherever it came
+from. Screens used to say it themselves — a card here, a red line there — which is how a card meant
+for a sentence ended up holding a database query and covering the week it was about. So a card is
+a title written for a person and nothing else; what actually broke is behind the copy button,
+because a webview on a phone has no console anybody can open. A failure that something knows how to
+undo carries a `retry`, and the card grows a refresh: a `Cached` hands over its own refetch, the
+render boundary hands over `reset`. Repeats are separate cards, leaning into the pile rather than a
+count. The pile itself is `svelte-sonner` — the heights, the animation, expand-on-hover and
+swipe-to-dismiss are solved and not worth rewriting — with `diagnostics` as the truth behind it, so
+dismissing by hand, by retry or by swipe all end in the same place.
 
 A screen that throws while rendering is caught by the `<svelte:boundary>` in the app layout, so the
 shell around it — the tabs, the rail — stays alive and answers. Before that, one screen's error
