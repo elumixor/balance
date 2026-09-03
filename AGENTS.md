@@ -281,3 +281,19 @@ would turn a number that means something into one that doesn't.
 Write tests that try to break the thing. The ones already here found a DST-day column shift in the
 week grid, a "-0m" meter, a URL with the sentence's full stop still on it, dates rolled silently
 into the next month, and an invalidation lost by a read that was already in flight.
+
+## What a build leaves behind is swept, not accumulated
+
+Four native toolchains write here, and none of them ever deletes anything: Xcode's derived data
+for the phone and the watch, SourceKit-LSP's index build of `BalanceKit`, cargo's `target/`, and a
+simulator that keeps every byte the app ever wrote to it. Unattended that reached 40 GB, so
+`scripts/space.ts` says what is there (`bun run space`) and takes back what is stale
+(`bun run space:clean`), and `bun run space:agent` installs the weekly launchd job that runs the
+second one. Nothing touched in the last 14 days is removed, the simulators in use are never erased,
+and the three newest archive days stay — a dSYM is the only way to read a crash out of a shipped
+build, and nothing uploads them anywhere else.
+
+The one structural fix is `scripts/spm-cache.ts`, run on `bun install`: the two derived data dirs
+resolve the same package graph, and Sentry's prebuilt XCFramework alone makes each copy ~4 GB, so
+their `SourcePackages` are symlinks to one shared directory — what
+`xcodebuild -clonedSourcePackagesDirPath` would do if devkit had a way to pass it.

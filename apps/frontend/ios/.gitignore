@@ -20,3 +20,6 @@ fastlane/test_output
 *.dSYM.zip
 *.mobileprovision
 *.p8
+
+# the one shared copy of the resolved SwiftPM graph (scripts/spm-cache.ts)
+SourcePackages

@@ -13,7 +13,11 @@
     "check": "bun run --filter '*' check",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "version:sync": "devkit version"
+    "version:sync": "devkit version",
+    "space": "bun scripts/space.ts",
+    "space:clean": "bun scripts/space.ts --clean && bun scripts/spm-cache.ts",
+    "space:agent": "bun scripts/install-space-agent.ts",
+    "postinstall": "bun scripts/spm-cache.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
