@@ -227,6 +227,8 @@ export const DEFAULT_COLUMN_PX = 160;
  */
 export const NEST_HEAD_PX = 40;
 export const NEST_INSET_PX = 16;
+/** Under this much drawn overlap two blocks are back to back, whatever the arithmetic says. */
+export const COLLISION_SLACK_PX = 0.5;
 /** How far right a staggered block steps: half of the block under it, so both keep a readable half. */
 export const STAGGER_FRACTION = 0.5;
 
@@ -268,8 +270,10 @@ export function placeDay(
     // placed so far starts at or above it, and each placed block went over every open block before
     // it, so the latest open one is also the one nearest the top of the stack.
     let parent: PlacedSegment | null = null;
+    // Half a pixel of slack: `9h + 1h` and `10h` are not always the same float, and a block
+    // ending where the next starts must not be read as running into it.
     for (const other of placed)
-      if (other.top + other.height > top) parent = other;
+      if (other.top + other.height > top + COLLISION_SLACK_PX) parent = other;
 
     if (!parent) {
       placed.push({

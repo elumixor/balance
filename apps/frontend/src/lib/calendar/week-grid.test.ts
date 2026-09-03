@@ -14,16 +14,16 @@ import {
   MIN_BLOCK_PX,
   NEST_HEAD_PX,
   NEST_INSET_PX,
-  placeDay,
   type PlacedSegment,
+  placeDay,
   QUARTER_HOUR_LINE_PX,
   RESIZE_BAND_MAX_PX,
   RESIZE_BAND_SELECTED_PX,
   resizeBands,
   type Segment,
+  STAGGER_FRACTION,
   segmentsForRange,
   snapMinutes,
-  STAGGER_FRACTION,
 } from "./week-grid";
 
 /** The fields the grid reads, with the rest of an event filled in as the calendar would. */
@@ -366,6 +366,18 @@ describe("placeDay", () => {
     const events = Array.from({ length: 12 }, () => segment(0, 600, 660));
     for (const block of placeDay(events, HOUR_PX, 40))
       expect(block.width).toBeGreaterThanOrEqual(1);
+  });
+
+  it("never reads a block ending where the next starts as a collision, at any pinch", () => {
+    for (let k = 1; k < 300; k++) {
+      const hourPx = HOUR_PX * (1 + k / 100);
+      const placed = placeDay(
+        [segment(0, 540, 600), segment(0, 600, 720), segment(0, 720, 735)],
+        hourPx,
+        COLUMN
+      );
+      for (const block of placed) expect(block.depth).toBe(0);
+    }
   });
 
   it("has nothing to place for an empty day", () => {
