@@ -19,6 +19,12 @@ export default handler(
       projectId: z.string().nullable().optional(),
       practiceId: z.string().nullable().optional(),
       taskId: z.string().nullable().optional(),
+      /** The integration feed it is linked to. Absent leaves it alone; null unlinks. */
+      source: z
+        .string()
+        .regex(/^[a-z][a-z0-9-]{1,40}:[a-z][a-z0-9-]{1,40}$/)
+        .nullable()
+        .optional(),
       /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
       timer: z
         .union([

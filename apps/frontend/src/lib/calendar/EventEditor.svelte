@@ -19,7 +19,8 @@
   import type { CalendarEvent, Category, EventResponse, EventTimer, MappingScope } from "$lib/types";
   import ProjectPicker from "$lib/projects/ProjectPicker.svelte";
   import { practices, projects } from "$lib/synced.svelte";
-  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Sparkles, Timer, Trash2, Video, X } from "lucide-svelte";
+  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Plug, Sparkles, Timer, Trash2, Video, X } from "lucide-svelte";
+  import { FEEDS, INTEGRATIONS, integrations } from "$lib/integrations/integrations.svelte";
   import { accountEmailOf, calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import EventAssist from "./EventAssist.svelte";
@@ -133,10 +134,46 @@
 
   /** Whether the assistant's panel is open under the purpose row. Closed again for another block. */
   let planning = $state(false);
+  /** Whether the list of feeds is open under the integrations row. Same rule. */
+  let linking = $state(false);
   $effect(() => {
     event.id;
     planning = false;
+    linking = false;
   });
+
+  /** The feed this block is linked to, and the integration it belongs to — for the card's section. */
+  const linked = $derived(event.source ? (FEEDS.get(event.source) ?? null) : null);
+
+  /**
+   * Linking rides on the mapping, so a block that counts as nothing is first made to count as
+   * something: the category named for the feed if there is one — "Sleep" — and the buffer
+   * otherwise, the same place an hour nobody planned already lands. Either is one tap to change.
+   * On the phone that can read the feed, the link also asks for permission and reads straight
+   * away; anywhere else the link is made and the record arrives from the phone.
+   */
+  async function link(source: string) {
+    const entry = FEEDS.get(source);
+    if (!entry) return;
+    linking = false;
+    if (!category) {
+      const word = entry.feed.label.toLowerCase();
+      const guess = plannable.find((c) => c.name.toLowerCase().includes(word)) ?? plannable.find((c) => c.isBuffer);
+      if (!guess) return;
+      await data.mapEvent(event, scope, { weights: [{ categoryId: guess.id, weightPercent: 100 }] }, {
+        ...{ projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer },
+        source,
+      });
+    } else {
+      await data.tagEvent(event, { source });
+    }
+    if (entry.integration.available) void integrations.sync(entry.integration, entry.feed);
+  }
+
+  function unlink() {
+    linking = false;
+    void data.tagEvent(event, { source: null });
+  }
 
   /** The plan goes where the person would have typed it, and is saved the way typing is. */
   function takeBrief(text: string) {
@@ -696,6 +733,54 @@
             {/each}
           {/snippet}
         </Popover>
+      </div>
+    {/if}
+
+    <!-- What knows how this block actually went: a feed, linked from here. The row is always
+         there because linking after the fact is the ordinary gesture, like tagging a project. -->
+    {#if !event.allDay}
+      <div class="border-t border-line px-3 py-1.5">
+        <button
+          type="button"
+          onclick={() => (linking = !linking)}
+          class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
+        >
+          <Plug size={16} class="shrink-0 {linked ? 'text-fg-muted' : 'text-fg-faint'}" />
+          <span class="t-label min-w-0 flex-1 truncate {linked ? 'text-fg' : 'text-fg-faint'}">
+            {linked ? `${linked.integration.name} · ${linked.feed.label}` : "Integrations…"}
+          </span>
+        </button>
+        {#if linking}
+          <div class="space-y-1 pb-1.5 pl-7">
+            {#each INTEGRATIONS as integration (integration.id)}
+              {#each integration.feeds as feed (feed.id)}
+                {@const source = `${integration.id}:${feed.id}`}
+                {@const isLinked = event.source === source}
+                <button
+                  type="button"
+                  class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-start gap-3 rounded-md px-1 py-1.5 text-left"
+                  onclick={() => (isLinked ? unlink() : void link(source))}
+                >
+                  <integration.icon size={16} class="mt-0.5 shrink-0 text-fg-faint" />
+                  <span class="min-w-0 flex-1">
+                    <span class="t-label block text-fg">{integration.name} · {feed.label}</span>
+                    <span class="t-micro block text-fg-faint">{feed.note}</span>
+                    {#if !integration.available}
+                      <span class="t-micro block text-fg-faint">{integration.unavailableNote}</span>
+                    {/if}
+                  </span>
+                  <span class="t-micro shrink-0 pt-0.5 {isLinked ? 'text-fg-muted' : 'text-fg-faint'}">
+                    {isLinked ? "Unlink" : "Link"}
+                  </span>
+                </button>
+              {/each}
+            {/each}
+          </div>
+        {/if}
+        {#if linked && !linking}
+          {@const Section = linked.feed.section}
+          <Section {event} />
+        {/if}
       </div>
     {/if}
 

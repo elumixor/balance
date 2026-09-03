@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { activities } from "../../db/schema";
 import { ApiError } from "../api-error";
 import type { ActivityWeightInput } from "../categories-service";
+import { type IntegrationRecord, IntegrationRecordService } from "../integrations/records-service";
 import { ProviderNotConnectedError } from "./errors";
 import { eventCache } from "./event-cache";
 import { EventMappingService, type MappingPurpose, type ResolvedMapping } from "./mappings-service";
@@ -26,6 +27,8 @@ export interface ResolvedEvent extends ExternalEvent {
     | null;
   /** Empty when the event counts as nothing. Otherwise sums to 100, buffer remainder included. */
   readonly weights: ActivityWeightInput[];
+  /** What the linked integration observed for this occurrence, in the feed's own shape. */
+  readonly record: Record<string, unknown> | null;
   /**
    * All-day events would each claim 24 hours, and an invitation you declined is time you didn't
    * spend — both are still drawn and still mappable, they just don't move any category's total.
@@ -82,7 +85,7 @@ export class CalendarEventsService {
     const active = connections.filter((c) => !c.account.revokedAt);
     if (active.length === 0) return { ...DISCONNECTED, needsReconnect: true };
 
-    const [perAccount, mappings] = await Promise.all([
+    const [perAccount, mappings, records] = await Promise.all([
       Promise.all(
         active.map(async (connection) => {
           const calendarIds = this.visibleCalendarIds(connection);
@@ -97,12 +100,14 @@ export class CalendarEventsService {
         }),
       ),
       new EventMappingService(this.userId).all(),
+      new IntegrationRecordService(this.userId).all(),
     ]);
 
     const tagged = perAccount.flat();
     const resolved = this.attachMappings(
       tagged.map((t) => t.event),
       mappings,
+      records,
     ).map((event, i) => ({ ...event, accountId: tagged[i].accountId }));
 
     return {
@@ -296,8 +301,10 @@ export class CalendarEventsService {
   private attachMappings(
     events: ExternalEvent[],
     mappings: readonly ResolvedMapping[],
+    records: readonly IntegrationRecord[] = [],
   ): Omit<ResolvedEvent, "accountId">[] {
     const byKey = new Map(mappings.map((m) => [`${m.calendarId}|${m.scope}|${m.externalEventId}`, m]));
+    const recordByKey = new Map(records.map((r) => [`${r.calendarId}|${r.source}|${r.externalEventId}`, r]));
 
     return events.map((event) => {
       const mapping =
@@ -319,6 +326,11 @@ export class CalendarEventsService {
             }
           : null,
         weights: mapping?.weights ?? [],
+        // A record only means something under the feed that made it: unlinking a series orphans
+        // its records rather than showing them on an event that no longer claims them.
+        record: mapping?.source
+          ? (recordByKey.get(`${event.calendarId}|${mapping.source}|${event.id}`)?.data ?? null)
+          : null,
         countsTowardHours: !event.allDay && event.selfResponse !== "declined" && event.status !== "cancelled",
       };
     });

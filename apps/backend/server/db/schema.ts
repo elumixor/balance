@@ -163,9 +163,9 @@ export const eventMappings = pgTable(
      */
     timer: jsonb("timer").$type<EventTimer>(),
     /**
-     * Which integration wrote the event, when one did — "apple-health", say. An integration only
-     * ever touches events carrying its own name, so a night somebody typed in by hand is left
-     * alone, and a person's own events are never mistaken for a feed's.
+     * The integration feed this event is linked to — "apple-health:sleep" — so the device that
+     * can read the feed knows which occurrences to look up, and the card knows which section to
+     * draw. On a series mapping the link covers every occurrence.
      */
     source: text("source"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -176,6 +176,38 @@ export const eventMappings = pgTable(
       table.provider,
       table.calendarId,
       table.scope,
+      table.externalEventId,
+    ),
+  ],
+);
+
+/**
+ * What an integration observed for one occurrence of an event it is linked to — the night Apple
+ * Health recorded under a "Sleep" block. Read on the device that holds the data, written here so
+ * every other screen can show it. Keyed by the occurrence rather than the series, because a
+ * record is about one night; the shape of `data` is the feed's own, and the server never reads it.
+ */
+export const integrationRecords = pgTable(
+  "integration_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** The feed that made it: "apple-health:sleep". */
+    source: text("source").notNull(),
+    provider: text("provider").notNull().default("google"),
+    calendarId: text("calendar_id").notNull(),
+    externalEventId: text("external_event_id").notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("integration_records_unique").on(
+      table.userId,
+      table.source,
+      table.provider,
+      table.calendarId,
       table.externalEventId,
     ),
   ],

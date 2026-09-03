@@ -31,16 +31,11 @@ export const disconnectGoogle = (accountId: string) =>
   callApi(api.integrations.google.$delete({ accountId })).then(unwrapOk);
 
 // Preferences
-/** Spans an integration on this device observed, written as its own events — see `integrations.svelte.ts`. */
-export const syncIntegrationSpans = (input: {
+/** What an integration on this device observed for the occurrences it is linked to — see `integrations.svelte.ts`. */
+export const saveIntegrationRecords = (input: {
   source: string;
-  from: string;
-  to: string;
-  spans: { start: string; end: string }[];
-  title: string;
-  categoryId: string;
-  calendarId?: string;
-}) => callApi(api.integrations.spans.$post(input)).then(unwrapOk);
+  records: { calendarId: string; externalEventId: string; data: Record<string, unknown> }[];
+}) => callApi(api.integrations.records.$post(input)).then(unwrapOk);
 
 export const getPreferences = () => callApi(api.preferences.$get()).then((r) => unwrapOk(r) as StoredPreferences);
 /** One section at a time, one setting at a time — the panel has no Save button. */
@@ -120,6 +115,8 @@ export const saveEventMapping = (input: {
   taskId?: string | null;
   /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
   timer?: EventTimer | null;
+  /** The integration feed it is linked to. Absent leaves it alone; null unlinks. */
+  source?: string | null;
 }) => callApi(api.calendar.mappings.$post(input)).then(unwrapOk);
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
   callApi(api.calendar.mappings.$delete(input)).then(unwrapOk);

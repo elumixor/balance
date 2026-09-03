@@ -251,20 +251,27 @@ behaves identically without them.
 `apps/backend/scripts/import-projects.ts` is the one-time import from Notion: a card per row of
 `scripts/projects.json`, with a link back and nothing that syncs.
 
-## Integrations feed the calendar, they don't own it
+## Integrations hang off the events that planned them
 
-`src/lib/integrations/` is what knows some hours from outside — Apple Health today, its one feed
-being sleep. An integration offers feeds; each feed is switched on per device (Health data is only
-readable on the phone holding it, so the setting lives in `persist.readSetting`, which never ages
-it out), told what its hours count as, and synced on launch and on resume, at most every four
-hours. The device reads the source — `HealthKitPlugin.swift` hands raw samples up and decides
-nothing; `sleep-sessions.ts` turns stages into nights and is tested — and `POST
-/mobile/integrations/spans` writes them. The server owns the matching (`lib/integrations/spans.ts`,
-tested): a span overlapping an event the same `source` wrote before is that event, moved if its
-edges moved; anything else is new; an event the feed stops mentioning is left alone. Only events
-whose mapping carries the integration's `source` are ever candidates, so a night somebody typed in
-by hand is never adopted or moved. A new integration is one more entry in `INTEGRATIONS` and
-whatever native or OAuth code reads it; the server never learns its name.
+`src/lib/integrations/` is what knows how some hours actually went — Apple Health today, its one
+feed being sleep. A feed is linked to an event from the event's own card ("Integrations…" row):
+the link is the mapping's `source` (`"apple-health:sleep"`), so a series link covers every
+occurrence and survives the way a category does, and a block that counted as nothing is first
+made to count as the category named for the feed, or the buffer. The block never moves: the
+calendar stays the plan, the record is what happened.
+
+Reading a source happens on the device that can — Health only on the iPhone — and only after the
+person has let it (`integrations.connect`, kept in `persist.readSetting`, never aged out). On
+launch and on resume, at most every four hours, each readable feed looks up its linked
+occurrences from the last two weeks, asks the feed for a record per occurrence
+(`HealthKitPlugin.swift` hands raw samples up and decides nothing; `sleep-sessions.ts` and
+`sleep-summary.ts` turn them into the night, and are tested) and writes them with
+`POST /mobile/integrations/records`. `integration_records` is keyed by occurrence; `resolve`
+hangs each record on its event, but only under the feed the mapping still names, so unlinking
+orphans the records rather than showing them. The card draws the feed's own `section`
+(`SleepSection.svelte`) from `event.record` on every platform. A new integration is one more entry
+in `INTEGRATIONS` — feeds with a `record` reader and a section — and whatever native or OAuth
+code reads it; the server never learns its name or the record's shape.
 
 ## Signing in is skippable in development
 

@@ -57,6 +57,13 @@
       "when": 1788422238309,
       "tag": "0007_mapping_source",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788427396424,
+      "tag": "0008_integration_records",
+      "breakpoints": true
     }
   ]
 }

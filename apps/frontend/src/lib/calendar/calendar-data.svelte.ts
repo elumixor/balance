@@ -1711,6 +1711,7 @@ function mappingFieldsOf(was: CalendarEvent) {
     practiceId: was.practiceId ?? undefined,
     taskId: was.taskId ?? undefined,
     timer: was.timer ?? undefined,
+    source: was.source ?? undefined,
   };
 }
 

@@ -52,8 +52,10 @@ export interface CalendarEvent {
   taskId: string | null;
   /** How a timer run for it is broken up; null when it just runs to the end. */
   timer: EventTimer | null;
-  /** Which integration wrote it — "apple-health:sleep" — or null for one a person made. */
+  /** The integration feed it is linked to — "apple-health:sleep" — or null. */
   source: string | null;
+  /** What that feed observed for this occurrence, in the feed's own shape; null until a device syncs. */
+  record: Record<string, unknown> | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
   location: string | null;
   /** The link that means "you are in the call". */
@@ -79,6 +81,7 @@ export const NOT_A_MEETING = {
   taskId: null,
   timer: null,
   source: null,
+  record: null,
   location: null,
   conferenceUrl: null,
   conferenceName: null,
@@ -94,6 +97,7 @@ export const NOT_A_MEETING = {
   | "taskId"
   | "timer"
   | "source"
+  | "record"
   | "location"
   | "conferenceUrl"
   | "conferenceName"

@@ -18,7 +18,7 @@ export interface MappingPurpose {
   readonly taskId: string | null;
   /** How a timer for the event is broken up; null when it just runs to the end. */
   readonly timer: EventTimer | null;
-  /** The integration that wrote the event, or null for one a person made. */
+  /** The integration feed the event is linked to, or null. A series link covers every occurrence. */
   readonly source: string | null;
 }
 

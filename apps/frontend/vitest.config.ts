@@ -36,6 +36,7 @@ export default defineConfig({
         "src/lib/format.ts",
         "src/lib/ics.ts",
         "src/lib/integrations/sleep-sessions.ts",
+        "src/lib/integrations/sleep-summary.ts",
         "src/lib/meeting.ts",
         "src/lib/persist.ts",
         "src/lib/planning/zone.ts",
