@@ -9,9 +9,11 @@
 </script>
 
 {#if sidePanel.section}
-  <aside
-    class="hidden h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface px-3 pt-[52px] pb-6 md:flex"
-  >
-    {@render sidePanel.section()}
+  <aside class="hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-line bg-surface pt-[52px] md:flex">
+    <!-- The panel scrolls, the top doesn't: the strip sits on solid surface rather than on
+         whatever row has been scrolled up under it. -->
+    <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+      {@render sidePanel.section()}
+    </div>
   </aside>
 {/if}
