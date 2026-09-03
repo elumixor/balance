@@ -2,11 +2,7 @@
   import { Capacitor } from "@capacitor/core";
   import { goto } from "$app/navigation";
   import { auth, authErrorMessage } from "$lib/auth.svelte";
-  import AuthShell from "$lib/components/AuthShell.svelte";
-  import BrowserWait from "$lib/components/BrowserWait.svelte";
-  import Button from "$lib/components/Button.svelte";
-  import Divider from "$lib/components/Divider.svelte";
-  import Field from "$lib/components/Field.svelte";
+  import { AuthShell, BrowserWait, Button, Divider, Field } from "$lib/components";
   import { isDesktop } from "$lib/desktop/platform";
   import { startDesktopSSO } from "$lib/desktop/sign-in";
   import { diagnostics } from "$lib/diagnostics.svelte";

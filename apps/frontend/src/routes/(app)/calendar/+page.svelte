@@ -1,18 +1,11 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import CalendarPanel from "$lib/calendar/CalendarPanel.svelte";
-  import ConnectGoogle from "$lib/calendar/ConnectGoogle.svelte";
-  import EventEditor from "$lib/calendar/EventEditor.svelte";
-  import WeekGrid from "$lib/calendar/WeekGrid.svelte";
-  import Popover from "$lib/components/Popover.svelte";
-  import SidePanelSection from "$lib/components/nav/SidePanelSection.svelte";
+  import { CalendarPanel, EventEditor, PlanningBar, SidePanelSection, WeekGrid } from "./components";
+  import { ConnectGoogle } from "$lib/calendar/components";
+  import { Button, Divider, Popover, ThemeToggle } from "$lib/components";
   import { categories } from "$lib/synced.svelte";
-  import Button from "$lib/components/Button.svelte";
-  import Divider from "$lib/components/Divider.svelte";
-  import ThemeToggle from "$lib/components/ThemeToggle.svelte";
-  import { settings } from "$lib/settings.svelte";
+  import { settings } from "$lib/settings";
   import { page } from "$app/state";
-  import PlanningBar from "$lib/planning/PlanningBar.svelte";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { slotNow } from "$lib/planning/zone";

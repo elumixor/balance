@@ -2,7 +2,7 @@
   import { auth } from "$lib/auth.svelte";
   import { SETTINGS_HOTKEY } from "$lib/keys";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
-  import { settings } from "$lib/settings.svelte";
+  import { settings } from "$lib/settings";
   import Tooltip from "./Tooltip.svelte";
 
   /**

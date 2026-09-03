@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
+  import { CategoryIcon } from "$lib/components";
   import { openExternal } from "$lib/desktop/open";
   import { decodeReminder, type ReminderCard } from "$lib/desktop/reminder";
   import { formatClock, formatHoursAndMinutes } from "$lib/format";

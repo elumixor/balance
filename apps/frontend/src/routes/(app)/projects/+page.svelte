@@ -1,14 +1,8 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import Dot from "$lib/components/Dot.svelte";
-  import EmptyState from "$lib/components/EmptyState.svelte";
-  import Screen from "$lib/components/Screen.svelte";
-  import Segmented from "$lib/components/Segmented.svelte";
-  import Skeleton from "$lib/components/Skeleton.svelte";
-  import PracticeRow from "$lib/projects/PracticeRow.svelte";
-  import ProjectCard from "$lib/projects/ProjectCard.svelte";
-  import RankingPrompt from "$lib/projects/RankingPrompt.svelte";
+  import { Dot, EmptyState, Screen, Segmented, Skeleton } from "$lib/components";
+  import { PracticeRow, ProjectCard, RankingPrompt } from "./components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { synced } from "$lib/synced.svelte";
   import { Plus, Sparkles } from "lucide-svelte";

@@ -1,12 +1,8 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/auth.svelte";
-  import AppLoading from "$lib/components/AppLoading.svelte";
-  import NavStrip from "$lib/components/nav/NavStrip.svelte";
-  import SideNav from "$lib/components/nav/SideNav.svelte";
-  import TabBar from "$lib/components/nav/TabBar.svelte";
-  import SessionNudge from "$lib/components/SessionNudge.svelte";
-  import SettingsDialog from "$lib/components/SettingsDialog.svelte";
+  import { AppLoading } from "$lib/components";
+  import { IcsDropZone, ImportIcsDialog, NavStrip, SessionNudge, SettingsDialog, SideNav, TabBar } from "./components";
   import { desktopDock } from "$lib/desktop/dock";
   import { desktopReminders } from "$lib/desktop/reminders.svelte";
   import { desktopTray } from "$lib/desktop/tray.svelte";
@@ -15,14 +11,12 @@
   import { syncStatus } from "$lib/synced.svelte";
   import { icsImport } from "$lib/ics-import.svelte";
   import { integrations } from "$lib/integrations/integrations.svelte";
-  import IcsDropZone from "$lib/components/IcsDropZone.svelte";
-  import ImportIcsDialog from "$lib/components/ImportIcsDialog.svelte";
   import { mobileReminders } from "$lib/mobile/reminders.svelte";
   import { sessionReminders } from "$lib/mobile/session-reminders.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { clock } from "$lib/clock.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
-  import { settings } from "$lib/settings.svelte";
+  import { settings } from "$lib/settings";
   import { telemetry } from "$lib/telemetry";
   import { adoptUser, warmStore } from "$lib/store.svelte";
   import { diagnostics } from "$lib/diagnostics.svelte";

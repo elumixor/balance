@@ -1,6 +1,6 @@
 <script lang="ts">
   import { auth } from "$lib/auth.svelte";
-  import ProblemToasts from "$lib/components/ProblemToasts.svelte";
+  import { ProblemToasts } from "./components";
   import { diagnostics } from "$lib/diagnostics.svelte";
   import { watchDesktopFocus } from "$lib/desktop/focus-sync";
   import { watchDesktopSignIn } from "$lib/desktop/sign-in";

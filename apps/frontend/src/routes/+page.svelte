@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/auth.svelte";
-  import AppLoading from "$lib/components/AppLoading.svelte";
+  import { AppLoading } from "$lib/components";
 
   // Nowhere to send anyone if Clerk never started — AppLoading says so instead.
   $effect(() => {

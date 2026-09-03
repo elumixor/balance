@@ -1,9 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth, authErrorMessage } from "$lib/auth.svelte";
-  import AuthShell from "$lib/components/AuthShell.svelte";
-  import Button from "$lib/components/Button.svelte";
-  import Field from "$lib/components/Field.svelte";
+  import { AuthShell, Button, Field } from "$lib/components";
   import { diagnostics } from "$lib/diagnostics.svelte";
 
   let email = $state("");

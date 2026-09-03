@@ -1,13 +1,9 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import Button from "$lib/components/Button.svelte";
-  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
-  import Screen from "$lib/components/Screen.svelte";
-  import Skeleton from "$lib/components/Skeleton.svelte";
-  import SplitBar from "$lib/components/SplitBar.svelte";
+  import { Button, CategoryIcon, Screen, Skeleton, SplitBar } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
-  import StarPill from "$lib/planning/StarPill.svelte";
+  import { StarPill } from "./components";
   import type { Slot } from "$lib/planning/types";
   import { slotNow } from "$lib/planning/zone";
   import { goto } from "$app/navigation";

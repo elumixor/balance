@@ -43,7 +43,6 @@ export default defineConfig({
         "src/lib/reminder-lead.ts",
         "src/lib/reminders.ts",
         "src/lib/time-zones.ts",
-        "src/lib/splits.ts",
         "src/lib/store.svelte.ts",
         "src/lib/calendar/event-category.ts",
         "src/lib/calendar/filler.ts",

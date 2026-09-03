@@ -1,9 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { auth, authErrorMessage } from "$lib/auth.svelte";
-  import AuthShell from "$lib/components/AuthShell.svelte";
-  import Button from "$lib/components/Button.svelte";
-  import Spinner from "$lib/components/Spinner.svelte";
+  import { AuthShell, Button, Spinner } from "$lib/components";
   import { createDesktopTicket } from "$lib/queries";
   import { diagnostics } from "$lib/diagnostics.svelte";
 

@@ -16,6 +16,16 @@ runs inside a Capacitor webview, and everything on screen depends on a Clerk ses
 exists in the browser. Don't add server-side load functions, form actions, or `+server.ts` routes —
 the API is Nitro, in `apps/backend`.
 
+## A component lives next to the one screen that uses it
+
+`src/lib/components/` holds only what two or more screens draw — buttons, fields, popovers, the
+ring. Anything a single route owns sits in that route's `components/` folder
+(`routes/(app)/calendar/components/`, `routes/(app)/projects/[id]/components/`), and what only
+the app shell draws — the nav, the settings dialog and its panes — is in `routes/(app)/components/`.
+Every such folder has an `index.ts`, and a screen imports from the folder, not the file
+(`import { WeekGrid } from "./components"`, `import { Button } from "$lib/components"`); siblings in
+one folder import each other directly. Logic stays under `$lib/<domain>/` beside its tests.
+
 ## Screens don't fetch, the store does
 
 `src/lib/store.svelte.ts` holds every screen's data for the session, one `Cached` per thing. A
@@ -150,7 +160,7 @@ because that is where the star is actually earned.
 
 ## The event card is sections, and the calendar keeps most of them
 
-`calendar/EventEditor.svelte` is one card: sphere and name, what it is for, when, how you'll be
+`calendar/components/EventEditor.svelte` is one card: sphere and name, what it is for, when, how you'll be
 told, where and with whom, what it says. Everything the meeting carries — a place, its time zone,
 how it repeats, its reminders, its guests, its call — is written straight back to Google through
 one `PATCH /calendar/events/:id` and `calendarData.patchEvent`, which draws the answer ahead and

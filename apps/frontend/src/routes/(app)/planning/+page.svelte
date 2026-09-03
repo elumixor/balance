@@ -1,9 +1,8 @@
 <script lang="ts">
-  import Screen from "$lib/components/Screen.svelte";
-  import Skeleton from "$lib/components/Skeleton.svelte";
+  import { Screen, Skeleton } from "$lib/components";
   import { synced } from "$lib/synced.svelte";
-  import { categoryDrafts as week, WEEK_HOURS } from "$lib/week/category-drafts.svelte";
-  import PlanDial from "$lib/week/PlanDial.svelte";
+  import { categoryDrafts as week, WEEK_HOURS } from "$lib/planning/category-drafts.svelte";
+  import { PlanDial } from "./components";
 
   /**
    * The week you mean to have: the ring cuts 168 hours into the categories worth spending them on.
