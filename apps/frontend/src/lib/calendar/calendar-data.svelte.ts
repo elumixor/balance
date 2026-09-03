@@ -81,9 +81,11 @@ export interface Purpose {
   readonly practiceId: string | null;
   readonly taskId: string | null;
   readonly timer: EventTimer | null;
+  /** The integration feed it is linked to — "apple-health:sleep" — which is also on the mapping. */
+  readonly source: string | null;
 }
 
-const NO_PURPOSE: Purpose = { projectId: null, practiceId: null, taskId: null, timer: null };
+const NO_PURPOSE: Purpose = { projectId: null, practiceId: null, taskId: null, timer: null, source: null };
 
 /** What an event counts as, in the shape the mapping endpoints take. */
 interface Mapping {
@@ -308,6 +310,12 @@ class CalendarData {
   #grabOffsetMinutes = 0;
   /** Same as `#grabOffsetMinutes`, but for the block's day column, in day units. */
   #grabOffsetDays = 0;
+  /**
+   * Minutes between the pointer and the dragged edge at grab time. A band is taller than a line,
+   * so the edge is almost never exactly under the finger — without this the block snaps to
+   * wherever the press landed inside the band, and a press that never moves resizes it.
+   */
+  #grabEdgeMinutes = 0;
   /** Whether the press that's ending actually moved something, so its click isn't read as a tap. */
   #dragged = false;
   #autoscroll: number | null = null;
@@ -750,7 +758,9 @@ class CalendarData {
     if (event.readOnly) return;
     if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     e.stopPropagation();
-    this.#arm({ kind: "resize", source: null, event, e, armed: true });
+    // Not armed: a press on the band that never travels is a tap that opens the event, and the
+    // threshold is what tells the two apart.
+    this.#arm({ kind: "resize", source: null, event, e, armed: false });
   }
 
   /** Same handle as `beginResize`, dragging the top edge — the end stays put, the start follows. */
@@ -758,7 +768,7 @@ class CalendarData {
     if (event.readOnly) return;
     if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     e.stopPropagation();
-    this.#arm({ kind: "resize-start", source: null, event, e, armed: true });
+    this.#arm({ kind: "resize-start", source: null, event, e, armed: false });
   }
 
   moveDrag(e: PointerEvent) {
@@ -1476,6 +1486,7 @@ class CalendarData {
 
     this.#grabOffsetMinutes = 0;
     this.#grabOffsetDays = 0;
+    this.#grabEdgeMinutes = 0;
 
     if (pending.kind === "create" && pending.source) {
       const dayIndex = daysBetween(this.stripStart, this.windowStart);
@@ -1507,6 +1518,13 @@ class CalendarData {
     // whole length rather than folding back to the hour its end reads on its own day.
     const endMinutes = (end.getTime() - day.getTime()) / 60_000;
     const dayIndex = daysBetween(this.stripStart, day);
+
+    // A resize grabs its edge the same way: the band is a strip, so remember where inside it the
+    // press landed and move the edge by what the pointer travels rather than to where it sits.
+    if (pending.kind === "resize" || pending.kind === "resize-start") {
+      const origin = this.#edgeAt({ clientX: pending.originX, clientY: pending.originY }, day);
+      if (origin !== null) this.#grabEdgeMinutes = (pending.kind === "resize" ? endMinutes : startMinutes) - origin;
+    }
 
     // A move grabs the block wherever the pointer landed on it, not its top-left corner —
     // remember the gap so the block doesn't jump to put that corner under the pointer once
@@ -1596,10 +1614,19 @@ class CalendarData {
     if (!at) return null;
     const column = clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1);
     const anchor = daysBetween(this.stripStart, day);
+    const minutes = at.minutes + this.#grabEdgeMinutes;
     return {
-      minutes: this.#insideStrip(column, snapMinutes(at.minutes), anchor),
-      rawMinutes: this.#insideStrip(column, at.minutes, anchor),
+      minutes: this.#insideStrip(column, snapMinutes(minutes), anchor),
+      rawMinutes: this.#insideStrip(column, minutes, anchor),
     };
+  }
+
+  /** Where the pointer reads as an edge on `day`, before any grab offset — see `#grabEdgeMinutes`. */
+  #edgeAt(e: { clientX: number; clientY: number }, day: Date): number | null {
+    const at = this.#pointerToRaw(e);
+    if (!at) return null;
+    const column = clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1);
+    return this.#insideStrip(column, at.minutes, daysBetween(this.stripStart, day));
   }
 
   /**
@@ -1666,7 +1693,13 @@ function mergePurpose(was: Purpose, change: Partial<Purpose>): Purpose {
 }
 
 function purposeOf(event: CalendarEvent): Purpose {
-  return { projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer };
+  return {
+    projectId: event.projectId,
+    practiceId: event.practiceId,
+    taskId: event.taskId,
+    timer: event.timer,
+    source: event.source,
+  };
 }
 
 /** A copy or a restore counts as, and is for, what the original was — in the create itself. */
