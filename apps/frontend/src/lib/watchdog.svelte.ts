@@ -19,9 +19,14 @@ import { diagnostics } from "./diagnostics.svelte";
 const TICK_MS = 2_000;
 /** How long a stalled heartbeat is given before it counts as dead. */
 const DEAD_MS = 8_000;
-/** Both buttons on the hand-built card, which has no stylesheet to lean on. */
-const BUTTON =
-  "appearance:none;border:0;border-radius:8px;padding:6px 10px;background:#26262a;color:#f4f4f5;font:600 12px/1 -apple-system,system-ui,sans-serif;cursor:pointer";
+/** Lucide's `copy` and `refresh-cw`, drawn by hand — this card is built without Svelte. */
+const ICON =
+  'width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const ICON_COPY = `<svg ${ICON}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+const ICON_RELOAD = `<svg ${ICON}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`;
+
+/** The pile the app draws for every other failure — frozen, and worth hiding while this is up. */
+const toasts = () => document.querySelector("[data-problem-toasts]");
 
 /**
  * A gap this much longer than the tick means the whole page was suspended — a locked phone, a
@@ -61,52 +66,33 @@ class Watchdog {
     this.ping = now;
   }
 
-  /** The card, built by hand: whatever draws the rest of the app has stopped answering. */
+  /**
+   * The card, built by hand out of the app's own classes: whatever draws the rest of the app has
+   * stopped answering, so this is put on screen with plain DOM — but it is the same card the
+   * corner draws for everything else, because two shapes for "it broke" is one too many. The
+   * frozen pile behind it is hidden while this is up: those cards are stale by definition.
+   */
   #show() {
     if (this.#card) return;
 
     const card = document.createElement("div");
     card.setAttribute("role", "alert");
-    card.style.cssText = [
-      "position:fixed",
-      "right:12px",
-      "top:calc(env(safe-area-inset-top) + 12px)",
-      "z-index:2147483647",
-      "max-width:min(24rem,calc(100vw - 24px))",
-      "display:flex",
-      "align-items:center",
-      "gap:8px",
-      "padding:8px 8px 8px 12px",
-      "border-radius:12px",
-      "border:1px solid rgba(239,68,68,.45)",
-      "background:#151517",
-      "color:#f4f4f5",
-      "font:500 13px/1.45 -apple-system,system-ui,sans-serif",
-      "box-shadow:0 12px 32px rgba(0,0,0,.45)",
-    ].join(";");
+    card.className = "safe-top fixed top-0 right-0 z-[2147483647] flex w-full max-w-sm items-center gap-0.5 p-3 md:p-4";
+    card.innerHTML = `
+      <div class="flex min-w-0 flex-1 items-center gap-0.5 rounded-xl border border-danger/40 bg-surface py-1.5 pr-1.5 pl-3 shadow-(--shadow-float)">
+        <p class="t-label min-w-0 flex-1 truncate text-danger">Balance stopped responding</p>
+        <button type="button" data-copy class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint" aria-label="Copy error details">${ICON_COPY}</button>
+        <button type="button" data-reload class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint" aria-label="Reload">${ICON_RELOAD}</button>
+      </div>`;
 
-    // One line, the same as every other failure in this app: what actually broke is behind the
-    // copy, because a card holding a page of it covers the screen it is trying to explain.
-    const title = document.createElement("p");
-    title.textContent = "Balance stopped responding";
-    title.style.cssText =
-      "margin:0;min-width:0;flex:1;color:#f87171;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    card.querySelector("[data-copy]")?.addEventListener("click", () => {
+      void navigator.clipboard?.writeText(diagnostics.asText).catch(() => {});
+    });
+    card.querySelector("[data-reload]")?.addEventListener("click", () => window.location.reload());
 
-    const copy = document.createElement("button");
-    copy.type = "button";
-    copy.textContent = "Copy";
-    copy.style.cssText = BUTTON;
-    copy.onclick = () => void navigator.clipboard?.writeText(diagnostics.asText).catch(() => {});
-
-    const reload = document.createElement("button");
-    reload.type = "button";
-    reload.textContent = "Reload";
-    reload.style.cssText = BUTTON;
-    reload.onclick = () => window.location.reload();
-
-    card.append(title, copy, reload);
     document.body.appendChild(card);
     this.#card = card;
+    toasts()?.setAttribute("hidden", "");
     diagnostics.report("App", "Reactivity stopped — every effect in the app was torn down.", {
       title: "Balance stopped responding",
     });
@@ -117,6 +103,7 @@ class Watchdog {
     if (!this.#card) return;
     this.#card.remove();
     this.#card = null;
+    toasts()?.removeAttribute("hidden");
   }
 }
 
