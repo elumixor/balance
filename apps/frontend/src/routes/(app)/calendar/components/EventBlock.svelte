@@ -57,7 +57,7 @@
    * The lines the block has room for, from its drawn height rather than its length: pinched in, an
    * hour holds three lines; pinched out, it holds one. The time is the line that is never given up —
    * the title takes whatever is left above it, whole lines only, and when there is no room for one
-   * the two share a line: badge, title clipped, time.
+   * the two share a line: badge, the whole title, and the time only if it fits after it.
    */
   const TITLE_LINE_PX = 16.5;
   const TIME_LINE_PX = 10;
@@ -65,6 +65,25 @@
   let boxHeight = $state(0);
   const titleLines = $derived(Math.floor((boxHeight - PADDING_PX - TIME_LINE_PX) / TITLE_LINE_PX));
   const oneLine = $derived(narrow || titleLines < 1);
+
+  /**
+   * On one line the title comes first and the time is a bonus: it shows only when the whole title
+   * already fits beside it. The time span stays in the DOM either way — taken out of the flow when
+   * it can't be shown — so its width is known without a second, hidden copy to measure.
+   */
+  let boxWidth = $state(0);
+  let timeWidth = $state(0);
+  let titleEl = $state<HTMLElement | null>(null);
+  let titleWidth = $state(0);
+  $effect(() => {
+    // Re-measure whenever the block resizes or the title changes; scrollWidth is the untruncated
+    // width, so it doesn't move when the time appears next to it and can't oscillate.
+    void [label, boxWidth];
+    titleWidth = titleEl?.scrollWidth ?? 0;
+  });
+  /** px: the block's horizontal padding plus the gap between title and time. */
+  const CHROME_PX = 16;
+  const timeFits = $derived(boxWidth > 0 && titleWidth + timeWidth + CHROME_PX <= boxWidth);
 
   /** Set to the badge's rect while the quick category pick is open, null otherwise. */
   let categoryRect = $state<DOMRect | null>(null);
@@ -105,6 +124,7 @@
 <div
   role="button"
   tabindex={ghost ? -1 : 0}
+  bind:clientWidth={boxWidth}
   bind:clientHeight={boxHeight}
   aria-label="{label}, {formatClock(new Date(event.start))}"
   class="absolute inset-0 flex min-w-0 overflow-hidden px-1.5 text-left leading-tight @container/evt
@@ -122,13 +142,17 @@
 
   {#if oneLine}
     <span
-      class="relative z-10 min-w-0 flex-1 overflow-hidden whitespace-nowrap t-micro text-fg {event.declined
-        ? 'line-through'
-        : ''}"
+      bind:this={titleEl}
+      class="relative z-10 min-w-0 flex-1 whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}"
     >
       {@render badge()}{label}</span
     >
-    <span class="relative z-10 shrink-0 t-data-nano text-fg-muted/60">{formatClock(new Date(event.start))}</span>
+    <span
+      bind:clientWidth={timeWidth}
+      class="z-10 shrink-0 t-data-nano text-fg-muted/60 {timeFits
+        ? 'relative'
+        : 'pointer-events-none absolute opacity-0'}">{formatClock(new Date(event.start))}</span
+    >
   {:else}
     <span
       class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}"
