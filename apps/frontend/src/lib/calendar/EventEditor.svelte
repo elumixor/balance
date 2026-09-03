@@ -3,7 +3,7 @@
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
-  import InlineError from "$lib/components/InlineError.svelte";
+  import { diagnostics } from "$lib/diagnostics.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
@@ -60,7 +60,6 @@
   let date = $state("");
   let from = $state("");
   let to = $state("");
-  let error = $state<string | null>(null);
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   /** What the calendar last agreed to, so an unchanged field never costs a write. */
@@ -89,7 +88,6 @@
     date = formatDateInput(new Date(event.start));
     from = formatClock(new Date(event.start));
     to = formatClock(new Date(event.end));
-    error = null;
     saved = {
       title: event.title,
       notes: event.description ?? "",
@@ -319,33 +317,28 @@
     if (!editable) return;
     const range = parseRange();
     if (!range) {
-      error = "Check the date and times.";
+      diagnostics.report("Event", "Check the date and times.", { title: "Check the date and times" });
       return;
     }
     const next = { title: title.trim(), notes, start: range.start.getTime(), end: range.end.getTime() };
     if (next.title === saved.title && next.notes === saved.notes && next.start === saved.start && next.end === saved.end) {
-      error = null;
       return;
     }
 
     // The write draws itself on the grid before it asks the server, so nothing here waits on the
     // network to look done — only the error, if one comes back, arrives late.
     saved = next;
-    error = null;
     await data.editEvent(event, {
       title: next.title,
       description: next.notes,
       start: range.start,
       end: range.end,
     });
-    error = data.actionError;
   }
 
   /** Mapping writes land straight away — there's nothing to type, so there's nothing to wait for. */
   async function run(action: () => Promise<void>) {
-    error = null;
     await action();
-    error = data.actionError;
   }
 
   /**
@@ -368,7 +361,7 @@
     try {
       await openExternal(url);
     } catch (e) {
-      error = e instanceof Error ? e.message : "That link wouldn't open.";
+      diagnostics.report("Link", e, { title: "That link wouldn’t open" });
     }
   }
 
@@ -384,7 +377,7 @@
       if (copiedTimer) clearTimeout(copiedTimer);
       copiedTimer = setTimeout(() => (copied = null), 1500);
     } catch {
-      error = "That link wouldn't copy.";
+      diagnostics.report("Link", "That link wouldn’t copy.", { title: "That link wouldn’t copy" });
     }
   }
 
@@ -400,11 +393,10 @@
   async function respond(response: Answer) {
     if (answering) return;
     answering = response;
-    error = null;
     try {
       applyCalendarEvent(await respondToCalendarEvent(event.id, event.calendarId, response));
     } catch (e) {
-      error = e instanceof Error ? e.message : "That didn't save.";
+      diagnostics.report("Invitation", e, { title: "Couldn’t send your reply" });
     } finally {
       answering = null;
     }
@@ -491,8 +483,6 @@
         <X size={16} class="text-fg-muted" />
       </IconButton>
     </div>
-
-    {#if error}<div class="px-3 pb-3"><InlineError message={error} /></div>{/if}
 
     <!-- When it runs. The clock owns the whole block, so the date sits under the times it belongs to. -->
     <div class="space-y-1 border-t border-line px-3 py-3">

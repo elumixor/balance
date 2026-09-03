@@ -9,12 +9,12 @@
   import Field from "$lib/components/Field.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { startDesktopSSO } from "$lib/desktop/sign-in";
+  import { diagnostics } from "$lib/diagnostics.svelte";
 
   let email = $state("");
   let password = $state("");
   let code = $state("");
   let awaitingCode = $state(false);
-  let error = $state<string | null>(null);
   let loading = $state(false);
   /** Only desktop leaves the sign-in screen up while the browser does its thing. */
   let waitingBrowser = $state(false);
@@ -24,7 +24,6 @@
   });
 
   async function onSignIn() {
-    error = null;
     loading = true;
     try {
       const signIn = await auth.signIn();
@@ -38,14 +37,13 @@
       await signIn.prepareSecondFactor({ strategy: "email_code" });
       awaitingCode = true;
     } catch (e) {
-      error = authErrorMessage(e, "That email and password didn't match.");
+      fail(e, "That email and password didn’t match.");
     } finally {
       loading = false;
     }
   }
 
   async function onVerify() {
-    error = null;
     loading = true;
     try {
       const signIn = await auth.signIn();
@@ -54,17 +52,16 @@
         await auth.activate(result.createdSessionId);
         await goto("/calendar", { replaceState: true });
       } else {
-        error = "That code didn't work. Check the email and try again.";
+        fail(null, "That code didn’t work. Check the email and try again.");
       }
     } catch (e) {
-      error = authErrorMessage(e, "That code didn't work.");
+      fail(e, "That code didn’t work.");
     } finally {
       loading = false;
     }
   }
 
   async function onSSO(strategy: "oauth_google" | "oauth_apple") {
-    error = null;
     try {
       // Neither native build can run Clerk's redirect flow in its own webview, and each gets
       // around it differently: iOS has the OS's own account picker, macOS has a real browser
@@ -85,7 +82,7 @@
       await auth.startSSO(strategy, "/calendar");
     } catch (e) {
       waitingBrowser = false;
-      error = authErrorMessage(e, "Sign in didn't finish.");
+      fail(e, "Sign in didn’t finish.");
     }
   }
 
@@ -93,12 +90,20 @@
   function cancelBrowserWait() {
     waitingBrowser = false;
   }
+
+  /**
+   * Every way this screen can fail says so in the app's one place for that — the corner — rather
+   * than growing a line of its own under the fields. What Clerk says is already a sentence, so it
+   * is the whole of the card; the technical half rides along behind the copy.
+   */
+  function fail(error: unknown, fallback: string) {
+    diagnostics.report("Sign-in", error ?? fallback, { title: authErrorMessage(error, fallback) });
+  }
 </script>
 
 {#if awaitingCode}
   <AuthShell>
     <Field bind:value={code} placeholder="Verification code" inputmode="numeric" numeric />
-    {#if error}<p class="t-label text-danger">{error}</p>{/if}
     <Button label="Verify" onclick={onVerify} {loading} disabled={!code} full />
   </AuthShell>
 {:else}
@@ -108,7 +113,6 @@
       <Field bind:value={password} placeholder="Password" type="password" />
     </div>
 
-    {#if error}<p class="t-label text-danger">{error}</p>{/if}
 
     <Button label="Sign in" onclick={onSignIn} {loading} disabled={!email || !password} full />
 

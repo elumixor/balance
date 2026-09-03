@@ -163,6 +163,6 @@ function describe(input: Parameters<typeof fetch>[0]) {
  * Reports a failure nobody on screen is going to be told about — a background refresh, a write
  * replayed by the queue — so the app can say something went wrong instead of quietly stopping.
  */
-export function reportApiFailure(scope: string, error: unknown) {
-  diagnostics.report(scope, error);
+export function reportApiFailure(scope: string, error: unknown, title?: string) {
+  diagnostics.report(scope, error, { title: title ?? `Couldn’t reach the server` });
 }

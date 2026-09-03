@@ -19,6 +19,10 @@ import { diagnostics } from "./diagnostics.svelte";
 const TICK_MS = 2_000;
 /** How long a stalled heartbeat is given before it counts as dead. */
 const DEAD_MS = 8_000;
+/** Both buttons on the hand-built card, which has no stylesheet to lean on. */
+const BUTTON =
+  "appearance:none;border:0;border-radius:8px;padding:6px 10px;background:#26262a;color:#f4f4f5;font:600 12px/1 -apple-system,system-ui,sans-serif;cursor:pointer";
+
 /**
  * A gap this much longer than the tick means the whole page was suspended — a locked phone, a
  * backgrounded tab — and not that anything failed. Both clocks stopped, so neither says anything.
@@ -65,13 +69,14 @@ class Watchdog {
     card.setAttribute("role", "alert");
     card.style.cssText = [
       "position:fixed",
-      "left:12px",
       "right:12px",
       "top:calc(env(safe-area-inset-top) + 12px)",
       "z-index:2147483647",
-      "margin:0 auto",
-      "max-width:32rem",
-      "padding:12px 14px",
+      "max-width:min(24rem,calc(100vw - 24px))",
+      "display:flex",
+      "align-items:center",
+      "gap:8px",
+      "padding:8px 8px 8px 12px",
       "border-radius:12px",
       "border:1px solid rgba(239,68,68,.45)",
       "background:#151517",
@@ -80,25 +85,31 @@ class Watchdog {
       "box-shadow:0 12px 32px rgba(0,0,0,.45)",
     ].join(";");
 
+    // One line, the same as every other failure in this app: what actually broke is behind the
+    // copy, because a card holding a page of it covers the screen it is trying to explain.
     const title = document.createElement("p");
     title.textContent = "Balance stopped responding";
-    title.style.cssText = "margin:0;color:#f87171";
+    title.style.cssText =
+      "margin:0;min-width:0;flex:1;color:#f87171;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
 
-    const detail = document.createElement("p");
-    detail.textContent = diagnostics.latest?.message ?? "The screen is still drawn, but nothing on it is live.";
-    detail.style.cssText = "margin:4px 0 10px;color:#a1a1aa;font-weight:400;word-break:break-word";
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.textContent = "Copy";
+    copy.style.cssText = BUTTON;
+    copy.onclick = () => void navigator.clipboard?.writeText(diagnostics.asText).catch(() => {});
 
     const reload = document.createElement("button");
     reload.type = "button";
     reload.textContent = "Reload";
-    reload.style.cssText =
-      "appearance:none;border:0;border-radius:8px;padding:7px 14px;background:#f4f4f5;color:#151517;font:600 13px/1 -apple-system,system-ui,sans-serif";
+    reload.style.cssText = BUTTON;
     reload.onclick = () => window.location.reload();
 
-    card.append(title, detail, reload);
+    card.append(title, copy, reload);
     document.body.appendChild(card);
     this.#card = card;
-    diagnostics.report("App", "Reactivity stopped — every effect in the app was torn down.");
+    diagnostics.report("App", "Reactivity stopped — every effect in the app was torn down.", {
+      title: "Balance stopped responding",
+    });
   }
 
   /** A heartbeat after a stall means it came back; the card has nothing left to say. */

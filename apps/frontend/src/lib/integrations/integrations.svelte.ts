@@ -143,6 +143,7 @@ class Integrations {
       await integration.connect();
     } catch (e) {
       this.#setStatus(key, { error: e instanceof Error ? e.message : "Couldn't connect." });
+      diagnostics.report(integration.name, e, { title: `Couldn’t connect ${integration.name}` });
       return;
     }
     this.update(integration.id, feed.id, { enabled: true });
@@ -194,7 +195,9 @@ class Integrations {
     if (this.#status[key]?.syncing) return;
     const settings = this.settings(integration.id, feed.id);
     if (!settings.categoryId) {
-      this.#setStatus(key, { error: `Choose what ${feed.label.toLowerCase()} counts as first.` });
+      const ask = `Choose what ${feed.label.toLowerCase()} counts as first.`;
+      this.#setStatus(key, { error: ask });
+      diagnostics.report(integration.name, ask, { title: ask.replace(/\.$/, "") });
       return;
     }
     this.#setStatus(key, { syncing: true, error: null });
@@ -219,7 +222,10 @@ class Integrations {
     } catch (e) {
       const message = e instanceof Error ? e.message : "Couldn't sync.";
       this.#setStatus(key, { syncing: false, error: message });
-      diagnostics.report(integration.name, e);
+      diagnostics.report(integration.name, e, {
+        title: `Couldn’t sync ${feed.label.toLowerCase()}`,
+        retry: () => this.sync(integration, feed),
+      });
     }
   }
 

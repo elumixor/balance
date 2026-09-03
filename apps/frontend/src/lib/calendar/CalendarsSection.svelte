@@ -7,6 +7,7 @@
   import { calendarData } from "./calendar-data.svelte";
   import { connectGoogle } from "./connect";
   import ConnectGoogle from "./ConnectGoogle.svelte";
+  import { diagnostics } from "$lib/diagnostics.svelte";
 
   /**
    * Every connected account, grouped by the address it's signed in as, and which of their
@@ -40,7 +41,7 @@
     prefs.set({ ...previous, ...input });
     void updateCalendarPrefs(input).catch((e) => {
       prefs.set(previous);
-      data.actionError = e instanceof Error ? e.message : "Couldn't save that.";
+      diagnostics.report("Calendars", e, { title: "Couldn’t save that" });
     });
   }
 
@@ -65,7 +66,7 @@
       await connectGoogle();
       await prefs.refresh();
     } catch (e) {
-      data.actionError = e instanceof Error ? e.message : "Couldn't start the connection.";
+      diagnostics.report("Google Calendar", e, { title: "Couldn’t connect Google Calendar" });
     } finally {
       connecting = false;
     }

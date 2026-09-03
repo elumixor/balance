@@ -1,7 +1,7 @@
 <script lang="ts">
   import Button from "$lib/components/Button.svelte";
   import BrowserWait from "$lib/components/BrowserWait.svelte";
-  import InlineError from "$lib/components/InlineError.svelte";
+  import { diagnostics } from "$lib/diagnostics.svelte";
   import { invalidate, store } from "$lib/store.svelte";
   import { calendarData } from "./calendar-data.svelte";
   import { ConnectCancelled, connectGoogle } from "./connect";
@@ -17,19 +17,17 @@
   const expired = $derived(needsReconnect ?? data.needsReconnect);
 
   let connecting = $state(false);
-  let error = $state<string | null>(null);
   let controller: AbortController | null = null;
 
   async function connect() {
     connecting = true;
-    error = null;
     controller = new AbortController();
     try {
       await connectGoogle(controller.signal);
       invalidate.integrations();
       await Promise.all([store.calendars.refresh(), data.refreshWeeks()]);
     } catch (e) {
-      if (!(e instanceof ConnectCancelled)) error = e instanceof Error ? e.message : "Couldn't start the connection.";
+      if (!(e instanceof ConnectCancelled)) diagnostics.report("Google Calendar", e, { title: "Couldn’t connect Google Calendar" });
     } finally {
       connecting = false;
       controller = null;
@@ -47,7 +45,6 @@
       ? "The connection expired. Reconnecting brings back every event and everything you'd mapped."
       : "Your week lives in Google Calendar. Balance reads it, and adds to it — nothing else."}
   </p>
-  {#if error}<InlineError message={error} />{/if}
   {#if connecting}
     <BrowserWait message="Waiting for you to finish in the browser…" oncancel={cancel} />
   {:else}

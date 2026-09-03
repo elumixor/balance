@@ -2,6 +2,7 @@ import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { clock } from "$lib/clock.svelte";
 import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "$lib/dates";
+import { diagnostics } from "$lib/diagnostics.svelte";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -237,7 +238,6 @@ class CalendarData {
   /** The block a right-click landed on, and where — null when no context menu is open. */
   contextMenuEvent = $state<CalendarEvent | null>(null);
   contextMenuRect = $state<DOMRect | null>(null);
-  actionError = $state<string | null>(null);
   drag = $state<DragState | null>(null);
   /**
    * Set right before a jump that didn't come from a swipe (today, a month arrow, a tapped date in
@@ -1387,7 +1387,6 @@ class CalendarData {
       this.#pending.set(one.id, one.event);
       this.#drawnBy.set(one.id, token);
     }
-    this.actionError = null;
     /** Whether this write's version of the block is still the one on screen — see `#drawnBy`. */
     const current = () => drawnList.length > 0 && drawnList.every((one) => this.#drawnBy.get(one.id) === token);
 
@@ -1399,7 +1398,7 @@ class CalendarData {
         answer = await action();
         saved = true;
       } catch (e) {
-        this.actionError = e instanceof Error ? e.message : "That didn't save.";
+        diagnostics.report("Calendar", e, { title: "That didn’t save" });
       }
       try {
         if (!saved) {

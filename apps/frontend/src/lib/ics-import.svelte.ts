@@ -3,6 +3,7 @@ import { type IcsEvent, parseIcs } from "$lib/ics";
 import { isIOSApp } from "$lib/mobile/platform";
 import { createCalendarEvent, saveEventMapping } from "$lib/queries";
 import { invalidate } from "$lib/store.svelte";
+import { diagnostics } from "./diagnostics.svelte";
 
 /**
  * Importing an `.ics` file the app was given — an invitation from Mail, a timetable downloaded in
@@ -54,6 +55,7 @@ export class IcsImport {
   importing = $state(false);
   /** How far the run has got, for the bar the sheet draws. Null when nothing is being written. */
   progress = $state<{ done: number; total: number } | null>(null);
+  /** What went wrong, for the tests and for the one card — never drawn by the sheet itself. */
   error = $state<string | null>(null);
   /** What the last import did, kept until the sheet is dismissed. */
   imported = $state<number | null>(null);
@@ -168,7 +170,7 @@ export class IcsImport {
     } finally {
       // Whatever landed drops out of the list, so pressing the button again writes only the rest.
       this.candidates = this.candidates.filter((candidate) => !landed.has(candidate.key));
-      this.error = failure;
+      this.#fail(failure);
       this.imported = landed.size > 0 ? landed.size : null;
       this.importing = false;
       this.progress = null;
@@ -209,7 +211,7 @@ export class IcsImport {
       this.fileName = file.name;
       this.candidates = [];
       this.imported = null;
-      this.error = "That isn't a calendar file.";
+      this.#fail("That isn't a calendar file.");
       return;
     }
     try {
@@ -218,14 +220,20 @@ export class IcsImport {
       this.fileName = file.name;
       this.candidates = [];
       this.imported = null;
-      this.error = e instanceof Error ? e.message : "That file wouldn't open.";
+      this.#fail(e instanceof Error ? e.message : "That file wouldn't open.", e);
     }
+  }
+
+  /** Says it once, in the one place the app says these things, and keeps it for whoever asks. */
+  #fail(message: string | null, error?: unknown) {
+    this.error = message;
+    if (message) diagnostics.report("Import", error ?? message, { title: message.replace(/\.$/, "") });
   }
 
   receive(file: IncomingFile) {
     const events = parseIcs(file.content);
     this.fileName = file.name;
-    this.error = events.length === 0 ? "There are no events in that file." : null;
+    this.#fail(events.length === 0 ? "There are no events in that file." : null);
     this.imported = null;
     this.candidates = events.map((event, index) => ({
       key: `${event.uid ?? "event"}:${index}`,

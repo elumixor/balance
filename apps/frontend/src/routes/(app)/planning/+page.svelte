@@ -1,6 +1,4 @@
 <script lang="ts">
-  import InlineError from "$lib/components/InlineError.svelte";
-  import LoadError from "$lib/components/LoadError.svelte";
   import Screen from "$lib/components/Screen.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
   import { synced } from "$lib/synced.svelte";
@@ -39,9 +37,7 @@
 <svelte:window {onkeydown} />
 
 <Screen title="Planning" wide>
-  {#if week.loadError && !week.ready}
-    <LoadError message={week.loadError} onretry={week.load} />
-  {:else if !week.ready}
+  {#if !week.ready}
     <div class="flex flex-col items-center gap-4">
       <Skeleton width={232} height={232} radius={116} />
       <Skeleton width="80%" height={16} />
@@ -59,7 +55,6 @@
         centerLabel="{claimedPercent}% of 168h claimed"
       />
 
-      <div class="mt-4"><InlineError message={week.error} /></div>
 
       <p class="t-micro mx-auto mt-4 max-w-[40ch] text-center text-fg-faint">
         Tap a slice's icon to change how it looks, drag a seam to move hours between neighbours, or

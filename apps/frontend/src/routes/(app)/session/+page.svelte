@@ -2,7 +2,6 @@
   import { page } from "$app/state";
   import Button from "$lib/components/Button.svelte";
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
-  import LoadError from "$lib/components/LoadError.svelte";
   import Screen from "$lib/components/Screen.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
   import SplitBar from "$lib/components/SplitBar.svelte";
@@ -68,9 +67,7 @@
 </script>
 
 <Screen title={summary?.copy.title ?? "Your day"} subtitle={summary?.copy.body}>
-  {#if data.error && !summary}
-    <LoadError message={data.error} onretry={() => data.load()} />
-  {:else if !summary}
+  {#if !summary}
     <div class="space-y-4">
       <Skeleton width="100%" height={18} />
       <Skeleton width="70%" height={18} />

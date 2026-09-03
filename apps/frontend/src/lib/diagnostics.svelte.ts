@@ -9,23 +9,37 @@ export interface Problem {
   readonly at: Date;
   /** What was being done — "Calendar", "Sign-in", "Sync". Groups repeats of the same failure. */
   readonly scope: string;
+  /** The whole of what the card says: a sentence a person can act on, never a server's words. */
+  readonly title: string;
+  /** What actually failed, in the words it failed in. Behind the copy button, never on screen. */
   readonly message: string;
   /** The technical half: a stack, a URL, a status. Behind the copy button, never in the sentence. */
   readonly detail?: string;
+  /** What would fix it, if anything can — the card grows a button and clears itself when it works. */
+  retry?: () => void | Promise<unknown>;
   count: number;
+}
+
+/** What a caller knows about a failure beyond the error itself. */
+export interface ReportOptions {
+  /** What to put on the card — a sentence for a person. Without one the card says nothing useful. */
+  title?: string;
+  detail?: string;
+  retry?: () => void | Promise<unknown>;
 }
 
 /** More than this and the oldest goes: what matters is the last thing that failed, not the log. */
 const KEPT = 20;
 
 /**
- * Everything that failed where nobody was looking.
+ * Everything that failed, wherever it failed.
  *
- * A screen that can say what went wrong says it itself — a week that didn't load has its own card
- * with its own retry. This is for the rest: a promise nobody awaited, a render that threw, a
- * request made by a background loop. Those used to be a `console.error` in a webview with no
- * console attached, which is why an app that had quietly stopped working looked like an app that
- * was still loading.
+ * There is one place in this app that says something went wrong, and it is the corner: a promise
+ * nobody awaited, a render that threw, a week that didn't load, a write the server refused. Screens
+ * used to say it themselves, each in its own shape and its own corner, which is how a card meant to
+ * hold a sentence ended up holding a database query and covering the week it was about.
+ *
+ * A failure a screen can undo travels with its `retry`, so the one card carries the way out too.
  */
 class Diagnostics {
   problems = $state<Problem[]>([]);
@@ -45,26 +59,31 @@ class Diagnostics {
    * Untracked throughout: reporting reads the list it is about to write to, and an `$effect` that
    * reports a failure would otherwise be re-running itself for as long as the app is open.
    */
-  report(scope: string, error: unknown, detail?: string) {
-    untrack(() => this.#report(scope, error, detail));
+  report(scope: string, error: unknown, options?: ReportOptions) {
+    untrack(() => this.#report(scope, error, options));
   }
 
-  #report(scope: string, error: unknown, detail?: string) {
+  #report(scope: string, error: unknown, options?: ReportOptions) {
     const message = messageOf(error);
-    const fullDetail = [detail, detailOf(error)].filter(Boolean).join("\n");
+    const fullDetail = [options?.detail, detailOf(error)].filter(Boolean).join("\n");
     // The same failure every 30 seconds from a loop that keeps retrying is one problem with a
     // count, not twenty entries pushing the first one off the end.
     const existing = this.problems.find((problem) => problem.scope === scope && problem.message === message);
     if (existing) {
       existing.count += 1;
+      // The newest way out of it: the same failure from a screen that has since been left would
+      // otherwise offer a retry that refetches something nobody is looking at.
+      existing.retry = options?.retry;
       return;
     }
     this.problems.push({
       id: this.#nextId++,
       at: new Date(),
       scope,
+      title: options?.title ?? "Something went wrong",
       message,
       detail: fullDetail || undefined,
+      retry: options?.retry,
       count: 1,
     });
     if (this.problems.length > KEPT) this.problems.shift();
@@ -124,6 +143,7 @@ export const diagnostics = new Diagnostics();
 function entryOf(problem: Problem) {
   return [
     `[${problem.at.toISOString()}] ${problem.scope}${problem.count > 1 ? ` ×${problem.count}` : ""}`,
+    problem.title,
     problem.message,
     problem.detail,
   ]

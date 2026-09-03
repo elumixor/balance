@@ -5,8 +5,6 @@
   import EventEditor from "$lib/calendar/EventEditor.svelte";
   import WeekGrid from "$lib/calendar/WeekGrid.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
-  import CopyButton from "$lib/components/CopyButton.svelte";
-  import LoadError from "$lib/components/LoadError.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import SidePanelSection from "$lib/components/nav/SidePanelSection.svelte";
   import { categories } from "$lib/synced.svelte";
@@ -19,7 +17,7 @@
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { slotNow } from "$lib/planning/zone";
-  import { Menu, X } from "lucide-svelte";
+  import { Menu } from "lucide-svelte";
 
   /**
    * The whole window is the week. Everything that isn't the grid — the calendars, where you are
@@ -159,36 +157,6 @@
   <!-- The grid and everything that floats over it. Its own stacking context, under the bar rather
        than behind it, so a failure or a "connect" card can't land on the notch or on the month. -->
   <div class="relative min-h-0 flex-1">
-    <!-- Both of this screen's failures in one corner column, so a refused write and a week that
-         didn't load stack rather than land on each other. The week that failed still has its days,
-         hours and today's line, so the grid keeps the screen and the card only takes a corner of
-         it — and a message a whole query long is one line with the rest behind the copy. -->
-    {#if data.actionError || week.error}
-      <div class="absolute top-2 right-0 z-20 flex w-full max-w-sm flex-col items-end gap-2 px-3 md:px-4">
-        {#if data.actionError}
-          <div
-            class="flex w-full min-w-0 items-center gap-1 rounded-lg border border-danger/40 bg-surface py-1.5 pr-1
-              pl-3 shadow-(--shadow-float)"
-          >
-            <p class="t-micro min-w-0 flex-1 truncate text-danger" title={data.actionError}>{data.actionError}</p>
-            <CopyButton text={() => data.actionError ?? ""} label="Copy error details" size={13} />
-            <button
-              type="button"
-              class="press-sm shrink-0 rounded-md p-1 text-fg-faint hover:text-fg"
-              aria-label="Dismiss"
-              onclick={() => (data.actionError = null)}
-            >
-              <X size={13} />
-            </button>
-          </div>
-        {/if}
-
-        {#if week.error}
-          <LoadError message={week.error} onretry={() => void week.refresh()} />
-        {/if}
-      </div>
-    {/if}
-
     {#if data.connectionKnown && !data.connected}
       <!-- The rail already asks on a wide screen, so there the empty week itself is the answer. -->
       <div class="flex h-full items-center justify-center p-6 md:hidden">

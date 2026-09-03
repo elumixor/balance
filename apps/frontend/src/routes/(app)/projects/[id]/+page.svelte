@@ -6,8 +6,6 @@
   import Dot from "$lib/components/Dot.svelte";
   import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
-  import InlineError from "$lib/components/InlineError.svelte";
-  import LoadError from "$lib/components/LoadError.svelte";
   import NumberField from "$lib/components/NumberField.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
@@ -89,9 +87,7 @@
     <span class="t-micro">Projects</span>
   </a>
 
-  {#if data.loadError && !data.ready}
-    <LoadError message={data.loadError} onretry={data.load} />
-  {:else if !data.ready}
+  {#if !data.ready}
     <div class="space-y-3">
       <Skeleton height={44} width="60%" />
       <Skeleton height={120} radius={10} />
@@ -252,7 +248,6 @@
       </section>
     </div>
 
-    <div class="mt-4"><InlineError message={data.error} /></div>
 
     {#if card.stage}
       <DecisionSheet

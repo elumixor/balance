@@ -97,21 +97,33 @@ describe("failure", () => {
   });
 
   /**
-   * A cache with a scope is one no screen shows the failure of — the settings behind a dialog
-   * nobody has open, the list of calendars. Failing quietly is how those stopped working without
-   * anybody being told.
+   * Every failure reaches the one card, named by the scope the cache was given — the settings
+   * behind a dialog nobody has open, the list of calendars, the week itself. Failing quietly is
+   * how these stopped working without anybody being told.
    */
-  it("reports a failure the app has nowhere else to show", async () => {
+  it("reports a failure under the scope it was given", async () => {
     const cached = new Cached(() => Promise.reject(new Error("offline")), "nope", undefined, "Settings");
     await cached.ensure();
     expect(diagnostics.latest?.scope).toBe("Settings");
     expect(diagnostics.latest?.message).toBe("offline");
   });
 
-  it("says nothing to the banner for a cache whose own screen shows the failure", async () => {
+  it("reports a nameless cache's failure too, rather than letting it pass unsaid", async () => {
     const cached = new Cached(() => Promise.reject(new Error("offline")), "nope");
     await cached.ensure();
-    expect(diagnostics.problems).toHaveLength(0);
+    expect(diagnostics.latest?.scope).toBe("Loading");
+  });
+
+  it("hands the card a retry that refetches", async () => {
+    let attempts = 0;
+    const cached = new Cached(() => {
+      attempts += 1;
+      return attempts === 1 ? Promise.reject(new Error("offline")) : Promise.resolve("week");
+    }, "nope");
+    await cached.ensure();
+    await diagnostics.latest?.retry?.();
+    expect(cached.value).toBe("week");
+    expect(cached.error).toBeNull();
   });
 
   it("tries again on the next mount instead of showing an empty screen forever", async () => {

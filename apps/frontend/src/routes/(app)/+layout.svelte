@@ -25,7 +25,6 @@
   import { telemetry } from "$lib/telemetry";
   import { adoptUser, warmStore } from "$lib/store.svelte";
   import { diagnostics } from "$lib/diagnostics.svelte";
-  import ScreenFailed from "$lib/components/ScreenFailed.svelte";
   import { startWatchHandoff } from "$lib/watch/handoff";
   import { untrack, type Snippet } from "svelte";
   import { page } from "$app/state";
@@ -59,7 +58,7 @@
       if (userId) adoptUser(userId);
       // Everything reported from here on belongs to an account rather than to a browser.
       telemetry.identify(userId, auth.email);
-      warmStore().catch((e) => diagnostics.report("Loading", e));
+      warmStore().catch((e) => diagnostics.report("Loading", e, { title: "Couldn’t load your data", retry: warmStore }));
     });
   });
 
@@ -68,7 +67,7 @@
   // show it — see `syncStatus.rejected` — but a sync that can't reach the server has none.
   $effect(() => {
     const error = syncStatus.error;
-    if (error) diagnostics.report("Sync", error);
+    if (error) diagnostics.report("Sync", error, { title: "Couldn’t save your changes" });
   });
 
   // On macOS the app is also the menu bar item, which outlives every screen — so it starts with
@@ -129,6 +128,15 @@
     e.preventDefault();
     void goto(tab.href);
   }
+
+  /**
+   * A screen that threw says so in the corner like everything else, with `reset` as its retry —
+   * nothing here holds state the store doesn't hold for it, so building it again is free.
+   */
+  function report(error: unknown, reset: () => void) {
+    diagnostics.report("Screen", error, { title: "This screen didn’t draw", retry: reset });
+    return "";
+  }
 </script>
 
 <svelte:window {onkeydown} />
@@ -150,10 +158,14 @@
                tabs stayed drawn and stopped answering, which reads as an app that is still loading.
                The boundary keeps the shell alive, says what happened, and lets the screen be built
                again — nothing here holds state that the store doesn't hold for it. -->
-          <svelte:boundary onerror={(e) => diagnostics.report("Screen", e)}>
+          <svelte:boundary>
             {@render children()}
             {#snippet failed(error, reset)}
-              <ScreenFailed {error} {reset} />
+              <!-- Nothing is drawn here: the corner says a screen didn't draw, and carries the way
+                   to build it again. Anything drawn in its place would be a second answer to the
+                   same question, in the one spot the screen it replaces was supposed to be. -->
+              {@const said = report(error, reset)}
+              <div class="hidden">{said}</div>
             {/snippet}
           </svelte:boundary>
         </main>

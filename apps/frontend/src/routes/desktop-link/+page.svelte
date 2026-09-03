@@ -5,6 +5,7 @@
   import Button from "$lib/components/Button.svelte";
   import Spinner from "$lib/components/Spinner.svelte";
   import { createDesktopTicket } from "$lib/queries";
+  import { diagnostics } from "$lib/diagnostics.svelte";
 
   /**
    * The browser half of signing in to the macOS app.
@@ -18,13 +19,18 @@
     page.url.searchParams.get("strategy") === "oauth_apple" ? "oauth_apple" : "oauth_google",
   );
 
-  let error = $state<string | null>(null);
   let handedOff = $state(false);
+  /** One failure stops the effect asking again; the card in the corner carries the way back. */
+  let failed = $state(false);
 
   $effect(() => {
-    if (!auth.loaded || error) return;
+    if (!auth.loaded || failed) return;
     if (auth.signedIn) void handOff();
-    else void auth.startSSO(strategy, "/desktop-link").catch((e) => (error = authErrorMessage(e, "Sign in didn't finish.")));
+    else
+      void auth.startSSO(strategy, "/desktop-link").catch((e) => {
+        failed = true;
+        diagnostics.report("Sign-in", e, { title: authErrorMessage(e, "Sign in didn’t finish.") });
+      });
   });
 
   async function handOff() {
@@ -35,16 +41,14 @@
       window.location.href = `balance-desktop://auth?ticket=${encodeURIComponent(ticket)}`;
     } catch (e) {
       handedOff = false;
-      error = e instanceof Error ? e.message : "Couldn't hand the session over.";
+      failed = true;
+      diagnostics.report("Desktop", e, { title: "Couldn’t hand the session over", retry: () => ((failed = false), void handOff()) });
     }
   }
 </script>
 
 <AuthShell tagline={handedOff ? "Sending you back to Balance." : "Signing you in for the desktop app."}>
-  {#if error}
-    <p class="t-label text-danger">{error}</p>
-    <Button label="Try again" onclick={() => ((error = null), (handedOff = false))} full />
-  {:else if handedOff}
+  {#if handedOff}
     <p class="t-label text-fg-muted">
       Your browser will ask to open Balance. If nothing happens, open the app and try again.
     </p>

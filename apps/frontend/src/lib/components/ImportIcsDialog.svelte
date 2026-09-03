@@ -4,7 +4,6 @@
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Dialog from "$lib/components/Dialog.svelte";
   import Dot from "$lib/components/Dot.svelte";
-  import InlineError from "$lib/components/InlineError.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
@@ -122,10 +121,6 @@
         <Check size={16} />
         {icsImport.imported} event{icsImport.imported === 1 ? "" : "s"} added to your calendar.
       </p>
-    {/if}
-
-    {#if icsImport.error}
-      <InlineError message={icsImport.error} />
     {/if}
 
     {#if icsImport.candidates.length > 0}

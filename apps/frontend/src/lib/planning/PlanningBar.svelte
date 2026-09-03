@@ -1,5 +1,4 @@
 <script lang="ts">
-  import InlineError from "$lib/components/InlineError.svelte";
   import { goto } from "$app/navigation";
   import Button from "$lib/components/Button.svelte";
   import { planMode } from "./plan-mode.svelte";
@@ -60,7 +59,6 @@
       </p>
       <Button full label="Done" onclick={close} />
     {:else}
-      <InlineError message={planMode.error} />
       <Button
         full
         label={label()}

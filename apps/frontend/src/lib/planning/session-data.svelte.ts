@@ -1,4 +1,5 @@
 import { untrack } from "svelte";
+import { diagnostics } from "$lib/diagnostics.svelte";
 import { getSessionSummary } from "$lib/queries";
 import { telemetry } from "$lib/telemetry";
 import type { SessionSummary, Slot } from "./types";
@@ -51,6 +52,7 @@ class SessionData {
       telemetry.event("session_loaded", { slot: summary.slot, planned: summary.target.planned });
     } catch (e) {
       this.error = e instanceof Error ? e.message : "Couldn't open your session.";
+      diagnostics.report("Session", e, { title: "Couldn’t open your session", retry: () => this.load() });
     } finally {
       this.loading = false;
     }

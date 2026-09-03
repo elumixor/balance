@@ -23,7 +23,7 @@
   viewport.start();
   // Failures also surface through `auth.startupError`, which the splash reads; this keeps the
   // rejection handled and puts it where a screen that isn't the splash can show it too.
-  auth.load().catch((e) => diagnostics.report("Sign-in", e));
+  auth.load().catch((e) => diagnostics.report("Sign-in", e, { title: "Couldn’t sign you in", retry: () => auth.load() }));
   // Above the routes, because a `balance-desktop://` ticket can land on any of them — including the
   // sign-in screen the app happens to be showing when the browser finishes.
   $effect(watchDesktopSignIn);

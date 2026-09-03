@@ -1,6 +1,7 @@
 import { goto } from "$app/navigation";
 import type { Cached } from "$lib/cache.svelte";
 import { weekKey } from "$lib/dates";
+import { diagnostics } from "$lib/diagnostics.svelte";
 import { commitPlannedDay, commitPlannedWeek } from "$lib/queries";
 import { calendarWeek } from "$lib/store.svelte";
 import { telemetry } from "$lib/telemetry";
@@ -140,7 +141,7 @@ class PlanMode {
       // The nudge asks whether the day has been planned, and it just has.
       void sessionData.refresh();
     } catch (e) {
-      this.error = e instanceof Error ? e.message : "Couldn't save that.";
+      diagnostics.report("Planning", e, { title: "Couldn’t save your plan" });
     } finally {
       this.committing = false;
     }

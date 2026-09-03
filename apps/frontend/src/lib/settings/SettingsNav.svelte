@@ -4,6 +4,7 @@
   import { store } from "$lib/store.svelte";
   import { Plus } from "lucide-svelte";
   import { type Pane, PANES } from "./panes";
+  import { diagnostics } from "$lib/diagnostics.svelte";
 
   /**
    * The rail down the left of the settings panel: which page you're on, and which accounts the
@@ -31,7 +32,7 @@
       await connectGoogle();
       await store.calendars.refresh();
     } catch (e) {
-      calendarData.actionError = e instanceof Error ? e.message : "Couldn't start the connection.";
+      diagnostics.report("Google Calendar", e, { title: "Couldn’t connect Google Calendar" });
     } finally {
       connecting = false;
     }

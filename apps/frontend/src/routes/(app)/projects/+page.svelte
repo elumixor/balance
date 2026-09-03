@@ -3,8 +3,6 @@
   import { goto } from "$app/navigation";
   import Dot from "$lib/components/Dot.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
-  import InlineError from "$lib/components/InlineError.svelte";
-  import LoadError from "$lib/components/LoadError.svelte";
   import Screen from "$lib/components/Screen.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
@@ -54,9 +52,7 @@
 <Screen title="Projects" wide>
   <div class="mb-6"><Segmented options={VIEWS} value={view} /></div>
 
-  {#if data.loadError && !data.ready}
-    <LoadError message={data.loadError} onretry={data.load} />
-  {:else if !data.ready}
+  {#if !data.ready}
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {#each [0, 1, 2] as i (i)}
         <Skeleton height={124} radius={10} />
@@ -138,5 +134,4 @@
     </div>
   {/if}
 
-  <div class="mt-4"><InlineError message={data.error} /></div>
 </Screen>

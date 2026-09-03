@@ -39,9 +39,9 @@ export class Cached<T> {
   readonly #key: string | undefined;
 
   /**
-   * What the banner calls this when it fails — "Calendars", "Settings". Only for the caches no
-   * screen shows the failure of: a week has its own card with its own retry, and reporting that
-   * as well would say the same thing twice on the screen it happened on.
+   * What the card calls this when it fails — "Calendars", "Settings", "Week". Every cache reports:
+   * the corner is the app's one way of saying something went wrong, and a screen that drew its own
+   * card for this was a second answer to the same question, in a shape that couldn't hold it.
    */
   readonly #scope: string | undefined;
 
@@ -85,7 +85,12 @@ export class Cached<T> {
       if (generation !== this.#generation) this.#stale = true;
     } catch (e) {
       this.error = e instanceof Error ? e.message : this.fallbackError;
-      if (this.#scope) diagnostics.report(this.#scope, e);
+      // The card says what this cache is for and carries the way out, since this is the thing
+      // that knows how to ask again. The fallback sentence was always written for a person.
+      diagnostics.report(this.#scope ?? "Loading", e, {
+        title: this.fallbackError.replace(/\.$/, ""),
+        retry: () => this.refresh(),
+      });
     } finally {
       this.loading = false;
     }
