@@ -52,6 +52,8 @@ export interface CalendarEvent {
   taskId: string | null;
   /** How a timer run for it is broken up; null when it just runs to the end. */
   timer: EventTimer | null;
+  /** Which integration wrote it — "apple-health:sleep" — or null for one a person made. */
+  source: string | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
   location: string | null;
   /** The link that means "you are in the call". */
@@ -76,6 +78,7 @@ export const NOT_A_MEETING = {
   practiceId: null,
   taskId: null,
   timer: null,
+  source: null,
   location: null,
   conferenceUrl: null,
   conferenceName: null,
@@ -90,6 +93,7 @@ export const NOT_A_MEETING = {
   | "practiceId"
   | "taskId"
   | "timer"
+  | "source"
   | "location"
   | "conferenceUrl"
   | "conferenceName"

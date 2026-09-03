@@ -5,6 +5,7 @@
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
   import GeneralPane from "$lib/settings/GeneralPane.svelte";
   import InboxPane from "$lib/settings/InboxPane.svelte";
+  import IntegrationsPane from "$lib/settings/IntegrationsPane.svelte";
   import { PANES } from "$lib/settings/panes";
   import PlacesPane from "$lib/settings/PlacesPane.svelte";
   import PlanningPane from "$lib/settings/PlanningPane.svelte";
@@ -78,6 +79,8 @@
         <RemindersPane />
       {:else if settings.pane === "places"}
         <PlacesPane />
+      {:else if settings.pane === "integrations"}
+        <IntegrationsPane />
       {:else}
         <SettingsGroup title="Calendars" note="Which calendars are drawn, and where new events land." divided={false}>
           <CalendarsSection />

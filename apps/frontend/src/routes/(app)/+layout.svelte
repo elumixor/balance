@@ -13,6 +13,7 @@
   import { isBareKey, isSettingsKey } from "$lib/keys";
   import { syncStatus } from "$lib/synced.svelte";
   import { icsImport } from "$lib/ics-import.svelte";
+  import { integrations } from "$lib/integrations/integrations.svelte";
   import IcsDropZone from "$lib/components/IcsDropZone.svelte";
   import ImportIcsDialog from "$lib/components/ImportIcsDialog.svelte";
   import { mobileReminders } from "$lib/mobile/reminders.svelte";
@@ -87,6 +88,7 @@
     sessionReminders.start();
     sessionNudge.start();
     icsImport.start();
+    integrations.start();
     const stopWatchHandoff = startWatchHandoff();
     return () => {
       desktopTray.stop();
@@ -97,6 +99,7 @@
       sessionReminders.stop();
       sessionNudge.stop();
       icsImport.stop();
+      integrations.stop();
       stopWatchHandoff();
     };
   });

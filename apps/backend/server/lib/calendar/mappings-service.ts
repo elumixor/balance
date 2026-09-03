@@ -18,6 +18,8 @@ export interface MappingPurpose {
   readonly taskId: string | null;
   /** How a timer for the event is broken up; null when it just runs to the end. */
   readonly timer: EventTimer | null;
+  /** The integration that wrote the event, or null for one a person made. */
+  readonly source: string | null;
 }
 
 export interface MappingInput extends MappingKey, Partial<MappingPurpose> {
@@ -60,6 +62,7 @@ export class EventMappingService {
       practiceId: input.practiceId ?? null,
       taskId: input.taskId ?? null,
       timer: input.timer ?? null,
+      source: input.source ?? null,
     };
     const [mapping] = await db
       .insert(eventMappings)
@@ -80,6 +83,7 @@ export class EventMappingService {
           ...(input.practiceId === undefined ? {} : { practiceId: values.practiceId }),
           ...(input.taskId === undefined ? {} : { taskId: values.taskId }),
           ...(input.timer === undefined ? {} : { timer: values.timer }),
+          ...(input.source === undefined ? {} : { source: values.source }),
         },
       })
       .returning();
@@ -138,10 +142,11 @@ export class EventMappingService {
     practiceId: string | null;
     taskId: string | null;
     timer: EventTimer | null;
+    source: string | null;
     activity: { name: string; weights: { categoryId: string; weightPercent: number }[] } | null;
     weights: { categoryId: string; weightPercent: number }[];
   }): ResolvedMapping {
-    const source = row.activity ? row.activity.weights : row.weights;
+    const weights = row.activity ? row.activity.weights : row.weights;
     return {
       calendarId: row.calendarId,
       scope: row.scope as MappingScope,
@@ -152,7 +157,8 @@ export class EventMappingService {
       practiceId: row.practiceId,
       taskId: row.taskId,
       timer: row.timer,
-      weights: source.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
+      source: row.source,
+      weights: weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
     };
   }
 }

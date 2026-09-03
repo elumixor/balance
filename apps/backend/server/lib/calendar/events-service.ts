@@ -129,6 +129,8 @@ export class CalendarEventsService {
     practiceId?: string;
     taskId?: string;
     timer?: EventTimer | null;
+    /** The integration writing it, so a later pass can tell its own events from everyone else's. */
+    source?: string;
     start: Date;
     end: Date;
     calendarId?: string;
@@ -176,6 +178,7 @@ export class CalendarEventsService {
       practiceId: input.practiceId ?? null,
       taskId: input.taskId ?? null,
       timer: input.timer ?? null,
+      source: input.source ?? null,
     });
     return {
       ...this.attachMappings([{ ...created, calendarId }], [mapping])[0],
@@ -312,6 +315,7 @@ export class CalendarEventsService {
               practiceId: mapping.practiceId,
               taskId: mapping.taskId,
               timer: mapping.timer,
+              source: mapping.source,
             }
           : null,
         weights: mapping?.weights ?? [],

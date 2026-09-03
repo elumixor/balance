@@ -74,6 +74,17 @@ describe("read and write", () => {
     expect(persist.read("week:fresh")).toEqual({ events: [] });
   });
 
+  it("keeps a setting however old it is, and keeps it apart from the caches", () => {
+    persist.writeSetting("integrations", { enabled: true });
+    expect(persist.readSetting("integrations")).toEqual({ enabled: true });
+    expect(persist.read("integrations")).toBeUndefined();
+    expect(persist.readSetting("nothing")).toBeUndefined();
+    storage.setItem(`${PREFIX}:setting:broken`, "{");
+    expect(persist.readSetting("broken")).toBeUndefined();
+    persist.wipe();
+    expect(persist.readSetting("integrations")).toBeUndefined();
+  });
+
   it("drops one key without touching the others", () => {
     persist.write("a", 1, Date.now());
     persist.write("b", 2, Date.now());
@@ -97,6 +108,8 @@ describe("a storage that refuses", () => {
     expect(persist.storedOwner()).toBeNull();
     expect(persist.adoptOwner("user_1")).toBe(false);
     expect(() => persist.write("a", 1, Date.now())).not.toThrow();
+    expect(persist.readSetting("a")).toBeUndefined();
+    expect(() => persist.writeSetting("a", 1)).not.toThrow();
     expect(() => persist.drop("a")).not.toThrow();
     expect(() => persist.wipe()).not.toThrow();
     expect(() => persist.prune("week:", 2)).not.toThrow();
@@ -115,6 +128,7 @@ describe("a storage that refuses", () => {
     persist.write("week:3", "c", Date.now() - 1 * DAY_MS);
 
     storage.failWrites = true;
+    expect(() => persist.writeSetting("s", 1)).not.toThrow();
     persist.write("week:4", "d", Date.now());
     // The oldest weeks went, so the next attempt has somewhere to go.
     expect(persist.read("week:1")).toBeUndefined();

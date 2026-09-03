@@ -162,6 +162,12 @@ export const eventMappings = pgTable(
      * means a timer for this event simply runs to the end.
      */
     timer: jsonb("timer").$type<EventTimer>(),
+    /**
+     * Which integration wrote the event, when one did — "apple-health", say. An integration only
+     * ever touches events carrying its own name, so a night somebody typed in by hand is left
+     * alone, and a person's own events are never mistaken for a feed's.
+     */
+    source: text("source"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

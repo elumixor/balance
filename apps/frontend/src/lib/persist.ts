@@ -86,6 +86,31 @@ export function write<T>(key: string, value: T, now: number) {
   }
 }
 
+/**
+ * A setting the device keeps for itself, for as long as it is asked to. The caches above are
+ * copies of the server's answer and go stale; a choice made on this device — which integrations
+ * run here — has no server copy to fall back on, so it is never aged out. Still wiped with the
+ * rest on sign-out: the choice was this account's.
+ */
+export function readSetting<T>(key: string): T | undefined {
+  const store = storage();
+  if (!store) return undefined;
+  try {
+    const raw = store.getItem(`${PREFIX}:setting:${key}`);
+    return raw ? (JSON.parse(raw) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function writeSetting<T>(key: string, value: T) {
+  try {
+    storage()?.setItem(`${PREFIX}:setting:${key}`, JSON.stringify(value));
+  } catch {
+    // A setting that can't be kept is re-asked for next time; nothing to say now.
+  }
+}
+
 export function drop(key: string) {
   storage()?.removeItem(`${PREFIX}:${key}`);
 }

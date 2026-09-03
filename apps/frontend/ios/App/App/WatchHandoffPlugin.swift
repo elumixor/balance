@@ -11,6 +11,7 @@ class BalanceBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(WatchHandoffPlugin())
         bridge?.registerPluginInstance(IcsImportPlugin())
+        bridge?.registerPluginInstance(HealthKitPlugin())
     }
 }
 

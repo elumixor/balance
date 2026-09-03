@@ -31,6 +31,17 @@ export const disconnectGoogle = (accountId: string) =>
   callApi(api.integrations.google.$delete({ accountId })).then(unwrapOk);
 
 // Preferences
+/** Spans an integration on this device observed, written as its own events — see `integrations.svelte.ts`. */
+export const syncIntegrationSpans = (input: {
+  source: string;
+  from: string;
+  to: string;
+  spans: { start: string; end: string }[];
+  title: string;
+  categoryId: string;
+  calendarId?: string;
+}) => callApi(api.integrations.spans.$post(input)).then(unwrapOk);
+
 export const getPreferences = () => callApi(api.preferences.$get()).then((r) => unwrapOk(r) as StoredPreferences);
 /** One section at a time, one setting at a time — the panel has no Save button. */
 export const updatePreferences = (patch: {

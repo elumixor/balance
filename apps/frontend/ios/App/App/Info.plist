@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>BalancePostHogHost</key>
-	<string></string>
+	<string>https://us.i.posthog.com</string>
 	<key>BalancePostHogKey</key>
-	<string></string>
+	<string>phc_CcjJhKFYEQCmhSWH9yzmWSsPFpFqXTvxFisSBcnu9Jrg</string>
 	<key>BalanceSentryDSN</key>
-	<string></string>
+	<string>https://155b982e4b4830073ccbd36da908fdd9@o4511336305328128.ingest.de.sentry.io/4511336582021200</string>
 	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
@@ -52,7 +52,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>35</string>
+	<string>36</string>
 	<key>GIDClientID</key>
 	<string>836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -61,8 +61,12 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Balance reads the nights you slept so they can appear in your calendar as they happened.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Balance never writes to Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Balance uses your location to work out when to leave for an event you're travelling to.</string>
+	<string>Balance uses your location to work out when to leave for an event you&#39;re travelling to.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

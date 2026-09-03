@@ -96,6 +96,8 @@ export class CalendarEventDTO {
   readonly taskId: string | null;
   /** How a timer for it is broken up; null when it just runs to the end. */
   readonly timer: EventTimer | null;
+  /** Which integration wrote it, or null for one a person made. */
+  readonly source: string | null;
   readonly location: string | null;
   readonly conferenceUrl: string | null;
   readonly conferenceName: string | null;
@@ -128,6 +130,7 @@ export class CalendarEventDTO {
     this.practiceId = e.mapping?.practiceId ?? null;
     this.taskId = e.mapping?.taskId ?? null;
     this.timer = e.mapping?.timer ?? null;
+    this.source = e.mapping?.source ?? null;
     this.location = e.location;
     this.conferenceUrl = e.conferenceUrl;
     this.conferenceName = e.conferenceName;
