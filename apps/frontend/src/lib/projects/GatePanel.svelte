@@ -1,6 +1,5 @@
 <script lang="ts">
   import Button from "$lib/components/Button.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import { gateEvents } from "$lib/synced.svelte";
   import type { GateProgress, Stage } from "$lib/types";
   import { CircleDashed, PenLine, X } from "lucide-svelte";
@@ -73,9 +72,9 @@
           </span>
           <span class="text-fg-faint">{row.source === "manual" ? "by hand" : row.source}</span>
           {#if row.source === "manual"}
-            <IconButton label="Remove entry" tone="plain" onclick={() => data.removeManual(row.id)}>
-              <X size={12} class="text-fg-faint" />
-            </IconButton>
+            <Button variant="bare" title="Remove entry" onclick={() => data.removeManual(row.id)}>
+              {#snippet icon()}<X size={12} class="text-fg-faint" />{/snippet}
+            </Button>
           {/if}
         </li>
       {/each}

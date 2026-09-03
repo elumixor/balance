@@ -4,7 +4,6 @@
   import ConnectGoogle from "$lib/calendar/ConnectGoogle.svelte";
   import EventEditor from "$lib/calendar/EventEditor.svelte";
   import WeekGrid from "$lib/calendar/WeekGrid.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import SidePanelSection from "$lib/components/nav/SidePanelSection.svelte";
   import { categories } from "$lib/synced.svelte";
@@ -128,9 +127,9 @@
            settings, which until now only a keyboard could reach. -->
       <Popover width={330}>
         {#snippet trigger(open: () => void)}
-          <IconButton label="Calendars, week and settings" onclick={open}>
-            <Menu size={18} />
-          </IconButton>
+          <Button variant="bare" class="size-8 bg-surface-alt" title="Calendars, week and settings" onclick={open}>
+            {#snippet icon()}<Menu size={18} />{/snippet}
+          </Button>
         {/snippet}
         {#snippet content(close: () => void)}
           <div class="max-h-[68vh] overflow-y-auto px-3 py-2">

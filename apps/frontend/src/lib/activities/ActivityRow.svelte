@@ -1,6 +1,6 @@
 <script lang="ts">
+  import Button from "$lib/components/Button.svelte";
   import Field from "$lib/components/Field.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import type { Category } from "$lib/types";
   import { Archive } from "lucide-svelte";
   import ActivitySplitBar from "./ActivitySplitBar.svelte";
@@ -46,9 +46,9 @@
       autocapitalize="sentences"
       class="t-body-strong flex-1"
     />
-    <IconButton label="Archive {draft.name || 'this activity'}" onclick={onarchive}>
-      <Archive size={15} class="text-fg-muted" />
-    </IconButton>
+    <Button variant="bare" class="size-8 bg-surface-alt" title="Archive {draft.name || 'this activity'}" onclick={onarchive}>
+      {#snippet icon()}<Archive size={15} class="text-fg-muted" />{/snippet}
+    </Button>
   </div>
 
   {#if plannedCategories.length === 0}

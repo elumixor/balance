@@ -5,7 +5,6 @@
   import Button from "$lib/components/Button.svelte";
   import Dot from "$lib/components/Dot.svelte";
   import Field from "$lib/components/Field.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import NumberField from "$lib/components/NumberField.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
@@ -127,7 +126,9 @@
           <StatusChip status={project.status} />
           <Popover width={200}>
             {#snippet trigger(open)}
-              <IconButton label="More" tone="plain" onclick={open}><MoreHorizontal size={16} class="text-fg-muted" /></IconButton>
+              <Button variant="bare" title="More" onclick={open}>
+                {#snippet icon()}<MoreHorizontal size={16} class="text-fg-muted" />{/snippet}
+              </Button>
             {/snippet}
             {#snippet content(close)}
               {#if project.status === "held"}

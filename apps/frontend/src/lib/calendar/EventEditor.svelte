@@ -1,8 +1,8 @@
 <script lang="ts">
   import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
+  import Button from "$lib/components/Button.svelte";
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Field from "$lib/components/Field.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
@@ -597,25 +597,25 @@
       <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
     {/if}
     <!-- The assistant's seat at the table. What it does when pressed is the next thing to build. -->
-    <IconButton label="Ask about this event" tone="plain" onclick={() => undefined}>
-      <Sparkles size={15} class="text-fg-muted" />
-    </IconButton>
+    <Button variant="bare" title="Ask about this event" onclick={() => undefined}>
+      {#snippet icon()}<Sparkles size={15} class="text-fg-muted" />{/snippet}
+    </Button>
     {#if editable}
-      <IconButton
-        label="Delete event"
-        tone="plain"
+      <Button
+        variant="bare"
+        title="Delete event"
         onclick={() => {
           deleted = true;
           if (timer) clearTimeout(timer);
           void data.deleteEvent(event);
         }}
       >
-        <Trash2 size={15} class="text-fg-muted" />
-      </IconButton>
+        {#snippet icon()}<Trash2 size={15} class="text-fg-muted" />{/snippet}
+      </Button>
     {/if}
-    <IconButton label="Close" tone="plain" onclick={close}>
-      <X size={16} class="text-fg-muted" />
-    </IconButton>
+    <Button variant="bare" title="Close" onclick={close}>
+      {#snippet icon()}<X size={16} class="text-fg-muted" />{/snippet}
+    </Button>
   </div>
 
   <!-- What it was for: the project or practice whose evidence this hour is. Tagging after the

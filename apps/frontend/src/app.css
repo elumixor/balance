@@ -193,6 +193,26 @@ html.dark {
   @apply inline-flex items-center gap-1 rounded-md bg-surface-alt px-2 py-0.5 text-fg;
 }
 
+/*
+ * The app's quiet button: an icon, a label, or both, on no ground of its own until it is pointed
+ * at. Every corner control — a dismiss, a retry, a copy, "change all" — is one of these, so they
+ * read as one control repeated rather than a handful of similar-looking ones.
+ */
+@utility bare-button {
+  @apply press-sm inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md text-fg-faint;
+  transition:
+    transform 110ms ease,
+    opacity 110ms ease,
+    color 110ms ease,
+    background-color 110ms ease;
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background-color: var(--surface-alt);
+      color: var(--fg);
+    }
+  }
+}
+
 @utility hoverable {
   @media (hover: hover) {
     &:hover {

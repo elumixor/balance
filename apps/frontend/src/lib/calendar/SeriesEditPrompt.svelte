@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Button from "$lib/components/Button.svelte";
   import { calendarData } from "./calendar-data.svelte";
   import { Repeat, Undo2, X } from "lucide-svelte";
   import { fly } from "svelte/transition";
@@ -19,36 +20,23 @@
   {#if prompt}
     <div class="fixed right-3 bottom-3 z-50" transition:fly={{ y: 16, duration: 180 }}>
       <div
-        class="flex items-center gap-0.5 rounded-xl border border-line-strong bg-surface py-1.5 pr-1.5 pl-2
+        class="flex items-center gap-0.5 rounded-xl border border-line-strong bg-surface p-1.5
           shadow-(--shadow-float)"
       >
-        <button
-          type="button"
-          class="press-sm t-label flex items-center gap-1.5 rounded-md px-1.5 py-1 whitespace-nowrap"
+        <Button
+          variant="bare"
+          label="Change all"
           title="Apply this change to every occurrence"
           onclick={() => data.applyToSeries()}
         >
-          <Repeat size={15} />
-          Change all
-        </button>
-        <button
-          type="button"
-          class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
-          aria-label="Undo this change"
-          title="Undo this change"
-          onclick={() => data.undoSeriesEdit()}
-        >
-          <Undo2 size={15} />
-        </button>
-        <button
-          type="button"
-          class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
-          aria-label="Just this one"
-          title="Just this one"
-          onclick={() => data.dismissSeriesPrompt()}
-        >
-          <X size={15} />
-        </button>
+          {#snippet icon()}<Repeat size={15} />{/snippet}
+        </Button>
+        <Button variant="bare" title="Undo this change" onclick={() => data.undoSeriesEdit()}>
+          {#snippet icon()}<Undo2 size={15} />{/snippet}
+        </Button>
+        <Button variant="bare" title="Just this one" onclick={() => data.dismissSeriesPrompt()}>
+          {#snippet icon()}<X size={15} />{/snippet}
+        </Button>
       </div>
     </div>
   {/if}

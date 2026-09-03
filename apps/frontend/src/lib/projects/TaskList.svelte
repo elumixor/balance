@@ -1,6 +1,6 @@
 <script lang="ts">
+  import Button from "$lib/components/Button.svelte";
   import Divider from "$lib/components/Divider.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import NumberField from "$lib/components/NumberField.svelte";
   import type { Task } from "$lib/types";
   import { Check, GripVertical, Plus, X } from "lucide-svelte";
@@ -55,9 +55,9 @@
         onchange={(estimateHours) => data.updateTask(task.id, { estimateHours: estimateHours > 0 ? estimateHours : null })}
       />
       <span class="text-fg-faint" title="Drag onto the week from the calendar's rail"><GripVertical size={14} /></span>
-      <IconButton label="Remove task" tone="plain" onclick={() => data.removeTask(task.id)}>
-        <X size={13} class="text-fg-faint" />
-      </IconButton>
+      <Button variant="bare" title="Remove task" onclick={() => data.removeTask(task.id)}>
+        {#snippet icon()}<X size={13} class="text-fg-faint" />{/snippet}
+      </Button>
     </div>
   {/each}
   {#if tasks.length > 0}<Divider />{/if}

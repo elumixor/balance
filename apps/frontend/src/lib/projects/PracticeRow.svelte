@@ -1,6 +1,6 @@
 <script lang="ts">
+  import Button from "$lib/components/Button.svelte";
   import Field from "$lib/components/Field.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import NumberField from "$lib/components/NumberField.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import Select from "$lib/components/Select.svelte";
@@ -68,7 +68,7 @@
       </span>
     </div>
   </div>
-  <IconButton label="Remove practice" tone="plain" onclick={() => data.removePractice(practice)}>
-    <X size={14} class="text-fg-faint" />
-  </IconButton>
+  <Button variant="bare" title="Remove practice" onclick={() => data.removePractice(practice)}>
+    {#snippet icon()}<X size={14} class="text-fg-faint" />{/snippet}
+  </Button>
 </div>

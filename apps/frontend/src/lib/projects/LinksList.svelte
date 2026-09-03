@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconButton from "$lib/components/IconButton.svelte";
+  import Button from "$lib/components/Button.svelte";
   import { openExternal } from "$lib/desktop/open";
   import type { ProjectLink } from "$lib/types";
   import { Link2, Plus, X } from "lucide-svelte";
@@ -46,9 +46,9 @@
         aria-label="Link label"
         class="t-label h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-fg hover:border-line focus:border-line-strong focus:outline-none"
       />
-      <IconButton label="Remove link" tone="plain" onclick={() => onchange(links.filter((_, j) => j !== i))}>
-        <X size={13} class="text-fg-faint" />
-      </IconButton>
+      <Button variant="bare" title="Remove link" onclick={() => onchange(links.filter((_, j) => j !== i))}>
+        {#snippet icon()}<X size={13} class="text-fg-faint" />{/snippet}
+      </Button>
     </div>
   {/each}
   <div class="flex items-center gap-2">

@@ -1,6 +1,5 @@
 <script lang="ts">
   import Button from "$lib/components/Button.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import type { GateProgress, Project, Stage } from "$lib/types";
   import { Check, Plus, X } from "lucide-svelte";
   import { formatDayKey } from "./decide-on";
@@ -59,9 +58,9 @@
             {formatDayKey(stage.decideOn)}
           </span>
         {:else if !done}
-          <IconButton label="Remove stage" tone="plain" onclick={() => data.removeStage(stage)}>
-            <X size={13} class="text-fg-faint" />
-          </IconButton>
+          <Button variant="bare" title="Remove stage" onclick={() => data.removeStage(stage)}>
+            {#snippet icon()}<X size={13} class="text-fg-faint" />{/snippet}
+          </Button>
         {/if}
       </div>
 

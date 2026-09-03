@@ -2,7 +2,6 @@
   import Button from "$lib/components/Button.svelte";
   import Dialog from "$lib/components/Dialog.svelte";
   import Dot from "$lib/components/Dot.svelte";
-  import IconButton from "$lib/components/IconButton.svelte";
   import NumberField from "$lib/components/NumberField.svelte";
   import { restColor } from "$lib/colors";
   import { formatClock, formatDayDate, formatHoursDecimal } from "$lib/format";
@@ -142,9 +141,9 @@
             <Dot color={colorFor(block.id)} size={6} />
             <span class="t-label min-w-0 flex-1 truncate text-fg">{nameOf(block.id)}</span>
             <span class="t-micro shrink-0 tabular-nums text-fg-muted">{formatClock(block.start)}–{formatClock(block.end)}</span>
-            <IconButton label="Leave this one out" tone="plain" onclick={() => (removed = new Set([...removed, keyOf(block)]))}>
-              <X size={13} class="text-fg-faint" />
-            </IconButton>
+            <Button variant="bare" title="Leave this one out" onclick={() => (removed = new Set([...removed, keyOf(block)]))}>
+              {#snippet icon()}<X size={13} class="text-fg-faint" />{/snippet}
+            </Button>
           </div>
         {/each}
       </div>
