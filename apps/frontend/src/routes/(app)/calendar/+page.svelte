@@ -5,6 +5,7 @@
   import EventEditor from "$lib/calendar/EventEditor.svelte";
   import WeekGrid from "$lib/calendar/WeekGrid.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
+  import CopyButton from "$lib/components/CopyButton.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import SidePanelSection from "$lib/components/nav/SidePanelSection.svelte";
@@ -18,7 +19,7 @@
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { slotNow } from "$lib/planning/zone";
-  import { Menu } from "lucide-svelte";
+  import { Menu, X } from "lucide-svelte";
 
   /**
    * The whole window is the week. Everything that isn't the grid — the calendars, where you are
@@ -160,14 +161,24 @@
   <div class="relative min-h-0 flex-1">
     {#if data.actionError}
       <!-- A card of its own, not bare text: this floats over the day headings, and a message
-           printed straight onto them was two sentences reading as one. -->
-      <div class="absolute inset-x-0 top-2 z-20 px-3 md:px-4">
-        <p
-          class="t-micro line-clamp-2 rounded-md border border-line bg-surface px-3 py-2 text-danger
+           printed straight onto them was two sentences reading as one. One line of it, since what
+           a refused write answers with can be the whole query — the rest is behind the copy. -->
+      <div class="absolute top-2 right-0 z-20 flex w-full max-w-sm justify-end px-3 md:px-4">
+        <div
+          class="flex min-w-0 items-center gap-1 rounded-md border border-danger/40 bg-surface py-1.5 pr-1 pl-3
             shadow-(--shadow-float)"
         >
-          {data.actionError}
-        </p>
+          <p class="t-micro min-w-0 flex-1 truncate text-danger" title={data.actionError}>{data.actionError}</p>
+          <CopyButton text={() => data.actionError ?? ""} label="Copy error details" size={13} />
+          <button
+            type="button"
+            class="press-sm shrink-0 rounded-md p-1 text-fg-faint hover:text-fg"
+            aria-label="Dismiss"
+            onclick={() => (data.actionError = null)}
+          >
+            <X size={13} />
+          </button>
+        </div>
       </div>
     {/if}
 

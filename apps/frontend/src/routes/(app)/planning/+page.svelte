@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InlineError from "$lib/components/InlineError.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import Screen from "$lib/components/Screen.svelte";
   import Skeleton from "$lib/components/Skeleton.svelte";
@@ -58,11 +59,7 @@
         centerLabel="{claimedPercent}% of 168h claimed"
       />
 
-      {#if week.error}
-        <div class="mt-4 flex min-h-5 items-center justify-center">
-          <span class="t-micro text-danger">{week.error}</span>
-        </div>
-      {/if}
+      <div class="mt-4"><InlineError message={week.error} /></div>
 
       <p class="t-micro mx-auto mt-4 max-w-[40ch] text-center text-fg-faint">
         Tap a slice's icon to change how it looks, drag a seam to move hours between neighbours, or

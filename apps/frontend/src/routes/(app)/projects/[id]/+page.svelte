@@ -6,6 +6,7 @@
   import Dot from "$lib/components/Dot.svelte";
   import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
+  import InlineError from "$lib/components/InlineError.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import NumberField from "$lib/components/NumberField.svelte";
   import Popover from "$lib/components/Popover.svelte";
@@ -251,9 +252,7 @@
       </section>
     </div>
 
-    {#if data.error}
-      <p class="t-micro mt-4 text-danger">{data.error}</p>
-    {/if}
+    <div class="mt-4"><InlineError message={data.error} /></div>
 
     {#if card.stage}
       <DecisionSheet

@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import Dot from "$lib/components/Dot.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
+  import InlineError from "$lib/components/InlineError.svelte";
   import LoadError from "$lib/components/LoadError.svelte";
   import Screen from "$lib/components/Screen.svelte";
   import Segmented from "$lib/components/Segmented.svelte";
@@ -137,7 +138,5 @@
     </div>
   {/if}
 
-  {#if data.error}
-    <p class="t-micro mt-4 text-danger">{data.error}</p>
-  {/if}
+  <div class="mt-4"><InlineError message={data.error} /></div>
 </Screen>
