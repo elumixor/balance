@@ -3,7 +3,6 @@
   import { auth } from "$lib/auth.svelte";
   import AppLoading from "$lib/components/AppLoading.svelte";
   import SideNav from "$lib/components/nav/SideNav.svelte";
-  import TopBar from "$lib/components/nav/TopBar.svelte";
   import TabBar from "$lib/components/nav/TabBar.svelte";
   import SessionNudge from "$lib/components/SessionNudge.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
@@ -134,11 +133,11 @@
 {#if !shellReady}
   <AppLoading />
 {:else}
-  <!-- One shell, two shapes: tabs under the thumb on a phone, a strip along the top on a desktop —
-       with a panel down the left only on the screen that has something to put in one. -->
+  <!-- One shell, two shapes: tabs under the thumb on a phone, a rail beside the work on a desktop —
+       or, on a screen with nothing to put in a rail, the rail's strip alone in the same corner.
+       `relative` is what the floating strip is placed against. -->
   <div class="flex h-dvh flex-col bg-bg">
-    <TopBar />
-    <div class="flex min-h-0 flex-1">
+    <div class="relative flex min-h-0 flex-1">
       <SideNav />
       <div class="flex min-w-0 flex-1 flex-col">
         <!-- The screen scrolls itself, not the page: the strip and the tab bar stay put, and a
