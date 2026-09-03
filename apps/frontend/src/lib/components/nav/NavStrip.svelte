@@ -12,8 +12,9 @@
    * read-down list with their names spelled out — the icons are the whole vocabulary, and
    * hovering one says the name and the key that gets there.
    *
-   * It heads the rail on the calendar, and floats in the same corner over any screen that has no
-   * rail — the icons stay where the hand learned them, and the screen keeps the whole window.
+   * One strip, floating in the top-left corner of every screen. On the calendar it lands on the
+   * empty top of the left panel; elsewhere on the screen's own top padding. Either way the icons
+   * stay where the hand learned them, and no screen gives up a bar's height to them.
    *
    * On macOS the window has no title bar of its own, so the close/minimise/zoom buttons land on
    * this same line, and the strip is indented past them. In a browser the indent goes away and the
@@ -29,7 +30,9 @@
      wouldn't drag. -->
 <div
   data-tauri-drag-region={isDesktop ? true : undefined}
-  class="flex select-none items-center gap-1 {isDesktop ? 'h-9 pl-[78px]' : 'px-1'}"
+  class="absolute top-0 left-0 z-30 hidden w-60 select-none items-center gap-1 px-3 md:flex {isDesktop
+    ? 'h-9 pl-[78px]'
+    : 'mt-3 px-4'}"
 >
   {#each NAV_TABS as tab (tab.href)}
     {@const active = isActive(page.url.pathname, tab.href)}
