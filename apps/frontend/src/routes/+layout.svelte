@@ -1,6 +1,6 @@
 <script lang="ts">
   import { auth } from "$lib/auth.svelte";
-  import ProblemBanner from "$lib/components/ProblemBanner.svelte";
+  import ProblemToasts from "$lib/components/ProblemToasts.svelte";
   import { diagnostics } from "$lib/diagnostics.svelte";
   import { watchDesktopFocus } from "$lib/desktop/focus-sync";
   import { watchDesktopSignIn } from "$lib/desktop/sign-in";
@@ -45,5 +45,5 @@
 {@render children()}
 
 <!-- Above every screen, and outside the app shell, so a failure on the way to a session is shown
-     by the same strip as one on the calendar. -->
-<ProblemBanner />
+     in the same corner as one on the calendar. -->
+<ProblemToasts />

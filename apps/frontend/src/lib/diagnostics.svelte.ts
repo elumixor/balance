@@ -3,14 +3,14 @@ import { buildInfo } from "./build-info";
 import { API_BASE_URL } from "./env";
 import { telemetry } from "./telemetry";
 
-/** One thing that went wrong, in the shape the banner shows it. */
+/** One thing that went wrong, in the shape the card shows it. */
 export interface Problem {
   readonly id: number;
   readonly at: Date;
   /** What was being done — "Calendar", "Sign-in", "Sync". Groups repeats of the same failure. */
   readonly scope: string;
   readonly message: string;
-  /** The technical half: a stack, a URL, a status. Behind the disclosure, never in the sentence. */
+  /** The technical half: a stack, a URL, a status. Behind the copy button, never in the sentence. */
   readonly detail?: string;
   count: number;
 }
@@ -29,8 +29,6 @@ const KEPT = 20;
  */
 class Diagnostics {
   problems = $state<Problem[]>([]);
-  /** Closed by hand; a new problem opens it again, since it is news by then. */
-  dismissed = $state(false);
   #nextId = 1;
   #started = false;
 
@@ -38,9 +36,9 @@ class Diagnostics {
     return this.problems.at(-1) ?? null;
   }
 
-  /** Whether there is something to show — one banner, however many problems are behind it. */
+  /** Whether there is anything to show — one card per problem, newest at the top. */
   get showing() {
-    return !this.dismissed && this.problems.length > 0;
+    return this.problems.length > 0;
   }
 
   /**
@@ -59,7 +57,6 @@ class Diagnostics {
     const existing = this.problems.find((problem) => problem.scope === scope && problem.message === message);
     if (existing) {
       existing.count += 1;
-      this.dismissed = false;
       return;
     }
     this.problems.push({
@@ -71,20 +68,19 @@ class Diagnostics {
       count: 1,
     });
     if (this.problems.length > KEPT) this.problems.shift();
-    this.dismissed = false;
     console.error(`[${scope}]`, error);
-    // The banner is what the person sees; this is what the person fixing it sees. Every failure
+    // The card is what the person sees; this is what the person fixing it sees. Every failure
     // the app knows how to say already comes through here, so there is nothing else to remember.
     telemetry.capture(scope, error, fullDetail || undefined);
   }
 
-  dismiss() {
-    this.dismissed = true;
+  /** One card closed by hand. The problem is gone rather than hidden — it is in the copied report. */
+  dismiss(id: number) {
+    this.problems = this.problems.filter((problem) => problem.id !== id);
   }
 
   clear() {
     this.problems = [];
-    this.dismissed = false;
   }
 
   /**
@@ -109,24 +105,31 @@ class Diagnostics {
     return [`api: ${API_BASE_URL || "(same origin)"}`, `build: ${buildInfo.parts.join(" · ")}`].join("\n");
   }
 
-  /** Everything on screen as one block of text — see the banner's copy button. */
+  /**
+   * One problem in full — the sentence the card truncates, the stack it never shows, and the state
+   * of the app around it, which is the half nobody thinks to include when they report it by hand.
+   */
+  textOf(problem: Problem) {
+    return [this.context, entryOf(problem)].join("\n\n");
+  }
+
+  /** Everything that has failed this session as one block of text. */
   get asText() {
-    return [
-      this.context,
-      ...this.problems.map((problem) =>
-        [
-          `[${problem.at.toISOString()}] ${problem.scope}${problem.count > 1 ? ` ×${problem.count}` : ""}`,
-          problem.message,
-          problem.detail,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      ),
-    ].join("\n\n");
+    return [this.context, ...this.problems.map(entryOf)].join("\n\n");
   }
 }
 
 export const diagnostics = new Diagnostics();
+
+function entryOf(problem: Problem) {
+  return [
+    `[${problem.at.toISOString()}] ${problem.scope}${problem.count > 1 ? ` ×${problem.count}` : ""}`,
+    problem.message,
+    problem.detail,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 
 function messageOf(error: unknown) {
   if (error instanceof Error) return error.message || error.name;

@@ -162,7 +162,10 @@
       <!-- A card of its own, not bare text: this floats over the day headings, and a message
            printed straight onto them was two sentences reading as one. -->
       <div class="absolute inset-x-0 top-2 z-20 px-3 md:px-4">
-        <p class="t-micro rounded-md border border-line bg-surface px-3 py-2 text-danger shadow-(--shadow-float)">
+        <p
+          class="t-micro line-clamp-2 rounded-md border border-line bg-surface px-3 py-2 text-danger
+            shadow-(--shadow-float)"
+        >
           {data.actionError}
         </p>
       </div>
