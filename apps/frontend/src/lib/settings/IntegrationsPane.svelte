@@ -3,7 +3,6 @@
   import Button from "$lib/components/Button.svelte";
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Dot from "$lib/components/Dot.svelte";
-  import InlineError from "$lib/components/InlineError.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import { DEFAULT_ICON } from "$lib/icons";
