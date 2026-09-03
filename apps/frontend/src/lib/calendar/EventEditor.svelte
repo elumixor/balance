@@ -3,36 +3,63 @@
   import CategoryIcon from "$lib/components/CategoryIcon.svelte";
   import Field from "$lib/components/Field.svelte";
   import IconButton from "$lib/components/IconButton.svelte";
-  import { diagnostics } from "$lib/diagnostics.svelte";
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import Textarea from "$lib/components/Textarea.svelte";
   import { restColor } from "$lib/colors";
   import { openExternal } from "$lib/desktop/open";
-  import { isDesktop } from "$lib/desktop/platform";
+  import { diagnostics } from "$lib/diagnostics.svelte";
   import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
   import { DEFAULT_ICON } from "$lib/icons";
+  import { FEEDS, integrations } from "$lib/integrations/integrations.svelte";
   import { asGoogleAccount, hasAddress, meetingOf } from "$lib/meeting";
+  import { deviceTimeZone } from "$lib/planning/zone";
   import { preferences } from "$lib/preferences.svelte";
-  import { respondToCalendarEvent } from "$lib/queries";
-  import { applyCalendarEvent } from "$lib/store.svelte";
-  import type { CalendarEvent, Category, EventResponse, EventTimer, MappingScope } from "$lib/types";
   import ProjectPicker from "$lib/projects/ProjectPicker.svelte";
-  import { practices, projects } from "$lib/synced.svelte";
-  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Plug, Sparkles, Timer, Trash2, Video, X } from "lucide-svelte";
-  import { FEEDS, INTEGRATIONS, integrations } from "$lib/integrations/integrations.svelte";
+  import { type EventPatch, getCalendarEvent, respondToCalendarEvent } from "$lib/queries";
+  import { applyCalendarEvent } from "$lib/store.svelte";
+  import { practices, projects, tasks } from "$lib/synced.svelte";
+  import { offsetLabel, shiftZone } from "$lib/time-zones";
+  import type { CalendarEvent, Category, EventReminder, EventResponse, EventTimer, MappingScope } from "$lib/types";
+  import {
+    AlignLeft,
+    ArrowRight,
+    CalendarClock,
+    Check,
+    Clock,
+    Copy,
+    Folder,
+    Link2,
+    Repeat,
+    Sparkles,
+    Timer,
+    Trash2,
+    Users,
+    Video,
+    MapPin,
+    X,
+  } from "lucide-svelte";
   import { accountEmailOf, calendarData } from "./calendar-data.svelte";
+  import CardSettings, { type CardSection } from "./CardSettings.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
-  import EventAssist from "./EventAssist.svelte";
-  import EventAttendees from "./EventAttendees.svelte";
+  import ConferencingRow from "./ConferencingRow.svelte";
+  import LocationRow from "./LocationRow.svelte";
+  import ParticipantsRow from "./ParticipantsRow.svelte";
+  import { describe, fromRecurrence, type Rule, toRRule } from "./recurrence";
+  import RemindersRow from "./RemindersRow.svelte";
+  import RepeatPicker from "./RepeatPicker.svelte";
   import TimeField from "./TimeField.svelte";
-  import OriginPicker from "./OriginPicker.svelte";
-  import TravelChips from "./TravelChips.svelte";
+  import TimeZonePicker from "./TimeZonePicker.svelte";
 
   /**
-   * One event, opened beside the block you tapped: what it says, when it runs, and what it counts
-   * as. Nothing here has a Save button — every edit is written back a moment after the typing
-   * stops, the way a calendar is expected to behave.
+   * One event, opened beside the block you tapped: what it says, when it runs, what it counts as,
+   * and everything the meeting inside it carries. Nothing here has a Save button — every edit is
+   * written back a moment after the typing stops, the way a calendar is expected to behave.
+   *
+   * The card is sections, top to bottom in the order they are asked about: the name and what it
+   * is for; when; how you'll be told; where and with whom; what it says. Any section that is
+   * rarely filled in can be folded away from the popover at the foot, and stays folded on every
+   * card, because the person who never sets a timer never wants the row.
    */
   let {
     event,
@@ -48,9 +75,24 @@
   /** How long after the last keystroke the edit goes to the calendar. */
   const SAVE_DELAY_MS = 700;
 
+  /** The sections that can be folded away, in card order. Time and reminders are always drawn. */
+  const SECTIONS: readonly CardSection[] = [
+    { id: "projects", label: "Projects", icon: Folder },
+    { id: "timer", label: "Timer", icon: Timer },
+    { id: "conferencing", label: "Conferencing", icon: Video },
+    { id: "participants", label: "Participants", icon: Users },
+    { id: "location", label: "Location", icon: MapPin },
+    { id: "description", label: "Description", icon: AlignLeft },
+    { id: "links", label: "Links", icon: Link2 },
+  ];
+
   const data = calendarData;
   const plannable = $derived(categories);
   const editable = $derived(!event.readOnly && !event.allDay);
+  const shown = $derived.by(() => {
+    const hidden = new Set(preferences.hiddenSections);
+    return (id: string) => !hidden.has(id);
+  });
 
   // A repeating event always counts as the same thing on every occurrence — only a one-off event
   // gets an instance-scoped mapping.
@@ -82,6 +124,10 @@
     if (carriedOver) return;
     focused = false;
     pickerRect = null;
+    projectRect = null;
+    zoneRect = null;
+    repeatRect = null;
+    detaching = false;
     previewFrom = null;
     previewTo = null;
     title = event.title;
@@ -119,80 +165,146 @@
 
   /** Set to the row's rect while the category list is open, null otherwise. */
   let pickerRect = $state<DOMRect | null>(null);
-  /** The same for the list of projects. */
+  /** The same for the list of projects, the zones, and the repeat rules. */
   let projectRect = $state<DOMRect | null>(null);
+  let zoneRect = $state<DOMRect | null>(null);
+  let repeatRect = $state<DOMRect | null>(null);
+  const nested = $derived(Boolean(pickerRect || projectRect || zoneRect || repeatRect));
 
-  /** What the hour was for, by name — the tag is the id, the card says the thing. */
+  // --- what it is for ------------------------------------------------------------------------
+
+  /** "Project / task", by name — the tag is the id, the card says the thing. */
   const purpose = $derived.by(() => {
-    if (event.projectId) return projects.all.find((p) => p.id === event.projectId)?.name ?? "A project";
+    const task = event.taskId ? tasks.all.find((t) => t.id === event.taskId) : null;
+    if (event.projectId) {
+      const project = projects.all.find((p) => p.id === event.projectId)?.name ?? "A project";
+      return task ? `${project} / ${task.title}` : project;
+    }
     if (event.practiceId) return practices.all.find((p) => p.id === event.practiceId)?.name ?? "A practice";
     return null;
   });
   const purposeKey = $derived(
     event.projectId ? `project:${event.projectId}` : event.practiceId ? `practice:${event.practiceId}` : "",
   );
-
-  /** Whether the assistant's panel is open under the purpose row. Closed again for another block. */
-  let planning = $state(false);
-  /** Whether the list of feeds is open under the integrations row. Same rule. */
-  let linking = $state(false);
-  $effect(() => {
-    event.id;
-    planning = false;
-    linking = false;
-  });
-
-  /** The feed this block is linked to, and the integration it belongs to — for the card's section. */
-  const linked = $derived(event.source ? (FEEDS.get(event.source) ?? null) : null);
-
-  /**
-   * Linking rides on the mapping, so a block that counts as nothing is first made to count as
-   * something: the category named for the feed if there is one — "Sleep" — and the buffer
-   * otherwise, the same place an hour nobody planned already lands. Either is one tap to change.
-   * On the phone that can read the feed, the link also asks for permission and reads straight
-   * away; anywhere else the link is made and the record arrives from the phone.
-   */
-  async function link(source: string) {
-    const entry = FEEDS.get(source);
-    if (!entry) return;
-    linking = false;
-    if (!category) {
-      const word = entry.feed.label.toLowerCase();
-      const guess = plannable.find((c) => c.name.toLowerCase().includes(word)) ?? plannable.find((c) => c.isBuffer);
-      if (!guess) return;
-      await data.mapEvent(event, scope, { weights: [{ categoryId: guess.id, weightPercent: 100 }] }, {
-        ...{ projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer },
-        source,
-      });
-    } else {
-      await data.tagEvent(event, { source });
-    }
-    if (entry.integration.available) void integrations.sync(entry.integration, entry.feed);
-  }
-
-  function unlink() {
-    linking = false;
-    void data.tagEvent(event, { source: null });
-  }
-
-  /** The plan goes where the person would have typed it, and is saved the way typing is. */
-  function takeBrief(text: string) {
-    notes = notes.trim() ? `${notes.trimEnd()}\n\n${text}` : text;
-    queue();
-  }
-
-  /** The block keeps its start and takes the suggested length, written the way a clock edit is. */
-  function takeHours(hours: number) {
-    const start = parseDateAndClock(date, from);
-    if (!start) return;
-    to = formatClock(new Date(start.getTime() + hours * 3_600_000));
-    queue();
-    flush();
-  }
+  /** Whether the cross on the pill has been pressed once and is waiting to be meant. */
+  let detaching = $state(false);
 
   function choosePurpose(next: { projectId: string | null; practiceId: string | null }) {
     projectRect = null;
-    void run(() => data.tagEvent(event, next));
+    void data.tagEvent(event, next);
+  }
+
+  function detach() {
+    detaching = false;
+    void data.tagEvent(event, { projectId: null, practiceId: null, taskId: null });
+  }
+
+  // --- what it counts as ---------------------------------------------------------------------
+
+  /**
+   * A block counts as one category here: whichever it mostly counts toward, if it's split. Looked
+   * up across every category rather than the pickable ones, so a block already counting as a
+   * buffer or an archived category still shows what it is.
+   */
+  const category = $derived.by(() => {
+    const ranked = event.weights
+      .map((w) => ({ weight: w.weightPercent, category: categories.find((c) => c.id === w.categoryId) }))
+      .filter((w) => w.category)
+      .sort((a, b) => b.weight - a.weight);
+    return ranked[0]?.category ?? null;
+  });
+
+  /**
+   * One category, whole: a split across several is a thing the week screen sets, not this card.
+   * With other blocks gathered, the choice applies to the whole batch rather than just this one.
+   */
+  function chooseCategory(categoryId: string) {
+    pickerRect = null;
+    const weights = [{ categoryId, weightPercent: 100 }];
+    if (data.picked.size > 0) {
+      void data.mapEvents(data.pickedEvents, weights);
+      data.clearPicked();
+      return;
+    }
+    void data.mapEvent(event, scope, { weights });
+  }
+
+  // --- when ----------------------------------------------------------------------------------
+
+  /** The span the two clock fields describe, shown beside them the way the calendar shows it. */
+  const span = $derived.by(() => {
+    const range = parseRange();
+    if (!range) return "";
+    return formatHoursAndMinutes((range.end.getTime() - range.start.getTime()) / 3_600_000);
+  });
+
+  const longDate = $derived(formatDayDate(new Date(event.start)));
+  /** What the date field shows: the field it hides holds the same day in the format inputs take. */
+  const dateLabel = $derived.by(() => {
+    const at = parseDateAndClock(date, "00:00");
+    return at ? formatDayDate(at) : date;
+  });
+
+  /** The zone the times are meant in: the event's own, or the device's where it never said. */
+  const zone = $derived(event.timeZone ?? deviceTimeZone());
+  /** By the name it was given here, or by its offset on the day. */
+  const zoneLabel = $derived(preferences.zoneNamed(zone)?.label ?? offsetLabel(zone, new Date(event.start)));
+
+  /** The wall clock stays; the instant moves. Nine in Prague put in Kyiv is nine in Kyiv. */
+  function chooseZone(next: string) {
+    zoneRect = null;
+    if (next === zone) return;
+    flush();
+    const start = shiftZone(new Date(event.start), zone, next);
+    const end = shiftZone(new Date(event.end), zone, next);
+    void data.patchEvent(
+      event,
+      { timeZone: next, start: start.toISOString(), end: end.toISOString() },
+      { timeZone: zone, start: event.start, end: event.end },
+    );
+  }
+
+  /**
+   * The rule a series repeats by lives on its master, which the week never lists — so it is
+   * fetched once per series and remembered, since every occurrence opened afterwards is the same
+   * rule. A one-off has no rule until one is chosen here.
+   */
+  const rules = new Map<string, Rule | null>();
+  let rule = $state<Rule | null>(null);
+  $effect(() => {
+    const seriesId = event.seriesId;
+    if (!seriesId) {
+      rule = fromRecurrence(event.recurrence);
+      return;
+    }
+    if (rules.has(seriesId)) {
+      rule = rules.get(seriesId) ?? null;
+      return;
+    }
+    rule = null;
+    void getCalendarEvent(seriesId, event.calendarId)
+      .then((master) => {
+        rules.set(seriesId, fromRecurrence(master.recurrence));
+        if (event.seriesId === seriesId) rule = rules.get(seriesId) ?? null;
+      })
+      .catch((e) => diagnostics.report("Calendar", e, { title: "Couldn’t read how this repeats" }));
+  });
+  const repeatLabel = $derived(rule ? describe(rule, new Date(event.start)) : event.seriesId ? "Repeats" : "Repeat");
+
+  function chooseRule(next: Rule | null) {
+    repeatRect = null;
+    const lines = next ? [toRRule(next)] : [];
+    const before = rule ? [toRRule(rule)] : [];
+    if (lines.join() === before.join()) return;
+    if (event.seriesId) rules.set(event.seriesId, next);
+    rule = next;
+    void data.patchEvent(event, { recurrence: lines }, { recurrence: before });
+  }
+
+  // --- how you'll be told --------------------------------------------------------------------
+
+  function chooseReminders(reminders: EventReminder[]) {
+    void data.patchEvent(event, { reminders }, { reminders: event.reminders });
   }
 
   /**
@@ -220,35 +332,10 @@
 
   function chooseTimer(value: string) {
     const timer = TIMERS.find((t) => t.value === value)?.timer ?? null;
-    void run(() => data.tagEvent(event, { timer }));
+    void data.tagEvent(event, { timer });
   }
 
-  /**
-   * A block counts as one category here: whichever it mostly counts toward, if it's split. Looked
-   * up across every category rather than the pickable ones, so a block already counting as a
-   * buffer or an archived category still shows what it is.
-   */
-  const category = $derived.by(() => {
-    const ranked = event.weights
-      .map((w) => ({ weight: w.weightPercent, category: categories.find((c) => c.id === w.categoryId) }))
-      .filter((w) => w.category)
-      .sort((a, b) => b.weight - a.weight);
-    return ranked[0]?.category ?? null;
-  });
-
-  /** The span the two clock fields describe, shown beside them the way the calendar shows it. */
-  const span = $derived.by(() => {
-    const range = parseRange();
-    if (!range) return "";
-    return formatHoursAndMinutes((range.end.getTime() - range.start.getTime()) / 3_600_000);
-  });
-
-  const longDate = $derived(formatDayDate(new Date(event.start)));
-  /** What the date field shows: the field it hides holds the same day in the format inputs take. */
-  const dateLabel = $derived.by(() => {
-    const at = parseDateAndClock(date, "00:00");
-    return at ? formatDayDate(at) : date;
-  });
+  // --- where, and with whom ------------------------------------------------------------------
 
   /** Where the meeting is and how you get into it, read the same way the reminder card reads it. */
   const meeting = $derived(meetingOf(event));
@@ -269,6 +356,32 @@
    * only with the device's own position, so it is offered wherever there is an address.
    */
   const travelTo = $derived(hasAddress(event) ? meeting.location : null);
+  /** A guest list is the organizer's to keep; an invitation you received isn't yours to change. */
+  const hosting = $derived(editable && (!event.organizer || event.organizer.self));
+
+  function chooseLocation(location: string) {
+    void data.patchEvent(event, { location }, { location: event.location ?? "" });
+  }
+
+  function chooseGuests(attendees: { email: string; optional?: boolean }[]) {
+    const before = event.attendees.flatMap((a) => (a.email ? [{ email: a.email, optional: a.optional }] : []));
+    void data.patchEvent(event, { attendees }, { attendees: before });
+  }
+
+  function addCall() {
+    void data.patchEvent(event, { conference: "create" }, { conference: "remove" });
+  }
+
+  function removeCall() {
+    void data.patchEvent(event, { conference: "remove" }, { conference: "create" });
+  }
+
+  /** A link to somebody else's call goes where the card already reads links from: the notes. */
+  function pasteCall(url: string) {
+    notes = notes.trim() ? `${notes.trimEnd()}\n\n${url}` : url;
+    queue();
+    flush();
+  }
 
   type Answer = Exclude<EventResponse, "needsAction">;
   const RSVP: { value: Answer; label: string }[] = [
@@ -285,24 +398,56 @@
   const answerable = $derived(event.invited && !event.readOnly);
 
   /**
-   * What the app will say about this event and when: the calendar's own reminders where it has
-   * them, and otherwise the one this app adds. Duplicates go — an event reminding you by both
-   * popup and email ten minutes before is one reminder as far as this row is concerned.
+   * Answering an invitation isn't an edit, so it doesn't go through the debounce. The answer
+   * changes whether the block counts toward its category, and the reply carries the event it
+   * changed — so the week takes that, rather than asking for all three of them again.
    */
-  const reminderText = $derived.by(() => {
-    const own = [...new Set(event.reminders.map((r) => r.minutes))].sort((a, b) => b - a);
-    if (own.length > 0) return own.map(lead).join(", ");
-    // Only the macOS app has anywhere to put a reminder, and only the one this app would add is
-    // worth promising — the calendar's own are Google's business, and it says nothing about them
-    // for events it has none on.
-    if (!isDesktop || !preferences.reminders.enabled || event.allDay) return null;
-    return `${lead(preferences.reminders.leadMinutes)}, from this app`;
-  });
-
-  /** "10m before", or "as it starts" for the one that fires on the hour itself. */
-  function lead(minutes: number) {
-    return minutes <= 0 ? "as it starts" : `${formatHoursAndMinutes(minutes / 60)} before it starts`;
+  async function respond(response: Answer) {
+    if (answering) return;
+    answering = response;
+    try {
+      applyCalendarEvent(await respondToCalendarEvent(event.id, event.calendarId, response));
+    } catch (e) {
+      diagnostics.report("Invitation", e, { title: "Couldn’t send your reply" });
+    } finally {
+      answering = null;
+    }
   }
+
+  // --- what feeds it -------------------------------------------------------------------------
+
+  /** The feed this block is linked to, and the integration it belongs to — for the card's section. */
+  const linked = $derived(event.source ? (FEEDS.get(event.source) ?? null) : null);
+
+  /**
+   * Linking rides on the mapping, so a block that counts as nothing is first made to count as
+   * something: the category named for the feed if there is one — "Sleep" — and the buffer
+   * otherwise, the same place an hour nobody planned already lands. Either is one tap to change.
+   * On the phone that can read the feed, the link also asks for permission and reads straight
+   * away; anywhere else the link is made and the record arrives from the phone.
+   */
+  async function link(source: string) {
+    const entry = FEEDS.get(source);
+    if (!entry) return;
+    if (!category) {
+      const word = entry.feed.label.toLowerCase();
+      const guess = plannable.find((c) => c.name.toLowerCase().includes(word)) ?? plannable.find((c) => c.isBuffer);
+      if (!guess) return;
+      await data.mapEvent(event, scope, { weights: [{ categoryId: guess.id, weightPercent: 100 }] }, {
+        ...{ projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer },
+        source,
+      });
+    } else {
+      await data.tagEvent(event, { source });
+    }
+    if (entry.integration.available) void integrations.sync(entry.integration, entry.feed);
+  }
+
+  function unlink() {
+    void data.tagEvent(event, { source: null });
+  }
+
+  // --- writing -------------------------------------------------------------------------------
 
   /** A pending edit still belongs to the user, so it's written before the card goes away. */
   $effect(() => () => flush());
@@ -373,26 +518,6 @@
     });
   }
 
-  /** Mapping writes land straight away — there's nothing to type, so there's nothing to wait for. */
-  async function run(action: () => Promise<void>) {
-    await action();
-  }
-
-  /**
-   * One category, whole: a split across several is a thing the week screen sets, not this card.
-   * With other blocks gathered, the choice applies to the whole batch rather than just this one.
-   */
-  function chooseCategory(categoryId: string) {
-    pickerRect = null;
-    const weights = [{ categoryId, weightPercent: 100 }];
-    if (data.picked.size > 0) {
-      void run(() => data.mapEvents(data.pickedEvents, weights));
-      data.clearPicked();
-      return;
-    }
-    void run(() => data.mapEvent(event, scope, { weights }));
-  }
-
   /** A link that refuses to open says so on the card, rather than doing nothing at all. */
   async function open(url: string) {
     try {
@@ -422,23 +547,6 @@
     if (copiedTimer) clearTimeout(copiedTimer);
   });
 
-  /**
-   * Answering an invitation isn't an edit, so it doesn't go through the debounce. The answer
-   * changes whether the block counts toward its category, and the reply carries the event it
-   * changed — so the week takes that, rather than asking for all three of them again.
-   */
-  async function respond(response: Answer) {
-    if (answering) return;
-    answering = response;
-    try {
-      applyCalendarEvent(await respondToCalendarEvent(event.id, event.calendarId, response));
-    } catch (e) {
-      diagnostics.report("Invitation", e, { title: "Couldn’t send your reply" });
-    } finally {
-      answering = null;
-    }
-  }
-
   function close() {
     flush();
     data.deselect();
@@ -451,15 +559,6 @@
 </script>
 
 <svelte:window {onkeydown} />
-
-{#snippet row(label: string, icon: typeof MapPin)}
-  {@const Icon = icon}
-  <!-- The rows Notion fills in for a meeting: drawn, inert, waiting on a backend. -->
-  <button type="button" class="press-sm flex w-full items-center gap-3 rounded-md py-1.5 text-left" disabled>
-    <Icon size={16} class="shrink-0 text-fg-faint" />
-    <span class="t-label text-fg-faint">{label}</span>
-  </button>
-{/snippet}
 
 {#snippet copyButton(url: string)}
   {@const done = copied === url}
@@ -478,247 +577,193 @@
   </button>
 {/snippet}
 
-<AnchoredPopup {rect} width={WIDTH} dismiss={!pickerRect && !projectRect} onclose={close}>
-    <!-- Header: what it counts as and what it's called, beside the two things you can do to it. -->
-    <div class="flex items-center gap-1 px-3 py-3">
-      <!-- The same badge the block on the grid wears, opening the same list. -->
-      <button
-        type="button"
-        aria-label="Change category"
-        class="press-sm shrink-0 rounded-md"
-        onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
+{#snippet rowButton(
+  label: string,
+  icon: typeof MapPin,
+  set: boolean,
+  onclick: (e: MouseEvent & { currentTarget: HTMLButtonElement }) => void,
+)}
+  {@const Icon = icon}
+  <button
+    type="button"
+    {onclick}
+    class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
+  >
+    <Icon size={16} class="shrink-0 {set ? 'text-fg-muted' : 'text-fg-faint'}" />
+    <span class="t-label min-w-0 flex-1 truncate {set ? 'text-fg' : 'text-fg-faint'}">{label}</span>
+  </button>
+{/snippet}
+
+<AnchoredPopup {rect} width={WIDTH} dismiss={!nested} onclose={close}>
+  <!-- The sphere, said once above everything: the icon beside the name is the same answer. -->
+  <p class="t-micro truncate px-4 pt-2 text-fg-faint">{category?.name ?? "No sphere yet"}</p>
+
+  <!-- Header: what it counts as and what it's called, beside the things you can do to it. -->
+  <div class="flex items-center gap-1 px-3 pt-1 pb-2">
+    <!-- The same badge the block on the grid wears, opening the same list. -->
+    <button
+      type="button"
+      aria-label="Change category"
+      class="press-sm shrink-0 rounded-md"
+      onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
+    >
+      <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={28} />
+    </button>
+    {#if editable}
+      <Field
+        bind:value={title}
+        bind:element={titleEl}
+        oninput={queue}
+        placeholder="Untitled"
+        variant="inline"
+        ariaLabel="Event title"
+        class="t-heading py-1"
+      />
+    {:else}
+      <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
+    {/if}
+    <!-- The assistant's seat at the table. What it does when pressed is the next thing to build. -->
+    <IconButton label="Ask about this event" tone="plain" onclick={() => undefined}>
+      <Sparkles size={15} class="text-fg-muted" />
+    </IconButton>
+    {#if editable}
+      <IconButton
+        label="Delete event"
+        tone="plain"
+        onclick={() => {
+          deleted = true;
+          if (timer) clearTimeout(timer);
+          void data.deleteEvent(event);
+        }}
       >
-        <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={28} />
-      </button>
-      {#if editable}
-        <Field
-          bind:value={title}
-          bind:element={titleEl}
-          oninput={queue}
-          placeholder="Untitled"
-          variant="inline"
-          ariaLabel="Event title"
-          class="t-heading py-1"
-        />
-      {:else}
-        <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
-      {/if}
-      {#if editable}
-        <IconButton
-          label="Delete event"
-          tone="plain"
-          onclick={() => {
-            deleted = true;
-            if (timer) clearTimeout(timer);
-            void run(() => data.deleteEvent(event));
-          }}
-        >
-          <Trash2 size={15} class="text-fg-muted" />
-        </IconButton>
-      {/if}
-      <IconButton label="Close" tone="plain" onclick={close}>
-        <X size={16} class="text-fg-muted" />
+        <Trash2 size={15} class="text-fg-muted" />
       </IconButton>
-    </div>
+    {/if}
+    <IconButton label="Close" tone="plain" onclick={close}>
+      <X size={16} class="text-fg-muted" />
+    </IconButton>
+  </div>
 
-    <!-- When it runs. The clock owns the whole block, so the date sits under the times it belongs to. -->
-    <div class="space-y-1 border-t border-line px-3 py-3">
-      <div class="flex items-center gap-3">
-        <Clock size={16} class="shrink-0 text-fg-faint" />
-        {#if editable}
-          <TimeField
-            bind:value={from}
-            counterpart={to}
-            oninput={queue}
-            oncommit={flush}
-            onpreview={(v) => (previewFrom = v)}
-            ariaLabel="Start time"
-          />
-          <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-          <TimeField
-            bind:value={to}
-            counterpart={from}
-            end
-            oninput={queue}
-            oncommit={flush}
-            onpreview={(v) => (previewTo = v)}
-            ariaLabel="End time"
-          />
-        {:else}
-          <span class="t-data-compact">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
-          {#if !event.allDay}
-            <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-            <span class="t-data-compact">{formatClock(new Date(event.end))}</span>
-          {/if}
-          <span class="t-data-micro text-fg-muted">{span}</span>
-        {/if}
-      </div>
-
-      <div class="flex items-center gap-3 pl-7">
-        {#if editable}
-          <!-- Reads as "Fri Aug 14"; the native picker behind it is what's actually being typed in. -->
-          <label
-            class="relative flex h-9 items-center rounded-md border border-transparent px-2 transition-colors
-              hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
-          >
-            <span class="t-data-compact">{dateLabel}</span>
-            <input
-              type="date"
-              bind:value={date}
-              oninput={queue}
-              aria-label="Date"
-              class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            />
-          </label>
-        {:else}
-          <span class="t-data-compact px-2">{longDate}</span>
-        {/if}
-      </div>
-
-      <div class="flex items-center gap-4 pl-9">
-        <button type="button" class="t-label text-fg-faint" disabled>All-day</button>
-        <button type="button" class="t-label text-fg-faint" disabled>Time zone</button>
-        <button type="button" class="t-label text-fg-faint" disabled>Repeat</button>
-      </div>
-    </div>
-
-    <!-- The meeting inside the event: where it is, how you get in, and what else it came with. -->
-    <div class="border-t border-line px-3 py-2">
-      {#if meeting.join}
-        <div class="flex w-full items-center gap-3 py-1.5">
-          <Video size={16} class="shrink-0 text-fg-faint" />
-          <span class="t-label min-w-0 flex-1 truncate">{event.conferenceName ?? meeting.join.label}</span>
-          {@render copyButton(meeting.join.url)}
-          <button
-            type="button"
-            class="press shrink-0 rounded-md bg-ink px-2.5 py-1 text-ink-fg"
-            onclick={() => void open(joinUrl ?? "")}
-          >
-            <span class="t-label">Join</span>
-          </button>
-        </div>
-      {:else}
-        {@render row("Conferencing", Video)}
-      {/if}
-
-      {#if meeting.location}
-        <div class="flex w-full items-start gap-3 py-1.5">
-          <MapPin size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-          <div class="min-w-0 flex-1 space-y-1.5">
-            <p class="t-label break-words">{meeting.location}</p>
-            {#if travelTo}
-              <div class="flex flex-wrap items-center gap-2">
-                <OriginPicker eventId={event.id} />
-                <TravelChips
-                  eventId={event.id}
-                  destination={travelTo}
-                  arriveBy={event.start}
-                  onopen={(url) => void open(url)}
-                />
-              </div>
-            {/if}
-          </div>
-        </div>
-      {:else}
-        {@render row("Location", MapPin)}
-      {/if}
-    </div>
-
-    <div class="border-t border-line px-3 py-2">
-      {#if links.length > 0}
-        <div class="flex w-full items-start gap-3 py-1.5">
-          <Link2 size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-          <div class="flex min-w-0 flex-1 flex-col gap-1.5">
-            {#each links as link (link.url)}
-              <div class="flex min-w-0 items-center gap-1">
-                <button
-                  type="button"
-                  class="press-sm min-w-0 flex-1 rounded-md border border-line px-2 py-1 text-left"
-                  onclick={() => void open(asGoogleAccount(link.url, accountEmail))}
-                >
-                  <span class="t-label block truncate">{link.label}</span>
-                </button>
-                {@render copyButton(link.url)}
-              </div>
-            {/each}
-          </div>
-        </div>
-      {:else}
-        {@render row("Add links and attachments", Link2)}
-      {/if}
-    </div>
-
-    {#if event.organizer || event.attendees.length > 0 || answerable}
-      <div class="border-t border-line px-3 py-2">
-        {#if event.organizer || event.attendees.length > 0}
-          <EventAttendees attendees={event.attendees} organizer={event.organizer} />
-        {/if}
-        {#if answerable}
-          <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
-          <div class="flex items-center gap-2 py-1.5 pl-7">
-            {#each RSVP as choice (choice.value)}
-              {@const chosen = event.response === choice.value}
+  <!-- What it was for: the project or practice whose evidence this hour is. Tagging after the
+       fact is how a real week is reconciled, so the row is there even when empty. -->
+  {#if shown("projects")}
+    <div class="px-3 pb-2">
+      {#if purpose}
+        <div class="flex items-center gap-3 py-1">
+          <Folder size={16} class="shrink-0 text-fg-muted" />
+          <span class="t-label flex min-w-0 items-center gap-1 rounded-md border border-line px-2 py-0.5">
+            <span class="truncate">{purpose}</span>
+            {#if editable && !detaching}
               <button
                 type="button"
-                aria-pressed={chosen}
-                disabled={answering !== null}
-                class="press-sm rounded-md border px-2.5 py-1
-                  {chosen ? 'border-line-strong bg-surface-alt' : 'border-line'}"
-                onclick={() => void respond(choice.value)}
+                aria-label="Detach from {purpose}"
+                onclick={() => (detaching = true)}
+                class="press-sm -mr-1 shrink-0 rounded p-0.5 text-fg-faint hover:text-fg"
               >
-                <span class="t-label {chosen ? '' : 'text-fg-muted'}">{choice.label}</span>
+                <X size={12} />
               </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    {/if}
+            {/if}
+          </span>
+          {#if detaching}
+            <span class="t-micro flex shrink-0 items-center gap-2 text-fg-muted">
+              Detach?
+              <button type="button" onclick={detach} class="press-sm t-micro text-fg underline">Yes</button>
+              <button type="button" onclick={() => (detaching = false)} class="press-sm t-micro text-fg-faint">No</button>
+            </span>
+          {/if}
+        </div>
+      {:else}
+        {@render rowButton("Projects", Folder, false, (e) => (projectRect = e.currentTarget.getBoundingClientRect()))}
+      {/if}
+    </div>
+  {/if}
 
-    <!-- What it was for: the project or practice whose evidence this hour is. Tagging after the
-         fact is how a real week is reconciled, so the row is always there, even when empty. -->
-    <div class="border-t border-line px-3 py-1.5">
-      <button
-        type="button"
-        onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
-        class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-      >
-        <Hexagon size={16} class="shrink-0 {purpose ? 'text-fg-muted' : 'text-fg-faint'}" />
-        <span class="t-label min-w-0 flex-1 truncate {purpose ? 'text-fg' : 'text-fg-faint'}">
-          {purpose ?? "For a project or practice…"}
-        </span>
-      </button>
-      {#if editable && !planning}
+  <!-- When it runs. The clock owns the whole block, so the date sits under the times it belongs to. -->
+  <div class="space-y-1 border-t border-line px-3 py-3">
+    <div class="flex items-center gap-3">
+      <Clock size={16} class="shrink-0 text-fg-faint" />
+      {#if editable}
+        <TimeField
+          bind:value={from}
+          counterpart={to}
+          oninput={queue}
+          oncommit={flush}
+          onpreview={(v) => (previewFrom = v)}
+          ariaLabel="Start time"
+        />
+        <ArrowRight size={14} class="shrink-0 text-fg-faint" />
+        <TimeField
+          bind:value={to}
+          counterpart={from}
+          end
+          oninput={queue}
+          oncommit={flush}
+          onpreview={(v) => (previewTo = v)}
+          ariaLabel="End time"
+        />
+      {:else}
+        <span class="t-data-compact">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
+        {#if !event.allDay}
+          <ArrowRight size={14} class="shrink-0 text-fg-faint" />
+          <span class="t-data-compact">{formatClock(new Date(event.end))}</span>
+        {/if}
+        <span class="t-data-micro text-fg-muted">{span}</span>
+      {/if}
+      {#if !event.allDay}
         <button
           type="button"
-          class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-          onclick={() => (planning = true)}
+          disabled={!editable}
+          aria-label="Time zone: {zoneLabel}"
+          onclick={(e) => (zoneRect = e.currentTarget.getBoundingClientRect())}
+          class="press-sm t-data-micro ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-fg-muted enabled:hover:bg-surface-alt"
         >
-          <Sparkles size={16} class="shrink-0 text-fg-faint" />
-          <span class="t-label min-w-0 flex-1 truncate text-fg-faint">Plan this block…</span>
+          {zoneLabel}
         </button>
-      {/if}
-      {#if planning}
-        <div class="pb-1.5">
-          <EventAssist {event} {category} onbrief={takeBrief} onhours={takeHours} onclose={() => (planning = false)} />
-        </div>
       {/if}
     </div>
 
-    {#if category && !event.allDay}
-      <!-- The timer the watch runs for this block: the length is the block's, the rhythm is chosen. -->
-      <div class="border-t border-line px-3 py-1.5">
+    <div class="flex items-center gap-3">
+      <CalendarClock size={16} class="shrink-0 text-fg-faint" />
+      {#if editable}
+        <!-- Reads as "Fri Aug 14"; the native picker behind it is what's actually being typed in. -->
+        <label
+          class="relative flex h-9 items-center rounded-md border border-transparent px-2 transition-colors
+            hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
+        >
+          <span class="t-data-compact">{dateLabel}</span>
+          <input
+            type="date"
+            bind:value={date}
+            oninput={queue}
+            aria-label="Date"
+            class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          />
+        </label>
+      {:else}
+        <span class="t-data-compact px-2">{longDate}</span>
+      {/if}
+      {#if !event.allDay}
+        <button
+          type="button"
+          disabled={!editable}
+          onclick={(e) => (repeatRect = e.currentTarget.getBoundingClientRect())}
+          class="press-sm flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left enabled:hover:bg-surface-alt"
+        >
+          <Repeat size={14} class="shrink-0 {rule ? 'text-fg-muted' : 'text-fg-faint'}" />
+          <span class="t-label truncate {rule ? 'text-fg' : 'text-fg-faint'}">{repeatLabel}</span>
+        </button>
+      {/if}
+    </div>
+  </div>
+
+  <!-- How you'll be told: the calendar's own reminders, and the rhythm a timer runs at. -->
+  {#if !event.allDay}
+    <div class="border-t border-line px-3 py-1.5">
+      <RemindersRow reminders={event.reminders} {editable} onchange={chooseReminders} />
+      {#if shown("timer") && category}
         <Popover width={200} align="start">
           {#snippet trigger(open)}
-            <button
-              type="button"
-              onclick={open}
-              class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-            >
-              <Timer size={16} class="shrink-0 {event.timer ? 'text-fg-muted' : 'text-fg-faint'}" />
-              <span class="t-label min-w-0 flex-1 truncate {event.timer ? 'text-fg' : 'text-fg-faint'}">
-                {event.timer ? timerLabel : "Timer runs to the end"}
-              </span>
-            </button>
+            {@render rowButton(event.timer ? timerLabel : "Set up timer", Timer, Boolean(event.timer), open)}
           {/snippet}
           {#snippet content(close)}
             {#each TIMERS as option (option.value)}
@@ -733,88 +778,125 @@
             {/each}
           {/snippet}
         </Popover>
-      </div>
-    {/if}
-
-    <!-- What knows how this block actually went: a feed, linked from here. The row is always
-         there because linking after the fact is the ordinary gesture, like tagging a project. -->
-    {#if !event.allDay}
-      <div class="border-t border-line px-3 py-1.5">
-        <button
-          type="button"
-          onclick={() => (linking = !linking)}
-          class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-        >
-          <Plug size={16} class="shrink-0 {linked ? 'text-fg-muted' : 'text-fg-faint'}" />
-          <span class="t-label min-w-0 flex-1 truncate {linked ? 'text-fg' : 'text-fg-faint'}">
-            {linked ? `${linked.integration.name} · ${linked.feed.label}` : "Integrations…"}
-          </span>
-        </button>
-        {#if linking}
-          <div class="space-y-1 pb-1.5 pl-7">
-            {#each INTEGRATIONS as integration (integration.id)}
-              {#each integration.feeds as feed (feed.id)}
-                {@const source = `${integration.id}:${feed.id}`}
-                {@const isLinked = event.source === source}
-                <button
-                  type="button"
-                  class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-start gap-3 rounded-md px-1 py-1.5 text-left"
-                  onclick={() => (isLinked ? unlink() : void link(source))}
-                >
-                  <integration.icon size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-                  <span class="min-w-0 flex-1">
-                    <span class="t-label block text-fg">{integration.name} · {feed.label}</span>
-                    <span class="t-micro block text-fg-faint">{feed.note}</span>
-                    {#if !integration.available}
-                      <span class="t-micro block text-fg-faint">{integration.unavailableNote}</span>
-                    {/if}
-                  </span>
-                  <span class="t-micro shrink-0 pt-0.5 {isLinked ? 'text-fg-muted' : 'text-fg-faint'}">
-                    {isLinked ? "Unlink" : "Link"}
-                  </span>
-                </button>
-              {/each}
-            {/each}
-          </div>
-        {/if}
-        {#if linked && !linking}
-          {@const Section = linked.feed.section}
-          <Section {event} />
-        {/if}
-      </div>
-    {/if}
-
-    <div class="border-t border-line px-3 py-2">
-      {#if editable}
-        <Textarea
-          bind:value={notes}
-          oninput={queue}
-          rows={2}
-          placeholder="Description"
-          ariaLabel="Event notes"
-          class="bg-transparent px-0"
-        />
-      {:else if event.description}
-        <p class="t-label whitespace-pre-wrap text-fg-muted">{event.description}</p>
-      {:else}
-        <p class="t-label text-fg-faint">Description</p>
       {/if}
     </div>
+  {/if}
 
-    {#if !event.countsTowardHours}
-      <p class="t-micro border-t border-line px-3 py-2 text-fg-faint">
-        {event.declined ? "You declined this, so it counts toward nothing." : "All-day events don't count as hours."}
-      </p>
-    {/if}
+  <!-- The meeting inside the event: how you get in, who else is coming, where it is. -->
+  {#if shown("conferencing") || shown("participants") || shown("location")}
+    <div class="border-t border-line px-3 py-2">
+      {#if shown("conferencing")}
+        <ConferencingRow
+          {meeting}
+          conferenceName={event.conferenceName}
+          {joinUrl}
+          {editable}
+          onjoin={(url) => void open(url)}
+          oncopy={(url) => void copy(url)}
+          {copied}
+          oncreate={addCall}
+          onremove={removeCall}
+          onpaste={pasteCall}
+        />
+      {/if}
+      {#if shown("participants")}
+        <ParticipantsRow attendees={event.attendees} organizer={event.organizer} editable={hosting} onchange={chooseGuests}>
+          {#snippet answer()}
+            {#if answerable}
+              <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
+              <div class="flex items-center gap-2 pt-1">
+                {#each RSVP as choice (choice.value)}
+                  {@const chosen = event.response === choice.value}
+                  <button
+                    type="button"
+                    aria-pressed={chosen}
+                    disabled={answering !== null}
+                    class="press-sm rounded-md border px-2.5 py-1
+                      {chosen ? 'border-line-strong bg-surface-alt' : 'border-line'}"
+                    onclick={() => void respond(choice.value)}
+                  >
+                    <span class="t-label {chosen ? '' : 'text-fg-muted'}">{choice.label}</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          {/snippet}
+        </ParticipantsRow>
+      {/if}
+      {#if shown("location")}
+        <LocationRow
+          eventId={event.id}
+          location={meeting.location ?? event.location}
+          {travelTo}
+          arriveBy={event.start}
+          {editable}
+          onchange={chooseLocation}
+          onopen={(url) => void open(url)}
+        />
+      {/if}
+    </div>
+  {/if}
 
-    {#if reminderText}
-      <div class="border-t border-line px-3 py-3">
-        <div class="flex items-start gap-3 py-1">
-          <Bell size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-          <span class="t-label min-w-0 flex-1 text-fg-muted">{reminderText}</span>
-        </div>
+  <!-- What it says. -->
+  {#if shown("description")}
+    <div class="flex items-start gap-3 border-t border-line px-3 py-2">
+      <AlignLeft size={16} class="mt-1.5 shrink-0 {notes.trim() ? 'text-fg-muted' : 'text-fg-faint'}" />
+      <div class="min-w-0 flex-1">
+        {#if editable}
+          <Textarea
+            bind:value={notes}
+            oninput={queue}
+            rows={2}
+            placeholder="Description"
+            ariaLabel="Event notes"
+            class="bg-transparent px-0"
+          />
+        {:else if event.description}
+          <p class="t-label whitespace-pre-wrap text-fg-muted">{event.description}</p>
+        {:else}
+          <p class="t-label py-1.5 text-fg-faint">Description</p>
+        {/if}
       </div>
+    </div>
+  {/if}
+
+  <!-- The foot: what's linked out of it, and what's linked into it. -->
+  <div class="border-t border-line px-3 py-2">
+    <div class="flex items-start gap-3 py-1">
+      <Link2 size={16} class="mt-0.5 shrink-0 {links.length > 0 ? 'text-fg-muted' : 'text-fg-faint'}" />
+      <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+        {#if links.length > 0 && shown("links")}
+          {#each links as link (link.url)}
+            <div class="flex min-w-0 items-center gap-1">
+              <button
+                type="button"
+                class="press-sm min-w-0 flex-1 rounded-md border border-line px-2 py-1 text-left"
+                onclick={() => void open(asGoogleAccount(link.url, accountEmail))}
+              >
+                <span class="t-label block truncate">{link.label}</span>
+              </button>
+              {@render copyButton(link.url)}
+            </div>
+          {/each}
+        {:else}
+          <span class="t-label py-0.5 text-fg-faint">Links</span>
+        {/if}
+      </div>
+      {#if !event.allDay}
+        <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
+      {/if}
+    </div>
+    {#if linked}
+      {@const Section = linked.feed.section}
+      <Section {event} />
     {/if}
+  </div>
+
+  {#if !event.countsTowardHours}
+    <p class="t-micro border-t border-line px-3 py-2 text-fg-faint">
+      {event.declined ? "You declined this, so it counts toward nothing." : "All-day events don't count as hours."}
+    </p>
+  {/if}
 </AnchoredPopup>
 
 {#if projectRect}
@@ -829,4 +911,12 @@
     onchoose={chooseCategory}
     onclose={() => (pickerRect = null)}
   />
+{/if}
+
+{#if zoneRect}
+  <TimeZonePicker rect={zoneRect} value={zone} at={new Date(event.start)} onchoose={chooseZone} onclose={() => (zoneRect = null)} />
+{/if}
+
+{#if repeatRect}
+  <RepeatPicker rect={repeatRect} value={rule} day={new Date(event.start)} onchoose={chooseRule} onclose={() => (repeatRect = null)} />
 {/if}

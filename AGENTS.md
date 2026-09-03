@@ -148,6 +148,23 @@ the point, and the parameter rather than a flag is what survives a reload. `plan
 out on the device so the meter answers a drag immediately; the server checks it again on commit,
 because that is where the star is actually earned.
 
+## The event card is sections, and the calendar keeps most of them
+
+`calendar/EventEditor.svelte` is one card: sphere and name, what it is for, when, how you'll be
+told, where and with whom, what it says. Everything the meeting carries — a place, its time zone,
+how it repeats, its reminders, its guests, its call — is written straight back to Google through
+one `PATCH /calendar/events/:id` and `calendarData.patchEvent`, which draws the answer ahead and
+takes an inverse patch for undo. A rule always lands on the series' master, the only event that
+has one, so the card fetches the master once per series to read it; anything else edited on an
+occurrence is offered to the rest of the series the way a retitle is. The translations are pure
+and tested: `calendar/recurrence.ts` speaks RRULE, `reminder-lead.ts` reads "45m" and "at time",
+and `time-zones.ts` names zones by city, works out "GMT+2" on the day, and moves an instant
+between zones keeping its wall clock. Zones a person names — "Kyiv", "the office" — and the card
+sections they have folded away both live on the account (`preferences.zones`, `preferences.card`),
+so they are the same on every device. `ComboField` is the one typed-and-picked field under the
+zone, repeat and reminder pickers. The assistant's button is a seat at the table and nothing more
+yet.
+
 ## Reminders are worked out once and shown three ways
 
 `$lib/reminders.ts` answers when a reminder is due — the event's own calendar reminder or the

@@ -10,6 +10,7 @@ import type {
   UpdateEventInput,
 } from "../types";
 import type {
+  GoogleAttendee,
   GoogleCalendarListEntry,
   GoogleErrorResponse,
   GoogleEvent,
@@ -37,6 +38,15 @@ function calendarDate(at: Date) {
   return at.toISOString().slice(0, 10);
 }
 
+/**
+ * What the conferencing block is patched to. A request with a fresh id is how Google is asked
+ * to make a Meet; null takes whatever call there is off the event.
+ */
+function conferenceBlock(conference: "create" | "remove") {
+  if (conference === "remove") return null;
+  return { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } };
+}
+
 const BASE_URL = "https://www.googleapis.com/calendar/v3";
 const PAGE_SIZE = 250;
 const RATE_LIMIT_RETRY_MS = 500;
@@ -49,7 +59,7 @@ const IGNORED_EVENT_TYPES = new Set(["workingLocation", "birthday"]);
  * otherwise, and a week of them is a lot of JSON for fields nothing draws.
  */
 const ITEM_FIELDS =
-  "id,status,summary,description,location,start,end,recurringEventId,eventType,htmlLink,hangoutLink," +
+  "id,status,summary,description,location,start,end,recurringEventId,recurrence,eventType,htmlLink,hangoutLink," +
   "conferenceData(entryPoints(entryPointType,uri,label,meetingCode),conferenceSolution(name,key/type))," +
   "organizer(email,displayName,self),attendees(email,displayName,self,organizer,optional,resource,responseStatus)," +
   "reminders(useDefault,overrides(method,minutes))";
@@ -106,20 +116,52 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return this.toExternalEvent(event, calendarId, "UTC", false);
   }
 
+  /**
+   * Only what the patch names. Google replaces a guest list rather than merging it, and answers
+   * a conferencing request only when told which version of that block it is being sent, so both
+   * are written whole; the others are one field each. Everyone invited hears about the change —
+   * a meeting moved without telling its guests is a meeting nobody comes to.
+   */
   async updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent> {
+    const zone = patch.timeZone === undefined ? {} : { timeZone: patch.timeZone };
+    const params = new URLSearchParams({ sendUpdates: "all", fields: SINGLE_EVENT_FIELDS });
+    if (patch.conference) params.set("conferenceDataVersion", "1");
+
     const updated = await this.request<GoogleEvent>(
-      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?${params}`,
       {
         method: "PATCH",
         body: {
           ...(patch.title === undefined ? {} : { summary: patch.title }),
           ...(patch.description === undefined ? {} : { description: patch.description }),
-          ...(patch.start === undefined ? {} : { start: { dateTime: patch.start.toISOString() } }),
-          ...(patch.end === undefined ? {} : { end: { dateTime: patch.end.toISOString() } }),
+          ...(patch.location === undefined ? {} : { location: patch.location }),
+          ...(patch.start === undefined ? {} : { start: { dateTime: patch.start.toISOString(), ...zone } }),
+          ...(patch.end === undefined ? {} : { end: { dateTime: patch.end.toISOString(), ...zone } }),
+          ...(patch.recurrence === undefined ? {} : { recurrence: [...patch.recurrence] }),
+          ...(patch.reminders === undefined
+            ? {}
+            : { reminders: { useDefault: false, overrides: patch.reminders.map((r) => ({ ...r })) } }),
+          ...(patch.attendees === undefined ? {} : { attendees: await this.guestList(calendarId, eventId, patch) }),
+          ...(patch.conference === undefined ? {} : { conferenceData: conferenceBlock(patch.conference) }),
         },
       },
     );
     return this.toExternalEvent(updated, calendarId, "UTC", false);
+  }
+
+  /**
+   * The list as it will be sent: whoever the patch names, keeping the answer anyone already on
+   * it has given — replacing a guest with a fresh line would reset their reply to "not answered".
+   */
+  private async guestList(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<GoogleAttendee[]> {
+    const path = `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`;
+    const current = await this.request<GoogleEvent>(`${path}?fields=attendees(email,self,responseStatus,optional)`);
+    const known = new Map((current.attendees ?? []).map((a) => [a.email?.toLowerCase(), a]));
+    return (patch.attendees ?? []).map((guest) => ({
+      ...known.get(guest.email.toLowerCase()),
+      email: guest.email,
+      optional: guest.optional === true,
+    }));
   }
 
   async deleteEvent(calendarId: string, eventId: string): Promise<void> {
@@ -209,6 +251,8 @@ export class GoogleCalendarProvider implements CalendarProvider {
       reminders: (event.reminders?.overrides ?? [])
         .filter((reminder) => reminder.method === "popup" || reminder.method === "email")
         .map((reminder) => ({ method: reminder.method as "popup" | "email", minutes: reminder.minutes ?? 0 })),
+      timeZone: event.start.timeZone ?? null,
+      recurrence: event.recurrence ?? null,
     };
   }
 

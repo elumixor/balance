@@ -44,7 +44,10 @@ export function presets(day: Date): { label: string; rule: Rule }[] {
       label: `Weekly on ${WEEKDAY_NAMES[weekday]}`,
       rule: { frequency: "weekly", interval: 1, weekdays: [weekday], end: NEVER },
     },
-    { label: `Monthly on the ${ordinal(day.getDate())}`, rule: { frequency: "monthly", interval: 1, weekdays: [], end: NEVER } },
+    {
+      label: `Monthly on the ${ordinal(day.getDate())}`,
+      rule: { frequency: "monthly", interval: 1, weekdays: [], end: NEVER },
+    },
     { label: "Yearly", rule: { frequency: "yearly", interval: 1, weekdays: [], end: NEVER } },
   ];
 }
@@ -54,7 +57,12 @@ export function toRRule(rule: Rule): string {
   const parts = [`FREQ=${rule.frequency.toUpperCase()}`];
   if (rule.interval > 1) parts.push(`INTERVAL=${rule.interval}`);
   if (rule.frequency === "weekly" && rule.weekdays.length > 0) {
-    parts.push(`BYDAY=${[...rule.weekdays].sort((a, b) => a - b).map((d) => WEEKDAY_CODES[d]).join(",")}`);
+    parts.push(
+      `BYDAY=${[...rule.weekdays]
+        .sort((a, b) => a - b)
+        .map((d) => WEEKDAY_CODES[d])
+        .join(",")}`,
+    );
   }
   if (rule.end.kind === "until") parts.push(`UNTIL=${rule.end.day.replaceAll("-", "")}T235959Z`);
   if (rule.end.kind === "count") parts.push(`COUNT=${rule.end.count}`);
@@ -139,5 +147,9 @@ function capitalize(word: string) {
 /** "2026-03-10" as "Mar 10, 2026" — the day is a date, not an instant, so no zone comes into it. */
 function formatDay(day: string) {
   const [year, month, date] = day.split("-").map(Number);
-  return new Date(year, month - 1, date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return new Date(year, month - 1, date).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }

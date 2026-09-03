@@ -13,6 +13,7 @@ export interface GoogleCalendarListEntry {
 export interface GoogleEventDateTime {
   dateTime?: string;
   date?: string;
+  timeZone?: string;
 }
 
 export interface GoogleAttendee {
@@ -22,7 +23,7 @@ export interface GoogleAttendee {
   organizer?: boolean;
   optional?: boolean;
   resource?: boolean;
-  responseStatus: string;
+  responseStatus?: string;
 }
 
 /** The conferencing block Google keeps on an event created with a call attached to it. */
@@ -48,6 +49,7 @@ export interface GoogleEvent {
   organizer?: { email?: string; displayName?: string; self?: boolean };
   attendees?: GoogleAttendee[];
   reminders?: { useDefault?: boolean; overrides?: { method?: string; minutes?: number }[] };
+  recurrence?: string[];
 }
 
 export interface GoogleEventsResponse {

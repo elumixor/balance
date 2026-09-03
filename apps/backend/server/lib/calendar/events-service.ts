@@ -219,15 +219,21 @@ export class CalendarEventsService {
 
     if (series) {
       targetId = series.seriesId;
-      if (patch.start && patch.end) {
+      const { start, end, ...rest } = patch;
+      const moved =
+        start &&
+        end &&
+        (start.getTime() !== series.previousStart.getTime() || end.getTime() !== series.previousEnd.getTime());
+      if (moved) {
         const master = await connection.provider.getEvent(calendarId, series.seriesId);
-        const deltaStart = patch.start.getTime() - series.previousStart.getTime();
-        const deltaEnd = patch.end.getTime() - series.previousEnd.getTime();
         targetPatch = {
-          ...patch,
-          start: new Date(master.start.getTime() + deltaStart),
-          end: new Date(master.end.getTime() + deltaEnd),
+          ...rest,
+          start: new Date(master.start.getTime() + start.getTime() - series.previousStart.getTime()),
+          end: new Date(master.end.getTime() + end.getTime() - series.previousEnd.getTime()),
         };
+      } else {
+        // The occurrence's own times would land on the master as its times — they're only a delta.
+        targetPatch = rest;
       }
     }
 

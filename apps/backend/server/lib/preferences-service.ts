@@ -74,10 +74,32 @@ export const sessionsSchema = z.object({
   timeZone: z.string().max(64),
 });
 
+/**
+ * A zone worth naming — "Kyiv", "Prague" — so an event can be put in it by the name the person
+ * uses rather than the one the database does. The id is made by the client, like a place's.
+ */
+export const zoneSchema = z.object({
+  id: z.string().min(1).max(64),
+  label: z.string().min(1).max(60),
+  /** The IANA name, which is what the calendar is actually told. */
+  zone: z.string().min(1).max(64),
+});
+
+export const zonesSchema = z.object({
+  saved: z.array(zoneSchema).max(20),
+});
+
+/** Which of an event card's sections are folded away. Empty means every section is drawn. */
+export const cardSchema = z.object({
+  hidden: z.array(z.string().max(40)).max(20),
+});
+
 export const preferencesSchema = z.object({
   reminders: remindersSchema,
   travel: travelSchema,
   sessions: sessionsSchema,
+  zones: zonesSchema,
+  card: cardSchema,
 });
 export type Preferences = z.infer<typeof preferencesSchema>;
 
@@ -93,6 +115,8 @@ const DEFAULTS: Preferences = {
     planWhen: "evening",
     timeZone: "UTC",
   },
+  zones: { saved: [] },
+  card: { hidden: [] },
 };
 
 export class PreferencesService {
@@ -113,12 +137,16 @@ export class PreferencesService {
     reminders?: Partial<Preferences["reminders"]>;
     travel?: Partial<Preferences["travel"]>;
     sessions?: Partial<Preferences["sessions"]>;
+    zones?: Partial<Preferences["zones"]>;
+    card?: Partial<Preferences["card"]>;
   }) {
     const current = await this.get();
     const next: Preferences = {
       reminders: { ...current.reminders, ...patch.reminders },
       travel: { ...current.travel, ...patch.travel },
       sessions: { ...current.sessions, ...patch.sessions },
+      zones: { ...current.zones, ...patch.zones },
+      card: { ...current.card, ...patch.card },
     };
 
     await db
@@ -147,6 +175,8 @@ const storedSchema = z.object({
     .extend({ origin: z.string().max(240).optional() })
     .optional(),
   sessions: sessionsSchema.partial().optional(),
+  zones: zonesSchema.partial().optional(),
+  card: cardSchema.partial().optional(),
 });
 
 const HOME_ID = "home";
@@ -171,5 +201,7 @@ function merge(stored: unknown): Preferences {
     reminders: { ...DEFAULTS.reminders, ...value.reminders },
     travel,
     sessions: { ...DEFAULTS.sessions, ...value.sessions },
+    zones: { ...DEFAULTS.zones, ...value.zones },
+    card: { ...DEFAULTS.card, ...value.card },
   };
 }

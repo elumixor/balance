@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describe as say, fromRecurrence, NEVER, ordinal, presets, type Rule, toRRule } from "./recurrence";
+import { fromRecurrence, NEVER, ordinal, presets, type Rule, describe as say, toRRule } from "./recurrence";
 
 const tuesday = new Date(2026, 2, 10, 9);
 
@@ -66,7 +66,13 @@ describe("fromRecurrence", () => {
 });
 
 describe("describe", () => {
-  const rule = (patch: Partial<Rule>): Rule => ({ frequency: "daily", interval: 1, weekdays: [], end: NEVER, ...patch });
+  const rule = (patch: Partial<Rule>): Rule => ({
+    frequency: "daily",
+    interval: 1,
+    weekdays: [],
+    end: NEVER,
+    ...patch,
+  });
 
   it("says the plain cases in one word", () => {
     expect(say(rule({}))).toBe("Daily");

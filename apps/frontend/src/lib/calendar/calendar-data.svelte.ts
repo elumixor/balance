@@ -1,46 +1,23 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { clock } from "$lib/clock.svelte";
-import {
-  addDays,
-  DAYS_PER_WEEK,
-  MINUTES_PER_DAY,
-  startOfDay,
-  startOfWeek,
-  weekKey,
-} from "$lib/dates";
+import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "$lib/dates";
 import { diagnostics } from "$lib/diagnostics.svelte";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
+  type EventPatch,
   removeEventMapping,
   saveEventMapping,
   updateCalendarEvent,
 } from "$lib/queries";
-import {
-  applyCalendarEvent,
-  calendarWeek,
-  dropCalendarEvent,
-  invalidate,
-  store,
-} from "$lib/store.svelte";
+import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
 import { activities, practices, projects, synced } from "$lib/synced.svelte";
-import {
-  type ActivityWeight,
-  type CalendarEvent,
-  type EventTimer,
-  type MappingScope,
-  NOT_A_MEETING,
-} from "$lib/types";
+import { type ActivityWeight, type CalendarEvent, type EventTimer, type MappingScope, NOT_A_MEETING } from "$lib/types";
 import { viewport } from "$lib/viewport.svelte";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
-import {
-  DEFAULT_EVENT_MINUTES,
-  SNAP_MINUTES,
-  segmentsForRange,
-  snapMinutes,
-} from "./week-grid";
+import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
 
 /**
  * Three weeks of columns, so there's a week to scroll into on either side of the ones shown.
@@ -94,6 +71,35 @@ interface EventFields {
   readonly description: string | null;
   readonly start: Date;
   readonly end: Date;
+}
+
+/** The block as the write will leave it, as far as this screen can tell before the answer. */
+function drawnWith(event: CalendarEvent, patch: EventPatch): CalendarEvent {
+  return {
+    ...event,
+    ...(patch.location === undefined ? {} : { location: patch.location || null }),
+    ...(patch.timeZone === undefined ? {} : { timeZone: patch.timeZone }),
+    ...(patch.start === undefined ? {} : { start: patch.start }),
+    ...(patch.end === undefined ? {} : { end: patch.end }),
+    ...(patch.reminders === undefined ? {} : { reminders: patch.reminders }),
+    ...(patch.conference === "remove" ? { conferenceUrl: null, conferenceName: null } : {}),
+    ...(patch.attendees === undefined
+      ? {}
+      : {
+          attendees: patch.attendees.map((guest) => {
+            const known = event.attendees.find((a) => a.email?.toLowerCase() === guest.email.toLowerCase());
+            return (
+              known ?? {
+                email: guest.email,
+                name: null,
+                self: false,
+                response: "needsAction",
+                optional: guest.optional === true,
+              }
+            );
+          }),
+        }),
+  };
 }
 
 function sameFields(a: EventFields, b: EventFields) {
@@ -158,6 +164,8 @@ export interface SeriesPrompt {
   readonly fields: EventFields;
   readonly previousStart: Date;
   readonly previousEnd: Date;
+  /** The rest of what a card changes — a place, a guest list — when that is what was edited. */
+  readonly patch?: EventPatch;
 }
 
 export interface DragState {
@@ -246,9 +254,7 @@ class CalendarData {
   readonly visibleDays = $derived(viewport.md ? DAYS_PER_WEEK : PHONE_DAYS);
 
   /** Opens on the current week — or, where the window is narrower than one, on today. */
-  #anchor = $state(
-    viewport.md ? startOfWeek(new Date()) : startOfDay(new Date())
-  );
+  #anchor = $state(viewport.md ? startOfWeek(new Date()) : startOfDay(new Date()));
 
   get anchor() {
     return this.#anchor;
@@ -372,9 +378,7 @@ class CalendarData {
    * The grid draws whole weeks and shows a run of days out of them, so there's always room to
    * scroll into on either side and the day columns line up with the week the events came in.
    */
-  readonly stripStart = $derived(
-    addDays(startOfWeek(this.windowStart), -SIDE_WEEKS * DAYS_PER_WEEK)
-  );
+  readonly stripStart = $derived(addDays(startOfWeek(this.windowStart), -SIDE_WEEKS * DAYS_PER_WEEK));
   readonly dayOffset = $derived(daysBetween(this.stripStart, this.windowStart));
 
   /**
@@ -393,11 +397,7 @@ class CalendarData {
    * that answer is a round trip behind, and the sidebar toggle has to feel instant.
    */
   readonly events = $derived.by(() => {
-    const byId = new Map(
-      this.weeks
-        .flatMap((week) => week.value?.events ?? [])
-        .map((event) => [event.id, event])
-    );
+    const byId = new Map(this.weeks.flatMap((week) => week.value?.events ?? []).map((event) => [event.id, event]));
     for (const [id, event] of this.#pending) {
       if (event) byId.set(id, event);
       else byId.delete(id);
@@ -418,13 +418,8 @@ class CalendarData {
     // be, since it runs local code against the deployed API. No calendars is a week that draws
     // everything, not a screen that dies.
     const allCalendars = (prefs.accounts ?? []).flatMap((a) => a.calendars);
-    const primaryIds = new Set(
-      allCalendars.filter((c) => c.primary).map((c) => c.id)
-    );
-    const shownIds =
-      prefs.visibleCalendarIds.length === 0
-        ? primaryIds
-        : new Set(prefs.visibleCalendarIds);
+    const primaryIds = new Set(allCalendars.filter((c) => c.primary).map((c) => c.id));
+    const shownIds = prefs.visibleCalendarIds.length === 0 ? primaryIds : new Set(prefs.visibleCalendarIds);
     return [...byId.values()].filter((event) => shownIds.has(event.calendarId));
   });
 
@@ -436,12 +431,7 @@ class CalendarData {
    */
   readonly eventsForTotals = $derived.by(() => {
     const drag = this.drag;
-    if (
-      !drag?.event ||
-      (drag.kind !== "move" &&
-        drag.kind !== "resize" &&
-        drag.kind !== "resize-start")
-    ) {
+    if (!drag?.event || (drag.kind !== "move" && drag.kind !== "resize" && drag.kind !== "resize-start")) {
       return this.events;
     }
     const was = drag.event;
@@ -464,9 +454,7 @@ class CalendarData {
         ...drag.others.map((event) => ({
           ...event,
           id: `${event.id}:drag-copy`,
-          start: new Date(
-            new Date(event.start).getTime() + shiftStart
-          ).toISOString(),
+          start: new Date(new Date(event.start).getTime() + shiftStart).toISOString(),
           end: new Date(new Date(event.end).getTime() + shiftEnd).toISOString(),
         })),
       ];
@@ -495,9 +483,7 @@ class CalendarData {
    * The window can straddle two calendar weeks; the one holding its middle day is the week the
    * meters and the title are about. Stepping to that middle day lands on it by itself.
    */
-  readonly weekStart = $derived(
-    startOfWeek(addDays(this.windowStart, Math.floor(this.visibleDays / 2)))
-  );
+  readonly weekStart = $derived(startOfWeek(addDays(this.windowStart, Math.floor(this.visibleDays / 2))));
   readonly key = $derived(weekKey(this.weekStart));
   /** The focused week's cache, resolved alongside the strip's and read the same way. */
   #focusedWeek = $state(calendarWeek(this.key));
@@ -509,13 +495,9 @@ class CalendarData {
    * nothing on the screen may say "connect" until the server has actually said there's nothing to
    * connect to — the alternative is asking every cold start and taking it back a moment later.
    */
-  readonly connectionKnown = $derived(
-    this.weeks.some((week) => week.hasValue) || store.integrations.hasValue
-  );
+  readonly connectionKnown = $derived(this.weeks.some((week) => week.hasValue) || store.integrations.hasValue);
   readonly connected = $derived(
-    this.week.value?.connected ??
-      store.integrations.value?.some((i) => i.connected) ??
-      false
+    this.week.value?.connected ?? store.integrations.value?.some((i) => i.connected) ?? false,
   );
   readonly needsReconnect = $derived(this.week.value?.needsReconnect ?? false);
   readonly isThisWeek = $derived(this.key === weekKey(clock.now));
@@ -535,9 +517,7 @@ class CalendarData {
   });
 
   /** The gathered blocks themselves, as the week currently holds them. */
-  readonly pickedEvents = $derived(
-    this.events.filter((event) => this.picked.has(event.id))
-  );
+  readonly pickedEvents = $derived(this.events.filter((event) => this.picked.has(event.id)));
 
   /** The open event as the week currently holds it, or null once it's gone from the week. */
   readonly selected = $derived.by(() => {
@@ -585,10 +565,7 @@ class CalendarData {
    * A right-click on a block. Left over the gathered blocks it opens for the batch; otherwise it
    * opens for that block alone, and doesn't disturb whatever's already gathered or selected.
    */
-  openContextMenu(
-    event: CalendarEvent,
-    at: { clientX: number; clientY: number }
-  ) {
+  openContextMenu(event: CalendarEvent, at: { clientX: number; clientY: number }) {
     this.contextMenuEvent = event;
     this.contextMenuRect = new DOMRect(at.clientX, at.clientY, 0, 0);
   }
@@ -678,17 +655,13 @@ class CalendarData {
     this.#pressAt = null;
     if (!press || this.drag || !this.connected) return;
     if ((e.target as Element | null)?.closest("[data-event]")) return;
-    if (
-      Math.hypot(e.clientX - press.x, e.clientY - press.y) >= DRAG_THRESHOLD_PX
-    )
-      return;
+    if (Math.hypot(e.clientX - press.x, e.clientY - press.y) >= DRAG_THRESHOLD_PX) return;
 
     const last = this.#lastTap;
     const at = Date.now();
     this.#lastTap = { x: e.clientX, y: e.clientY, at };
     if (!last || at - last.at > DOUBLE_TAP_MS) return;
-    if (Math.hypot(e.clientX - last.x, e.clientY - last.y) >= DOUBLE_TAP_PX)
-      return;
+    if (Math.hypot(e.clientX - last.x, e.clientY - last.y) >= DOUBLE_TAP_PX) return;
 
     this.#lastTap = null;
     void this.#createAt(e);
@@ -698,15 +671,8 @@ class CalendarData {
   #createAt(e: PointerEvent) {
     const at = this.#pointerToPoint(e);
     if (!at) return;
-    const day = addDays(
-      this.stripStart,
-      clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1)
-    );
-    const minutes = clamp(
-      snapMinutes(at.minutes),
-      0,
-      MINUTES_PER_DAY - DEFAULT_EVENT_MINUTES
-    );
+    const day = addDays(this.stripStart, clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1));
+    const minutes = clamp(snapMinutes(at.minutes), 0, MINUTES_PER_DAY - DEFAULT_EVENT_MINUTES);
 
     this.deselect();
     this.clearPicked();
@@ -717,7 +683,7 @@ class CalendarData {
       "",
       this.#instantAt(day, minutes),
       this.#instantAt(day, minutes + DEFAULT_EVENT_MINUTES),
-      new DOMRect(e.clientX, e.clientY, 0, 0)
+      new DOMRect(e.clientX, e.clientY, 0, 0),
     );
   }
 
@@ -729,30 +695,18 @@ class CalendarData {
     const toMinutes = Math.max(marquee.fromMinutes, marquee.toMinutes);
 
     const hit = new Set<string>();
-    for (const segment of segmentsForRange(
-      this.events,
-      this.stripStart,
-      STRIP_DAYS
-    )) {
-      const overlapsDay =
-        segment.dayIndex + 1 > fromDay && segment.dayIndex < toDay;
-      const overlapsTime =
-        segment.endMinutes > fromMinutes && segment.startMinutes < toMinutes;
+    for (const segment of segmentsForRange(this.events, this.stripStart, STRIP_DAYS)) {
+      const overlapsDay = segment.dayIndex + 1 > fromDay && segment.dayIndex < toDay;
+      const overlapsTime = segment.endMinutes > fromMinutes && segment.startMinutes < toMinutes;
       if (overlapsDay && overlapsTime) hit.add(segment.event.id);
     }
     // Shift-dragging adds to what was already gathered; a plain drag cleared it on the way in.
     for (const id of hit) this.picked.add(id);
-    for (const id of [...this.picked])
-      if (!hit.has(id) && !this.#pickedBeforeMarquee.has(id))
-        this.picked.delete(id);
+    for (const id of [...this.picked]) if (!hit.has(id) && !this.#pickedBeforeMarquee.has(id)) this.picked.delete(id);
   }
 
   enter() {
-    return Promise.all([
-      synced.ensure(),
-      store.integrations.ensure(),
-      this.ensureWeeks(),
-    ]);
+    return Promise.all([synced.ensure(), store.integrations.ensure(), this.ensureWeeks()]);
   }
 
   ensureWeeks() {
@@ -779,8 +733,7 @@ class CalendarData {
     if (strip.some((week, i) => week !== this.#stripWeeks[i])) {
       // Paging can push a week out of the store's map, and coming back to it makes a new, empty
       // cache. Nothing else knows it's empty, so the request that fills it starts here.
-      for (const week of strip)
-        if (!this.#stripWeeks.includes(week)) void week.ensure();
+      for (const week of strip) if (!this.#stripWeeks.includes(week)) void week.ensure();
       this.#stripWeeks = strip;
     }
     const focused = calendarWeek(this.key);
@@ -810,8 +763,7 @@ class CalendarData {
   #jumpTo(date: Date) {
     // A week's worth of columns starts its week on a Monday; three columns can't hold a week, so
     // there the day asked for is the day drawn, first in the window.
-    const target =
-      this.visibleDays >= DAYS_PER_WEEK ? startOfWeek(date) : startOfDay(date);
+    const target = this.visibleDays >= DAYS_PER_WEEK ? startOfWeek(date) : startOfDay(date);
     if (target.getTime() === this.#anchor.getTime()) return;
     this.animateNextJump = true;
     this.anchor = target;
@@ -831,10 +783,7 @@ class CalendarData {
   }
 
   /** A project from the rail: a block that counts toward its sphere and is evidence for its gate. */
-  sourceForProject(
-    projectId: string,
-    taskId: string | null = null
-  ): DragSource | null {
+  sourceForProject(projectId: string, taskId: string | null = null): DragSource | null {
     const project = projects.all.find((p) => p.id === projectId);
     if (!project) return null;
     const task = taskId ? this.#taskTitle(taskId) : null;
@@ -893,10 +842,7 @@ class CalendarData {
   moveDrag(e: PointerEvent) {
     const pending = this.#pendingDrag;
     if (pending && !pending.armed) {
-      const travelled = Math.hypot(
-        e.clientX - pending.originX,
-        e.clientY - pending.originY
-      );
+      const travelled = Math.hypot(e.clientX - pending.originX, e.clientY - pending.originY);
       if (travelled < DRAG_THRESHOLD_PX) return;
       this.#start(pending);
     }
@@ -913,23 +859,11 @@ class CalendarData {
       const edge = this.#pointerToEdge(e, this.drag.day);
       if (!edge) return;
       if (this.drag.kind === "resize") {
-        this.drag.endMinutes = Math.max(
-          this.drag.startMinutes + SNAP_MINUTES,
-          edge.minutes
-        );
-        this.drag.freeEndMinutes = Math.max(
-          this.drag.startMinutes + SNAP_MINUTES,
-          edge.rawMinutes
-        );
+        this.drag.endMinutes = Math.max(this.drag.startMinutes + SNAP_MINUTES, edge.minutes);
+        this.drag.freeEndMinutes = Math.max(this.drag.startMinutes + SNAP_MINUTES, edge.rawMinutes);
       } else {
-        this.drag.startMinutes = Math.min(
-          this.drag.endMinutes - SNAP_MINUTES,
-          edge.minutes
-        );
-        this.drag.freeStartMinutes = Math.min(
-          this.drag.endMinutes - SNAP_MINUTES,
-          edge.rawMinutes
-        );
+        this.drag.startMinutes = Math.min(this.drag.endMinutes - SNAP_MINUTES, edge.minutes);
+        this.drag.freeStartMinutes = Math.min(this.drag.endMinutes - SNAP_MINUTES, edge.rawMinutes);
       }
       return;
     }
@@ -938,19 +872,9 @@ class CalendarData {
     // one day and into the head of the next — moves it a day just as dragging sideways does.
     const length = this.drag.endMinutes - this.drag.startMinutes;
     this.drag.day = at.day;
-    this.drag.startMinutes = this.#insideStrip(
-      at.index,
-      at.minutes,
-      at.index,
-      length
-    );
+    this.drag.startMinutes = this.#insideStrip(at.index, at.minutes, at.index, length);
     this.drag.endMinutes = this.drag.startMinutes + length;
-    this.drag.freeStartMinutes = this.#insideStrip(
-      at.index,
-      at.rawMinutes,
-      at.index,
-      length
-    );
+    this.drag.freeStartMinutes = this.#insideStrip(at.index, at.rawMinutes, at.index, length);
     this.drag.freeEndMinutes = this.drag.freeStartMinutes + length;
     this.drag.freeDayIndex = at.rawIndex;
   }
@@ -976,11 +900,9 @@ class CalendarData {
     const end = this.#instantAt(drag.day, drag.endMinutes);
     const detach = Boolean(e?.metaKey || e?.ctrlKey);
 
-    if (drag.kind === "create" && drag.source)
-      void this.#create(drag.source, drag.title, start, end);
+    if (drag.kind === "create" && drag.source) void this.#create(drag.source, drag.title, start, end);
     else if (drag.event && drag.copy) void this.#copyBatch(drag, start, end);
-    else if (drag.event && drag.others.length > 0)
-      void this.#retimeBatch(drag, start, end);
+    else if (drag.event && drag.others.length > 0) void this.#retimeBatch(drag, start, end);
     else if (drag.event) void this.retimeEvent(drag.event, start, end, detach);
   }
 
@@ -998,9 +920,7 @@ class CalendarData {
           start: new Date(new Date(event.start).getTime() + shiftStart),
           end: new Date(new Date(event.end).getTime() + shiftEnd),
         })),
-      ].map(({ event, start: at, end: until }) =>
-        this.#copyEvent(event, at, until)
-      )
+      ].map(({ event, start: at, end: until }) => this.#copyEvent(event, at, until)),
     );
   }
 
@@ -1024,9 +944,7 @@ class CalendarData {
           start: new Date(new Date(event.start).getTime() + moving),
           end: new Date(new Date(event.end).getTime() + shiftEnd),
         })),
-      ].map(({ event, start: at, end: until }) =>
-        this.#retimeStep(event, at, until)
-      )
+      ].map(({ event, start: at, end: until }) => this.#retimeStep(event, at, until)),
     );
   }
 
@@ -1060,7 +978,7 @@ class CalendarData {
     event: CalendarEvent,
     scope: MappingScope,
     choice: { activityId?: string; weights?: ActivityWeight[] },
-    purpose?: Purpose
+    purpose?: Purpose,
   ) {
     const ref = this.#ref(event);
     const before = mappingOf(event);
@@ -1071,15 +989,7 @@ class CalendarData {
       // what lets the older, narrower mapping underneath count again.
       undo: async () =>
         (await this.#writeMapping(ref, event, scope, null)) &&
-        (before
-          ? this.#writeMapping(
-              ref,
-              event,
-              before.scope,
-              before.choice,
-              before.purpose
-            )
-          : true),
+        (before ? this.#writeMapping(ref, event, before.scope, before.choice, before.purpose) : true),
       redo: () => this.#writeMapping(ref, event, scope, choice, purpose),
     });
   }
@@ -1093,24 +1003,18 @@ class CalendarData {
   async tagEvent(event: CalendarEvent, purpose: Partial<Purpose>) {
     const merged = mergePurpose(purposeOf(event), purpose);
     const existing = mappingOf(event);
-    const scope: MappingScope =
-      existing?.scope ?? (event.seriesId ? "series" : "instance");
+    const scope: MappingScope = existing?.scope ?? (event.seriesId ? "series" : "instance");
     const sphere =
       projects.all.find((p) => p.id === merged.projectId)?.categoryId ??
       practices.all.find((p) => p.id === merged.practiceId)?.categoryId;
-    const choice =
-      existing?.choice ??
-      (sphere
-        ? { weights: [{ categoryId: sphere, weightPercent: 100 }] }
-        : null);
+    const choice = existing?.choice ?? (sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null);
     if (!choice) return;
     await this.mapEvent(event, scope, choice, merged);
   }
 
   /** Context-menu duplicate: a new event with the same fields, placed right after the original. */
   duplicateEvent(event: CalendarEvent) {
-    const duration =
-      new Date(event.end).getTime() - new Date(event.start).getTime();
+    const duration = new Date(event.end).getTime() - new Date(event.start).getTime();
     const start = new Date(event.end);
     const end = new Date(start.getTime() + duration);
     return this.#copyEvent(event, start, end);
@@ -1127,14 +1031,7 @@ class CalendarData {
     if (!(await this.#writeMapping(ref, event, scope, null)) || !before) return;
 
     this.history.push({
-      undo: () =>
-        this.#writeMapping(
-          ref,
-          event,
-          before.scope,
-          before.choice,
-          before.purpose
-        ),
+      undo: () => this.#writeMapping(ref, event, before.scope, before.choice, before.purpose),
       redo: () => this.#writeMapping(ref, event, scope, null),
     });
   }
@@ -1146,7 +1043,7 @@ class CalendarData {
   async editEvent(
     event: CalendarEvent,
     patch: { title?: string; description?: string; start?: Date; end?: Date },
-    detach = false
+    detach = false,
   ) {
     const ref = this.#ref(event);
     const before: EventFields = {
@@ -1205,18 +1102,76 @@ class CalendarData {
     const prompt = this.seriesPrompt;
     if (!prompt) return;
     this.seriesPrompt = null;
+    const fields = prompt.patch ?? {
+      title: prompt.fields.title,
+      description: prompt.fields.description ?? "",
+      start: prompt.fields.start.toISOString(),
+      end: prompt.fields.end.toISOString(),
+    };
     await this.#run(() =>
       updateCalendarEvent(prompt.ref.id, {
         calendarId: prompt.ref.calendarId,
-        title: prompt.fields.title,
-        description: prompt.fields.description ?? "",
-        start: prompt.fields.start.toISOString(),
-        end: prompt.fields.end.toISOString(),
+        ...fields,
         seriesId: prompt.seriesId,
         previousStart: prompt.previousStart.toISOString(),
         previousEnd: prompt.previousEnd.toISOString(),
-      })
+      }),
     );
+    // A rule reshapes the whole series: the week is asked again rather than patched by hand.
+    if (prompt.patch?.recurrence !== undefined) invalidate.calendar();
+  }
+
+  /**
+   * The rest of what a card can change — where it is, its zone, how it repeats, who is coming,
+   * its reminders, its call. One write, drawn ahead where it can be; the caller says what the
+   * write back would be, since only it knows what the master's rule was. A rule always lands on
+   * the series' master, which is the only event that has one; anything else edited on an
+   * occurrence is offered to the rest of the series the way a retitle is.
+   */
+  async patchEvent(event: CalendarEvent, patch: EventPatch, inverse: EventPatch) {
+    if (this.isDraft(event.id)) {
+      diagnostics.report("Calendar", "The block is still being made.", { title: "Give it a second" });
+      return;
+    }
+    const ref = this.#ref(event);
+    const onMaster = event.seriesId && patch.recurrence !== undefined;
+    const series = onMaster
+      ? {
+          seriesId: event.seriesId ?? "",
+          previousStart: event.start,
+          previousEnd: event.end,
+        }
+      : {};
+    const write = (fields: EventPatch) =>
+      this.#run(
+        () => updateCalendarEvent(ref.id, { calendarId: ref.calendarId, ...fields, ...series }),
+        { id: ref.id, event: drawnWith(event, fields) },
+        (answer) => applyCalendarEvent(answer, ref.id),
+      );
+    if ((await write(patch)) === null) return;
+
+    if (patch.recurrence !== undefined) invalidate.calendar();
+    this.history.push({
+      undo: async () => (await write(inverse)) !== null,
+      redo: async () => (await write(patch)) !== null,
+    });
+
+    if (event.seriesId && !onMaster) {
+      this.seriesPrompt = {
+        ref,
+        seriesId: event.seriesId,
+        title: event.title,
+        fields: {
+          title: event.title,
+          description: event.description,
+          start: new Date(event.start),
+          end: new Date(event.end),
+        },
+        previousStart: new Date(event.start),
+        previousEnd: new Date(event.end),
+        patch,
+      };
+    }
   }
 
   /** Just this occurrence, then — the write already happened, so there's nothing left to do. */
@@ -1248,9 +1203,7 @@ class CalendarData {
    * The step recorded is the whole batch, which is what ⌘Z is expected to take back.
    */
   async #batch(steps: readonly HistoryStep[]) {
-    const attempts = await Promise.all(
-      steps.map((step) => step.redo().then((done) => (done ? step : null)))
-    );
+    const attempts = await Promise.all(steps.map((step) => step.redo().then((done) => (done ? step : null))));
     const done = attempts.filter((step): step is HistoryStep => step !== null);
     if (done.length === 0) return;
 
@@ -1283,9 +1236,7 @@ class CalendarData {
     return {
       undo: async () =>
         (await this.#writeMapping(ref, event, "instance", null)) &&
-        (before
-          ? this.#writeMapping(ref, event, before.scope, before.choice)
-          : true),
+        (before ? this.#writeMapping(ref, event, before.scope, before.choice) : true),
       redo: () => this.#writeMapping(ref, event, "instance", { weights }),
     };
   }
@@ -1300,16 +1251,10 @@ class CalendarData {
    */
   #written(id: string): CalendarEvent | undefined {
     if (this.#pending.has(id)) return this.#pending.get(id) ?? undefined;
-    return this.weeks
-      .flatMap((week) => week.value?.events ?? [])
-      .find((event) => event.id === id);
+    return this.weeks.flatMap((week) => week.value?.events ?? []).find((event) => event.id === id);
   }
 
-  async #writeFields(
-    ref: EventRef,
-    was: CalendarEvent,
-    fields: EventFields
-  ): Promise<boolean> {
+  async #writeFields(ref: EventRef, was: CalendarEvent, fields: EventFields): Promise<boolean> {
     // Only what actually moved. A write that carries the title along with a new end time is a
     // write of the title as far as the calendar and everyone else reading it is concerned, and
     // two edits racing over one field are only a race if both of them name that field.
@@ -1323,19 +1268,15 @@ class CalendarData {
     if (fields.title !== base.title) patch.title = fields.title;
     // An empty string is how the calendar is told the notes are gone; leaving it out keeps them.
     const description = fields.description ?? "";
-    if (description !== (base.description ?? ""))
-      patch.description = description;
-    if (fields.start.getTime() !== new Date(base.start).getTime())
-      patch.start = fields.start.toISOString();
-    if (fields.end.getTime() !== new Date(base.end).getTime())
-      patch.end = fields.end.toISOString();
+    if (description !== (base.description ?? "")) patch.description = description;
+    if (fields.start.getTime() !== new Date(base.start).getTime()) patch.start = fields.start.toISOString();
+    if (fields.end.getTime() !== new Date(base.end).getTime()) patch.end = fields.end.toISOString();
     // Nothing to say. An undo of an edit that was itself a no-op lands here, as does the editor
     // committing a field the grid already moved.
     if (Object.keys(patch).length === 0) return true;
 
     const done = await this.#run(
-      () =>
-        updateCalendarEvent(ref.id, { calendarId: ref.calendarId, ...patch }),
+      () => updateCalendarEvent(ref.id, { calendarId: ref.calendarId, ...patch }),
       {
         id: ref.id,
         event: {
@@ -1348,7 +1289,7 @@ class CalendarData {
           end: fields.end.toISOString(),
         },
       },
-      (event) => applyCalendarEvent(event, ref.id)
+      (event) => applyCalendarEvent(event, ref.id),
     );
     return done !== null;
   }
@@ -1363,25 +1304,23 @@ class CalendarData {
     was: CalendarEvent,
     scope: MappingScope,
     choice: Mapping["choice"] | null,
-    purpose?: Purpose
+    purpose?: Purpose,
   ): Promise<boolean> {
     // Read when the write is actually sent: an event put back by an undo is a new event by then.
     const target = () => ({
       calendarId: ref.calendarId,
-      externalEventId:
-        scope === "series" && was.seriesId ? was.seriesId : ref.id,
+      externalEventId: scope === "series" && was.seriesId ? was.seriesId : ref.id,
       scope,
     });
-    const activity =
-      activities.all.find((a) => a.id === choice?.activityId) ?? null;
+    const activity = activities.all.find((a) => a.id === choice?.activityId) ?? null;
     // Untagged with the mapping: what an hour was for is a fact about what it counted as.
-    const kept = choice ? purpose ?? purposeOf(was) : NO_PURPOSE;
+    const kept = choice ? (purpose ?? purposeOf(was)) : NO_PURPOSE;
     const restyle = (event: CalendarEvent): CalendarEvent => ({
       ...event,
       mappingScope: choice ? scope : null,
       activityId: choice?.activityId ?? null,
-      activityName: choice ? activity?.name ?? null : null,
-      weights: choice ? choice.weights ?? activity?.weights ?? [] : [],
+      activityName: choice ? (activity?.name ?? null) : null,
+      weights: choice ? (choice.weights ?? activity?.weights ?? []) : [],
       ...kept,
     });
     const drawn: Drawn[] =
@@ -1397,23 +1336,18 @@ class CalendarData {
             },
           ]
         : was.seriesId
-        ? this.events
-            .filter((event) => event.seriesId === was.seriesId)
-            .map((event) => ({ id: event.id, event: restyle(event) }))
-        : [];
+          ? this.events
+              .filter((event) => event.seriesId === was.seriesId)
+              .map((event) => ({ id: event.id, event: restyle(event) }))
+          : [];
 
     const done = await this.#run<unknown>(
-      () =>
-        choice
-          ? saveEventMapping({ ...target(), ...choice, ...(purpose ?? {}) })
-          : removeEventMapping(target()),
+      () => (choice ? saveEventMapping({ ...target(), ...choice, ...(purpose ?? {}) }) : removeEventMapping(target())),
       drawn,
       // What an instance now counts as is worked out here in full, so the answer is already on
       // the screen — there is nothing to ask the server for. A series recolours instances this
       // strip has never loaded, which only a refetch can know about.
-      scope === "instance"
-        ? () => drawn[0]?.event && applyCalendarEvent(drawn[0].event)
-        : undefined
+      scope === "instance" ? () => drawn[0]?.event && applyCalendarEvent(drawn[0].event) : undefined,
     );
     return done !== null;
   }
@@ -1422,7 +1356,7 @@ class CalendarData {
     const done = await this.#run(
       () => deleteCalendarEvent(ref.id, ref.calendarId),
       { id: ref.id, event: null },
-      () => dropCalendarEvent(ref.id)
+      () => dropCalendarEvent(ref.id),
     );
     return done !== null;
   }
@@ -1445,7 +1379,7 @@ class CalendarData {
         });
       },
       { id: ref.id, event: { ...was, id: ref.id, calendarId: ref.calendarId } },
-      (event) => applyCalendarEvent(event, ref.id)
+      (event) => applyCalendarEvent(event, ref.id),
     );
     if (!created) return false;
 
@@ -1482,13 +1416,7 @@ class CalendarData {
    * A new block has no id until the calendar gives it one, so it's drawn under a made-up one and
    * the real event takes its place when the refetch lands.
    */
-  async #create(
-    source: DragSource | null,
-    title: string,
-    start: Date,
-    end: Date,
-    openAt: DOMRect | null = null
-  ) {
+  async #create(source: DragSource | null, title: string, start: Date, end: Date, openAt: DOMRect | null = null) {
     const activityId = source?.activityId ?? null;
     const activity = activities.all.find((a) => a.id === activityId) ?? null;
     const draft: CalendarEvent = {
@@ -1536,13 +1464,11 @@ class CalendarData {
         // draft is ever left looking at a block that isn't there — see `selected`.
         if (this.#became.size > REF_LIMIT) this.#became.clear();
         this.#became.set(draft.id, event.id);
-        await Haptics.impact({ style: ImpactStyle.Light }).catch(
-          () => undefined
-        );
+        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },
       { id: draft.id, event: draft },
-      (event) => applyCalendarEvent(event, draft.id)
+      (event) => applyCalendarEvent(event, draft.id),
     );
     if (!created) {
       // Nothing was made, so there's nothing to have open — the error says why.
@@ -1585,13 +1511,11 @@ class CalendarData {
           start: start.toISOString(),
           end: end.toISOString(),
         });
-        await Haptics.impact({ style: ImpactStyle.Light }).catch(
-          () => undefined
-        );
+        await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },
       { id: draft.id, event: draft },
-      (event) => applyCalendarEvent(event, draft.id)
+      (event) => applyCalendarEvent(event, draft.id),
     );
     if (!created) return;
 
@@ -1619,11 +1543,7 @@ class CalendarData {
    * The asking is one at a time. Two writes to the same event in flight together land in whichever
    * order Google gets to them, and undoing three edits in a second is exactly that case.
    */
-  #run<T>(
-    action: () => Promise<T>,
-    drawn?: Drawn | readonly Drawn[],
-    apply?: (answer: T) => void
-  ): Promise<T | null> {
+  #run<T>(action: () => Promise<T>, drawn?: Drawn | readonly Drawn[], apply?: (answer: T) => void): Promise<T | null> {
     const drawnList = drawn ? (Array.isArray(drawn) ? drawn : [drawn]) : [];
     // Drawn now, before anything is queued: this is the whole point of drawing ahead. Holding
     // ⌘Z stacks its answers up on the grid at once and lets the writes catch up behind them.
@@ -1633,9 +1553,7 @@ class CalendarData {
       this.#drawnBy.set(one.id, token);
     }
     /** Whether this write's version of the block is still the one on screen — see `#drawnBy`. */
-    const current = () =>
-      drawnList.length > 0 &&
-      drawnList.every((one) => this.#drawnBy.get(one.id) === token);
+    const current = () => drawnList.length > 0 && drawnList.every((one) => this.#drawnBy.get(one.id) === token);
 
     const run = this.#queue.then(async () => {
       // What the write answered, kept so the step that recorded it can be run backwards later.
@@ -1671,7 +1589,7 @@ class CalendarData {
     });
     this.#queue = run.then(
       () => undefined,
-      () => undefined
+      () => undefined,
     );
     return run;
   }
@@ -1710,8 +1628,7 @@ class CalendarData {
     // pointer's click still lands here as normal, so the tap opens the event as long as `#dragged`
     // stays false — that flag, not capture timing, is what tells `tap()` to swallow the click.
     pending.el.setPointerCapture?.(input.e.pointerId);
-    if (input.longPress)
-      pending.timer = setTimeout(() => this.#start(pending), LONG_PRESS_MS);
+    if (input.longPress) pending.timer = setTimeout(() => this.#start(pending), LONG_PRESS_MS);
     this.#pendingDrag = pending;
     if (input.armed) this.#start(pending);
   }
@@ -1760,13 +1677,8 @@ class CalendarData {
     // A resize grabs its edge the same way: the band is a strip, so remember where inside it the
     // press landed and move the edge by what the pointer travels rather than to where it sits.
     if (pending.kind === "resize" || pending.kind === "resize-start") {
-      const origin = this.#edgeAt(
-        { clientX: pending.originX, clientY: pending.originY },
-        day
-      );
-      if (origin !== null)
-        this.#grabEdgeMinutes =
-          (pending.kind === "resize" ? endMinutes : startMinutes) - origin;
+      const origin = this.#edgeAt({ clientX: pending.originX, clientY: pending.originY }, day);
+      if (origin !== null) this.#grabEdgeMinutes = (pending.kind === "resize" ? endMinutes : startMinutes) - origin;
     }
 
     // A move grabs the block wherever the pointer landed on it, not its top-left corner —
@@ -1786,10 +1698,7 @@ class CalendarData {
     // Dragging one of the gathered blocks drags the lot: the others keep their distance from it,
     // so a batch moves as the shape it already was. Anything read-only can't come along.
     const others = this.picked.has(pending.event.id)
-      ? this.pickedEvents.filter(
-          (event) =>
-            event.id !== pending.event?.id && !event.readOnly && !event.allDay
-        )
+      ? this.pickedEvents.filter((event) => event.id !== pending.event?.id && !event.readOnly && !event.allDay)
       : [];
 
     this.drag = {
@@ -1822,27 +1731,17 @@ class CalendarData {
    * unheld, so a pointer above the top reads negative and one below the foot reads past 1440.
    * That's what carries a block or an edge into the day on either side of the one it's over.
    */
-  #pointerToRaw(e: {
-    clientX: number;
-    clientY: number;
-  }): { dayIndex: number; minutes: number } | null {
+  #pointerToRaw(e: { clientX: number; clientY: number }): { dayIndex: number; minutes: number } | null {
     if (!this.columnsEl) return null;
     const rect = this.columnsEl.getBoundingClientRect();
     return {
-      dayIndex: clamp(
-        ((e.clientX - rect.left) / rect.width) * STRIP_DAYS,
-        0,
-        STRIP_DAYS
-      ),
+      dayIndex: clamp(((e.clientX - rect.left) / rect.width) * STRIP_DAYS, 0, STRIP_DAYS),
       minutes: ((e.clientY - rect.top) / rect.height) * MINUTES_PER_DAY,
     };
   }
 
   /** The same point held inside the day — what a rectangle drawn on the grid can actually show. */
-  #pointerToPoint(e: {
-    clientX: number;
-    clientY: number;
-  }): { dayIndex: number; minutes: number } | null {
+  #pointerToPoint(e: { clientX: number; clientY: number }): { dayIndex: number; minutes: number } | null {
     const at = this.#pointerToRaw(e);
     return (
       at && {
@@ -1860,11 +1759,7 @@ class CalendarData {
   #pointerToSlot(e: PointerEvent): DragSlot | null {
     const at = this.#pointerToRaw(e);
     if (!at) return null;
-    const rawIndex = clamp(
-      at.dayIndex + this.#grabOffsetDays,
-      0,
-      STRIP_DAYS - 1
-    );
+    const rawIndex = clamp(at.dayIndex + this.#grabOffsetDays, 0, STRIP_DAYS - 1);
     const index = Math.round(rawIndex);
     const rawMinutes = at.minutes + this.#grabOffsetMinutes;
     return {
@@ -1883,10 +1778,7 @@ class CalendarData {
    * The column is the one the pointer is inside, floored rather than rounded: an edge is being
    * pointed at, not a block being dropped, so the nearest column boundary isn't what's meant.
    */
-  #pointerToEdge(
-    e: PointerEvent,
-    day: Date
-  ): { minutes: number; rawMinutes: number } | null {
+  #pointerToEdge(e: PointerEvent, day: Date): { minutes: number; rawMinutes: number } | null {
     const at = this.#pointerToRaw(e);
     if (!at) return null;
     const column = clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1);
@@ -1903,11 +1795,7 @@ class CalendarData {
     const at = this.#pointerToRaw(e);
     if (!at) return null;
     const column = clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1);
-    return this.#insideStrip(
-      column,
-      at.minutes,
-      daysBetween(this.stripStart, day)
-    );
+    return this.#insideStrip(column, at.minutes, daysBetween(this.stripStart, day));
   }
 
   /**
@@ -1915,17 +1803,9 @@ class CalendarData {
    * strip — a drag can't reach a day that isn't there, or the drop target couldn't be seen. A block
    * being dragged passes its `length` so its far end stops at the edge too.
    */
-  #insideStrip(
-    column: number,
-    minutes: number,
-    anchor: number,
-    length = 0
-  ): number {
+  #insideStrip(column: number, minutes: number, anchor: number, length = 0): number {
     const room = STRIP_DAYS * MINUTES_PER_DAY - length;
-    return (
-      clamp(column * MINUTES_PER_DAY + minutes, 0, room) -
-      anchor * MINUTES_PER_DAY
-    );
+    return clamp(column * MINUTES_PER_DAY + minutes, 0, room) - anchor * MINUTES_PER_DAY;
   }
 
   #instantAt(day: Date, minutes: number): Date {
@@ -1938,12 +1818,7 @@ class CalendarData {
     const scroller = this.scrollerEl;
     if (!scroller) return;
     const rect = scroller.getBoundingClientRect();
-    const direction =
-      clientY < rect.top + AUTOSCROLL_EDGE_PX
-        ? -1
-        : clientY > rect.bottom - AUTOSCROLL_EDGE_PX
-        ? 1
-        : 0;
+    const direction = clientY < rect.top + AUTOSCROLL_EDGE_PX ? -1 : clientY > rect.bottom - AUTOSCROLL_EDGE_PX ? 1 : 0;
 
     if (direction === 0) return this.#stopAutoscroll();
     if (this.#autoscroll !== null) return;
@@ -1972,9 +1847,7 @@ function mappingOf(event: CalendarEvent): Mapping | null {
   if (!event.mappingScope) return null;
   return {
     scope: event.mappingScope,
-    choice: event.activityId
-      ? { activityId: event.activityId }
-      : { weights: event.weights },
+    choice: event.activityId ? { activityId: event.activityId } : { weights: event.weights },
     purpose: purposeOf(event),
   };
 }
@@ -2008,12 +1881,7 @@ function purposeOf(event: CalendarEvent): Purpose {
 function mappingFieldsOf(was: CalendarEvent) {
   return {
     activityId: was.activityId ?? undefined,
-    weights:
-      !was.activityId &&
-      was.mappingScope === "instance" &&
-      was.weights.length > 0
-        ? was.weights
-        : undefined,
+    weights: !was.activityId && was.mappingScope === "instance" && was.weights.length > 0 ? was.weights : undefined,
     projectId: was.projectId ?? undefined,
     practiceId: was.practiceId ?? undefined,
     taskId: was.taskId ?? undefined,
@@ -2030,17 +1898,13 @@ function mappingFieldsOf(was: CalendarEvent) {
 export function accountEmailOf(calendarId: string) {
   const prefs = store.calendars.value;
   if (!prefs) return null;
-  const account = (prefs.accounts ?? []).find((a) =>
-    a.calendars.some((c) => c.id === calendarId)
-  );
+  const account = (prefs.accounts ?? []).find((a) => a.calendars.some((c) => c.id === calendarId));
   return account?.email ?? null;
 }
 
 /** The caches for the three weeks drawn from `start`, made if the store hasn't got them yet. */
 function stripWeeksFrom(start: Date) {
-  return Array.from({ length: STRIP_WEEKS }, (_, i) =>
-    calendarWeek(weekKey(addDays(start, i * DAYS_PER_WEEK)))
-  );
+  return Array.from({ length: STRIP_WEEKS }, (_, i) => calendarWeek(weekKey(addDays(start, i * DAYS_PER_WEEK))));
 }
 
 function daysBetween(from: Date, to: Date): number {

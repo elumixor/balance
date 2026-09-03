@@ -68,7 +68,16 @@ export interface CalendarEvent {
   invited: boolean;
   response: EventResponse | null;
   /** What the calendar itself would say something about, and how long before. */
-  reminders: { method: "popup" | "email"; minutes: number }[];
+  reminders: EventReminder[];
+  /** The IANA zone the event was written in, or null when the calendar didn't say. */
+  timeZone: string | null;
+  /** The RRULE lines of a series — on its master only; an occurrence carries null. */
+  recurrence: string[] | null;
+}
+
+export interface EventReminder {
+  method: "popup" | "email";
+  minutes: number;
 }
 
 /**
@@ -90,6 +99,8 @@ export const NOT_A_MEETING = {
   invited: false,
   response: null,
   reminders: [],
+  timeZone: null,
+  recurrence: null,
 } satisfies Pick<
   CalendarEvent,
   | "projectId"
@@ -106,6 +117,8 @@ export const NOT_A_MEETING = {
   | "invited"
   | "response"
   | "reminders"
+  | "timeZone"
+  | "recurrence"
 >;
 
 /**

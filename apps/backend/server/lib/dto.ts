@@ -109,6 +109,10 @@ export class CalendarEventDTO {
   readonly invited: boolean;
   readonly response: SelfResponse | null;
   readonly reminders: { method: "popup" | "email"; minutes: number }[];
+  /** The IANA zone the event was written in, or null when the calendar didn't say. */
+  readonly timeZone: string | null;
+  /** The RRULE lines of a series, on its master event only. */
+  readonly recurrence: string[] | null;
 
   constructor(e: ResolvedEvent) {
     this.id = e.id;
@@ -143,6 +147,8 @@ export class CalendarEventDTO {
     this.invited = e.attendees.some((a) => a.self);
     this.response = e.selfResponse;
     this.reminders = e.reminders.map((r) => ({ method: r.method, minutes: r.minutes }));
+    this.timeZone = e.timeZone;
+    this.recurrence = e.recurrence ? [...e.recurrence] : null;
   }
 }
 

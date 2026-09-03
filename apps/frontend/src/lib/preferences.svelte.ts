@@ -78,10 +78,31 @@ export interface SessionsPrefs {
   timeZone: string;
 }
 
+/**
+ * A zone worth naming — "Kyiv", "Prague" — so an event can be put in it by the name the person
+ * uses. The IANA name is what the calendar is actually told.
+ */
+export interface SavedZone {
+  id: string;
+  label: string;
+  zone: string;
+}
+
+export interface ZonesPrefs {
+  saved: SavedZone[];
+}
+
+/** Which of an event card's sections are folded away, by the section's id. */
+export interface CardPrefs {
+  hidden: string[];
+}
+
 export interface StoredPreferences {
   reminders: RemindersPrefs;
   travel: TravelPrefs;
   sessions: SessionsPrefs;
+  zones: ZonesPrefs;
+  card: CardPrefs;
   /** False when the server has no maps key, so the panel can say why journeys aren't on offer. */
   travelAvailable: boolean;
 }
@@ -99,18 +120,24 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
     planWhen: "evening",
     timeZone: "UTC",
   },
+  zones: { saved: [] },
+  card: { hidden: [] },
   travelAvailable: false,
 };
 
 /** Long enough that typing an address is one write, short enough to feel immediate. */
 const SAVE_DELAY_MS = 500;
 
+interface PreferencesPatch {
+  reminders?: Partial<RemindersPrefs>;
+  travel?: Partial<TravelPrefs>;
+  sessions?: Partial<SessionsPrefs>;
+  zones?: Partial<ZonesPrefs>;
+  card?: Partial<CardPrefs>;
+}
+
 class Preferences {
-  #pending: {
-    reminders?: Partial<RemindersPrefs>;
-    travel?: Partial<TravelPrefs>;
-    sessions?: Partial<SessionsPrefs>;
-  } = {};
+  #pending: PreferencesPatch = {};
   #timer: ReturnType<typeof setTimeout> | null = null;
 
   get #value(): StoredPreferences {
@@ -129,6 +156,15 @@ class Preferences {
     return this.#value.sessions;
   }
 
+  get zones(): SavedZone[] {
+    return this.#value.zones.saved;
+  }
+
+  /** The sections of an event card folded away. */
+  get hiddenSections(): string[] {
+    return this.#value.card.hidden;
+  }
+
   /** Whether the server can work out journeys at all — see `GOOGLE_MAPS_API_KEY`. */
   get travelAvailable() {
     return this.#value.travelAvailable;
@@ -144,6 +180,34 @@ class Preferences {
 
   setSessions(patch: Partial<SessionsPrefs>) {
     this.#apply({ sessions: patch });
+  }
+
+  /** The saved zone that names this IANA zone, if one does. */
+  zoneNamed(zone: string | null): SavedZone | null {
+    return this.zones.find((one) => one.zone === zone) ?? null;
+  }
+
+  /** Adds a named zone and hands back its id, so the picker that added it can select it. */
+  addZone(input: { label: string; zone: string }): string {
+    const id = crypto.randomUUID();
+    this.#apply({ zones: { saved: [...this.zones, { id, label: input.label.trim(), zone: input.zone }] } });
+    return id;
+  }
+
+  updateZone(id: string, patch: Partial<Omit<SavedZone, "id">>) {
+    this.#apply({ zones: { saved: this.zones.map((one) => (one.id === id ? { ...one, ...patch } : one)) } });
+  }
+
+  removeZone(id: string) {
+    this.#apply({ zones: { saved: this.zones.filter((one) => one.id !== id) } });
+  }
+
+  /** Folds one card section away, or brings it back. */
+  toggleSection(section: string, shown: boolean) {
+    const hidden = new Set(this.hiddenSections);
+    if (shown) hidden.delete(section);
+    else hidden.add(section);
+    this.#apply({ card: { hidden: [...hidden] } });
   }
 
   /** The place a journey starts from when nothing has said otherwise, or null for "where I am". */
@@ -198,9 +262,11 @@ class Preferences {
   flush() {
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = null;
-    const patch = this.#pending;
+    const patch = Object.fromEntries(
+      Object.entries(this.#pending).filter(([, section]) => Object.keys(section).length > 0),
+    );
     this.#pending = {};
-    if (!patch.reminders && !patch.travel && !patch.sessions) return;
+    if (Object.keys(patch).length === 0) return;
     void updatePreferences(patch).catch(() => {
       // The value on screen is what the user chose; the next write, or the next load, settles it.
       store.preferences.invalidate();
@@ -211,23 +277,23 @@ class Preferences {
    * On screen immediately, on the server a moment later. The patches are merged rather than
    * queued, so holding down a stepper is one request.
    */
-  #apply(patch: {
-    reminders?: Partial<RemindersPrefs>;
-    travel?: Partial<TravelPrefs>;
-    sessions?: Partial<SessionsPrefs>;
-  }) {
+  #apply(patch: PreferencesPatch) {
     const current = this.#value;
     store.preferences.set({
       ...current,
       reminders: { ...current.reminders, ...patch.reminders },
       travel: { ...current.travel, ...patch.travel },
       sessions: { ...current.sessions, ...patch.sessions },
+      zones: { ...current.zones, ...patch.zones },
+      card: { ...current.card, ...patch.card },
     });
 
     this.#pending = {
       reminders: { ...this.#pending.reminders, ...patch.reminders },
       travel: { ...this.#pending.travel, ...patch.travel },
       sessions: { ...this.#pending.sessions, ...patch.sessions },
+      zones: { ...this.#pending.zones, ...patch.zones },
+      card: { ...this.#pending.card, ...patch.card },
     };
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = setTimeout(() => this.flush(), SAVE_DELAY_MS);

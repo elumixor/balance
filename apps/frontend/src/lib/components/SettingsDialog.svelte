@@ -12,6 +12,7 @@
   import RemindersPane from "$lib/settings/RemindersPane.svelte";
   import SettingsGroup from "$lib/settings/SettingsGroup.svelte";
   import SettingsNav from "$lib/settings/SettingsNav.svelte";
+  import TimeZonesPane from "$lib/settings/TimeZonesPane.svelte";
   import { preferences } from "$lib/preferences.svelte";
   import { settings } from "$lib/settings.svelte";
   import { clearStore } from "$lib/store.svelte";
@@ -79,6 +80,8 @@
         <RemindersPane />
       {:else if settings.pane === "places"}
         <PlacesPane />
+      {:else if settings.pane === "zones"}
+        <TimeZonesPane />
       {:else if settings.pane === "integrations"}
         <IntegrationsPane />
       {:else}

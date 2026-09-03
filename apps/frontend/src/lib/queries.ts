@@ -11,6 +11,7 @@ import type {
   CreateSuggestion,
   DecisionAdvice,
   EventPlan,
+  EventReminder,
   EventTimer,
   IntegrationStatus,
   MappingScope,
@@ -43,6 +44,8 @@ export const updatePreferences = (patch: {
   reminders?: Partial<StoredPreferences["reminders"]>;
   travel?: Partial<StoredPreferences["travel"]>;
   sessions?: Partial<StoredPreferences["sessions"]>;
+  zones?: Partial<StoredPreferences["zones"]>;
+  card?: Partial<StoredPreferences["card"]>;
 }) => callApi(api.preferences.$patch(patch)).then(unwrapOk);
 
 // Planning sessions
@@ -80,14 +83,31 @@ export const createCalendarEvent = (input: {
   /** A date rather than a moment: both instants are midnight UTC, and `end` is the day after. */
   allDay?: boolean;
 }) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
+/** One event by id — a series' master, for the rule it repeats by. Query params, so the raw helper. */
+export const getCalendarEvent = (id: string, calendarId: string) =>
+  apiGet<{ event: CalendarEvent }>(`/calendar/events/${encodeURIComponent(id)}`, { calendarId }).then((r) => r.event);
+export interface EventPatch {
+  title?: string;
+  description?: string;
+  start?: string;
+  end?: string;
+  /** An empty string clears it, the way an empty description does. */
+  location?: string;
+  /** The zone the times are meant in; only means something sent with them. */
+  timeZone?: string;
+  /** The whole rule; an empty list makes a one-off of a series. Lands on the master. */
+  recurrence?: string[];
+  /** The whole list; empty is none. */
+  reminders?: EventReminder[];
+  /** The whole guest list; whoever is left off is uninvited. */
+  attendees?: { email: string; optional?: boolean }[];
+  /** Add the calendar's own call, or take the call off. */
+  conference?: "create" | "remove";
+}
 export const updateCalendarEvent = (
   id: string,
-  input: {
+  input: EventPatch & {
     calendarId: string;
-    title?: string;
-    description?: string;
-    start?: string;
-    end?: string;
     /** Present only for a write meant to land on the whole series, not just this occurrence. */
     seriesId?: string;
     previousStart?: string;

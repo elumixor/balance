@@ -52,6 +52,13 @@ export interface ExternalEvent {
   readonly organizer: EventPerson | null;
   /** How long before it starts the calendar itself would say something, in minutes. */
   readonly reminders: readonly EventReminder[];
+  /** The IANA zone the event was written in, when the provider says. Null for an all-day event. */
+  readonly timeZone: string | null;
+  /**
+   * The rule a series repeats by — `RRULE:FREQ=DAILY` — on the master event only. An occurrence
+   * carries none: it is one instant, and the rule that made it lives on the event it came from.
+   */
+  readonly recurrence: readonly string[] | null;
 }
 
 export interface EventPerson {
@@ -88,12 +95,32 @@ export interface CreateEventInput {
   readonly allDay?: boolean;
 }
 
+/** Someone on the guest list, as the card writes them: an address, and whether they're optional. */
+export interface AttendeeInput {
+  readonly email: string;
+  readonly optional?: boolean;
+}
+
+/** Add the provider's own call, or take it off. A link to someone else's call lives in the notes. */
+export type ConferenceInput = "create" | "remove";
+
 export interface UpdateEventInput {
   readonly title?: string;
   /** An empty string clears the notes, which is why this isn't merged into the absent case. */
   readonly description?: string;
   readonly start?: Date;
   readonly end?: Date;
+  /** An empty string clears it, the same way the notes are cleared. */
+  readonly location?: string;
+  /** The zone the times are meant in. Written with the times, so it means nothing on its own. */
+  readonly timeZone?: string;
+  /** RRULE lines for the whole series; an empty list makes a one-off of it. Master events only. */
+  readonly recurrence?: readonly string[];
+  /** The whole list, replacing the event's own. Empty means no reminders at all. */
+  readonly reminders?: readonly EventReminder[];
+  /** The whole guest list, replacing the event's own. Whoever is dropped is uninvited. */
+  readonly attendees?: readonly AttendeeInput[];
+  readonly conference?: ConferenceInput;
 }
 
 /** What a calendar integration has to be able to do. Google today, Notion later. */
