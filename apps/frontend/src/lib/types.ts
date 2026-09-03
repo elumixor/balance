@@ -71,7 +71,7 @@ export interface CalendarEvent {
   reminders: EventReminder[];
   /** The IANA zone the event was written in, or null when the calendar didn't say. */
   timeZone: string | null;
-  /** The RRULE lines of a series — on its master only; an occurrence carries null. */
+  /** The RRULE lines of a series, on every occurrence of it; null for a one-off. */
   recurrence: string[] | null;
 }
 

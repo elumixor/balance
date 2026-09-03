@@ -176,10 +176,29 @@ export class GoogleCalendarProvider implements CalendarProvider {
    * ever parses an RRULE. It rules out `syncToken`, which is fine: no events are stored locally
    * for an incremental sync to update.
    */
+  /**
+   * Two asks of the same window, side by side: the occurrences the grid draws, and the masters
+   * they repeat from — expansion (`singleEvents`) drops the rule from every occurrence, and a card
+   * opened on one has to say how it repeats without a round trip of its own.
+   */
   private async listCalendarEvents(calendarId: string, from: Date, to: Date): Promise<ExternalEvent[]> {
-    const events: ExternalEvent[] = [];
-    let pageToken: string | undefined;
+    const [pages, rules] = await Promise.all([
+      this.occurrences(calendarId, from, to),
+      this.rules(calendarId, from, to),
+    ]);
+    return pages.flatMap(({ page, readOnly }) =>
+      (page.items ?? [])
+        .filter((item) => !(item.eventType && IGNORED_EVENT_TYPES.has(item.eventType)))
+        .map((item) => {
+          const recurrence = item.recurringEventId ? rules.get(item.recurringEventId) : undefined;
+          return this.toExternalEvent(recurrence ? { ...item, recurrence } : item, calendarId, page.timeZone, readOnly);
+        }),
+    );
+  }
 
+  private async occurrences(calendarId: string, from: Date, to: Date) {
+    const pages: { page: GoogleEventsResponse; readOnly: boolean }[] = [];
+    let pageToken: string | undefined;
     do {
       const params = new URLSearchParams({
         timeMin: from.toISOString(),
@@ -194,16 +213,33 @@ export class GoogleCalendarProvider implements CalendarProvider {
       const page = await this.request<GoogleEventsResponse>(
         `/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
       );
-      const readOnly = page.accessRole !== "owner" && page.accessRole !== "writer";
-
-      for (const item of page.items ?? []) {
-        if (item.eventType && IGNORED_EVENT_TYPES.has(item.eventType)) continue;
-        events.push(this.toExternalEvent(item, calendarId, page.timeZone, readOnly));
-      }
+      pages.push({ page, readOnly: page.accessRole !== "owner" && page.accessRole !== "writer" });
       pageToken = page.nextPageToken;
     } while (pageToken);
+    return pages;
+  }
 
-    return events;
+  /** The rule of every series with an occurrence in the window, by the series' id. */
+  private async rules(calendarId: string, from: Date, to: Date): Promise<Map<string, string[]>> {
+    const rules = new Map<string, string[]>();
+    let pageToken: string | undefined;
+    do {
+      const params = new URLSearchParams({
+        timeMin: from.toISOString(),
+        timeMax: to.toISOString(),
+        singleEvents: "false",
+        showDeleted: "false",
+        maxResults: String(PAGE_SIZE),
+        fields: "nextPageToken,items(id,recurrence)",
+        ...(pageToken ? { pageToken } : {}),
+      });
+      const page = await this.request<GoogleEventsResponse>(
+        `/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+      );
+      for (const item of page.items ?? []) if (item.recurrence) rules.set(item.id, item.recurrence);
+      pageToken = page.nextPageToken;
+    } while (pageToken);
+    return rules;
   }
 
   private toExternalEvent(event: GoogleEvent, calendarId: string, timeZone: string, readOnly: boolean): ExternalEvent {

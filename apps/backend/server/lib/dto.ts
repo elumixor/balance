@@ -111,7 +111,7 @@ export class CalendarEventDTO {
   readonly reminders: { method: "popup" | "email"; minutes: number }[];
   /** The IANA zone the event was written in, or null when the calendar didn't say. */
   readonly timeZone: string | null;
-  /** The RRULE lines of a series, on its master event only. */
+  /** The RRULE lines of a series, on its master and on every occurrence of it. */
   readonly recurrence: string[] | null;
 
   constructor(e: ResolvedEvent) {

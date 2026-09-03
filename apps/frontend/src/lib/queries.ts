@@ -83,9 +83,6 @@ export const createCalendarEvent = (input: {
   /** A date rather than a moment: both instants are midnight UTC, and `end` is the day after. */
   allDay?: boolean;
 }) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
-/** One event by id — a series' master, for the rule it repeats by. Query params, so the raw helper. */
-export const getCalendarEvent = (id: string, calendarId: string) =>
-  apiGet<{ event: CalendarEvent }>(`/calendar/events/${encodeURIComponent(id)}`, { calendarId }).then((r) => r.event);
 export interface EventPatch {
   title?: string;
   description?: string;

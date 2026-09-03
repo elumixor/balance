@@ -1134,9 +1134,8 @@ class CalendarData {
   /**
    * The rest of what a card can change — where it is, its zone, how it repeats, who is coming,
    * its reminders, its call. One write, drawn ahead where it can be; the caller says what the
-   * write back would be, since only it knows what the master's rule was. A rule always lands on
-   * the series' master, which is the only event that has one; anything else edited on an
-   * occurrence is offered to the rest of the series the way a retitle is.
+   * write back would be. A rule always lands on the series' master, since a rule is the series';
+   * anything else edited on an occurrence is offered to the rest of the series the way a retitle is.
    */
   async patchEvent(event: CalendarEvent, patch: EventPatch, inverse: EventPatch) {
     this.seriesPrompt = null;

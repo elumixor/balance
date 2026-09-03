@@ -54,10 +54,7 @@ export interface ExternalEvent {
   readonly reminders: readonly EventReminder[];
   /** The IANA zone the event was written in, when the provider says. Null for an all-day event. */
   readonly timeZone: string | null;
-  /**
-   * The rule a series repeats by — `RRULE:FREQ=DAILY` — on the master event only. An occurrence
-   * carries none: it is one instant, and the rule that made it lives on the event it came from.
-   */
+  /** The rule a series repeats by — `RRULE:FREQ=DAILY` — on its master and every occurrence. */
   readonly recurrence: readonly string[] | null;
 }
 

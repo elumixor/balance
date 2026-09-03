@@ -16,7 +16,7 @@
   import { deviceTimeZone } from "$lib/planning/zone";
   import { preferences } from "$lib/preferences.svelte";
   import ProjectPicker from "$lib/projects/ProjectPicker.svelte";
-  import { type EventPatch, getCalendarEvent, respondToCalendarEvent } from "$lib/queries";
+  import { respondToCalendarEvent } from "$lib/queries";
   import { applyCalendarEvent } from "$lib/store.svelte";
   import { practices, projects, tasks } from "$lib/synced.svelte";
   import { offsetLabel, shiftZone } from "$lib/time-zones";
@@ -264,40 +264,20 @@
     );
   }
 
-  /**
-   * The rule a series repeats by lives on its master, which the week never lists — so it is
-   * fetched once per series and remembered, since every occurrence opened afterwards is the same
-   * rule. A one-off has no rule until one is chosen here.
-   */
-  const rules = new Map<string, Rule | null>();
-  let rule = $state<Rule | null>(null);
-  $effect(() => {
-    const seriesId = event.seriesId;
-    if (!seriesId) {
-      rule = fromRecurrence(event.recurrence);
-      return;
-    }
-    if (rules.has(seriesId)) {
-      rule = rules.get(seriesId) ?? null;
-      return;
-    }
-    rule = null;
-    void getCalendarEvent(seriesId, event.calendarId)
-      .then((master) => {
-        rules.set(seriesId, fromRecurrence(master.recurrence));
-        if (event.seriesId === seriesId) rule = rules.get(seriesId) ?? null;
-      })
-      .catch((e) => diagnostics.report("Calendar", e, { title: "Couldn’t read how this repeats" }));
+  /** The rule this series repeats by, as every occurrence carries it. A one-off has none. */
+  const rule = $derived(fromRecurrence(event.recurrence));
+  /** "Weekly on Mon, Wed" with the "on" set back, so the days read and the joining word doesn't. */
+  const repeatLabel = $derived.by(() => {
+    if (!rule) return [{ text: event.seriesId ? "Repeats" : "Repeat", faint: false }];
+    const [before, after] = describe(rule, new Date(event.start)).split(" on ");
+    return after ? [{ text: before, faint: false }, { text: " on ", faint: true }, { text: after, faint: false }] : [{ text: before, faint: false }];
   });
-  const repeatLabel = $derived(rule ? describe(rule, new Date(event.start)) : event.seriesId ? "Repeats" : "Repeat");
 
   function chooseRule(next: Rule | null) {
     repeatRect = null;
     const lines = next ? [toRRule(next)] : [];
     const before = rule ? [toRRule(rule)] : [];
     if (lines.join() === before.join()) return;
-    if (event.seriesId) rules.set(event.seriesId, next);
-    rule = next;
     void data.patchEvent(event, { recurrence: lines }, { recurrence: before });
   }
 
@@ -750,7 +730,9 @@
           class="press-sm flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left enabled:hover:bg-surface-alt"
         >
           <Repeat size={14} class="shrink-0 {rule ? 'text-fg-muted' : 'text-fg-faint'}" />
-          <span class="t-label truncate {rule ? 'text-fg' : 'text-fg-faint'}">{repeatLabel}</span>
+          <span class="t-label truncate {rule ? 'text-fg' : 'text-fg-faint'}">
+            {#each repeatLabel as part, i (i)}<span class={part.faint ? "text-fg-faint" : ""}>{part.text}</span>{/each}
+          </span>
         </button>
       {/if}
     </div>
