@@ -3,6 +3,7 @@
   import { auth } from "$lib/auth.svelte";
   import AppLoading from "$lib/components/AppLoading.svelte";
   import SideNav from "$lib/components/nav/SideNav.svelte";
+  import TopBar from "$lib/components/nav/TopBar.svelte";
   import TabBar from "$lib/components/nav/TabBar.svelte";
   import SessionNudge from "$lib/components/SessionNudge.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
@@ -133,28 +134,32 @@
 {#if !shellReady}
   <AppLoading />
 {:else}
-  <!-- One shell, two shapes: tabs under the thumb on a phone, a rail beside the work on a desktop. -->
-  <div class="flex h-dvh bg-bg">
-    <SideNav />
-    <div class="flex min-w-0 flex-1 flex-col">
-      <!-- The screen scrolls itself, not the page: the rail and the tab bar stay put, and a
-           screen that wants the whole height (the calendar) can take it. -->
-      <main class="min-h-0 flex-1 overflow-hidden">
-        <!-- A screen that throws while rendering used to take the whole shell down with it: the
-             tabs stayed drawn and stopped answering, which reads as an app that is still loading.
-             The boundary keeps the shell alive, says what happened, and lets the screen be built
-             again — nothing here holds state that the store doesn't hold for it. -->
-        <svelte:boundary onerror={(e) => diagnostics.report("Screen", e)}>
-          {@render children()}
-          {#snippet failed(error, reset)}
-            <ScreenFailed {error} {reset} />
-          {/snippet}
-        </svelte:boundary>
-      </main>
-      <!-- Under the thumb, above the bar: the phone has no rail to hang a mark off. -->
-      <SessionNudge variant="floating" />
-      <TabBar />
+  <!-- One shell, two shapes: tabs under the thumb on a phone, a strip along the top on a desktop —
+       with a panel down the left only on the screen that has something to put in one. -->
+  <div class="flex h-dvh flex-col bg-bg">
+    <TopBar />
+    <div class="flex min-h-0 flex-1">
+      <SideNav />
+      <div class="flex min-w-0 flex-1 flex-col">
+        <!-- The screen scrolls itself, not the page: the strip and the tab bar stay put, and a
+             screen that wants the whole height (the calendar) can take it. -->
+        <main class="min-h-0 flex-1 overflow-hidden">
+          <!-- A screen that throws while rendering used to take the whole shell down with it: the
+               tabs stayed drawn and stopped answering, which reads as an app that is still loading.
+               The boundary keeps the shell alive, says what happened, and lets the screen be built
+               again — nothing here holds state that the store doesn't hold for it. -->
+          <svelte:boundary onerror={(e) => diagnostics.report("Screen", e)}>
+            {@render children()}
+            {#snippet failed(error, reset)}
+              <ScreenFailed {error} {reset} />
+            {/snippet}
+          </svelte:boundary>
+        </main>
+        <TabBar />
+      </div>
     </div>
+    <!-- A notification rather than a screen: top-right on a desktop, above the bar on a phone. -->
+    <SessionNudge />
   </div>
   <!-- Above the shell rather than inside the rail: the hotkey opens it from any screen, and on a
        phone there is no rail for it to hang off at all. -->

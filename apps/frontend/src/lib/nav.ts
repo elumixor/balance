@@ -12,13 +12,31 @@ import { syncing } from "./store.svelte";
  * `syncing` is read as a function so the nav can ask each tab whether its data is being checked
  * without the tab bar knowing what either screen is made of.
  *
- * `key` is the screen's own letter, pressed on its own — the rail shows icons, so the name and the
+ * `key` is the screen's own letter, pressed on its own — the strip shows icons, so the name and the
  * shortcut both live in the tooltip rather than on the button.
  */
 export const NAV_TABS = [
-  { href: "/calendar", label: "Calendar", key: "c", icon: CalendarDays, syncing: () => syncing.calendar },
-  { href: "/planning", label: "Planning", key: "p", icon: ChartPie, syncing: () => syncing.planning },
-  { href: "/projects", label: "Projects", key: "j", icon: Hexagon, syncing: () => syncing.projects },
+  {
+    href: "/calendar",
+    label: "Calendar",
+    key: "c",
+    icon: CalendarDays,
+    syncing: () => syncing.calendar,
+  },
+  {
+    href: "/planning",
+    label: "Planning",
+    key: "p",
+    icon: ChartPie,
+    syncing: () => syncing.planning,
+  },
+  {
+    href: "/projects",
+    label: "Projects",
+    key: "j",
+    icon: Hexagon,
+    syncing: () => syncing.projects,
+  },
 ];
 
 /** A tab stays lit for everything under it, so Planning's own sections don't unlight the rail. */

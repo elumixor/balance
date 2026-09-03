@@ -4,7 +4,8 @@
   import { telemetry } from "$lib/telemetry";
   import CalendarsSection from "$lib/calendar/CalendarsSection.svelte";
   import GeneralPane from "$lib/settings/GeneralPane.svelte";
-  import { type Pane, PANES } from "$lib/settings/panes";
+  import InboxPane from "$lib/settings/InboxPane.svelte";
+  import { PANES } from "$lib/settings/panes";
   import PlacesPane from "$lib/settings/PlacesPane.svelte";
   import PlanningPane from "$lib/settings/PlanningPane.svelte";
   import RemindersPane from "$lib/settings/RemindersPane.svelte";
@@ -24,7 +25,6 @@
    * borders around that same problem. A page is one subject, headings and controls, with nothing
    * else on screen competing to be read.
    */
-  let pane = $state<Pane>("general");
 
   /** Nothing here has a Save button, so a panel closing mid-edit still writes what it was given. */
   $effect(() => () => preferences.flush());
@@ -44,7 +44,7 @@
   <div class="flex h-[76vh] max-h-[680px] min-h-0 flex-col md:flex-row">
     <!-- The rail, on anything wide enough to put one beside a page. -->
     <div class="hidden w-56 shrink-0 overflow-y-auto border-r border-line bg-surface-alt md:block">
-      <SettingsNav bind:pane />
+      <SettingsNav bind:pane={settings.pane} />
     </div>
 
     <!-- On a phone the same pages become a strip along the top: there is no room for a column
@@ -52,11 +52,11 @@
     <div class="shrink-0 overflow-x-auto border-b border-line bg-surface-alt px-2 py-2 md:hidden">
       <div class="flex gap-1">
         {#each PANES as page (page.value)}
-          {@const active = pane === page.value}
+          {@const active = settings.pane === page.value}
           <button
             type="button"
             aria-current={active ? "page" : undefined}
-            onclick={() => (pane = page.value)}
+            onclick={() => (settings.pane = page.value)}
             class="press-sm flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5
               {active ? 'bg-surface text-fg' : 'text-fg-muted'}"
           >
@@ -68,13 +68,15 @@
     </div>
 
     <div class="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 py-6 pr-12">
-      {#if pane === "general"}
+      {#if settings.pane === "inbox"}
+        <InboxPane />
+      {:else if settings.pane === "general"}
         <GeneralPane onsignout={() => void signOut()} />
-      {:else if pane === "planning"}
+      {:else if settings.pane === "planning"}
         <PlanningPane />
-      {:else if pane === "reminders"}
+      {:else if settings.pane === "reminders"}
         <RemindersPane />
-      {:else if pane === "places"}
+      {:else if settings.pane === "places"}
         <PlacesPane />
       {:else}
         <SettingsGroup title="Calendars" note="Which calendars are drawn, and where new events land." divided={false}>
