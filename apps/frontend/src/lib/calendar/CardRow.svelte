@@ -3,12 +3,13 @@
   import type { Snippet } from "svelte";
 
   /**
-   * One line of the event card: a glyph on its own small ground, then whatever the line says.
+   * One line of the event card: a glyph, then whatever the line says.
    *
    * Every row is this, whether it is a button that opens a picker, a field being typed into, or
    * a list of guests — so the card reads as one column of glyphs with one column of words beside
    * it, and a new kind of row can't arrive with its own idea of spacing. A row with `onclick` is
-   * a button and lights up under the pointer; the rest lie flat and let their fields light up.
+   * a button and lights up whole — glyph and words together — under the pointer; the rest lie
+   * flat and let their fields light up.
    */
   let {
     icon,
@@ -38,11 +39,11 @@
 
 {#snippet glyph()}
   <span
-    class="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-alt {set
-      ? 'text-fg-muted'
-      : 'text-fg-faint'} {align === 'start' ? 'mt-0.5' : ''}"
+    class="flex size-7 shrink-0 items-center justify-center {set ? 'text-fg-muted' : 'text-fg-faint'} {align === 'start'
+      ? 'mt-0.5'
+      : ''}"
   >
-    <Icon size={15} />
+    <Icon size={16} />
   </span>
 {/snippet}
 
