@@ -31,7 +31,6 @@
 
 <SettingsGroup
   title="Integrations"
-  note="Other apps that already know how some of your hours went. Link one to an event from the event's card, and what it recorded shows up under that block."
   divided={false}
 >
   <ul class="divide-y divide-line">

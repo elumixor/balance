@@ -10,9 +10,6 @@
    */
   let {
     title,
-    /** One line of context, where the controls under it need one. Most groups don't. */
-    note,
-    /** Off for the first group on a page, which has nothing above it to be separated from. */
     divided = true,
     children,
   }: { title: string; note?: string; divided?: boolean; children: Snippet } = $props();
@@ -20,11 +17,7 @@
 
 <section class={divided ? "border-t border-line pt-7" : ""}>
   <h3 class="t-heading mb-1 text-fg">{title}</h3>
-  {#if note}
-    <p class="t-label mb-3 text-fg-muted">{note}</p>
-  {:else}
-    <div class="h-3"></div>
-  {/if}
+  <div class="h-3"></div>
   <div class="space-y-4">
     {@render children()}
   </div>
