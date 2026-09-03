@@ -55,7 +55,7 @@
       type="button"
       onclick={open}
       aria-label="Where this journey starts"
-      class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-1"
+      class="chip-bare press-sm py-1"
     >
       {#if choice.kind === "here"}
         <LocateFixed size={13} class="text-fg-muted" />

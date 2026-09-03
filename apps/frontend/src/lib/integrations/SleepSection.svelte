@@ -3,6 +3,7 @@
   import { formatClock, formatHoursAndMinutes } from "$lib/format";
   import { isIOSApp } from "$lib/mobile/platform";
   import type { CalendarEvent } from "$lib/types";
+  import CardRow from "$lib/calendar/CardRow.svelte";
   import { Moon } from "lucide-svelte";
   import { asSleepSummary } from "./sleep-summary";
 
@@ -32,12 +33,11 @@
   const delta = $derived(summary ? summary.asleepMinutes / 60 - planned : 0);
 </script>
 
-<div class="flex items-start gap-3 py-1">
-  <Moon size={16} class="mt-0.5 shrink-0 text-fg-faint" />
-  <div class="min-w-0 flex-1 space-y-2">
+<CardRow icon={Moon} set={Boolean(summary)} align="start">
+  <div class="min-w-0 flex-1 space-y-2 py-1">
     {#if summary}
       <div class="flex items-baseline justify-between gap-3">
-        <span class="t-body text-fg">{formatHoursAndMinutes(summary.asleepMinutes / 60)} asleep</span>
+        <span class="t-label text-fg">{formatHoursAndMinutes(summary.asleepMinutes / 60)} asleep</span>
         <span class="t-micro text-fg-faint">
           {formatClock(new Date(summary.start))} – {formatClock(new Date(summary.end))}
         </span>
@@ -73,4 +73,4 @@
       </p>
     {/if}
   </div>
-</div>
+</CardRow>

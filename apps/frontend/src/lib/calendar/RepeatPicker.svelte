@@ -76,7 +76,7 @@
       <button
         type="button"
         onclick={() => onchoose(null)}
-        class="hoverable t-body flex w-full items-center rounded-md px-2 py-1.5 text-left {value
+        class="hoverable t-label flex w-full items-center rounded-md px-2 py-1.5 text-left {value
           ? 'text-fg-muted'
           : 'text-fg'}"
       >
@@ -87,7 +87,7 @@
         <button
           type="button"
           onclick={() => onchoose(choice.rule)}
-          class="hoverable t-body flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left {chosen
+          class="hoverable t-label flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left {chosen
             ? 'text-fg'
             : 'text-fg-muted'}"
         >
@@ -98,7 +98,7 @@
       <button
         type="button"
         onclick={() => (custom = true)}
-        class="hoverable t-body flex w-full items-center rounded-md px-2 py-1.5 text-left text-fg-muted"
+        class="hoverable t-label flex w-full items-center rounded-md px-2 py-1.5 text-left text-fg-muted"
       >
         Custom…
       </button>
@@ -152,7 +152,7 @@
             value={draft.end.day}
             oninput={(e) => (draft = { ...draft, end: { kind: "until", day: e.currentTarget.value } })}
             aria-label="Last day"
-            class="t-body h-9 w-full rounded-md border border-line bg-surface px-2.5 text-fg"
+            class="field-bare t-label w-full"
           />
         {:else if draft.end.kind === "count"}
           <div class="flex items-center gap-2">

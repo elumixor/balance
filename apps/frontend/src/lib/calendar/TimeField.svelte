@@ -234,8 +234,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   onpointerdown={focus}
-  class="flex h-9 shrink-0 items-center gap-2 rounded-md border border-transparent px-2 transition-colors
-    hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
+  class="field-bare flex shrink-0 items-center gap-2 focus-within:bg-surface-alt"
 >
   <input
     bind:this={input}
@@ -259,11 +258,11 @@
     aria-label={ariaLabel}
     autocomplete="off"
     autocapitalize="off"
-    class="t-data-compact w-11 bg-transparent text-fg outline-none"
+    class="t-label w-11 bg-transparent text-fg outline-none"
   />
   <!-- The span belongs to one field, not both: saying it twice in one row says nothing extra. -->
   {#if end && span}
-    <span class="t-data-micro shrink-0 text-fg-muted">{span}</span>
+    <span class="t-label shrink-0 text-fg-faint">{span}</span>
   {/if}
 </div>
 
@@ -286,8 +285,8 @@
           class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hoverable
             {i === highlighted ? 'bg-surface-alt' : ''}"
         >
-          <span class="t-data">{option.clock}</span>
-          <span class="t-data-micro text-fg-muted">{option.span}</span>
+          <span class="t-label">{option.clock}</span>
+          <span class="t-label text-fg-faint">{option.span}</span>
         </button>
       </li>
     {/each}

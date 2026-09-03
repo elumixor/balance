@@ -2,7 +2,8 @@
   import Popover from "$lib/components/Popover.svelte";
   import PopoverItem from "$lib/components/PopoverItem.svelte";
   import type { Meeting } from "$lib/meeting";
-  import { Check, Copy, Link2, Video, X } from "lucide-svelte";
+  import { Check, Copy, Video, X } from "lucide-svelte";
+  import CardRow from "./CardRow.svelte";
 
   /**
    * How you get into the call. With one on the event: its name, a copy, a Join. Without: the
@@ -43,47 +44,45 @@
     if (/^https?:\/\//i.test(url)) onpaste(url);
   }
 
-  /** The list belongs to the page: inside the card it would be clipped by the card's own scroll. */
   function autofocus(node: HTMLInputElement) {
     node.focus();
   }
 </script>
 
 {#if meeting.join}
-  {@const done = copied === meeting.join.url}
-  <div class="flex w-full items-center gap-3 py-1.5">
-    <Video size={16} class="shrink-0 text-fg-muted" />
-    <span class="t-label min-w-0 flex-1 truncate">{conferenceName ?? meeting.join.label}</span>
+  {@const join = meeting.join}
+  {@const done = copied === join.url}
+  <CardRow icon={Video} set>
+    <span class="t-label min-w-0 flex-1 truncate">{conferenceName ?? join.label}</span>
     <button
       type="button"
-      class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
+      class="press-sm hoverable shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
       aria-label={done ? "Link copied" : "Copy link"}
       title={done ? "Copied" : "Copy link"}
-      onclick={() => oncopy(meeting.join?.url ?? "")}
+      onclick={() => oncopy(join.url)}
     >
       {#if done}<Check size={14} />{:else}<Copy size={14} />{/if}
     </button>
     <button
       type="button"
-      class="press shrink-0 rounded-md bg-ink px-2.5 py-1 text-ink-fg"
-      onclick={() => onjoin(joinUrl ?? meeting.join?.url ?? "")}
+      class="press t-label shrink-0 rounded-md bg-ink px-2.5 py-1 text-ink-fg"
+      onclick={() => onjoin(joinUrl ?? join.url)}
     >
-      <span class="t-label">Join</span>
+      Join
     </button>
-    {#if editable && meeting.join.provider === "meet"}
+    {#if editable && join.provider === "meet"}
       <button
         type="button"
         aria-label="Remove the call"
         onclick={onremove}
-        class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
+        class="press-sm hoverable shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
       >
         <X size={14} />
       </button>
     {/if}
-  </div>
+  </CardRow>
 {:else if pasting}
-  <div class="flex w-full items-center gap-3 py-1.5">
-    <Link2 size={16} class="shrink-0 text-fg-faint" />
+  <CardRow icon={Video}>
     <input
       use:autofocus
       bind:value={pasted}
@@ -101,21 +100,13 @@
       aria-label="Call link"
       autocomplete="off"
       spellcheck="false"
-      class="t-body h-8 min-w-0 flex-1 rounded-md border border-line bg-surface px-2 text-fg
-        placeholder:text-fg-faint focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
+      class="field-bare t-label flex-1"
     />
-  </div>
+  </CardRow>
 {:else if editable}
   <Popover width={220} align="start">
     {#snippet trigger(open)}
-      <button
-        type="button"
-        onclick={open}
-        class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-      >
-        <Video size={16} class="shrink-0 text-fg-faint" />
-        <span class="t-label text-fg-faint">Conferencing</span>
-      </button>
+      <CardRow icon={Video} label="Conferencing" onclick={open} />
     {/snippet}
     {#snippet content(close)}
       <PopoverItem
@@ -135,8 +126,5 @@
     {/snippet}
   </Popover>
 {:else}
-  <div class="flex w-full items-center gap-3 py-1.5">
-    <Video size={16} class="shrink-0 text-fg-faint" />
-    <span class="t-label text-fg-faint">No call</span>
-  </div>
+  <CardRow icon={Video} label="No call" />
 {/if}

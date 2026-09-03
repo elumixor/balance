@@ -1,6 +1,7 @@
 <script lang="ts">
   import AddressField from "$lib/components/AddressField.svelte";
   import { MapPin, X } from "lucide-svelte";
+  import CardRow from "./CardRow.svelte";
   import OriginPicker from "./OriginPicker.svelte";
   import TravelChips from "./TravelChips.svelte";
 
@@ -43,22 +44,21 @@
 </script>
 
 {#if editing}
-  <div class="flex w-full items-center gap-3 py-1.5">
-    <MapPin size={16} class="shrink-0 text-fg-faint" />
+  <CardRow icon={MapPin}>
     <div class="min-w-0 flex-1">
       <AddressField
         bind:value={draft}
         ariaLabel="Where it is"
         autofocus
+        variant="bare"
         onpick={(suggestion) => commit(suggestion.address)}
         oncommit={commit}
       />
     </div>
-  </div>
+  </CardRow>
 {:else if location}
-  <div class="flex w-full items-start gap-3 py-1.5">
-    <MapPin size={16} class="mt-0.5 shrink-0 text-fg-muted" />
-    <div class="min-w-0 flex-1 space-y-1.5">
+  <CardRow icon={MapPin} set align="start">
+    <div class="min-w-0 flex-1 space-y-1.5 py-1">
       <div class="flex items-start gap-1">
         {#if editable}
           <button type="button" onclick={begin} class="t-label min-w-0 flex-1 break-words text-left hover:text-fg">
@@ -68,7 +68,7 @@
             type="button"
             aria-label="Remove location"
             onclick={() => onchange("")}
-            class="press-sm shrink-0 rounded-md p-1 text-fg-faint hover:text-fg"
+            class="press-sm hoverable shrink-0 rounded-md p-1 text-fg-faint hover:text-fg"
           >
             <X size={14} />
           </button>
@@ -83,19 +83,9 @@
         </div>
       {/if}
     </div>
-  </div>
+  </CardRow>
 {:else if editable}
-  <button
-    type="button"
-    onclick={begin}
-    class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-  >
-    <MapPin size={16} class="shrink-0 text-fg-faint" />
-    <span class="t-label text-fg-faint">Location</span>
-  </button>
+  <CardRow icon={MapPin} label="Location" onclick={begin} />
 {:else}
-  <div class="flex w-full items-center gap-3 py-1.5">
-    <MapPin size={16} class="shrink-0 text-fg-faint" />
-    <span class="t-label text-fg-faint">No location</span>
-  </div>
+  <CardRow icon={MapPin} label="No location" />
 {/if}

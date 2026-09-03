@@ -95,8 +95,11 @@
     An invisible sheet, not a dim one: this panel is a small aside, and darkening the page for it
     said the rest of the screen had stopped mattering. It still catches the tap that dismisses.
   -->
+  <!-- Marked as a layer of its own: a card that opened this must not read a press in it as a
+       press outside itself. -->
   <div
     use:portal
+    data-popup-layer
     class="fixed inset-0 z-60"
     role="presentation"
     onclick={close}

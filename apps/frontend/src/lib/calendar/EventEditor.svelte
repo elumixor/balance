@@ -40,6 +40,7 @@
     X,
   } from "lucide-svelte";
   import { accountEmailOf, calendarData } from "./calendar-data.svelte";
+  import CardRow from "./CardRow.svelte";
   import CardSettings, { type CardSection } from "./CardSettings.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
   import ConferencingRow from "./ConferencingRow.svelte";
@@ -532,6 +533,16 @@
     data.deselect();
   }
 
+  let dateEl = $state<HTMLInputElement | null>(null);
+  /** The native date picker, opened from the words rather than a transparent field over them. */
+  function openDatePicker() {
+    try {
+      dateEl?.showPicker();
+    } catch {
+      dateEl?.focus();
+    }
+  }
+
   // Enter commits from any single-line field; the notes get their own newlines.
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey && editable && !(e.target instanceof HTMLTextAreaElement)) flush();
@@ -544,7 +555,7 @@
   {@const done = copied === url}
   <button
     type="button"
-    class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
+    class="press-sm hoverable shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
     aria-label={done ? "Link copied" : "Copy link"}
     title={done ? "Copied" : "Copy link"}
     onclick={() => void copy(url)}
@@ -554,23 +565,6 @@
     {:else}
       <Copy size={14} />
     {/if}
-  </button>
-{/snippet}
-
-{#snippet rowButton(
-  label: string,
-  icon: typeof MapPin,
-  set: boolean,
-  onclick: (e: MouseEvent & { currentTarget: HTMLButtonElement }) => void,
-)}
-  {@const Icon = icon}
-  <button
-    type="button"
-    {onclick}
-    class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-  >
-    <Icon size={16} class="shrink-0 {set ? 'text-fg-muted' : 'text-fg-faint'}" />
-    <span class="t-label min-w-0 flex-1 truncate {set ? 'text-fg' : 'text-fg-faint'}">{label}</span>
   </button>
 {/snippet}
 
@@ -597,7 +591,7 @@
         placeholder="Untitled"
         variant="inline"
         ariaLabel="Event title"
-        class="t-heading py-1"
+        class="t-heading h-9 py-1"
       />
     {:else}
       <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
@@ -627,11 +621,10 @@
   <!-- What it was for: the project or practice whose evidence this hour is. Tagging after the
        fact is how a real week is reconciled, so the row is there even when empty. -->
   {#if shown("projects")}
-    <div class="px-3 pb-2">
+    <div class="px-2 pb-2">
       {#if purpose}
-        <div class="flex items-center gap-3 py-1">
-          <Folder size={16} class="shrink-0 text-fg-muted" />
-          <span class="t-label flex min-w-0 items-center gap-1 rounded-md border border-line px-2 py-0.5">
+        <CardRow icon={Folder} set>
+          <span class="chip-bare t-label min-w-0">
             <span class="truncate">{purpose}</span>
             {#if editable && !detaching}
               <button
@@ -651,17 +644,20 @@
               <button type="button" onclick={() => (detaching = false)} class="press-sm t-micro text-fg-faint">No</button>
             </span>
           {/if}
-        </div>
+        </CardRow>
       {:else}
-        {@render rowButton("Projects", Folder, false, (e) => (projectRect = e.currentTarget.getBoundingClientRect()))}
+        <CardRow
+          icon={Folder}
+          label="Projects"
+          onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
+        />
       {/if}
     </div>
   {/if}
 
   <!-- When it runs. The clock owns the whole block, so the date sits under the times it belongs to. -->
-  <div class="space-y-1 border-t border-line px-3 py-3">
-    <div class="flex items-center gap-3">
-      <Clock size={16} class="shrink-0 text-fg-faint" />
+  <div class="border-t border-line px-2 py-2">
+    <CardRow icon={Clock} set>
       {#if editable}
         <TimeField
           bind:value={from}
@@ -682,12 +678,12 @@
           ariaLabel="End time"
         />
       {:else}
-        <span class="t-data-compact">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
+        <span class="t-label px-2">{event.allDay ? "All day" : `${formatClock(new Date(event.start))}`}</span>
         {#if !event.allDay}
           <ArrowRight size={14} class="shrink-0 text-fg-faint" />
-          <span class="t-data-compact">{formatClock(new Date(event.end))}</span>
+          <span class="t-label px-2">{formatClock(new Date(event.end))}</span>
+          <span class="t-label text-fg-faint">{span}</span>
         {/if}
-        <span class="t-data-micro text-fg-muted">{span}</span>
       {/if}
       {#if !event.allDay}
         <button
@@ -695,39 +691,37 @@
           disabled={!editable}
           aria-label="Time zone: {zoneLabel}"
           onclick={(e) => (zoneRect = e.currentTarget.getBoundingClientRect())}
-          class="press-sm t-data-micro ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-fg-muted enabled:hover:bg-surface-alt"
+          class="field-bare press-sm t-label ml-auto shrink-0 text-fg-muted"
         >
           {zoneLabel}
         </button>
       {/if}
-    </div>
+    </CardRow>
 
-    <div class="flex items-center gap-3">
-      <CalendarClock size={16} class="shrink-0 text-fg-faint" />
+    <CardRow icon={CalendarClock} set>
       {#if editable}
         <!-- Reads as "Fri Aug 14"; the native picker behind it is what's actually being typed in. -->
-        <label
-          class="relative flex h-9 items-center rounded-md border border-transparent px-2 transition-colors
-            hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10"
-        >
-          <span class="t-data-compact">{dateLabel}</span>
-          <input
-            type="date"
-            bind:value={date}
-            oninput={queue}
-            aria-label="Date"
-            class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          />
-        </label>
+        <button type="button" onclick={openDatePicker} class="field-bare press-sm t-label shrink-0">
+          {dateLabel}
+        </button>
+        <input
+          bind:this={dateEl}
+          type="date"
+          bind:value={date}
+          oninput={queue}
+          aria-label="Date"
+          tabindex="-1"
+          class="pointer-events-none absolute size-0 opacity-0"
+        />
       {:else}
-        <span class="t-data-compact px-2">{longDate}</span>
+        <span class="t-label px-2">{longDate}</span>
       {/if}
       {#if !event.allDay}
         <button
           type="button"
           disabled={!editable}
           onclick={(e) => (repeatRect = e.currentTarget.getBoundingClientRect())}
-          class="press-sm flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left enabled:hover:bg-surface-alt"
+          class="field-bare press-sm flex min-w-0 items-center gap-2"
         >
           <Repeat size={14} class="shrink-0 {rule ? 'text-fg-muted' : 'text-fg-faint'}" />
           <span class="t-label truncate {rule ? 'text-fg' : 'text-fg-faint'}">
@@ -735,17 +729,17 @@
           </span>
         </button>
       {/if}
-    </div>
+    </CardRow>
   </div>
 
   <!-- How you'll be told: the calendar's own reminders, and the rhythm a timer runs at. -->
   {#if !event.allDay}
-    <div class="border-t border-line px-3 py-1.5">
+    <div class="border-t border-line px-2 py-1.5">
       <RemindersRow reminders={event.reminders} {editable} onchange={chooseReminders} />
       {#if shown("timer") && category}
         <Popover width={200} align="start">
           {#snippet trigger(open)}
-            {@render rowButton(event.timer ? timerLabel : "Set up timer", Timer, Boolean(event.timer), open)}
+            <CardRow icon={Timer} label={event.timer ? timerLabel : "Set up timer"} set={Boolean(event.timer)} onclick={open} />
           {/snippet}
           {#snippet content(close)}
             {#each TIMERS as option (option.value)}
@@ -766,7 +760,7 @@
 
   <!-- The meeting inside the event: how you get in, who else is coming, where it is. -->
   {#if shown("conferencing") || shown("participants") || shown("location")}
-    <div class="border-t border-line px-3 py-2">
+    <div class="border-t border-line px-2 py-1.5">
       {#if shown("conferencing")}
         <ConferencingRow
           {meeting}
@@ -786,18 +780,19 @@
           {#snippet answer()}
             {#if answerable}
               <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
-              <div class="flex items-center gap-2 pt-1">
+              <div class="flex items-center gap-1.5 pt-1">
                 {#each RSVP as choice (choice.value)}
                   {@const chosen = event.response === choice.value}
                   <button
                     type="button"
                     aria-pressed={chosen}
                     disabled={answering !== null}
-                    class="press-sm rounded-md border px-2.5 py-1
-                      {chosen ? 'border-line-strong bg-surface-alt' : 'border-line'}"
+                    class="press-sm t-label rounded-md px-2.5 py-1 {chosen
+                      ? 'bg-ink text-ink-fg'
+                      : 'bg-surface-alt text-fg-muted'}"
                     onclick={() => void respond(choice.value)}
                   >
-                    <span class="t-label {chosen ? '' : 'text-fg-muted'}">{choice.label}</span>
+                    {choice.label}
                   </button>
                 {/each}
               </div>
@@ -821,53 +816,48 @@
 
   <!-- What it says. -->
   {#if shown("description")}
-    <div class="flex items-start gap-3 border-t border-line px-3 py-2">
-      <AlignLeft size={16} class="mt-1.5 shrink-0 {notes.trim() ? 'text-fg-muted' : 'text-fg-faint'}" />
-      <div class="min-w-0 flex-1">
-        {#if editable}
-          <Textarea
-            bind:value={notes}
-            oninput={queue}
-            rows={2}
-            placeholder="Description"
-            ariaLabel="Event notes"
-            class="bg-transparent px-0"
-          />
-        {:else if event.description}
-          <p class="t-label whitespace-pre-wrap text-fg-muted">{event.description}</p>
-        {:else}
-          <p class="t-label py-1.5 text-fg-faint">Description</p>
-        {/if}
-      </div>
+    <div class="border-t border-line px-2 py-1.5">
+      <CardRow icon={AlignLeft} set={Boolean(notes.trim())} align="start">
+        <div class="min-w-0 flex-1">
+          {#if editable}
+            <Textarea bind:value={notes} oninput={queue} rows={2} placeholder="Description" ariaLabel="Event notes" variant="bare" />
+          {:else if event.description}
+            <p class="t-label px-2 py-1.5 whitespace-pre-wrap text-fg-muted">{event.description}</p>
+          {:else}
+            <p class="t-label px-2 py-1.5 text-fg-faint">Description</p>
+          {/if}
+        </div>
+      </CardRow>
     </div>
   {/if}
 
   <!-- The foot: what's linked out of it, and what's linked into it. -->
-  <div class="border-t border-line px-3 py-2">
-    <div class="flex items-start gap-3 py-1">
-      <Link2 size={16} class="mt-0.5 shrink-0 {links.length > 0 ? 'text-fg-muted' : 'text-fg-faint'}" />
-      <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+  <div class="border-t border-line px-2 py-1.5">
+    <CardRow icon={Link2} set={links.length > 0} align="start">
+      <div class="flex min-w-0 flex-1 flex-col gap-1.5 py-1">
         {#if links.length > 0 && shown("links")}
           {#each links as link (link.url)}
             <div class="flex min-w-0 items-center gap-1">
               <button
                 type="button"
-                class="press-sm min-w-0 flex-1 rounded-md border border-line px-2 py-1 text-left"
+                class="chip-bare press-sm t-label min-w-0 flex-1 py-1 text-left"
                 onclick={() => void open(asGoogleAccount(link.url, accountEmail))}
               >
-                <span class="t-label block truncate">{link.label}</span>
+                <span class="block truncate">{link.label}</span>
               </button>
               {@render copyButton(link.url)}
             </div>
           {/each}
         {:else}
-          <span class="t-label py-0.5 text-fg-faint">Links</span>
+          <span class="t-label text-fg-faint">Links</span>
         {/if}
       </div>
       {#if !event.allDay}
-        <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
+        <div class="pt-0.5">
+          <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
+        </div>
       {/if}
-    </div>
+    </CardRow>
     {#if linked}
       {@const Section = linked.feed.section}
       <Section {event} />

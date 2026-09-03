@@ -2,6 +2,8 @@
   import Dot from "$lib/components/Dot.svelte";
   import type { EventAttendee, EventResponse } from "$lib/types";
   import { Plus, Users, X } from "lucide-svelte";
+  import type { Snippet } from "svelte";
+  import CardRow from "./CardRow.svelte";
 
   /**
    * Who else is coming, and what they said. A line per guest with a dot for their answer, the
@@ -22,7 +24,7 @@
     editable: boolean;
     onchange: (attendees: { email: string; optional?: boolean }[]) => void;
     /** The row's own RSVP, drawn under the list — only when there is one to give. */
-    answer?: import("svelte").Snippet;
+    answer?: Snippet;
   } = $props();
 
   /** Past this many the list stops being a glance and starts being a page. */
@@ -71,24 +73,44 @@
   }
 </script>
 
+{#snippet inviteField()}
+  <input
+    use:autofocus
+    bind:value={email}
+    type="email"
+    inputmode="email"
+    onkeydown={(e) => {
+      if (e.key === "Enter") {
+        e.stopPropagation();
+        invite();
+      } else if (e.key === "Escape") {
+        e.stopPropagation();
+        adding = false;
+      }
+    }}
+    onblur={() => {
+      invite();
+      adding = false;
+    }}
+    placeholder="Invite by email"
+    aria-label="Invite by email"
+    autocomplete="off"
+    spellcheck="false"
+    class="field-bare t-label w-full"
+  />
+{/snippet}
+
 {#if empty && !editable}
-  <div class="flex w-full items-center gap-3 py-1.5">
-    <Users size={16} class="shrink-0 text-fg-faint" />
-    <span class="t-label text-fg-faint">No guests</span>
-  </div>
+  <CardRow icon={Users} label="No guests" />
 {:else if empty && !adding}
-  <button
-    type="button"
-    onclick={() => (adding = true)}
-    class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
-  >
-    <Users size={16} class="shrink-0 text-fg-faint" />
-    <span class="t-label text-fg-faint">Participants</span>
-  </button>
+  <CardRow icon={Users} label="Participants" onclick={() => (adding = true)} />
+{:else if empty}
+  <CardRow icon={Users}>
+    <div class="min-w-0 flex-1">{@render inviteField()}</div>
+  </CardRow>
 {:else}
-  <div class="flex w-full items-start gap-3 py-1.5">
-    <Users size={16} class="mt-0.5 shrink-0 text-fg-muted" />
-    <div class="min-w-0 flex-1 space-y-1">
+  <CardRow icon={Users} set align="start">
+    <div class="min-w-0 flex-1 space-y-1 py-1">
       {#if organizer}
         <div class="flex items-center gap-2">
           <Dot color={RESPONSE_COLORS[organizer.response]} size={6} />
@@ -120,31 +142,7 @@
         </button>
       {/if}
       {#if editable && adding}
-        <input
-          use:autofocus
-          bind:value={email}
-          type="email"
-          inputmode="email"
-          onkeydown={(e) => {
-            if (e.key === "Enter") {
-              e.stopPropagation();
-              invite();
-            } else if (e.key === "Escape") {
-              e.stopPropagation();
-              adding = false;
-            }
-          }}
-          onblur={() => {
-            invite();
-            adding = false;
-          }}
-          placeholder="Invite by email"
-          aria-label="Invite by email"
-          autocomplete="off"
-          spellcheck="false"
-          class="t-body mt-1 h-8 w-full rounded-md border border-line bg-surface px-2 text-fg
-            placeholder:text-fg-faint focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
-        />
+        {@render inviteField()}
       {:else if editable}
         <button
           type="button"
@@ -157,5 +155,5 @@
       {/if}
       {#if answer}{@render answer()}{/if}
     </div>
-  </div>
+  </CardRow>
 {/if}

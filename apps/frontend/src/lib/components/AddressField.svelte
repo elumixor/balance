@@ -17,6 +17,8 @@
     autofocus = false,
     onpick,
     oncommit,
+    /** "bare" is the field in a card row, which already carries the pin: no box, no icon. */
+    variant = "boxed",
   }: {
     value: string;
     placeholder?: string;
@@ -26,6 +28,7 @@
     onpick?: (suggestion: PlaceSuggestion) => void;
     /** Enter on free text, for a field that has to accept an address nobody suggested. */
     oncommit?: (value: string) => void;
+    variant?: "boxed" | "bare";
   } = $props();
 
   /** Long enough that a word is one request rather than six. */
@@ -100,9 +103,11 @@
 </script>
 
 <div class="relative">
-  <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg-faint">
-    <MapPin size={15} />
-  </span>
+  {#if variant === "boxed"}
+    <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg-faint">
+      <MapPin size={15} />
+    </span>
+  {/if}
   <input
     bind:this={input}
     {placeholder}
@@ -117,9 +122,9 @@
     aria-expanded={open}
     role="combobox"
     aria-controls="address-suggestions"
-    class="t-body h-10 w-full rounded-md border border-line bg-surface pr-3 pl-9 text-fg
-      transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong
-      focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
+    class="w-full {variant === 'bare'
+      ? 'field-bare t-label'
+      : 't-body h-10 rounded-md border border-line bg-surface pr-3 pl-9 text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none'}"
   />
 
   {#if open && suggestions.length > 0}

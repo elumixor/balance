@@ -81,7 +81,7 @@
       {@const ModeIcon = MODE_ICONS[leg.mode]}
       <button
         type="button"
-        class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-1"
+        class="chip-bare press-sm py-1"
         onclick={() => onopen(leg.url)}
       >
         <ModeIcon size={13} class="text-fg-muted" />

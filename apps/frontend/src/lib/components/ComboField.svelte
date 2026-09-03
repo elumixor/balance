@@ -31,6 +31,8 @@
     onfree,
     /** What a row looks like, when a label and a hint aren't enough — a category with its icon. */
     row,
+    /** "bare" is a field in a card row; "boxed" a form control on its own surface. */
+    variant = "boxed",
     class: klass = "",
   }: {
     value: string;
@@ -42,6 +44,7 @@
     onpick: (option: ComboOption<T>) => void;
     onfree?: (text: string) => void;
     row?: Snippet<[ComboOption<T>, boolean]>;
+    variant?: "boxed" | "bare";
     class?: string;
   } = $props();
 
@@ -156,9 +159,9 @@
   autocomplete="off"
   autocapitalize="off"
   spellcheck="false"
-  class="t-body h-9 w-full rounded-md border border-line bg-surface px-2.5 text-fg
-    transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong
-    focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none {klass}"
+  class="t-label w-full {variant === 'bare'
+    ? 'field-bare'
+    : 'h-10 rounded-md border border-line bg-surface px-3 text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none'} {klass}"
 />
 
 {#if shown && position}
@@ -184,7 +187,7 @@
           {#if row}
             {@render row(option, i === highlighted)}
           {:else}
-            <span class="t-body min-w-0 flex-1 truncate text-fg">{option.label}</span>
+            <span class="t-label min-w-0 flex-1 truncate text-fg">{option.label}</span>
             {#if option.hint}
               <span class="t-micro shrink-0 text-fg-muted">{option.hint}</span>
             {/if}
