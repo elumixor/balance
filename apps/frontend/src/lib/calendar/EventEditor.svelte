@@ -17,9 +17,10 @@
   import type { CalendarEvent, Category, EventResponse, MappingScope } from "$lib/types";
   import ProjectPicker from "$lib/projects/ProjectPicker.svelte";
   import { practices, projects } from "$lib/synced.svelte";
-  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Trash2, Video, X } from "lucide-svelte";
+  import { ArrowRight, Bell, Check, Clock, Copy, Hexagon, Link2, MapPin, Sparkles, Trash2, Video, X } from "lucide-svelte";
   import { accountEmailOf, calendarData } from "./calendar-data.svelte";
   import CategoryPicker from "./CategoryPicker.svelte";
+  import EventAssist from "./EventAssist.svelte";
   import EventAttendees from "./EventAttendees.svelte";
   import TimeField from "./TimeField.svelte";
   import OriginPicker from "./OriginPicker.svelte";
@@ -129,6 +130,28 @@
   const purposeKey = $derived(
     event.projectId ? `project:${event.projectId}` : event.practiceId ? `practice:${event.practiceId}` : "",
   );
+
+  /** Whether the assistant's panel is open under the purpose row. Closed again for another block. */
+  let planning = $state(false);
+  $effect(() => {
+    event.id;
+    planning = false;
+  });
+
+  /** The plan goes where the person would have typed it, and is saved the way typing is. */
+  function takeBrief(text: string) {
+    notes = notes.trim() ? `${notes.trimEnd()}\n\n${text}` : text;
+    queue();
+  }
+
+  /** The block keeps its start and takes the suggested length, written the way a clock edit is. */
+  function takeHours(hours: number) {
+    const start = parseDateAndClock(date, from);
+    if (!start) return;
+    to = formatClock(new Date(start.getTime() + hours * 3_600_000));
+    queue();
+    flush();
+  }
 
   function choosePurpose(next: { projectId: string | null; practiceId: string | null }) {
     projectRect = null;
@@ -607,6 +630,21 @@
           {purpose ?? "For a project or practice…"}
         </span>
       </button>
+      {#if editable && !planning}
+        <button
+          type="button"
+          class="press-sm hoverable -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-3 rounded-md px-1 py-1.5 text-left"
+          onclick={() => (planning = true)}
+        >
+          <Sparkles size={16} class="shrink-0 text-fg-faint" />
+          <span class="t-label min-w-0 flex-1 truncate text-fg-faint">Plan this block…</span>
+        </button>
+      {/if}
+      {#if planning}
+        <div class="pb-1.5">
+          <EventAssist {event} {category} onbrief={takeBrief} onhours={takeHours} onclose={() => (planning = false)} />
+        </div>
+      {/if}
     </div>
 
     <div class="border-t border-line px-3 py-2">

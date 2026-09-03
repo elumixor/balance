@@ -39,7 +39,7 @@ back to the calendar everyone else reads. Travel times are separate and never st
 `server/lib/travel/` asks the Google Routes API on demand, and answers `{ available: false }` when
 no `GOOGLE_MAPS_API_KEY` is configured, so every screen has to cope with having no journeys. The
 same key suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the
-spelling Maps itself gave back rather than one somebody typed from memory. Where a journey *starts*
+spelling Maps itself gave back rather than one somebody typed from memory. Where a journey _starts_
 is the event's own answer — a place named in settings, or the device's position, resolved by
 `$lib/travel-origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
 because "where I am now" only means anything on the machine holding the person.
@@ -118,7 +118,7 @@ schedule bonus and last week's balance bonus whenever a session is opened, which
 anyone can see the result. Every ledger row is unique per day and reason, so running it twice writes
 nothing the second time.
 
-Coverage is what unlocks the commit button, and only *mapped* hours count toward it — a calendar
+Coverage is what unlocks the commit button, and only _mapped_ hours count toward it — a calendar
 full of meetings other people booked is not a planned day, and deciding what those meetings are for
 is the work. A day is measured against the whole of itself and the bar is 70% for everyone
 (`COVERAGE_THRESHOLD`) — both were settings once, and both only ever asked people to choose the
@@ -206,7 +206,7 @@ refuses to make requests at all when the address it has can't be one.
 ## Projects are the layer between a sphere's hours and Tuesday 9:00
 
 A sphere is a category on the ring; `server/lib/projects/` and `src/lib/projects/` are what those
-hours are *for*. Four levels, each a valid end state: a recurring event, a goal with a practice
+hours are _for_. Four levels, each a valid end state: a recurring event, a goal with a practice
 under it, a project with one stage, a project with several. Everything but a name and a sphere is
 optional, and a project has to be creatable in ten seconds — if a flow feels heavy for "find a job",
 the flow is wrong, not the job.
@@ -241,10 +241,10 @@ observation. `allocate.ts` fits claims under the cap top-down; applying it is a 
 presses. Filling the week is a solver (`calendar/filler.ts`): remaining claims into free working
 hours, projects taking turns in rank order, shown as a diff of blocks to accept or trim.
 
-The model's five moments are `server/lib/projects/assist.ts` and the `projects/assist/*` routes,
+The model's six moments are `server/lib/projects/assist.ts` and the `projects/assist/*` routes,
 and all of them are proposals: gate sentences for a vague idea (including "this is a recurring
 event"), a note over the week's fill about what to drop, subtasks out of a stuck checkpoint's note,
-and a recommendation on decision day. None of them writes a record, moves a date, marks a gate or
+a recommendation on decision day, and a calendar block worked out into a project, a task, steps and a length (`calendar/EventAssist.svelte`). None of them writes a record, moves a date, marks a gate or
 sets an outcome — the routes can only return text — and with no `VERCEL_AI_KEY` every screen
 behaves identically without them.
 

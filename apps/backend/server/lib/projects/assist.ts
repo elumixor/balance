@@ -3,7 +3,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 
 /**
- * The model's five moments, all of them proposals: words, estimates and judgement, handed back
+ * The model's six moments, all of them proposals: words, estimates and judgement, handed back
  * for a person to press a button on. Nothing here writes a record, moves a date, marks a gate or
  * sets an outcome — the routes only return what these return — and with no key configured every
  * answer is `{ available: false }`, which every screen already copes with.
@@ -38,13 +38,26 @@ export const createSuggestionSchema = z.object({
 export const weekNoteSchema = z.object({
   note: z.string(),
   /** Projects to give less than their claim this week, by id, with why. */
-  drop: z.array(z.object({ projectId: z.string(), hours: z.number().min(0), why: z.string() })),
+  drop: z.array(
+    z.object({
+      projectId: z.string(),
+      hours: z.number().min(0),
+      why: z.string(),
+    }),
+  ),
 });
 
 export const checkpointHelpSchema = z.object({
   /** What stopped it, in one sentence the person would recognise as theirs. */
   blocker: z.string(),
-  tasks: z.array(z.object({ title: z.string(), estimateHours: z.number().min(0.25).max(40) })).max(6),
+  tasks: z
+    .array(
+      z.object({
+        title: z.string(),
+        estimateHours: z.number().min(0.25).max(40),
+      }),
+    )
+    .max(6),
 });
 
 export const decisionAdviceSchema = z.object({
@@ -52,6 +65,34 @@ export const decisionAdviceSchema = z.object({
   why: z.string(),
 });
 
+export const eventPlanSchema = z.object({
+  /** One line on what this block is, in the person's own terms. */
+  summary: z.string(),
+  /**
+   * Set only when the answer genuinely depends on something the person hasn't said. Options are
+   * the pills they tap; the client sends the answer back with the next ask.
+   */
+  question: z.object({ text: z.string(), options: z.array(z.string()).min(2).max(4) }).nullable(),
+  /** Which project this block is for, by id from the list given, or null when none fits. */
+  projectId: z.string().nullable(),
+  /** An existing open task this block is for, by id, or null. */
+  taskId: z.string().nullable(),
+  /** The work itself, in order. Empty when the block is one thing and needs no breaking down. */
+  steps: z
+    .array(
+      z.object({
+        title: z.string(),
+        estimateHours: z.number().min(0.25).max(40),
+      }),
+    )
+    .max(8),
+  /** What to do when the block starts — the first sentence to read, not a summary. */
+  brief: z.string(),
+  /** How long the block should be, when the steps don't fit or overfill it. Null keeps it. */
+  hours: z.number().min(0.25).max(12).nullable(),
+});
+
+export type EventPlan = z.infer<typeof eventPlanSchema>;
 export type CreateSuggestion = z.infer<typeof createSuggestionSchema>;
 export type WeekNote = z.infer<typeof weekNoteSchema>;
 export type CheckpointHelp = z.infer<typeof checkpointHelpSchema>;
@@ -67,7 +108,12 @@ async function ask<T>(schema: z.ZodType<T>, prompt: string): Promise<T | null> {
   const apiKey = process.env.VERCEL_AI_KEY ?? process.env.AI_GATEWAY_API_KEY;
   if (!apiKey) return null;
   try {
-    const { object } = await generateObject({ model: createGateway({ apiKey })(MODEL), schema, system: VOICE, prompt });
+    const { object } = await generateObject({
+      model: createGateway({ apiKey })(MODEL),
+      schema,
+      system: VOICE,
+      prompt,
+    });
     return object;
   } catch (e) {
     // The model is optional by design: a screen with no suggestion is the same screen.
@@ -96,7 +142,13 @@ project, a manual row, a ping from the built thing).`,
   /** What to drop when the week is short, as a note over a deterministic fill. */
   week(input: {
     freeHours: number;
-    projects: { id: string; name: string; claimed: number; logged: number; priority: number }[];
+    projects: {
+      id: string;
+      name: string;
+      claimed: number;
+      logged: number;
+      priority: number;
+    }[];
     fixed: string[];
   }) {
     return ask(
@@ -151,6 +203,55 @@ Checkpoints: ${input.checkpoints.map((c) => `${c.day}: ${c.count}, ${c.moved ? "
 Outcomes: ship (gate passed), hold (passed, not promoted), extend (only if not extended: one named
 fix, two weeks), park (needs a trigger), kill, restart (a different bet). Recommend one and say why
 in two sentences.`,
+    );
+  },
+  /**
+   * A calendar block into a plan: which project it serves, which task it is, the steps inside it,
+   * and how long it wants to be. One question at a time when the block is too vague to answer.
+   */
+  event(input: {
+    title: string;
+    description: string;
+    hours: number;
+    sphere: string;
+    project: {
+      id: string;
+      name: string;
+      description: string;
+      stage: string;
+      sentence: string;
+      hoursPerWeek: number;
+      tasks: {
+        id: string;
+        title: string;
+        estimateHours: number | null;
+        done: boolean;
+      }[];
+    } | null;
+    candidates: { id: string; name: string; description: string }[];
+    answers: { question: string; answer: string }[];
+  }) {
+    const tasks = input.project?.tasks ?? [];
+    return ask(
+      eventPlanSchema,
+      `Calendar block: "${input.title}" (${input.hours}h). Notes: "${input.description || "none"}". Sphere: ${input.sphere || "unknown"}.
+${
+  input.project
+    ? `Tagged to project "${input.project.name}" (id ${input.project.id}): ${input.project.description || "no description"}.
+Running stage "${input.project.stage}", gate "${input.project.sentence}", ${input.project.hoursPerWeek}h/week.
+Open tasks under the stage (id · title · estimate · done):
+${tasks.map((t) => `- ${t.id} · ${t.title} · ${t.estimateHours ?? "?"}h · ${t.done ? "done" : "open"}`).join("\n") || "none"}`
+    : `Not tagged to a project. Projects it could be for (id · name · description):
+${input.candidates.map((c) => `- ${c.id} · ${c.name} · ${c.description || ""}`).join("\n") || "none"}`
+}
+${input.answers.length > 0 ? `Answers so far:\n${input.answers.map((a) => `Q: ${a.question}\nA: ${a.answer}`).join("\n")}` : ""}
+Work out what this block is for. If it is time for a project, pick the project by id and, when an
+open task fits, the task by id — never invent ids. If the block is one task with an estimate that
+fits, steps may be empty. Otherwise break the block into ordered steps with estimates whose sum
+is close to the block's length, and suggest hours only when the work clearly needs a different
+length. Write a brief that tells the person what to do first when the block starts. Ask one
+question, with 2-4 short options, only if the answer would change the plan and nothing above
+settles it; otherwise question is null.`,
     );
   },
 };

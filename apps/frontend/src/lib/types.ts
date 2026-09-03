@@ -336,6 +336,17 @@ export interface CheckpointHelp {
   tasks: { title: string; estimateHours: number }[];
 }
 
+/** A calendar block worked out: what it serves, what is inside it, and how long it wants to be. */
+export interface EventPlan {
+  summary: string;
+  question: { text: string; options: string[] } | null;
+  projectId: string | null;
+  taskId: string | null;
+  steps: { title: string; estimateHours: number }[];
+  brief: string;
+  hours: number | null;
+}
+
 export interface DecisionAdvice {
   recommendation: "ship" | "extend" | "park" | "kill" | "restart" | "hold";
   why: string;

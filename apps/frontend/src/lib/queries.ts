@@ -10,6 +10,7 @@ import type {
   CheckpointHelp,
   CreateSuggestion,
   DecisionAdvice,
+  EventPlan,
   IntegrationStatus,
   MappingScope,
   Progress,
@@ -113,12 +114,18 @@ export const removeEventMapping = (input: { calendarId: string; externalEventId:
 export const getProjectProgress = (timeZone: string, today: string) =>
   apiGet<Progress>("/projects/progress", { timeZone, today });
 
-// The assistant's five moments. Each is a proposal; the screen that asked decides what to do with it.
+// The assistant's six moments. Each is a proposal; the screen that asked decides what to do with it.
 export const assistCreate = (input: { idea: string; sphere: string; existingProjects: string[] }) =>
   callApi(api.projects.assist.create.$post(input)).then((r) => unwrapOk(r) as Assisted<CreateSuggestion>);
 export const assistWeek = (input: {
   freeHours: number;
-  projects: { id: string; name: string; claimed: number; logged: number; priority: number }[];
+  projects: {
+    id: string;
+    name: string;
+    claimed: number;
+    logged: number;
+    priority: number;
+  }[];
   fixed: string[];
 }) => callApi(api.projects.assist.week.$post(input)).then((r) => unwrapOk(r) as Assisted<WeekNote>);
 export const assistCheckpoint = (input: {
@@ -142,3 +149,27 @@ export const assistDecision = (input: {
   isLast: boolean;
   checkpoints: { day: string; count: number; moved: boolean; note: string }[];
 }) => callApi(api.projects.assist.decision.$post(input)).then((r) => unwrapOk(r) as Assisted<DecisionAdvice>);
+export type EventPlanInput = {
+  title: string;
+  description: string;
+  hours: number;
+  sphere: string;
+  project: {
+    id: string;
+    name: string;
+    description: string;
+    stage: string;
+    sentence: string;
+    hoursPerWeek: number;
+    tasks: {
+      id: string;
+      title: string;
+      estimateHours: number | null;
+      done: boolean;
+    }[];
+  } | null;
+  candidates: { id: string; name: string; description: string }[];
+  answers: { question: string; answer: string }[];
+};
+export const assistEvent = (input: EventPlanInput) =>
+  callApi(api.projects.assist.event.$post(input)).then((r) => unwrapOk(r) as Assisted<EventPlan>);
