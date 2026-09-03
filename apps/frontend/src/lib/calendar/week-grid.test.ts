@@ -13,8 +13,7 @@ import {
   MAX_HOUR_PX,
   MIN_BLOCK_PX,
   NEST_HEAD_PX,
-  NEST_INSET_LEFT_PX,
-  NEST_INSET_RIGHT_PX,
+  NEST_INSET_PX,
   placeDay,
   type PlacedSegment,
   QUARTER_HOUR_LINE_PX,
@@ -267,8 +266,8 @@ describe("placeDay", () => {
     const [bus, sadhana] = placed;
     expect(bus).toMatchObject({ left: 0, width: FULL, depth: 0 });
     expect(sadhana).toMatchObject({
-      left: NEST_INSET_LEFT_PX,
-      width: FULL - NEST_INSET_LEFT_PX - NEST_INSET_RIGHT_PX,
+      left: NEST_INSET_PX,
+      width: FULL - NEST_INSET_PX,
       depth: 1,
     });
   });
@@ -302,7 +301,7 @@ describe("placeDay", () => {
     const [, child] = byStart(
       placeDay([segment(0, 600, 720), segment(0, 615, 660)], zoomed, COLUMN)
     );
-    expect(child.left).toBe(NEST_INSET_LEFT_PX);
+    expect(child.left).toBe(NEST_INSET_PX);
   });
 
   it("cascades a third block off the one on top, not the one underneath", () => {

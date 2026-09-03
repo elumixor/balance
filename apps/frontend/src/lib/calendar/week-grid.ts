@@ -221,13 +221,12 @@ export const NARROW_BLOCK_PX = 56;
 export const DEFAULT_COLUMN_PX = 160;
 /**
  * A block that starts this far below the block it sits inside is drawn nested in it: the parent
- * keeps its title row, the child hangs below it inset from both sides, the way a meeting sits inside
- * the bus ride it happens on. Any closer and the child would cover the parent's name, so it is
+ * keeps its title row, the child hangs below it stepped in from the left and running to the same
+ * right edge, the way a meeting sits inside the bus ride it happens on. Any closer and the child would cover the parent's name, so it is
  * staggered to the right instead, where both names stay readable.
  */
 export const NEST_HEAD_PX = 40;
-export const NEST_INSET_LEFT_PX = 16;
-export const NEST_INSET_RIGHT_PX = 8;
+export const NEST_INSET_PX = 16;
 /** How far right a staggered block steps: half of the block under it, so both keep a readable half. */
 export const STAGGER_FRACTION = 0.5;
 
@@ -237,7 +236,7 @@ export const STAGGER_FRACTION = 0.5;
  * A block that collides with nothing is full width. One that collides with another is drawn on
  * top of it, never beside it, so no block is ever narrowed by a neighbour it barely touches. Where
  * it goes depends on how the two relate: a block that fits inside another and starts far enough
- * below its top (`NEST_HEAD_PX`) is nested — inset from both edges under the parent's title row —
+ * below its top (`NEST_HEAD_PX`) is nested — stepped in from the left under the parent's title row —
  * and any other collision is staggered, stepping `STAGGER_FRACTION` of the way across the block it
  * lands on and running to that block's right edge. Each step is one deeper in the stack.
  *
@@ -286,11 +285,9 @@ export function placeDay(
 
     const nested =
       top - parent.top >= NEST_HEAD_PX && bottom <= parent.top + parent.height;
-    const left = nested
-      ? parent.left + NEST_INSET_LEFT_PX
-      : parent.left + parent.width * STAGGER_FRACTION;
-    const right =
-      parent.left + parent.width - (nested ? NEST_INSET_RIGHT_PX : 0);
+    const left =
+      parent.left + (nested ? NEST_INSET_PX : parent.width * STAGGER_FRACTION);
+    const right = parent.left + parent.width;
     placed.push({
       ...segment,
       top,

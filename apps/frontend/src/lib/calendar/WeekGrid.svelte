@@ -819,7 +819,6 @@
                   event={segment.event}
                   {categories}
                   narrow={segment.width < NARROW_BLOCK_PX}
-                  stacked={segment.depth > 0}
                   flatTop={segment.continuesBefore}
                   flatBottom={segment.continuesAfter}
                 />
