@@ -158,6 +158,8 @@ export interface DragSource {
  * on purpose, which is why the prompt only ever appears after a write that didn't ask for that.
  */
 export interface SeriesPrompt {
+  /** Bumped per offer, so a second edit's card is a new card rather than the old one relabelled. */
+  readonly id: number;
   readonly ref: EventRef;
   readonly seriesId: string;
   readonly title: string;
@@ -297,6 +299,7 @@ class CalendarData {
   animateNextJump = $state(false);
   /** A just-edited recurring occurrence, offered the choice to apply the same edit series-wide. */
   seriesPrompt = $state<SeriesPrompt | null>(null);
+  #seriesPrompts = 0;
   /**
    * Times the editor is entering right now, drawn on the grid before anything is written: typing a
    * new end, or walking the suggested ones, moves the block while it's being decided.
@@ -1045,6 +1048,7 @@ class CalendarData {
     patch: { title?: string; description?: string; start?: Date; end?: Date },
     detach = false,
   ) {
+    this.seriesPrompt = null;
     const ref = this.#ref(event);
     const before: EventFields = {
       title: event.title,
@@ -1074,23 +1078,29 @@ class CalendarData {
       });
       return;
     }
-    if (!(await this.#writeFields(ref, event, after))) return;
+    // Offered before the write goes out, not after it comes back: the edit is already drawn on
+    // the grid, so a card that waits for the server arrives long after the question is asked.
+    const offer =
+      event.seriesId && !detach
+        ? this.#offerSeries({
+            ref,
+            seriesId: event.seriesId,
+            title: after.title,
+            fields: after,
+            previousStart: before.start,
+            previousEnd: before.end,
+          })
+        : null;
+
+    if (!(await this.#writeFields(ref, event, after))) {
+      this.#withdrawSeries(offer);
+      return;
+    }
 
     this.history.push({
       undo: () => this.#writeFields(ref, event, before),
       redo: () => this.#writeFields(ref, event, after),
     });
-
-    if (event.seriesId && !detach) {
-      this.seriesPrompt = {
-        ref,
-        seriesId: event.seriesId,
-        title: after.title,
-        fields: after,
-        previousStart: before.start,
-        previousEnd: before.end,
-      };
-    }
   }
 
   retimeEvent(event: CalendarEvent, start: Date, end: Date, detach = false) {
@@ -1129,6 +1139,7 @@ class CalendarData {
    * occurrence is offered to the rest of the series the way a retitle is.
    */
   async patchEvent(event: CalendarEvent, patch: EventPatch, inverse: EventPatch) {
+    this.seriesPrompt = null;
     if (this.isDraft(event.id)) {
       diagnostics.report("Calendar", "The block is still being made.", { title: "Give it a second" });
       return;
@@ -1148,30 +1159,46 @@ class CalendarData {
         { id: ref.id, event: drawnWith(event, fields) },
         (answer) => applyCalendarEvent(answer, ref.id),
       );
-    if ((await write(patch)) === null) return;
+    const offer =
+      event.seriesId && !onMaster
+        ? this.#offerSeries({
+            ref,
+            seriesId: event.seriesId,
+            title: event.title,
+            fields: {
+              title: event.title,
+              description: event.description,
+              start: new Date(event.start),
+              end: new Date(event.end),
+            },
+            previousStart: new Date(event.start),
+            previousEnd: new Date(event.end),
+            patch,
+          })
+        : null;
+
+    if ((await write(patch)) === null) {
+      this.#withdrawSeries(offer);
+      return;
+    }
 
     if (patch.recurrence !== undefined) invalidate.calendar();
     this.history.push({
       undo: async () => (await write(inverse)) !== null,
       redo: async () => (await write(patch)) !== null,
     });
+  }
 
-    if (event.seriesId && !onMaster) {
-      this.seriesPrompt = {
-        ref,
-        seriesId: event.seriesId,
-        title: event.title,
-        fields: {
-          title: event.title,
-          description: event.description,
-          start: new Date(event.start),
-          end: new Date(event.end),
-        },
-        previousStart: new Date(event.start),
-        previousEnd: new Date(event.end),
-        patch,
-      };
-    }
+  /** Every offer is its own card — see `SeriesPrompt.id`. */
+  #offerSeries(prompt: Omit<SeriesPrompt, "id">) {
+    const offered: SeriesPrompt = { ...prompt, id: ++this.#seriesPrompts };
+    this.seriesPrompt = offered;
+    return offered;
+  }
+
+  /** The write it was asking about never landed, so neither does the question. */
+  #withdrawSeries(offer: SeriesPrompt | null) {
+    if (offer && this.seriesPrompt?.id === offer.id) this.seriesPrompt = null;
   }
 
   /** Just this occurrence, then — the write already happened, so there's nothing left to do. */
@@ -1179,7 +1206,14 @@ class CalendarData {
     this.seriesPrompt = null;
   }
 
+  /** Second thoughts about the occurrence itself: the offer goes, and so does the edit behind it. */
+  undoSeriesEdit() {
+    this.seriesPrompt = null;
+    return this.undo();
+  }
+
   async deleteEvent(event: CalendarEvent) {
+    this.seriesPrompt = null;
     this.deselect();
     const ref = this.#ref(event);
     if (!(await this.#remove(ref))) return;
@@ -1203,6 +1237,7 @@ class CalendarData {
    * The step recorded is the whole batch, which is what ⌘Z is expected to take back.
    */
   async #batch(steps: readonly HistoryStep[]) {
+    this.seriesPrompt = null;
     const attempts = await Promise.all(steps.map((step) => step.redo().then((done) => (done ? step : null))));
     const done = attempts.filter((step): step is HistoryStep => step !== null);
     if (done.length === 0) return;
