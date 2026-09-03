@@ -2,6 +2,7 @@ import SwiftUI
 import BalanceKit
 import BalanceTelemetry
 import ClerkKit
+import UserNotifications
 import WatchKit
 
 @main
@@ -16,6 +17,9 @@ struct BalanceWatchApp: App {
         // nowhere to go but out. Started before Clerk, which is one of the things that can fail.
         Telemetry.start(platform: "watchOS")
         configureClerk()
+        // Set before anything can be delivered: a "start timer" tapped on a notification that
+        // launched the app arrives before any view has appeared.
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
     }
 
     var body: some Scene {
@@ -34,5 +38,6 @@ struct BalanceWatchApp: App {
         // system's plain title-and-body card.
         WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.categoryID)
         WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.joinCategoryID)
+        WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.startCategoryID)
     }
 }

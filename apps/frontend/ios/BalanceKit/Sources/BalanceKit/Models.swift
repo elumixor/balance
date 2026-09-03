@@ -45,11 +45,44 @@ public struct WatchCategory: Codable, Identifiable, Hashable, Sendable, DialCate
     }
 }
 
+/// How a timer run for an event is broken up: a nudge every so many minutes, or the event split
+/// into equal parts. The length is the event's own, so it is never carried here. Wire form is
+/// `{ "kind": "every", "minutes": 5 }` or `{ "kind": "parts", "count": 4 }`.
+public enum EventTimer: Codable, Hashable, Sendable {
+    case every(minutes: Int)
+    case parts(Int)
+
+    private enum CodingKeys: String, CodingKey { case kind, minutes, count }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(String.self, forKey: .kind) {
+        case "every": self = .every(minutes: try container.decode(Int.self, forKey: .minutes))
+        case "parts": self = .parts(try container.decode(Int.self, forKey: .count))
+        case let other:
+            throw DecodingError.dataCorruptedError(forKey: .kind, in: container, debugDescription: "Unknown timer kind \(other)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .every(let minutes):
+            try container.encode("every", forKey: .kind)
+            try container.encode(minutes, forKey: .minutes)
+        case .parts(let count):
+            try container.encode("parts", forKey: .kind)
+            try container.encode(count, forKey: .count)
+        }
+    }
+}
+
 /// The next thing in the calendar, or the one happening right now — `inProgress` says which.
 ///
 /// The category is the one the event counts most towards, and is absent when the event counts
 /// towards nothing — the watch draws it as the event's glyph, so an unmapped event simply keeps the
-/// calendar's own.
+/// calendar's own. `categoryId` is what a timer started for the event is pointed at, and `timer`
+/// is how that timer wants to be broken up.
 public struct NextEvent: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let calendarId: String
@@ -57,15 +90,20 @@ public struct NextEvent: Codable, Identifiable, Hashable, Sendable {
     public let start: Date
     public let end: Date
     public let inProgress: Bool
+    public let categoryId: String?
+    public let categoryName: String?
     public let categoryColor: String?
     public let categoryIcon: String?
     /// How long before it starts the calendar itself would say something, in minutes. Nil when the
     /// event carries no popup reminder of its own, in which case the account's lead time is used.
     public let reminderMinutes: Int?
+    public let timer: EventTimer?
 
     public init(
         id: String, calendarId: String, title: String, start: Date, end: Date, inProgress: Bool,
-        categoryColor: String? = nil, categoryIcon: String? = nil, reminderMinutes: Int? = nil
+        categoryId: String? = nil, categoryName: String? = nil,
+        categoryColor: String? = nil, categoryIcon: String? = nil, reminderMinutes: Int? = nil,
+        timer: EventTimer? = nil
     ) {
         self.id = id
         self.calendarId = calendarId
@@ -73,9 +111,53 @@ public struct NextEvent: Codable, Identifiable, Hashable, Sendable {
         self.start = start
         self.end = end
         self.inProgress = inProgress
+        self.categoryId = categoryId
+        self.categoryName = categoryName
         self.categoryColor = categoryColor
         self.categoryIcon = categoryIcon
         self.reminderMinutes = reminderMinutes
+        self.timer = timer
+    }
+
+    /// How long the event runs, in whole minutes — the length a timer started for it takes.
+    public var durationMinutes: Int {
+        max(Int(end.timeIntervalSince(start) / 60), 1)
+    }
+}
+
+/// A planned event a finished timer might have been for, offered back with how sure the server is.
+public struct MatchCandidate: Codable, Identifiable, Hashable, Sendable {
+    public let id: String
+    public let calendarId: String
+    public let title: String
+    public let start: Date
+    public let end: Date
+    public let categoryId: String?
+    public let score: Double
+
+    public init(
+        id: String, calendarId: String, title: String, start: Date, end: Date,
+        categoryId: String? = nil, score: Double
+    ) {
+        self.id = id
+        self.calendarId = calendarId
+        self.title = title
+        self.start = start
+        self.end = end
+        self.categoryId = categoryId
+        self.score = score
+    }
+}
+
+/// What stopping a timer answers: the session that ended, if one was running, and the planned
+/// events it might have been for — best first, and empty when there is nothing to ask.
+public struct StoppedSession: Codable, Sendable {
+    public let stopped: ActiveSession?
+    public let candidates: [MatchCandidate]
+
+    public init(stopped: ActiveSession?, candidates: [MatchCandidate] = []) {
+        self.stopped = stopped
+        self.candidates = candidates
     }
 }
 

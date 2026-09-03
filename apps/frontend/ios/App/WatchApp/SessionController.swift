@@ -10,12 +10,30 @@ import WidgetKit
 /// to the new state before the request comes back and is then reconciled with whatever the server
 /// actually stored. If the request fails, the optimistic state is rolled back to the last answer
 /// we trust and the error is surfaced.
+/// The question asked once a timer has ended: was it for something already on the calendar? The
+/// best candidate is the one offered; the rest are there for a screen with room for a list.
+struct MatchPrompt: Identifiable, Equatable {
+    let session: ActiveSession
+    let candidates: [MatchCandidate]
+
+    var id: String { session.id }
+    var best: MatchCandidate { candidates[0] }
+}
+
 @MainActor
 @Observable
 final class SessionController {
+    /// One controller for the process: the screen and the notification delegate both start and
+    /// stop sessions, and a "start timer" tapped on a reminder has to land on the same session
+    /// the screen is drawing.
+    static let shared = SessionController()
+
     private(set) var active: ActiveSession?
     private(set) var isBusy = false
     var errorMessage: String?
+
+    /// Set when a stop comes back with something to ask, cleared by answering it either way.
+    var pendingMatch: MatchPrompt?
 
     /// The last state the server confirmed. Optimistic edits never touch it, so a failed request
     /// has something honest to fall back to.
@@ -94,8 +112,51 @@ final class SessionController {
         }
     }
 
+    /// A timer for something already planned — the reminder's "start timer". It runs against the
+    /// event itself rather than writing a second one, for the event's own length and rhythm.
+    func start(for event: NextEvent) async {
+        guard let categoryId = event.categoryId else { return }
+        let category = WatchCategory(
+            id: categoryId,
+            name: event.categoryName ?? event.title,
+            color: event.categoryColor ?? "#888888",
+            icon: event.categoryIcon ?? "",
+            targetHours: 0,
+            actualHours: 0
+        )
+        let plan = TrackingPlan(event: event)
+        ticks = plan
+        // Measured from now rather than from the event's start: a timer started a few minutes in
+        // still gets the whole length it was asked for, and the server plans the end the same way.
+        let placeholder = ActiveSession(
+            id: "pending",
+            categoryId: categoryId,
+            categoryName: category.name,
+            categoryColor: category.color,
+            categoryIcon: category.icon,
+            eventId: event.id,
+            calendarId: event.calendarId,
+            startedAt: Date(),
+            plannedEndAt: Date().addingTimeInterval(TimeInterval(plan.minutes * 60))
+        )
+        active = placeholder
+        TrackingAlarm.playConfirmation()
+        await perform {
+            try await APIClient.shared.startTracking(
+                categoryId: categoryId,
+                durationMinutes: plan.minutes,
+                eventId: event.id,
+                calendarId: event.calendarId
+            )
+        }
+    }
+
     /// Ends the session now. `alerting` is for the end arriving on its own — a session the user
     /// stopped by hand needs no more than the tap's own click, one that ran out needs to be felt.
+    ///
+    /// What comes back may carry a question — was this for the thing already on the calendar? —
+    /// which is left in `pendingMatch` for the screen to ask, since the controller outlives it and
+    /// the stop may have been waited out with the wrist down.
     func stop(alerting: Bool = false) async {
         guard active != nil else { return }
         ticks = TrackingPlan(minutes: 0, ticks: .off)
@@ -106,8 +167,11 @@ final class SessionController {
         errorMessage = nil
         defer { isBusy = false }
         do {
-            _ = try await APIClient.shared.stopTracking()
+            let result = try await APIClient.shared.stopTracking()
             confirm(nil)
+            if let stopped = result.stopped, !result.candidates.isEmpty {
+                pendingMatch = MatchPrompt(session: stopped, candidates: result.candidates)
+            }
         } catch {
             report(error)
             // A rollback to `confirmed` normally undoes the optimistic edit, but here that would
@@ -121,6 +185,25 @@ final class SessionController {
                 active = confirmed
             }
             publish()
+        }
+    }
+
+    /// The answer to the pending question. "Yes" folds the timer into the planned event; "no"
+    /// leaves the timer's own event where it is, which is already the right week.
+    func answerMatch(with candidate: MatchCandidate?) async {
+        guard let prompt = pendingMatch else { return }
+        pendingMatch = nil
+        guard let candidate else { return }
+        if WatchPreview.isEnabled { return }
+        isBusy = true
+        errorMessage = nil
+        defer { isBusy = false }
+        do {
+            _ = try await APIClient.shared.matchTracking(
+                sessionId: prompt.session.id, calendarId: candidate.calendarId, eventId: candidate.id
+            )
+        } catch {
+            report(error)
         }
     }
 

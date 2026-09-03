@@ -35,7 +35,7 @@ struct ContentView: View {
 
     @State private var pairing = WatchPairing()
     @State private var summary = WatchSummaryModel()
-    @State private var sessions = SessionController()
+    @State private var sessions = SessionController.shared
     @State private var wheel = WheelGestureModel()
 
     /// Set by letting go of the ring, cleared by starting or cancelling. Nothing is written while
@@ -115,6 +115,16 @@ struct ContentView: View {
         }
         .onChange(of: summary.categories) { _, categories in
             wheel.categories = categories
+        }
+        // Asked after a timer ends, and not before: a session started from a reminder already knows
+        // what it was for, and one that matched nothing on the calendar has nothing to be asked.
+        .sheet(item: $sessions.pendingMatch) { prompt in
+            MatchPromptView(prompt: prompt) { candidate in
+                Task {
+                    await sessions.answerMatch(with: candidate)
+                    await reload()
+                }
+            }
         }
     }
 
@@ -309,10 +319,10 @@ struct ContentView: View {
     private func reload() async {
         await summary.refresh()
         if let value = summary.summary { sessions.apply(summary: value) }
-        // Only ever schedules something when there is no iPhone to schedule it instead — see
-        // `EventAlarm`. Asked on every summary, because a cancelled event has to take its
-        // reminder with it.
-        EventAlarm.sync(next: summary.nextEvent, reminders: summary.summary?.reminders)
+        // The reminder is only ever scheduled when there is no iPhone to schedule it instead; the
+        // offer to start a timer as the event begins is the watch's own — see `EventAlarm`. Asked
+        // on every summary, because a cancelled event has to take both with it.
+        EventAlarm.sync(next: summary.nextEvent, reminders: summary.summary?.reminders, active: sessions.active)
     }
 
     /// The drag has landed on a segment: the ring keeps it and becomes the dial its length is set

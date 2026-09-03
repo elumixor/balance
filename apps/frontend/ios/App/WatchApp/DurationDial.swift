@@ -32,6 +32,21 @@ struct TrackingPlan: Equatable {
 
     var duration: TrackingDuration { minutes > 0 ? .fixed(minutes: minutes) : .free }
 
+    /// The plan a planned event asks for: its own length, broken up the way its timer says.
+    init(event: NextEvent) {
+        minutes = event.durationMinutes
+        switch event.timer {
+        case .every(let every): ticks = .every(minutes: every)
+        case .parts(let parts): ticks = .parts(parts)
+        case nil: ticks = .off
+        }
+    }
+
+    init(minutes: Int, ticks: TickPlan) {
+        self.minutes = minutes
+        self.ticks = ticks
+    }
+
     /// How far into the session each nudge falls. The end of a fixed session is announced by the
     /// session's own alarm, so the last boundary is never also a tick.
     var tickOffsets: [TimeInterval] {

@@ -133,30 +133,58 @@ public final class APIClient {
 
     /// Starts a timer, replacing whatever was running. A nil `durationMinutes` is open-ended: the
     /// session runs until it is stopped, and the calendar event it writes is only provisional.
+    /// With an `eventId` (and its qualified `calendarId`) the timer runs against that planned
+    /// event instead of writing one of its own.
     public func startTracking(
-        categoryId: String, durationMinutes: Int? = nil, title: String? = nil
+        categoryId: String, durationMinutes: Int? = nil, title: String? = nil,
+        eventId: String? = nil, calendarId: String? = nil
     ) async throws -> ActiveSession {
         struct Body: Encodable {
             let categoryId: String
             let durationMinutes: Int?
             let title: String?
+            let eventId: String?
+            let calendarId: String?
         }
         struct Response: Decodable { let active: ActiveSession }
         let response: Response = try await send(
             path: "/mobile/tracking/start",
             method: "POST",
-            body: Body(categoryId: categoryId, durationMinutes: durationMinutes, title: title)
+            body: Body(
+                categoryId: categoryId, durationMinutes: durationMinutes, title: title,
+                eventId: eventId, calendarId: calendarId
+            )
         )
         return response.active
     }
 
-    /// Stops the running timer and returns what was stopped, or nil if nothing was running —
-    /// asking twice is not an error, only a watch face that was a moment behind.
+    /// Stops the running timer and returns what was stopped — nil if nothing was running, since
+    /// asking twice is not an error, only a watch face that was a moment behind — along with the
+    /// planned events the timer might have been for.
     @discardableResult
-    public func stopTracking() async throws -> ActiveSession? {
-        struct Response: Decodable { let stopped: ActiveSession? }
+    public func stopTracking() async throws -> StoppedSession {
+        struct Response: Decodable {
+            let stopped: ActiveSession?
+            let candidates: [MatchCandidate]?
+        }
         let response: Response = try await send(path: "/mobile/tracking/stop", method: "POST")
-        return response.stopped
+        return StoppedSession(stopped: response.stopped, candidates: response.candidates ?? [])
+    }
+
+    /// "Yes, that was the one": folds a finished timer into the planned event it was for.
+    @discardableResult
+    public func matchTracking(sessionId: String, calendarId: String, eventId: String) async throws -> ActiveSession {
+        struct Body: Encodable {
+            let sessionId: String
+            let calendarId: String
+            let eventId: String
+        }
+        struct Response: Decodable { let session: ActiveSession }
+        let response: Response = try await send(
+            path: "/mobile/tracking/match", method: "POST",
+            body: Body(sessionId: sessionId, calendarId: calendarId, eventId: eventId)
+        )
+        return response.session
     }
 
     /// Re-lengthens the running session, measured from when it started rather than from now.
