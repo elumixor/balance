@@ -17,6 +17,17 @@
  */
 const PREFIX = "balance:v2";
 const OWNER_KEY = `${PREFIX}:owner`;
+/** Which build wrote the caches — see `adoptBuild`. */
+const BUILD_KEY = `${PREFIX}:build`;
+
+/**
+ * The build on screen, as the caches are stamped with it. Every field the server answers with is
+ * a field some screen reads on its first frame, straight off what a previous launch stored — so a
+ * cache written by one build and read by the next is a render that can throw, and it did: the
+ * fix each time was remembering to bump the prefix above, which is the kind of remembering that
+ * fails. Whatever the version says, a new commit is a new shape until proven otherwise.
+ */
+const BUILD = `${import.meta.env.VITE_APP_VERSION ?? "dev"}@${import.meta.env.VITE_BUILD_COMMIT ?? "unknown"}`;
 
 /** Older than this and the round trip is worth waiting for after all. */
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -58,6 +69,33 @@ export function adoptOwner(userId: string) {
   wipe();
   store.setItem(OWNER_KEY, userId);
   return previous !== null;
+}
+
+/**
+ * Drops every cache a different build wrote, and claims the store for this one. Settings and the
+ * owner stay: a choice made on this device and whose data this is don't change shape with a
+ * deploy, and nothing reads them on a first frame that a stale copy could break.
+ *
+ * Runs at module load, before any `Cached` reads back what it stored — after the first launch of
+ * a build, that read is a skeleton and a round trip once, instead of a screen that didn't draw.
+ *
+ * @returns whether anything was dropped.
+ */
+export function adoptBuild(build = BUILD) {
+  const store = storage();
+  if (!store) return false;
+  try {
+    if (store.getItem(BUILD_KEY) === build) return false;
+    for (const key of ownKeys(store)) if (!isSetting(key)) store.removeItem(key);
+    store.setItem(BUILD_KEY, build);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isSetting(key: string) {
+  return key.startsWith(`${PREFIX}:setting:`);
 }
 
 export function read<T>(key: string): T | undefined {
@@ -148,7 +186,7 @@ function ownKeys(store: Storage) {
   const keys: string[] = [];
   for (let i = 0; i < store.length; i++) {
     const key = store.key(i);
-    if (key?.startsWith(`${PREFIX}:`) && key !== OWNER_KEY) keys.push(key);
+    if (key?.startsWith(`${PREFIX}:`) && key !== OWNER_KEY && key !== BUILD_KEY) keys.push(key);
   }
   return keys;
 }
@@ -163,3 +201,5 @@ function writtenAt(store: Storage, key: string) {
     return 0;
   }
 }
+
+adoptBuild();

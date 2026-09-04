@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
-    "@elumixor/devkit": "^0.10.1",
+    "@elumixor/devkit": "0.10.2",
     "@types/node": "^20",
     "typescript": "^5"
   },

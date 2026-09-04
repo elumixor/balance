@@ -107,6 +107,7 @@ describe("a storage that refuses", () => {
     expect(persist.read("anything")).toBeUndefined();
     expect(persist.storedOwner()).toBeNull();
     expect(persist.adoptOwner("user_1")).toBe(false);
+    expect(persist.adoptBuild("1.0.0@abc")).toBe(false);
     expect(() => persist.write("a", 1, Date.now())).not.toThrow();
     expect(persist.readSetting("a")).toBeUndefined();
     expect(() => persist.writeSetting("a", 1)).not.toThrow();
@@ -120,6 +121,7 @@ describe("a storage that refuses", () => {
     expect(persist.read("anything")).toBeUndefined();
     expect(persist.storedOwner()).toBeNull();
     expect(persist.adoptOwner("user_1")).toBe(false);
+    expect(persist.adoptBuild("1.0.0@abc")).toBe(false);
   });
 
   it("makes room when it's full instead of losing the write silently forever", () => {
@@ -161,6 +163,47 @@ describe("owner", () => {
     expect(persist.adoptOwner("user_2")).toBe(true);
     expect(persist.read("week:1")).toBeUndefined();
     expect(persist.storedOwner()).toBe("user_2");
+  });
+});
+
+describe("build", () => {
+  it("drops the caches another build wrote, and keeps the settings and the owner", () => {
+    // The shape a cache is read back into is whatever the code on screen expects now; a week the
+    // previous build stored can be missing a field that build never had, and the first frame dies
+    // on it. Settings and the owner are the device's own and don't change shape with a deploy.
+    persist.adoptOwner("user_1");
+    persist.write("week:1", { events: [] }, Date.now());
+    persist.writeSetting("integrations", ["apple-health"]);
+    expect(persist.adoptBuild("1.0.0@abc")).toBe(true);
+    expect(persist.read("week:1")).toBeUndefined();
+    expect(persist.readSetting("integrations")).toEqual(["apple-health"]);
+    expect(persist.storedOwner()).toBe("user_1");
+  });
+
+  it("leaves everything alone when the same build launches again", () => {
+    persist.adoptBuild("1.0.0@abc");
+    persist.write("week:1", "a", Date.now());
+    expect(persist.adoptBuild("1.0.0@abc")).toBe(false);
+    expect(persist.read("week:1")).toBe("a");
+  });
+
+  it("treats a stamp it can't write as a build it can't adopt, and says so quietly", () => {
+    persist.write("week:1", "a", Date.now());
+    storage.failWrites = true;
+    expect(persist.adoptBuild("1.0.0@abc")).toBe(false);
+  });
+
+  it("stamps with the build on screen when nothing else is named", () => {
+    expect(persist.adoptBuild()).toBe(true);
+    expect(persist.adoptBuild()).toBe(false);
+  });
+
+  it("keeps the stamp out of what wipe and prune count as caches", () => {
+    persist.adoptBuild("1.0.0@abc");
+    persist.write("week:1", "a", Date.now());
+    persist.wipe();
+    expect(storage.getItem(`${PREFIX}:build`)).toBe("1.0.0@abc");
+    expect(persist.adoptBuild("1.0.0@abc")).toBe(false);
   });
 });
 

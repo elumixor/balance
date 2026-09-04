@@ -46,6 +46,11 @@ platform :ios do
         bundle_id = ensure_bundle_id(id, name)
         enable_app_groups(bundle_id) if bundle_id
       end
+      # The phone reads sleep through HealthKit (see `HealthKitPlugin.swift`), and a profile made for
+      # an App ID without the capability refuses the entitlement at build time. Unlike App Groups this
+      # one has nothing to associate afterwards, so turning it on here is the whole job.
+      app_bundle_id = Spaceship::ConnectAPI::BundleId.all.find { |b| b.identifier == APP_IDENTIFIER }
+      enable_capability(app_bundle_id, Spaceship::ConnectAPI::BundleIdCapability::Type::HEALTHKIT) if app_bundle_id
     rescue => e
       UI.important("setup_watch (non-fatal): #{e.message}")
     end
@@ -157,14 +162,18 @@ end
 # many times this runs. Enabling the capability is still worth doing here: it is the half of the
 # setup that can be automated, and the portal shows the group picker only once it is on.
 def enable_app_groups(bundle_id)
-  return if bundle_id.get_capabilities.any? do |capability|
-    capability.capability_type == Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
-  end
+  enable_capability(bundle_id, Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS)
+end
 
-  bundle_id.create_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS)
-  UI.message("Enabled App Groups on #{bundle_id.identifier}")
+# Turns one capability on for a bundle id, if it isn't already. Non-fatal: the build that follows
+# says the same thing louder if the profile still lacks it.
+def enable_capability(bundle_id, type)
+  return if bundle_id.get_capabilities.any? { |capability| capability.capability_type == type }
+
+  bundle_id.create_capability(type)
+  UI.message("Enabled #{type} on #{bundle_id.identifier}")
 rescue => e
-  UI.important("Couldn't enable App Groups on #{bundle_id.identifier} (non-fatal): #{e.message}")
+  UI.important("Couldn't enable #{type} on #{bundle_id.identifier} (non-fatal): #{e.message}")
 end
 
 def ensure_bundle_id(identifier, name)
