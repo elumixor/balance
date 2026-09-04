@@ -31,14 +31,13 @@ export function isSettingsKey(event: KeyboardEvent) {
 }
 
 /**
- * ⌘R everywhere, and the bare letter too outside a text field: Safari and Arc reload the page on
- * ⌘R before the page can say otherwise, so in a browser `r` is the key that actually works — the
- * same shape as `c` and `p` for the tabs.
+ * ⌘R, and the bare letter outside a text field — the same shape as `c` and `p` for the tabs.
+ * Safari and Arc reload the page on ⌘R before the page can say otherwise, so `r` is the key that
+ * works everywhere.
  */
 export function isRefreshKey(event: KeyboardEvent) {
   if (event.altKey || event.shiftKey || isTyping(event.target)) return false;
-  if (event.key.toLowerCase() !== "r") return false;
-  return event.metaKey || event.ctrlKey || !isNativeShell;
+  return event.key.toLowerCase() === "r";
 }
 
 /** True for a plain keypress — a shortcut that means something else once a modifier is held. */
