@@ -4,9 +4,11 @@
   import { Button, Segmented } from "$lib/components";
   import DesktopDownload from "./DesktopDownload.svelte";
   import DesktopUpdate from "./DesktopUpdate.svelte";
+  import { desktopAutostart } from "$lib/desktop/autostart.svelte";
   import { isDesktop, isNativeShell } from "$lib/desktop/platform";
   import { theme, type ThemeMode } from "$lib/theme.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
+  import ToggleRow from "./ToggleRow.svelte";
 
   /** Who is signed in, how the app looks, and which build this is. */
   let { onsignout }: { onsignout: () => void } = $props();
@@ -18,6 +20,9 @@
   ];
 
   const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
+
+  // Read when the pane opens: the answer belongs to the system, and could have changed there.
+  $effect(() => void desktopAutostart.load());
 </script>
 
 <SettingsGroup title="Account" divided={false}>
@@ -53,6 +58,16 @@
 
 <!-- And only in the Mac app, which is the one build that replaces itself. -->
 {#if isDesktop}
+  <SettingsGroup title="Startup">
+    <ToggleRow
+      label="Open at login"
+      note="The menu bar and reminders are there without opening the app."
+      checked={desktopAutostart.enabled === true}
+      disabled={desktopAutostart.enabled === null}
+      onchange={(enabled) => void desktopAutostart.set(enabled)}
+    />
+  </SettingsGroup>
+
   <SettingsGroup title="Updates">
     <DesktopUpdate />
   </SettingsGroup>

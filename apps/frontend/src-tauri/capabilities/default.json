@@ -22,6 +22,7 @@
     "allow-resize-reminder",
     "allow-open-window",
     "allow-restart-app",
-    "updater:default"
+    "updater:default",
+    "autostart:default"
   ]
 }

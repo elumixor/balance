@@ -93,7 +93,10 @@ and `CalendarEventsService.resolve` is still the one read path.
   `$lib/agenda.svelte.ts` as the one answer to "what is next" that the menu bar and the reminders
   both read. Don't fetch or reason about events in Rust — the session lives in the webview. A new
   command has to be named in `build.rs` and in `capabilities/default.json`, or the built app never
-  receives it. `target/` and `gen/` are generated; the rest is committed.
+  receives it. The shell registers itself as a login item on its first launch and is then started
+  with `--hidden`, so the menu bar and the reminders run without a window; the reminder card can't
+  become the key window, which is what keeps a dismiss from bringing the hidden main window back.
+  `target/` and `gen/` are generated; the rest is committed.
 - `apps/frontend/ios/` is a committed Xcode project, and holds everything Apple: `App/WatchApp`,
   `App/WatchWidget`, the `BalanceKit` package they share, and `fastlane/`. The watch app and widget
   targets are added by `ios/wire_watch_targets.rb`, which is idempotent — change the script, re-run

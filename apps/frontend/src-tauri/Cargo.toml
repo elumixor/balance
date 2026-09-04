@@ -50,6 +50,9 @@ tauri-plugin-updater = "2.9.0"
 # The `deep-link` feature is what makes a second launch hand its `balance://` URL to the running
 # instance instead of starting a second one beside it in the menu bar.
 tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }
+# Registered as a login item on first launch, so the menu bar and the reminders are there after a
+# restart without anyone remembering to open the app. It is launched with `--hidden` (see `run`).
+tauri-plugin-autostart = "2.5.1"
 
 [profile.release]
 codegen-units = 1
