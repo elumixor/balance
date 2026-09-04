@@ -49,8 +49,6 @@ export default defineConfig({
         "src/lib/calendar/markers.ts",
         "src/lib/calendar/project-hours.ts",
         "src/lib/calendar/recurrence.ts",
-        "src/lib/calendar/title-suggest.ts",
-        "src/lib/calendar/title-tokens.ts",
         "src/lib/projects/allocate.ts",
         "src/lib/projects/decide-on.ts",
         "src/lib/projects/ranking.ts",

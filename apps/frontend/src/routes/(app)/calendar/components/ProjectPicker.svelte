@@ -1,7 +1,8 @@
 <script lang="ts">
   import { AnchoredPopup, Dot } from "$lib/components";
+  import { restColor } from "$lib/colors";
+  import { categories, practices, projects } from "$lib/synced.svelte";
   import { projectsData } from "$lib/projects/projects-data.svelte";
-  import { matchPurposes, purposeRows } from "$lib/projects/purpose-rows";
   import { Plus, Repeat } from "lucide-svelte";
 
   /**
@@ -28,8 +29,40 @@
   let query = $state("");
   let list = $state<HTMLElement>();
 
-  const rows = $derived(purposeRows());
-  const matches = $derived(matchPurposes(rows, query));
+  const colorOf = (categoryId: string) => categories.all.find((c) => c.id === categoryId)?.color ?? restColor;
+
+  interface Row {
+    key: string;
+    name: string;
+    color: string;
+    practice: boolean;
+    purpose: { projectId: string | null; practiceId: string | null };
+  }
+
+  const rows = $derived.by((): Row[] => [
+    ...projects.all
+      .filter((p) => p.status === "active" || p.status === "held")
+      .map((p) => ({
+        key: `project:${p.id}`,
+        name: p.name || "Untitled project",
+        color: colorOf(p.categoryId),
+        practice: false,
+        purpose: { projectId: p.id, practiceId: null },
+      })),
+    ...practices.all.map((p) => ({
+      key: `practice:${p.id}`,
+      name: p.name || "Unnamed practice",
+      color: colorOf(p.categoryId),
+      practice: true,
+      purpose: { projectId: null, practiceId: p.id },
+    })),
+  ]);
+
+  const matches = $derived.by(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.name.toLowerCase().split(/\s+/).some((word) => word.startsWith(q)));
+  });
 
   /**
    * A name nothing answers to is a project that doesn't exist yet, so the picker offers to make it

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AnchoredPopup, Button, CardRow, CategoryIcon, CategoryPicker, Popover, PopoverItem, Textarea } from "$lib/components";
+  import { AnchoredPopup, Button, CardRow, CategoryIcon, CategoryPicker, Field, Popover, PopoverItem, Textarea } from "$lib/components";
   import { restColor } from "$lib/colors";
   import { openExternal } from "$lib/desktop/open";
   import { diagnostics } from "$lib/diagnostics.svelte";
@@ -9,8 +9,6 @@
   import { asGoogleAccount, hasAddress, meetingOf } from "$lib/meeting";
   import { deviceTimeZone } from "$lib/planning/zone";
   import { preferences } from "$lib/preferences.svelte";
-  import { projectsData } from "$lib/projects/projects-data.svelte";
-  import { purposeRows } from "$lib/projects/purpose-rows";
   import ProjectPicker from "./ProjectPicker.svelte";
   import { respondToCalendarEvent } from "$lib/queries";
   import { applyCalendarEvent } from "$lib/store.svelte";
@@ -44,8 +42,6 @@
   import RemindersRow from "./RemindersRow.svelte";
   import RepeatPicker from "./RepeatPicker.svelte";
   import TimeField from "./TimeField.svelte";
-  import TitleEditor from "./TitleEditor.svelte";
-  import { compose, resolve } from "$lib/calendar/title-tokens";
   import TimeZonePicker from "./TimeZonePicker.svelte";
 
   /**
@@ -107,7 +103,7 @@
   let loaded = "";
   /** A deleted event must not be written back by the pending edit the card is unmounting with. */
   let deleted = false;
-  let titleEditor = $state<TitleEditor | null>(null);
+  let titleEl = $state<HTMLInputElement | null>(null);
   /** Whether the cursor has already been put in the name of the block on show — see below. */
   let focused = false;
 
@@ -147,49 +143,18 @@
    * away from wherever it's got to by then, nor select what's been typed since.
    */
   $effect(() => {
-    const input = titleEditor;
+    const input = titleEl;
     if (!input || data.unnamedId !== event.id || focused) return;
     focused = true;
     // Next frame: the card is hidden until it knows where it belongs, and nothing inside something
     // hidden can take focus.
-    const frame = requestAnimationFrame(() => input.focus());
+    const frame = requestAnimationFrame(() => {
+      input.focus();
+      if (title) input.setSelectionRange(title.length, title.length);
+      else input.select();
+    });
     return () => cancelAnimationFrame(frame);
   });
-
-  // --- the title line ------------------------------------------------------------------------
-
-  /**
-   * What the block is for, as this card last said it — the event itself only catches up once the
-   * write lands, and a pill typed and then deleted in that gap must not be written twice.
-   */
-  let tagged = $state<{ projectId: string | null; practiceId: string | null }>({ projectId: null, practiceId: null });
-  $effect(() => {
-    tagged = { projectId: event.projectId, practiceId: event.practiceId };
-  });
-  /** The name with the day, the span and the purpose written after it — what the editor shows focused. */
-  const titleText = $derived(compose({ title, date, from, to, ...tagged }));
-  const purposes = $derived(purposeRows());
-  const nameOf = (kind: "project" | "practice", id: string) =>
-    (kind === "project" ? projects.all.find((p) => p.id === id)?.name : practices.all.find((p) => p.id === id)?.name) ?? null;
-
-  /** Every keystroke hands the whole line back; the fields are whatever it now says. */
-  function onTitleChange(text: string) {
-    const next = resolve(text, { title, date, from, to, ...tagged });
-    title = next.title;
-    date = next.date;
-    from = next.from;
-    to = next.to;
-    if (next.projectId !== tagged.projectId || next.practiceId !== tagged.practiceId) {
-      choosePurpose({ projectId: next.projectId, practiceId: next.practiceId });
-    }
-    queue();
-  }
-
-  /** A name nothing answers to becomes a project in the block's own sphere, as the picker does. */
-  function createProject(name: string) {
-    const created = projectsData.create(category?.id, name);
-    return created ? `@project:${created.id}` : null;
-  }
 
   /** Set to the row's rect while the category list is open, null otherwise. */
   let pickerRect = $state<DOMRect | null>(null);
@@ -219,14 +184,12 @@
 
   function choosePurpose(next: { projectId: string | null; practiceId: string | null }) {
     projectRect = null;
-    tagged = next;
-    const detached = !next.projectId && !next.practiceId;
-    void data.tagEvent(event, { ...next, ...(detached ? { taskId: null } : {}) });
+    void data.tagEvent(event, next);
   }
 
   function detach() {
     detaching = false;
-    choosePurpose({ projectId: null, practiceId: null });
+    void data.tagEvent(event, { projectId: null, practiceId: null, taskId: null });
   }
 
   // --- what it counts as ---------------------------------------------------------------------
@@ -613,14 +576,14 @@
       <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={28} />
     </button>
     {#if editable}
-      <TitleEditor
-        bind:this={titleEditor}
-        text={titleText}
-        {nameOf}
-        {purposes}
-        oncreate={createProject}
-        onchange={onTitleChange}
-        oncommit={flush}
+      <Field
+        bind:value={title}
+        bind:element={titleEl}
+        oninput={queue}
+        placeholder="Untitled"
+        variant="inline"
+        ariaLabel="Event title"
+        class="t-heading h-9 py-1"
       />
     {:else}
       <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
