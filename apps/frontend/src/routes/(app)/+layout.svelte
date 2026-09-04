@@ -18,7 +18,7 @@
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";
   import { telemetry } from "$lib/telemetry";
-  import { adoptUser, warmStore } from "$lib/store.svelte";
+  import { adoptUser, refreshStore, warmStore } from "$lib/store.svelte";
   import { diagnostics } from "$lib/diagnostics.svelte";
   import { startWatchHandoff } from "$lib/watch/handoff";
   import { untrack, type Snippet } from "svelte";
@@ -115,6 +115,14 @@
     if (isSettingsKey(e)) {
       e.preventDefault();
       return settings.toggle();
+    }
+    // ⌘R / Ctrl+R refetches everything behind what's on screen rather than reloading the page,
+    // which would drop the session and redraw the rows the person has just stopped trusting.
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      return void refreshStore().catch((e) =>
+        diagnostics.report("Loading", e, { title: "Couldn’t refresh your data", retry: refreshStore }),
+      );
     }
     if (!isBareKey(e)) return;
 

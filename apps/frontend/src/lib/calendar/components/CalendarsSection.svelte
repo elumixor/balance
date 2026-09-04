@@ -1,12 +1,12 @@
 <script lang="ts">
   import { restColor } from "$lib/colors";
   import { updateCalendarPrefs } from "$lib/queries";
-  import { store } from "$lib/store.svelte";
+  import { invalidate, store } from "$lib/store.svelte";
   import type { CalendarRef } from "$lib/types";
   import { Eye, EyeOff, Plus } from "lucide-svelte";
+  import { Spinner } from "$lib/components";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { connectGoogle } from "$lib/calendar/connect";
-  import ConnectGoogle from "$lib/calendar/components/ConnectGoogle.svelte";
   import { diagnostics } from "$lib/diagnostics.svelte";
 
   /**
@@ -34,6 +34,13 @@
     if (data.connected) void prefs.ensure();
   });
 
+  /**
+   * Nothing here may say "connect" until the server has said there is nothing connected: on a
+   * cold start the accounts are simply not here yet, and a button offered for that moment is
+   * taken back as soon as the answer lands.
+   */
+  const loading = $derived(!data.connectionKnown || (data.connected && !prefs.hasValue));
+
   /** Applies the change to the screen immediately, then tells the server — reverting only on failure. */
   function save(input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) {
     const previous = prefs.value;
@@ -58,13 +65,15 @@
 
   let connecting = $state(false);
 
-  /** The same flow the first connection uses — Google's own account chooser is what makes this a
-   *  second account instead of reauthorizing the first. */
+  /** The first connection and every later one are the same flow — Google's own account chooser is
+   *  what makes this a second account instead of reauthorizing the first. Either way the week is
+   *  asked for again: with the first account it goes from empty to full. */
   async function addAccount() {
     connecting = true;
     try {
       await connectGoogle();
-      await prefs.refresh();
+      invalidate.integrations();
+      await Promise.all([prefs.refresh(), data.refreshWeeks()]);
     } catch (e) {
       diagnostics.report("Google Calendar", e, { title: "Couldn’t connect Google Calendar" });
     } finally {
@@ -73,8 +82,11 @@
   }
 </script>
 
-{#if accounts.length === 0}
-  <ConnectGoogle />
+{#if loading}
+  <div class="flex items-center gap-2 px-2 py-1.5 text-fg-faint" aria-busy="true">
+    <Spinner size={14} />
+    <span class="t-label">Loading calendars…</span>
+  </div>
 {:else}
   <div class="space-y-3">
     {#each accounts as account (account.accountId)}
