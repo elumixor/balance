@@ -12,6 +12,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../server/db";
 import { categories, projects, users } from "../server/db/schema";
 import { clerkClient } from "../server/lib/current-user";
+import { env } from "../server/lib/env";
 import { projectTemplateSchema } from "../server/lib/sync/projects";
 
 interface Manifest {
@@ -27,7 +28,7 @@ interface Manifest {
 
 const args = process.argv.slice(2);
 const userFlag = args.indexOf("--user");
-const email = (userFlag >= 0 ? args[userFlag + 1] : undefined) ?? process.env.DEV_AUTH_EMAIL;
+const email = (userFlag >= 0 ? args[userFlag + 1] : undefined) ?? env.DEV_AUTH_EMAIL;
 const manifestPath = args.find((a) => a.endsWith(".json")) ?? "scripts/projects.json";
 if (!email) throw new Error("Pass --user <email> or set DEV_AUTH_EMAIL");
 

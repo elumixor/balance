@@ -64,7 +64,18 @@ function isNativeBuild() {
 function devAuth(mode: string, cwd: string) {
   if (mode !== "development") return { on: "0", email: "" };
   const env = { ...loadEnv(mode, cwd, ""), ...process.env };
-  return { on: env.VITE_DEV_AUTH === "1" ? "1" : "0", email: env.DEV_AUTH_EMAIL ?? "" };
+  if (env.VITE_DEV_AUTH !== "1") return { on: "0", email: "" };
+  return { on: "1", email: required(env, "DEV_AUTH_EMAIL") };
+}
+
+/**
+ * A build with one of these missing is a build that quietly does something else — reports to
+ * nobody, signs in to nothing — so it is refused here, with the name of what it lacks.
+ */
+function required(env: Record<string, string | undefined>, key: string) {
+  const value = env[key];
+  if (!value) throw new Error(`${key} is not set — the build has nothing to put in it`);
+  return value;
 }
 
 /**
@@ -90,19 +101,20 @@ function buildStamp() {
 }
 
 /**
- * The keys that let a build report its own failures — see `lib/telemetry.ts`.
+ * The keys a build carries: what it signs in with, and where it reports its own failures — see
+ * `lib/auth.svelte.ts` and `lib/telemetry.ts`.
  *
  * Read here rather than left to Vite's own `VITE_` handling because the native shells are built by
  * fastlane and by CI, where the values arrive in the environment and there is no `.env` beside
- * this file at all. Both are public identifiers: a Sentry DSN and a PostHog project key are meant
- * to be shipped, the same way the Clerk publishable key already is.
+ * this file at all. All of them are public identifiers meant to be shipped.
  */
-function telemetryEnv(mode: string, cwd: string) {
+function publicKeys(mode: string, cwd: string) {
   const env = { ...loadEnv(mode, cwd, "VITE_"), ...process.env };
   return {
-    sentryDsn: env.VITE_SENTRY_DSN ?? "",
-    posthogKey: env.VITE_POSTHOG_KEY ?? "",
-    posthogHost: env.VITE_POSTHOG_HOST ?? "",
+    clerk: required(env, "VITE_CLERK_PUBLISHABLE_KEY"),
+    sentryDsn: required(env, "VITE_SENTRY_DSN"),
+    posthogKey: required(env, "VITE_POSTHOG_KEY"),
+    posthogHost: required(env, "VITE_POSTHOG_HOST"),
   };
 }
 
@@ -114,7 +126,7 @@ function appVersion(cwd: string) {
 
 export default defineConfig(({ mode }) => {
   const dev = devAuth(mode, process.cwd());
-  const telemetry = telemetryEnv(mode, process.cwd());
+  const keys = publicKeys(mode, process.cwd());
   return {
     plugins: [tailwindcss(), sveltekit()],
     // Rust build artefacts are far too many files to watch, and none of them change the page.
@@ -129,9 +141,10 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_BUILD_TIME": JSON.stringify(new Date().toISOString()),
       "import.meta.env.VITE_DEV_AUTH": JSON.stringify(dev.on),
       "import.meta.env.VITE_DEV_AUTH_EMAIL": JSON.stringify(dev.email),
-      "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(telemetry.sentryDsn),
-      "import.meta.env.VITE_POSTHOG_KEY": JSON.stringify(telemetry.posthogKey),
-      "import.meta.env.VITE_POSTHOG_HOST": JSON.stringify(telemetry.posthogHost),
+      "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(keys.clerk),
+      "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(keys.sentryDsn),
+      "import.meta.env.VITE_POSTHOG_KEY": JSON.stringify(keys.posthogKey),
+      "import.meta.env.VITE_POSTHOG_HOST": JSON.stringify(keys.posthogHost),
     },
   };
 });

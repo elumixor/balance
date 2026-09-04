@@ -44,15 +44,16 @@ What each one runs lives in the `devkit.dev` block of the root `package.json`.
 That's `backend` on `http://localhost:3100` and `frontend` on `http://localhost:8081`. To run just
 one process: `cd apps/backend && bun run dev`, or `cd apps/frontend && bun run dev`.
 
-Both apps read their own `.env`. The backend needs `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
-`CLERK_SECRET_KEY`, and for the calendar integration `GOOGLE_OAUTH_CLIENT_ID`,
-`GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and
-`OAUTH_STATE_SECRET` (the last two are `openssl rand -base64 32`). `GOOGLE_MAPS_API_KEY` is
-optional and buys travel times to an event's address through the Google Routes API, and address
-suggestions for the places you leave from through the Places API; without it `/mobile/travel`
-answers `{ available: false }`, `/mobile/travel/places` suggests nothing, and the app offers no
-journeys at all. The frontend
-needs `VITE_CLERK_PUBLISHABLE_KEY` and `VITE_API_BASE_URL`. With
+Both apps read the one `.env` at the root (symlinked into each). Every key is required, and a
+missing one stops the backend at start-up and the frontend at build time with its name — see
+`apps/backend/server/lib/env.ts` for the full list. The backend needs `DATABASE_URL`,
+`DATABASE_URL_UNPOOLED`, `CLERK_SECRET_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
+`GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and `OAUTH_STATE_SECRET` (the last two are
+`openssl rand -base64 32`), `GOOGLE_MAPS_API_KEY` for travel times through the Google Routes API
+and address suggestions through the Places API, `AI_GATEWAY_API_KEY` for the session copy and the
+project proposals, and `SENTRY_DSN`, `POSTHOG_KEY`, `POSTHOG_HOST` for its own failures. The
+frontend needs `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`,
+`VITE_POSTHOG_HOST` and `VITE_API_BASE_URL`. With
 no `VITE_API_BASE_URL`, dev falls back to this machine's LAN address (so a phone on the same
 network reaches the backend), a web release build falls back to the empty string, which is what
 makes the deployed web app talk to its own origin, and a build for one of the native shells falls

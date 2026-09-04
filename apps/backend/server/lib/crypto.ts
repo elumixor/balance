@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { env } from "./env";
 
 const ALGORITHM = "aes-256-gcm";
 const KEY_BYTES = 32;
@@ -9,9 +10,7 @@ const IV_BYTES = 12;
  * database in the clear — not in a Neon backup, not in drizzle studio.
  */
 function loadKey(): Buffer {
-  const raw = process.env.TOKEN_ENCRYPTION_KEY;
-  if (!raw) throw new Error("TOKEN_ENCRYPTION_KEY is not set");
-  const key = Buffer.from(raw, "base64");
+  const key = Buffer.from(env.TOKEN_ENCRYPTION_KEY, "base64");
   if (key.length !== KEY_BYTES) throw new Error("TOKEN_ENCRYPTION_KEY must be 32 bytes, base64-encoded");
   return key;
 }

@@ -1,4 +1,5 @@
 import { ApiError } from "../api-error";
+import { env } from "../env";
 
 /**
  * How long it takes to get somewhere, per way of going.
@@ -21,7 +22,7 @@ export interface TravelLeg {
 }
 
 export interface TravelAnswer {
-  /** False when no maps key is configured — the app then simply doesn't offer travel times. */
+  /** False when there was nowhere to leave from — the app then simply doesn't offer travel times. */
   readonly available: boolean;
   readonly legs: TravelLeg[];
 }
@@ -56,10 +57,6 @@ const CACHE_MAX = 500;
 
 const cache = new Map<string, { at: number; leg: TravelLeg | null }>();
 
-export function travelAvailable() {
-  return Boolean(process.env.GOOGLE_MAPS_API_KEY);
-}
-
 export async function travelTimes(input: {
   origin: string;
   destination: string;
@@ -67,7 +64,6 @@ export async function travelTimes(input: {
   /** When you need to be there. Only transit can be asked to work backwards from it. */
   arriveBy?: Date;
 }): Promise<TravelAnswer> {
-  if (!travelAvailable()) return { available: false, legs: [] };
   if (!input.origin.trim() || !input.destination.trim()) throw new ApiError("Both ends of the journey are needed");
 
   const legs = await Promise.all(input.modes.map((mode) => leg(mode, input.origin, input.destination, input.arriveBy)));
@@ -117,7 +113,7 @@ async function compute(
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-goog-api-key": process.env.GOOGLE_MAPS_API_KEY as string,
+      "x-goog-api-key": env.GOOGLE_MAPS_API_KEY,
       // Routes refuses a request that doesn't say what it wants back, and charges by how much
       // it is. Two numbers is the whole answer here.
       "x-goog-fieldmask": "routes.duration,routes.distanceMeters",

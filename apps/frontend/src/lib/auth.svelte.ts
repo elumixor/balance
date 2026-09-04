@@ -5,8 +5,7 @@ import { Clerk } from "@clerk/clerk-js";
 import { API_BASE_URL, DEV_AUTH, DEV_AUTH_EMAIL } from "./env";
 
 // Clerk publishable keys are public identifiers (not secrets) — safe to ship in the client bundle.
-const PUBLISHABLE_KEY =
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "pk_test_Y2VudHJhbC1jb25kb3ItMzguY2xlcmsuYWNjb3VudHMuZGV2JA";
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 /** Written the moment there's a session, read before Clerk has had a chance to confirm one. */
 const SIGNED_IN_KEY = "balance:signed-in";

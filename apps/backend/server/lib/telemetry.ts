@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { PostHog } from "posthog-node";
+import { env } from "./env";
 
 /**
  * What the API says about itself when nobody is watching it.
@@ -13,9 +14,6 @@ import { PostHog } from "posthog-node";
  * buffered for later, and every send is awaited before the response goes out.
  */
 
-const SENTRY_DSN = process.env.SENTRY_DSN ?? "";
-const POSTHOG_KEY = process.env.POSTHOG_KEY ?? "";
-const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://eu.i.posthog.com";
 /** Vercel stamps the commit; a stack trace without one is a stack trace against unknown source. */
 const RELEASE = `balance-api@${process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev"}`;
 const ENVIRONMENT = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
@@ -27,9 +25,9 @@ let sentryReady = false;
 let posthog: PostHog | null = null;
 
 function startSentry() {
-  if (sentryReady || !SENTRY_DSN) return sentryReady;
+  if (sentryReady) return;
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn: env.SENTRY_DSN,
     release: RELEASE,
     environment: ENVIRONMENT,
     // Errors, not traces. This runs per request on Fluid Compute, and a sampled span is latency
@@ -38,14 +36,12 @@ function startSentry() {
     sendDefaultPii: false,
   });
   sentryReady = true;
-  return true;
 }
 
 function startPostHog() {
-  if (posthog || !POSTHOG_KEY) return posthog;
   // One event per send, no timer: the process may not exist a moment from now, and a queue that
   // is flushed on an interval is a queue that is lost.
-  posthog = new PostHog(POSTHOG_KEY, { host: POSTHOG_HOST, flushAt: 1, flushInterval: 0 });
+  posthog ??= new PostHog(env.POSTHOG_KEY, { host: env.POSTHOG_HOST, flushAt: 1, flushInterval: 0 });
   return posthog;
 }
 
@@ -63,38 +59,30 @@ export interface ErrorContext {
  * frozen the moment it answers — an unflushed report is no report at all.
  */
 export async function captureError(error: unknown, context: ErrorContext = {}) {
-  const sends: Promise<unknown>[] = [];
-
-  if (startSentry()) {
-    Sentry.captureException(error, {
-      tags: { path: context.path, method: context.method, status: context.status },
-      user: context.userId ? { id: context.userId } : undefined,
-    });
-    sends.push(Sentry.flush(FLUSH_MS));
-  }
+  startSentry();
+  Sentry.captureException(error, {
+    tags: { path: context.path, method: context.method, status: context.status },
+    user: context.userId ? { id: context.userId } : undefined,
+  });
 
   const client = startPostHog();
-  if (client) {
-    client.capture({
-      distinctId: context.userId ?? "anonymous",
-      event: "api_error",
-      properties: {
-        message: error instanceof Error ? error.message : String(error),
-        name: error instanceof Error ? error.name : "Error",
-        ...context,
-      },
-    });
-    sends.push(client.flush());
-  }
+  client.capture({
+    distinctId: context.userId ?? "anonymous",
+    event: "api_error",
+    properties: {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : "Error",
+      ...context,
+    },
+  });
 
   // One failure is not worth a second: a reporter that throws must not replace what it reports.
-  await Promise.allSettled(sends);
+  await Promise.allSettled([Sentry.flush(FLUSH_MS), client.flush()]);
 }
 
 /** Something the API did on purpose and wants counted — a commit, a connection, a first sync. */
 export async function track(userId: string, event: string, properties?: Record<string, unknown>) {
   const client = startPostHog();
-  if (!client) return;
   client.capture({ distinctId: userId, event, properties: { ...properties, environment: ENVIRONMENT } });
   await client.flush().catch(() => {
     // A count nobody kept is not a reason to fail the request that earned it.

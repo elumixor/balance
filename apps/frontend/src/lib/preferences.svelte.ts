@@ -106,8 +106,6 @@ export interface StoredPreferences {
   sessions: SessionsPrefs;
   zones: ZonesPrefs;
   card: CardPrefs;
-  /** False when the server has no maps key, so the panel can say why journeys aren't on offer. */
-  travelAvailable: boolean;
 }
 
 /** The same answer the server would give an account that has never set anything. */
@@ -125,7 +123,6 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
   },
   zones: { saved: [], columns: [] },
   card: { hidden: [] },
-  travelAvailable: false,
 };
 
 /** Long enough that typing an address is one write, short enough to feel immediate. */
@@ -176,11 +173,6 @@ class Preferences {
   /** The sections of an event card folded away. */
   get hiddenSections(): string[] {
     return this.#value.card.hidden;
-  }
-
-  /** Whether the server can work out journeys at all — see `GOOGLE_MAPS_API_KEY`. */
-  get travelAvailable() {
-    return this.#value.travelAvailable;
   }
 
   setReminders(patch: Partial<RemindersPrefs>) {

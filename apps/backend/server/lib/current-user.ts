@@ -4,11 +4,12 @@ import type { H3Event } from "h3";
 import { db } from "../db";
 import { users } from "../db/schema";
 import { ApiError } from "./api-error";
+import { env } from "./env";
 
 type DbUser = typeof users.$inferSelect;
 
 export const clerkClient = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY!,
+  secretKey: env.CLERK_SECRET_KEY,
   publishableKey: "pk_test_Y2VudHJhbC1jb25kb3ItMzguY2xlcmsuYWNjb3VudHMuZGV2JA",
 });
 
@@ -26,7 +27,7 @@ export const clerkClient = createClerkClient({
  */
 function devAuthEmail() {
   if (process.env.NODE_ENV === "production" || process.env.VERCEL) return null;
-  return process.env.DEV_AUTH_EMAIL?.trim() || null;
+  return env.DEV_AUTH_EMAIL ?? null;
 }
 
 /**

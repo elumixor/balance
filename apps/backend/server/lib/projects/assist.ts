@@ -1,6 +1,7 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { env } from "../env";
 
 /**
  * The model's six moments, all of them proposals: words, estimates and judgement, handed back
@@ -105,11 +106,9 @@ Plain words, second person, no exclamation marks, no coaching cliches, no emoji.
 short. Never invent numbers you weren't given. You propose; the person decides.`;
 
 async function ask<T>(schema: z.ZodType<T>, prompt: string): Promise<T | null> {
-  const apiKey = process.env.VERCEL_AI_KEY ?? process.env.AI_GATEWAY_API_KEY;
-  if (!apiKey) return null;
   try {
     const { object } = await generateObject({
-      model: createGateway({ apiKey })(MODEL),
+      model: createGateway({ apiKey: env.AI_GATEWAY_API_KEY })(MODEL),
       schema,
       system: VOICE,
       prompt,

@@ -40,9 +40,7 @@
 
 <SettingsGroup
   title="Places"
-  note={preferences.travelAvailable
-    ? "Where journeys start. Any event can be told to leave from a different one."
-    : "Journey times are off — the server has no Google Maps key. Places can still be saved."}
+  note="Where journeys start. Any event can be told to leave from a different one."
   divided={false}
 >
   <div class="overflow-hidden rounded-md border border-line">

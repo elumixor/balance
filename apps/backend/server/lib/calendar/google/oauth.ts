@@ -1,5 +1,6 @@
 import { decodeJwt } from "jose";
 import { ApiError } from "../../api-error";
+import { env } from "../../env";
 import { ProviderNeedsReconnectError } from "../errors";
 
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -39,13 +40,11 @@ interface TokenResponse {
 }
 
 function credentials() {
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
-  if (!clientId || !clientSecret || !redirectUri) {
-    throw new Error("GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET and GOOGLE_OAUTH_REDIRECT_URI must be set");
-  }
-  return { clientId, clientSecret, redirectUri };
+  return {
+    clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+    clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+    redirectUri: env.GOOGLE_OAUTH_REDIRECT_URI,
+  };
 }
 
 async function requestTokens(params: Record<string, string>): Promise<TokenSet> {

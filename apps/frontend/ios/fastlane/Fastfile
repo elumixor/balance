@@ -81,21 +81,16 @@ platform :ios do
 
     # What the phone shell and the watch report their own crashes to — see `Telemetry.swift`.
     # A Sentry DSN and a PostHog project key are public identifiers, the same ones the web build
-    # carries, so they are written in at release rather than committed: a checkout with neither
-    # set builds fine and reports nothing, which is the same rule the maps key follows.
+    # carries, so they are written in at release rather than committed. `fetch` raises when one
+    # is missing: a build that reports to nobody is not a build worth uploading.
     telemetry = {
-      "BalanceSentryDSN" => ENV["VITE_SENTRY_DSN"],
-      "BalancePostHogKey" => ENV["VITE_POSTHOG_KEY"],
-      "BalancePostHogHost" => ENV["VITE_POSTHOG_HOST"]
+      "BalanceSentryDSN" => ENV.fetch("VITE_SENTRY_DSN"),
+      "BalancePostHogKey" => ENV.fetch("VITE_POSTHOG_KEY"),
+      "BalancePostHogHost" => ENV.fetch("VITE_POSTHOG_HOST")
     }
     ["App/App/Info.plist", "App/WatchApp/Info.plist"].each do |plist|
-      telemetry.each do |key, value|
-        next if value.to_s.empty?
-
-        set_info_plist_value(path: plist, key: key, value: value)
-      end
+      telemetry.each { |key, value| set_info_plist_value(path: plist, key: key, value: value) }
     end
-    UI.important("No VITE_SENTRY_DSN — this build reports no native crashes.") if ENV["VITE_SENTRY_DSN"].to_s.empty?
 
     # Make sure the watch + widget identifiers exist before sigh runs.
     setup_watch

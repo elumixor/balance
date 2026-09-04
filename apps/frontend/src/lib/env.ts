@@ -7,7 +7,7 @@ import { Capacitor } from "@capacitor/core";
  * `/mobile/*`, so a relative base keeps requests same-origin. Dev servers and native builds get an
  * absolute URL from `vite.config.ts`.
  */
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
  * A native shell has no origin worth talking to: iOS serves the bundle from `https://localhost`
@@ -32,4 +32,4 @@ export const apiBaseUrlProblem =
 export const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
 
 /** Who the bypass says you are — the same account `DEV_AUTH_EMAIL` names on the backend. */
-export const DEV_AUTH_EMAIL = import.meta.env.VITE_DEV_AUTH_EMAIL || "dev@localhost";
+export const DEV_AUTH_EMAIL = import.meta.env.VITE_DEV_AUTH_EMAIL;

@@ -47,8 +47,8 @@ An event carries more than its hours — where it is, how to join it, who else i
 it wants to remind you — and an invitation can be answered from the app, which writes the reply
 back to the calendar everyone else reads. Travel times are separate and never stored:
 `server/lib/travel/` asks the Google Routes API on demand, and answers `{ available: false }` when
-no `GOOGLE_MAPS_API_KEY` is configured, so every screen has to cope with having no journeys. The
-same key suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the
+there is nowhere to leave from, so every screen has to cope with having no journeys. The
+same key (`GOOGLE_MAPS_API_KEY`) suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the
 spelling Maps itself gave back rather than one somebody typed from memory. Where a journey _starts_
 is the event's own answer — a place named in settings, or the device's position, resolved by
 `$lib/travel-origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
@@ -147,8 +147,8 @@ sentence that would contradict the banner.
 
 Copy is only generated for real once a slot is close (`isFresh`) — an evening's summary composed at
 breakfast would describe a day that has not happened — and until then the arithmetic `fallback` is
-scheduled instead. That fallback is a real answer, not an error message: with no AI key configured
-the app behaves identically, and a model that is down can never cost someone their reminder.
+scheduled instead. That fallback is a real answer, not an error message: a model that is down can
+never cost someone their reminder.
 
 The voice is a rule, not a preference: write from the far side of the thing, how it will feel to
 have already done it, and never name a failure, a miss or a broken streak. Reviews are payouts.
@@ -222,11 +222,19 @@ what the person was doing before it sent to PostHog — one call, because a seco
 is a thing that gets forgotten. The API reports the same way (`server/lib/telemetry.ts`, wired into
 `server/error.ts`, and an `ApiError` is an answer rather than a crash), and the two Apple targets
 that are not a webview report through `BalanceTelemetry` — the phone's Swift shell, which runs
-before there is a webview, and the watch, which has no console and no room for an error card. All
-of it is optional: with no keys set nothing is sent and every platform behaves identically, the
-same rule `GOOGLE_MAPS_API_KEY` follows. The client keys are public by design and live in one place
-(`VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`), which the release lane writes into the iOS and watchOS
-`Info.plist`s so all four platforms report to one project.
+before there is a webview, and the watch, which has no console and no room for an error card. The
+client keys are public by design and live in one place (`VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`),
+which the release lane writes into the iOS and watchOS `Info.plist`s so all four platforms report
+to one project.
+
+## Configuration is required, never defaulted
+
+`server/lib/env.ts` is the only place the API reads its environment: one zod schema, every key
+required, parsed once at start-up by `server/plugins/env.ts`, so a deployment missing a key
+refuses to boot and names what it lacks rather than answering wrongly hours later. The frontend
+does the same at build time: `vite.config.ts` refuses to build without the public keys it bakes
+in. Read `env.X`, never `process.env.X`; add a key to the schema, never a `?? fallback`. The one
+optional key is `DEV_AUTH_EMAIL`, which is a switch, not a setting.
 
 Last of all, `$lib/watchdog.svelte.ts` watches the thing none of that can watch: Svelte flushes
 every effect in one pass, so one effect that re-triggers itself doesn't fail alone — the scheduler
@@ -284,8 +292,8 @@ The model's six moments are `server/lib/projects/assist.ts` and the `projects/as
 and all of them are proposals: gate sentences for a vague idea (including "this is a recurring
 event"), a note over the week's fill about what to drop, subtasks out of a stuck checkpoint's note,
 a recommendation on decision day, and a calendar block worked out into a project, a task, steps and a length (`calendar/EventAssist.svelte`). None of them writes a record, moves a date, marks a gate or
-sets an outcome — the routes can only return text — and with no `VERCEL_AI_KEY` every screen
-behaves identically without them.
+sets an outcome — the routes can only return text — and a model that answers nothing leaves every
+screen as it was.
 
 `apps/backend/scripts/import-projects.ts` is the one-time import from Notion: a card per row of
 `scripts/projects.json`, with a link back and nothing that syncs.

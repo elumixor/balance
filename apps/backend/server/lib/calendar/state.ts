@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ApiError } from "../api-error";
+import { env } from "../env";
 
 const TTL_MS = 10 * 60 * 1000;
 
@@ -34,9 +35,7 @@ export function isAppOrigin(origin: string): boolean {
  * Signing it is what makes that safe to trust.
  */
 function sign(payload: string): string {
-  const secret = process.env.OAUTH_STATE_SECRET;
-  if (!secret) throw new Error("OAUTH_STATE_SECRET is not set");
-  return createHmac("sha256", secret).update(payload).digest("base64url");
+  return createHmac("sha256", env.OAUTH_STATE_SECRET).update(payload).digest("base64url");
 }
 
 export function signOAuthState(state: Omit<OAuthState, "exp">): string {

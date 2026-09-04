@@ -1,5 +1,5 @@
 import { ApiError } from "../api-error";
-import { travelAvailable } from "./index";
+import { env } from "../env";
 
 /**
  * Addresses, as you type them.
@@ -34,13 +34,13 @@ export interface PlaceSuggestion {
 export async function suggestPlaces(input: { query: string; sessionToken?: string }): Promise<PlaceSuggestion[]> {
   const query = input.query.trim();
   // Two letters is not a question; asking anyway would spend a request per keystroke on nothing.
-  if (!travelAvailable() || query.length < 3) return [];
+  if (query.length < 3) return [];
 
   const response = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-goog-api-key": process.env.GOOGLE_MAPS_API_KEY as string,
+      "x-goog-api-key": env.GOOGLE_MAPS_API_KEY,
     },
     body: JSON.stringify({ input: query, ...(input.sessionToken ? { sessionToken: input.sessionToken } : {}) }),
   });

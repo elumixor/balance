@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db";
 import { sessionCopy } from "../../db/schema";
+import { env } from "../env";
 import type { Day } from "./days";
 import type { CategoryHours, SessionBlock, Slot } from "./service";
 
@@ -99,12 +100,9 @@ export async function clearSessionCopy(userId: string, day: Day) {
 }
 
 async function generate(input: CopyInput): Promise<SessionCopy | null> {
-  const apiKey = process.env.VERCEL_AI_KEY ?? process.env.AI_GATEWAY_API_KEY;
-  if (!apiKey) return null;
-
   try {
     const { object } = await generateObject({
-      model: createGateway({ apiKey })(MODEL),
+      model: createGateway({ apiKey: env.AI_GATEWAY_API_KEY })(MODEL),
       schema: copySchema,
       system: SYSTEM,
       prompt: promptFor(input),
