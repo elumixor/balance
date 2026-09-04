@@ -5,7 +5,7 @@
 	<key>BalancePostHogHost</key>
 	<string>https://us.i.posthog.com</string>
 	<key>BalancePostHogKey</key>
-	<string>phc_CcjJhKFYEQCmhSWH9yzmWSsPFpFqXTvxFisSBcnu9Jrg</string>
+	<string>phc_qCiACLLUcNrRX3uag8yMQk3p2bMqrWnmpvvSUwBGpDDV</string>
 	<key>BalanceSentryDSN</key>
 	<string>https://79a5c3df6862f1505d874e3f213f9c5c@o4511336305328128.ingest.de.sentry.io/4512023350018128</string>
 	<key>CAPACITOR_DEBUG</key>
