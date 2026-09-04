@@ -30,13 +30,13 @@ function pillLabel(seg: Exclude<Segment, { kind: "text" }>, nameOf: NameOf, now:
 
 export function pillHtml(seg: Exclude<Segment, { kind: "text" }>, nameOf: NameOf, now: Date): string {
   const tone = seg.kind === "project" || seg.kind === "practice" ? "purpose" : seg.kind;
-  return `<span class="title-pill title-pill-${tone}" contenteditable="false" data-token="${escapeHtml(tokenOf(seg))}">${escapeHtml(pillLabel(seg, nameOf, now))}</span>`;
+  return `<span class="title-pill title-pill-${tone}" contenteditable="false" data-token="${escape(tokenOf(seg))}">${escape(pillLabel(seg, nameOf, now))}</span>`;
 }
 
 /** Token text to the editor's HTML: the name as text, every token a pill, a landing after each. */
 export function renderHtml(text: string, nameOf: NameOf, now: Date): string {
   return parseSegments(text)
-    .map((seg) => (seg.kind === "text" ? escapeHtml(seg.value) : `${pillHtml(seg, nameOf, now)}${ZWSP}`))
+    .map((seg) => (seg.kind === "text" ? escape(seg.value) : `${pillHtml(seg, nameOf, now)}${ZWSP}`))
     .join("");
 }
 

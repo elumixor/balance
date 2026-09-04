@@ -439,7 +439,6 @@ html.dark {
   border-radius: 6px;
   outline: none;
   cursor: text;
-  color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -454,8 +453,7 @@ html.dark {
   background-color: var(--surface-alt);
   white-space: pre-wrap;
   overflow: visible;
-  overflow-wrap: break-word;
-  line-height: 28px;
+  overflow-wrap: anywhere;
 }
 .title-editor[data-empty]:not(:focus)::before {
   content: attr(data-placeholder);
@@ -467,8 +465,8 @@ html.dark {
 .title-pill {
   display: inline-flex;
   align-items: center;
-  vertical-align: 3px;
-  margin: 0 2px;
+  vertical-align: 2px;
+  margin: 0 1px;
   padding: 0 7px;
   border-radius: 6px;
   border: 1px solid var(--line);
