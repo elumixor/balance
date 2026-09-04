@@ -175,7 +175,11 @@ and `time-zones.ts` names zones by city, works out "GMT+2" on the day, and moves
 between zones keeping its wall clock. Zones a person names — "Kyiv", "the office" — and the card
 sections they have folded away both live on the account (`preferences.zones`, `preferences.card`),
 so they are the same on every device. `ComboField` is the one typed-and-picked field under the
-zone, repeat and reminder pickers. The assistant's button is a seat at the table and nothing more
+zone, repeat and reminder pickers. The name is a line (`TitleEditor.svelte`): blurred it shows the
+name alone, focused it wraps and shows the day, the span and the purpose as pills after it, and a
+pill is typed — `@` for a project, or a bare "1h", "13:30-14:30", "next tuesday", "14.10.27" —
+or deleted like a letter. `calendar/title-tokens.ts` composes that line from the event's fields and
+resolves it back, and `title-suggest.ts` reads what was typed; both are pure and tested. The assistant's button is a seat at the table and nothing more
 yet.
 
 ## Reminders are worked out once and shown three ways
