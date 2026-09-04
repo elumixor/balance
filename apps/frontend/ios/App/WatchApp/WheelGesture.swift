@@ -69,7 +69,7 @@ final class WheelGestureModel {
         isPressing = true
         pan = .zero
         focusedIndex = nil
-        WKInterfaceDevice.current().play(.start)
+        WKInterfaceDevice.current().play(.click)
     }
 
     /// The finger moved to `point`. A press that somehow never began is treated as beginning here,
@@ -89,7 +89,7 @@ final class WheelGestureModel {
     func ended() -> WatchCategory? {
         let picked = focusedCategory
         reset()
-        if picked != nil { WKInterfaceDevice.current().play(.success) }
+        if picked != nil { WKInterfaceDevice.current().play(.click) }
         return picked
     }
 

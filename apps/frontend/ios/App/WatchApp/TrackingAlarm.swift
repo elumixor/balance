@@ -127,6 +127,6 @@ enum TrackingAlarm {
     /// not shown — so the one moment the alarm exists for is the one moment it cannot cover. The app
     /// plays the haptic itself instead; the notification is what covers the wrist being down.
     static func playCompletion() {
-        WKInterfaceDevice.current().play(.notification)
+        WKInterfaceDevice.current().play(.click)
     }
 }
