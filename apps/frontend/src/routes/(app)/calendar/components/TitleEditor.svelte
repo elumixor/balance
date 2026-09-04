@@ -160,7 +160,7 @@
   aria-multiline="false"
   data-placeholder={placeholder}
   data-empty={empty || undefined}
-  class="title-editor field-bare t-heading min-w-0 flex-1 py-1"
+  class="title-editor t-heading min-w-0 flex-1"
   {oninput}
   {onkeydown}
   {onpaste}
