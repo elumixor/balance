@@ -7,7 +7,7 @@
   import { desktopReminders } from "$lib/desktop/reminders.svelte";
   import { desktopTray } from "$lib/desktop/tray.svelte";
   import { desktopUpdates } from "$lib/desktop/updates.svelte";
-  import { isBareKey, isSettingsKey } from "$lib/keys";
+  import { isBareKey, isRefreshKey, isSettingsKey } from "$lib/keys";
   import { syncStatus } from "$lib/synced.svelte";
   import { icsImport } from "$lib/ics-import.svelte";
   import { integrations } from "$lib/integrations/integrations.svelte";
@@ -116,9 +116,9 @@
       e.preventDefault();
       return settings.toggle();
     }
-    // ⌘R / Ctrl+R refetches everything behind what's on screen rather than reloading the page,
-    // which would drop the session and redraw the rows the person has just stopped trusting.
-    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "r") {
+    // Refetches everything behind what's on screen rather than reloading the page, which would
+    // drop the session and redraw the rows the person has just stopped trusting.
+    if (isRefreshKey(e)) {
       e.preventDefault();
       return void refreshStore().catch((e) =>
         diagnostics.report("Loading", e, { title: "Couldn’t refresh your data", retry: refreshStore }),
