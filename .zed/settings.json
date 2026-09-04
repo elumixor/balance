@@ -1,0 +1,32 @@
+{
+  "file_scan_exclusions": [
+    "**/.git",
+    "**/.DS_Store",
+    "**/node_modules",
+    "**/.devkit",
+    "**/.next",
+    "**/.vercel",
+    "**/.nitro",
+    "**/.output",
+    "**/.svelte-kit",
+    "**/.svelte-kit-ios",
+    "**/.svelte-kit-mac",
+    "**/build",
+    "**/build-ios",
+    "**/build-mac",
+    "**/dist",
+    "**/coverage",
+    "**/target",
+    "**/gen",
+    "**/.build",
+    "**/.swiftpm",
+    "**/xcuserdata",
+    "**/SourcePackages",
+    "**/capacitor-cordova-ios-plugins",
+    "apps/backend/public",
+    "apps/frontend/ios/App/App/public",
+    "apps/frontend/assets/.ios",
+    "**/*.mobileprovision",
+    "**/fastlane/report.xml"
+  ]
+}
