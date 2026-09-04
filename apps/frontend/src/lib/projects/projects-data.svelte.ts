@@ -213,7 +213,7 @@ class ProjectsData {
    * button said otherwise, the template is the simplest, and everything else is added later —
    * including the first stage, which is only made when the template has one to offer.
    */
-  create(categoryId?: string) {
+  create(categoryId?: string, name = "") {
     this.#closeBurst();
     const sphere = categoryId ?? this.spheres[0]?.id;
     if (!sphere) return null;
@@ -221,7 +221,7 @@ class ProjectsData {
       projects.create({
         goalId: null,
         categoryId: sphere,
-        name: "",
+        name,
         description: "",
         template: "simple",
         hoursPerWeek: 2,
@@ -233,7 +233,7 @@ class ProjectsData {
         unparkTrigger: null,
       }),
     );
-    this.focusId = created.id;
+    if (!name) this.focusId = created.id;
     invalidate.projects();
     return created;
   }

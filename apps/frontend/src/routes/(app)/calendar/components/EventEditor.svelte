@@ -864,7 +864,7 @@
 </AnchoredPopup>
 
 {#if projectRect}
-  <ProjectPicker rect={projectRect} value={purposeKey} onchoose={choosePurpose} onclose={() => (projectRect = null)} />
+  <ProjectPicker rect={projectRect} value={purposeKey} categoryId={category?.id} onchoose={choosePurpose} onclose={() => (projectRect = null)} />
 {/if}
 
 {#if pickerRect}

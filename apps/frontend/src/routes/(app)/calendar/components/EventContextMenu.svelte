@@ -99,6 +99,7 @@
 {#if projectRect}
   <ProjectPicker
     rect={projectRect}
+    categoryId={batch ? undefined : event.weights[0]?.categoryId}
     value={batch ? "" : event.projectId ? `project:${event.projectId}` : event.practiceId ? `practice:${event.practiceId}` : ""}
     onchoose={chooseProject}
     onclose={() => (projectRect = null)}
