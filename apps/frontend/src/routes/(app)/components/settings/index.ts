@@ -1,4 +1,3 @@
-export { default as ChoiceRow } from "./ChoiceRow.svelte";
 export { default as DesktopDownload } from "./DesktopDownload.svelte";
 export { default as DesktopUpdate } from "./DesktopUpdate.svelte";
 export { default as IntegrationsPane } from "./IntegrationsPane.svelte";
