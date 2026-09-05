@@ -33,5 +33,19 @@ export const getTravelTimes = (input: {
  * the grid — so they can never disagree about when to leave.
  */
 export function arrivalFor(start: string) {
-  return new Date(new Date(start).getTime() - preferences.travel.bufferMinutes * 60_000).toISOString();
+  return withOffset(new Date(new Date(start).getTime() - preferences.travel.bufferMinutes * 60_000));
+}
+
+/**
+ * The instant written with the device's own offset — "2026-09-06T18:00:00+02:00" — rather than
+ * as UTC. The Routes API reads either; the maps link the server builds needs the wall clock,
+ * because Google Maps takes an "arrive by" as local time, and a UTC instant put there arrives
+ * two hours early in Prague.
+ */
+export function withOffset(instant: Date) {
+  const offset = -instant.getTimezoneOffset();
+  const sign = offset < 0 ? "-" : "+";
+  const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
+  const local = new Date(instant.getTime() + offset * 60_000).toISOString().slice(0, 19);
+  return `${local}${sign}${pad(Math.trunc(offset / 60))}:${pad(offset % 60)}`;
 }

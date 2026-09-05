@@ -57,12 +57,33 @@ const CACHE_MAX = 500;
 
 const cache = new Map<string, { at: number; leg: TravelLeg | null }>();
 
+/** When a journey has to arrive, and the offset of the clock on the wall where it does. */
+export interface Arrival {
+  readonly at: Date;
+  /** Minutes east of UTC — what the maps link needs, since Maps reads "arrive by" as local time. */
+  readonly offsetMinutes: number;
+}
+
+/**
+ * "2026-09-06T18:00:00+02:00" as the client writes it, keeping the offset it carries: the instant
+ * is what Google is asked about, the offset is what the link it hands back is written in. A bare
+ * UTC instant is taken as it is, with a clock at UTC.
+ */
+export function parseArrival(value: string | undefined): Arrival | undefined {
+  if (!value) return undefined;
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return undefined;
+  const offset = /([+-])(\d\d):(\d\d)$/.exec(value);
+  const offsetMinutes = offset ? (offset[1] === "-" ? -1 : 1) * (Number(offset[2]) * 60 + Number(offset[3])) : 0;
+  return { at, offsetMinutes };
+}
+
 export async function travelTimes(input: {
   origin: string;
   destination: string;
   modes: readonly TravelMode[];
   /** When you need to be there. Only transit can be asked to work backwards from it. */
-  arriveBy?: Date;
+  arriveBy?: Arrival;
 }): Promise<TravelAnswer> {
   if (!input.origin.trim() || !input.destination.trim()) throw new ApiError("Both ends of the journey are needed");
 
@@ -79,12 +100,13 @@ const DATA_MODE: Record<TravelMode, number> = { drive: 0, bicycle: 1, walk: 2, t
  * Opened on "arrive by" when the journey has an arrival to make: the documented `?api=1` form
  * can't say when, so Maps would plan from the moment the link is tapped and get the timetable
  * wrong for anything later today. The `data=` form (`!6e1` arrive by, `!8j` when, `!3e` the
- * mode) is undocumented but has held for a decade; an arrival already gone is left out, because
- * Maps has nothing to say about a bus that has left.
+ * mode) is undocumented but has held for a decade, and reads its time as local rather than UTC;
+ * an arrival already gone is left out, because Maps has nothing to say about a bus that has left.
  */
-export function directionsUrl(origin: string, destination: string, mode: TravelMode, arriveBy?: Date) {
-  if (arriveBy && arriveBy.getTime() > Date.now()) {
-    const at = Math.round(arriveBy.getTime() / 1000);
+export function directionsUrl(origin: string, destination: string, mode: TravelMode, arriveBy?: Arrival) {
+  if (arriveBy && arriveBy.at.getTime() > Date.now()) {
+    // Maps reads the number as the wall clock, so the instant is shifted onto the local one.
+    const at = Math.round(arriveBy.at.getTime() / 1000) + arriveBy.offsetMinutes * 60;
     const path = [origin, destination].map((place) => encodeURIComponent(place).replace(/%20/g, "+")).join("/");
     return `https://www.google.com/maps/dir/${path}/data=!4m6!4m5!2m3!6e1!7e2!8j${at}!3e${DATA_MODE[mode]}`;
   }
@@ -101,10 +123,10 @@ async function leg(
   mode: TravelMode,
   origin: string,
   destination: string,
-  arriveBy: Date | undefined,
+  arriveBy: Arrival | undefined,
 ): Promise<TravelLeg | null> {
   // Rounded to the quarter hour: two reminders about the same 9am meeting are the same question.
-  const bucket = arriveBy ? Math.round(arriveBy.getTime() / (15 * 60_000)) : 0;
+  const bucket = arriveBy ? Math.round(arriveBy.at.getTime() / (15 * 60_000)) : 0;
   const key = `${mode}|${origin}|${destination}|${bucket}`;
 
   const hit = cache.get(key);
@@ -130,11 +152,11 @@ async function compute(
   mode: TravelMode,
   origin: string,
   destination: string,
-  arriveBy: Date | undefined,
+  arriveBy: Arrival | undefined,
 ): Promise<Omit<TravelLeg, "url"> | null> {
-  const first = await ask(mode, origin, destination, timing(mode, arriveBy));
+  const first = await ask(mode, origin, destination, timing(mode, arriveBy?.at));
   if (!first || mode !== "drive" || !arriveBy) return first;
-  const departAt = new Date(arriveBy.getTime() - first.seconds * 1000);
+  const departAt = new Date(arriveBy.at.getTime() - first.seconds * 1000);
   if (departAt.getTime() - Date.now() < TRAFFIC_HORIZON_MS) return first;
   const predicted = await ask(mode, origin, destination, {
     routingPreference: "TRAFFIC_AWARE",

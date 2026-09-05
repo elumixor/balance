@@ -3,7 +3,7 @@ import { setResponseHeader } from "h3";
 import { z } from "zod";
 import { handleApiError } from "../../../lib/api-error";
 import { getDbUserForRequest } from "../../../lib/current-user";
-import { TRAVEL_MODES, travelTimes } from "../../../lib/travel";
+import { parseArrival, TRAVEL_MODES, travelTimes } from "../../../lib/travel";
 
 /**
  * How long it takes to get to an event, the ways you'd consider going.
@@ -16,19 +16,18 @@ export default handler(
       origin: z.string().min(1),
       destination: z.string().min(1),
       modes: z.array(z.enum(TRAVEL_MODES)).min(1).max(TRAVEL_MODES.length),
-      /** The event's start, for the modes that can work backwards from it. */
-      arriveBy: z.string().optional(),
+      /** When to be there, written with the local offset — "2026-09-06T18:00:00+02:00". */
+      arriveBy: z.string().max(40).optional(),
     },
   },
   async ({ body, event }) => {
     await getDbUserForRequest(event);
     try {
-      const arriveBy = body.arriveBy ? new Date(body.arriveBy) : undefined;
       const answer = await travelTimes({
         origin: body.origin,
         destination: body.destination,
         modes: body.modes,
-        arriveBy: arriveBy && !Number.isNaN(arriveBy.getTime()) ? arriveBy : undefined,
+        arriveBy: parseArrival(body.arriveBy),
       });
       setResponseHeader(event, "cache-control", "private, max-age=300");
       return answer;
