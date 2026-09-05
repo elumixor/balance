@@ -9,7 +9,7 @@
    *
    * It answers the one question a suggestion list can't: is this the right one of the three
    * streets with that name. Google pins the address down — that is a lookup, remembered for the
-   * session — and the picture is OpenStreetMap's tiles under the pin, because a still map needs
+   * session — and the picture is CARTO's quiet grey tiles under the pin, because a still map needs
    * no library and no billing. Nothing at all when Google knows no such place. Tapping it opens
    * the place in Maps.
    */
@@ -106,8 +106,8 @@
 {/if}
 
 <style>
-  /* Tiles are drawn for daylight; in the dark they are dimmed rather than inverted, so the streets stay readable. */
+  /* Positron is drawn for daylight; in the dark it is dimmed rather than inverted, so the streets stay readable. */
   :global(html.dark) .map-tiles {
-    filter: brightness(0.8) saturate(0.85);
+    filter: brightness(0.75) contrast(1.05);
   }
 </style>

@@ -2,13 +2,18 @@
  * A still map, made of the tiles under a point.
  *
  * Google's static map wants billing the maps key doesn't have, and a map library is a lot of
- * machinery for a picture that never moves. OpenStreetMap's tiles are the same picture cut into
+ * machinery for a picture that never moves. A tile server's tiles are the same picture cut into
  * 256-pixel squares, so a preview is the few squares under the pin, each placed where the
  * mercator projection says it goes. Pure, so the arithmetic can be checked without a screen.
+ *
+ * The tiles are CARTO's Positron — OpenStreetMap's data drawn quiet and grey, the way Google
+ * draws its own — so a street under a pin is a street and not a paint chart. Spread over the
+ * three hosts CARTO offers, and at twice the pixels for the screens that can show them.
  */
 
 export const TILE_PX = 256;
-const TILE_URL = "https://tile.openstreetmap.org";
+const TILE_HOSTS = ["a", "b", "c"];
+const TILE_URL = (host: string) => `https://${host}.basemaps.cartocdn.com/light_all`;
 
 export interface Tile {
   readonly url: string;
@@ -44,8 +49,9 @@ export function tilesFor(input: {
       if (ty < 0 || ty >= count) continue;
       // The world wraps east–west, so a frame over the antimeridian borrows from the other edge.
       const column = ((tx % count) + count) % count;
+      const host = TILE_HOSTS[(column + ty) % TILE_HOSTS.length];
       tiles.push({
-        url: `${TILE_URL}/${input.zoom}/${column}/${ty}.png`,
+        url: `${TILE_URL(host)}/${input.zoom}/${column}/${ty}@2x.png`,
         left: tx * TILE_PX - originX,
         top: ty * TILE_PX - originY,
       });
