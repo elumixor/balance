@@ -82,6 +82,8 @@ function drawnWith(event: CalendarEvent, patch: EventPatch): CalendarEvent {
     ...(patch.start === undefined ? {} : { start: patch.start }),
     ...(patch.end === undefined ? {} : { end: patch.end }),
     ...(patch.reminders === undefined ? {} : { reminders: patch.reminders }),
+    // The rule shows on the card at once; the occurrences it makes or takes away land with the refetch.
+    ...(patch.recurrence === undefined ? {} : { recurrence: patch.recurrence.length ? [...patch.recurrence] : null }),
     ...(patch.conference === "remove" ? { conferenceUrl: null, conferenceName: null } : {}),
     ...(patch.attendees === undefined
       ? {}
