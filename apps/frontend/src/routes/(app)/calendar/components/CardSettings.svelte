@@ -125,10 +125,10 @@
           {@const shown = !folded.has(section.id)}
           <div class="flex items-center gap-2 px-2 py-1">
             <section.icon size={15} class="shrink-0 text-fg-faint" />
-            <span class="t-label flex-1 text-fg">Show {section.label.toLowerCase()}</span>
+            <span class="t-label flex-1 text-fg">{section.label}</span>
             <Switch
               checked={shown}
-              label="Show {section.label.toLowerCase()}"
+              label={section.label}
               onchange={(next) => ontoggle(section.id, next)}
             />
           </div>
