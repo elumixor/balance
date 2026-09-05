@@ -1,7 +1,7 @@
 <script lang="ts">
   import { CardRow, Dot } from "$lib/components";
   import type { EventAttendee, EventResponse } from "$lib/types";
-  import { Plus, Users, X } from "lucide-svelte";
+  import { Crown, Plus, Users, X } from "lucide-svelte";
   import type { Snippet } from "svelte";
 
   /**
@@ -113,8 +113,8 @@
       {#if organizer}
         <div class="flex items-center gap-2">
           <Dot color={RESPONSE_COLORS[organizer.response]} size={6} />
-          <span class="t-label truncate">{nameOf(organizer)}</span>
-          <span class="t-micro shrink-0 text-fg-faint">organizer</span>
+          <span class="t-label min-w-0 flex-1 truncate">{nameOf(organizer)}</span>
+          <span class="shrink-0 text-fg-faint" title="Organizer" aria-label="Organizer"><Crown size={12} /></span>
           {#if organizer.self && answer}{@render answer()}{/if}
         </div>
       {/if}

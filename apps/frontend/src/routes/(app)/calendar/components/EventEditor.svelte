@@ -846,7 +846,7 @@
             {#if answerable}
               <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
               <!-- One icon with the answer given; pointed at, it grows the other two, and the line never moves. -->
-              <span class="group/rsvp relative inline-block shrink-0 align-middle">
+              <span class="group/rsvp relative ml-auto inline-block shrink-0 align-middle">
                 <span class="chip-bare px-1 {event.response === 'needsAction' ? 'text-fg-faint' : ''}">
                   <said.icon size={12} />
                 </span>
