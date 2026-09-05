@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { hueOf, withAlpha, withHue } from "$lib/colors";
-  import { CategoryIcon, Popover } from "$lib/components";
-  import { iconFor, iconLabel, searchIcons } from "$lib/icons";
+  import { hueOf, withHue } from "$lib/colors";
+  import { CategoryIcon, IconGrid, Popover } from "$lib/components";
+  import { iconFor } from "$lib/icons";
   import { Slider } from "bits-ui";
 
   /**
@@ -32,22 +32,10 @@
   /** A chip is a tile around the glyph; bare is the glyph itself, at the size the ring drew it. */
   const box = $derived(size ?? (variant === "bare" ? 18 : 32));
 
-  let query = $state("");
-  const results = $derived(searchIcons(query));
-
   const hueTrack = `linear-gradient(to right, ${[0, 60, 120, 180, 240, 300, 360]
     .map((h) => withHue("#c4553b", h))
     .join(", ")})`;
 
-  /**
-   * The panel opens to a full grid — the search box is where you'd start typing anyway. It's
-   * unpositioned and invisible for its first frames though, and a field in that state can't take
-   * focus, so this waits for Popover to say the panel is actually placed and showing.
-   */
-  function autofocus(node: HTMLInputElement, shown: boolean) {
-    if (shown) node.focus({ preventScroll: true });
-    return { update: (shown: boolean) => shown && node.focus({ preventScroll: true }) };
-  }
 </script>
 
 <Popover width={268} align="start">
@@ -75,40 +63,7 @@
 
   {#snippet content(_close, shown)}
     <div class="flex flex-col gap-3 p-3">
-      <input
-        use:autofocus={shown}
-        bind:value={query}
-        placeholder="Search icons"
-        spellcheck="false"
-        autocomplete="off"
-        aria-label="Search icons"
-        class="field-boxed w-full shrink-0"
-      />
-
-      <!-- Tall enough to scan, short enough that the hue slider stays in view under it. -->
-      <div class="grid max-h-52 grid-cols-6 gap-1 overflow-y-auto">
-        {#each results as name (name)}
-          {@const Icon = iconFor(name)}
-          {@const selected = name === icon}
-          <button
-            type="button"
-            aria-label="Use the {iconLabel(name)} icon"
-            aria-pressed={selected}
-            onclick={() => onchange({ icon: name })}
-            class="press-sm flex size-9 items-center justify-center rounded-md transition-colors
-              {selected ? 'text-fg' : 'text-fg-muted hover:bg-fg/5'}"
-            style={selected
-              ? `background:${withAlpha(color, 0.18)};color:${color}`
-              : `opacity:${taken.includes(name) ? 0.35 : 1}`}
-          >
-            <Icon size={18} />
-          </button>
-        {/each}
-
-        {#if results.length === 0}
-          <p class="t-micro col-span-6 py-6 text-center text-fg-faint">No icon by that name.</p>
-        {/if}
-      </div>
+      <IconGrid {icon} {taken} {color} {shown} onpick={(name) => onchange({ icon: name })} />
 
       <div class="border-t border-line pt-3">
         <Slider.Root
