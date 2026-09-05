@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AnchoredPopup, Button, CardRow, CategoryIcon, CategoryPicker, Field, Popover, PopoverItem, Textarea } from "$lib/components";
+  import { AnchoredPopup, CardRow, CategoryIcon, CategoryPicker, Field, Popover, PopoverItem, Textarea } from "$lib/components";
   import { restColor } from "$lib/colors";
   import { openExternal } from "$lib/desktop/open";
   import { diagnostics } from "$lib/diagnostics.svelte";
@@ -63,6 +63,8 @@
   } = $props();
 
   const WIDTH = 380;
+  /** The quiet buttons on the top line, in the same type as the project beside them. */
+  const ACTION = "press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg";
   /** How long after the last keystroke the edit goes to the calendar. */
   const SAVE_DELAY_MS = 700;
 
@@ -636,6 +638,33 @@
         Add Project
       </button>
     {/if}
+    <!-- What can be done to it, in the same quiet type as the line it shares. -->
+    <div class="ml-auto flex shrink-0 items-center gap-0.5">
+      <!-- The assistant's seat at the table. What it does when pressed is the next thing to build. -->
+      <button type="button" title="Ask about this event" class={ACTION} onclick={() => undefined}>
+        <Sparkles size={13} />
+      </button>
+      {#if editable}
+        <button
+          type="button"
+          title="Delete event"
+          class={ACTION}
+          onclick={() => {
+            deleted = true;
+            if (timer) clearTimeout(timer);
+            void data.deleteEvent(event);
+          }}
+        >
+          <Trash2 size={13} />
+        </button>
+      {/if}
+      {#if !event.allDay}
+        <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
+      {/if}
+      <button type="button" title="Close" class={ACTION} onclick={close}>
+        <X size={13} />
+      </button>
+    </div>
   </div>
 
   <!-- Header: what it counts as and what it's called, beside the things you can do to it. -->
@@ -662,26 +691,6 @@
     {:else}
       <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
     {/if}
-    <!-- The assistant's seat at the table. What it does when pressed is the next thing to build. -->
-    <Button variant="bare" title="Ask about this event" onclick={() => undefined}>
-      {#snippet icon()}<Sparkles size={15} class="text-fg-muted" />{/snippet}
-    </Button>
-    {#if editable}
-      <Button
-        variant="bare"
-        title="Delete event"
-        onclick={() => {
-          deleted = true;
-          if (timer) clearTimeout(timer);
-          void data.deleteEvent(event);
-        }}
-      >
-        {#snippet icon()}<Trash2 size={15} class="text-fg-muted" />{/snippet}
-      </Button>
-    {/if}
-    <Button variant="bare" title="Close" onclick={close}>
-      {#snippet icon()}<X size={16} class="text-fg-muted" />{/snippet}
-    </Button>
   </div>
 
   <!-- When it runs. The clock owns the whole block, so the date sits under the times it belongs to. -->
@@ -875,17 +884,10 @@
   {/if}
 
   <!-- The foot: what's linked into it. -->
-  {#if !event.allDay || linked}
+  {#if linked}
+    {@const Section = linked.feed.section}
     <div class="border-t border-line px-2 py-1.5">
-      {#if !event.allDay}
-        <div class="flex justify-end">
-          <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
-        </div>
-      {/if}
-      {#if linked}
-        {@const Section = linked.feed.section}
-        <Section {event} />
-      {/if}
+      <Section {event} />
     </div>
   {/if}
 

@@ -42,12 +42,7 @@
 
 <Popover width={260} align="end">
   {#snippet trigger(open)}
-    <button
-      type="button"
-      onclick={open}
-      class="press-sm t-label flex items-center gap-1.5 rounded-md px-1 py-0.5 text-fg-faint hover:text-fg"
-    >
-      Integrations
+    <button type="button" title="Integrations" onclick={open} class="press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg">
       <Plug size={13} />
     </button>
   {/snippet}
