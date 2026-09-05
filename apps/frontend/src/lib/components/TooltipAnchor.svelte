@@ -1,13 +1,16 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { fly } from "svelte/transition";
+  import { layer } from "./float";
 
   /**
    * The positioning and timing a hover label needs, without an opinion on what it shows — `Tooltip`
    * is this plus a label-and-key bubble; a richer one composes this directly with its own bubble.
    *
    * Fixed rather than absolute: a caller that clips its own overflow (the rail, a row of rings)
-   * shouldn't also clip the label describing what's in it.
+   * shouldn't also clip the label describing what's in it. And moved to the body: the strip the
+   * rail sits in is a stacking context of its own, so a bubble left inside it stayed at the strip's
+   * level and went under the calendar's sticky gutter, whatever z-index it carried.
    */
   let {
     instant = false,
@@ -78,6 +81,7 @@
 {#if shown && position}
   <div
     bind:this={bubbleEl}
+    {@attach layer}
     role="tooltip"
     transition:fly={{ y: 4, duration: 110 }}
     style="left:{position.left}px;top:{position.top}px"
