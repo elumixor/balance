@@ -62,9 +62,7 @@ describe("searchZones", () => {
 
 describe("allZones and defaultZones", () => {
   it("restores the spaces in a city's name, and calls Kyiv what Kyiv calls itself", () => {
-    expect(allZones().find((z) => z.zone === "America/New_York")?.city).toBe(
-      "New York"
-    );
+    expect(allZones().find((z) => z.zone === "America/New_York")?.city).toBe("New York");
     expect(allZones().some((z) => z.zone === "Europe/Kiev")).toBe(false);
     expect(allZones().filter((z) => z.zone === "Europe/Kyiv")).toHaveLength(1);
   });
@@ -90,24 +88,16 @@ describe("offsetMinutes and shiftZone", () => {
 
   it("keeps the wall clock and moves the instant", () => {
     const nineInPrague = new Date("2026-01-15T08:00:00Z");
-    expect(
-      shiftZone(nineInPrague, "Europe/Prague", "Europe/Kyiv").toISOString()
-    ).toBe("2026-01-15T07:00:00.000Z");
-    expect(
-      shiftZone(nineInPrague, "Europe/Prague", "America/New_York").toISOString()
-    ).toBe("2026-01-15T14:00:00.000Z");
-    expect(shiftZone(nineInPrague, "Europe/Prague", "Europe/Prague")).toEqual(
-      nineInPrague
-    );
+    expect(shiftZone(nineInPrague, "Europe/Prague", "Europe/Kyiv").toISOString()).toBe("2026-01-15T07:00:00.000Z");
+    expect(shiftZone(nineInPrague, "Europe/Prague", "America/New_York").toISOString()).toBe("2026-01-15T14:00:00.000Z");
+    expect(shiftZone(nineInPrague, "Europe/Prague", "Europe/Prague")).toEqual(nineInPrague);
   });
 
   it("copes with a target zone whose clocks have moved by the answer", () => {
     // 23:30 on 28 March in London is 23:30 on the last night before British Summer Time;
     // the same wall clock in Kyiv, which moved that morning, is UTC+3 rather than +2.
     const late = new Date("2026-03-28T23:30:00Z");
-    expect(shiftZone(late, "Europe/London", "Europe/Kyiv").toISOString()).toBe(
-      "2026-03-28T21:30:00.000Z"
-    );
+    expect(shiftZone(late, "Europe/London", "Europe/Kyiv").toISOString()).toBe("2026-03-28T21:30:00.000Z");
   });
 });
 
@@ -119,9 +109,7 @@ describe("shortZoneName", () => {
   });
 
   it("falls back to the zone when the runtime formats it without naming it", () => {
-    const spy = vi
-      .spyOn(Intl.DateTimeFormat.prototype, "formatToParts")
-      .mockReturnValue([]);
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockReturnValue([]);
     try {
       expect(shortZoneName("Europe/Kyiv", summer)).toBe("Europe/Kyiv");
     } finally {

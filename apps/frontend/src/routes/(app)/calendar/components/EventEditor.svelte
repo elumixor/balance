@@ -571,12 +571,11 @@
 
 <AnchoredPopup {rect} width={WIDTH} dismiss={!nested} onclose={close}>
   <!--
-    The line above everything: the sphere, then what the hour was for. The icon beside the name is
-    the same answer as the sphere; the purpose is tagged from here, because tagging a grey block
-    after the fact is how a real week is reconciled and it should cost one tap.
+    The line above everything: what the hour was for. The sphere is the icon beside the name, so
+    it is not said twice; the purpose is tagged from here, because tagging a grey block after the
+    fact is how a real week is reconciled and it should cost one tap.
   -->
-  <div class="flex min-w-0 items-center gap-1.5 px-4 pt-2">
-    <span class="t-micro shrink-0 truncate text-fg-faint">{category?.name ?? "No sphere yet"}</span>
+  <div class="flex min-w-0 items-center gap-1.5 px-3 pt-2">
     {#if purpose}
       <span class="t-micro flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-fg-muted">
         <button
@@ -611,7 +610,7 @@
         class="press-sm t-micro shrink-0 rounded px-1 py-0.5 text-fg-faint hover:text-fg"
         onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
       >
-        + Project
+        Add Project
       </button>
     {/if}
   </div>

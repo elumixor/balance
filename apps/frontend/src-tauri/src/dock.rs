@@ -22,7 +22,8 @@ mod imp {
     pub fn set_icon(png: &[u8]) -> Result<(), String> {
         let mtm = MainThreadMarker::new().ok_or("the Dock can only be drawn on the main thread")?;
         let data = NSData::with_bytes(png);
-        let image = NSImage::initWithData(NSImage::alloc(), &data).ok_or("that isn't a readable image")?;
+        let image =
+            NSImage::initWithData(NSImage::alloc(), &data).ok_or("that isn't a readable image")?;
         image.setSize(NSSize::new(ICON_POINTS, ICON_POINTS));
         // Safe in practice — the binding is unsafe only because it can't prove nil is allowed.
         unsafe { NSApplication::sharedApplication(mtm).setApplicationIconImage(Some(&image)) };

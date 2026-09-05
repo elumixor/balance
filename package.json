@@ -6,7 +6,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "devkit dev",
+    "dev": "devkit dev:web",
     "build": "devkit build",
     "deploy": "devkit deploy",
     "test": "bun run --filter '*' test",
