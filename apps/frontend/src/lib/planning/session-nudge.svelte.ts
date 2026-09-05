@@ -2,7 +2,7 @@ import { clock } from "$lib/clock.svelte";
 import { preferences } from "$lib/preferences.svelte";
 import { planMode } from "./plan-mode.svelte";
 import { sessionData } from "./session-data.svelte";
-import { slotNow } from "./zone";
+import { minutesOf, slotNow } from "./zone";
 
 /**
  * Whether the app is owing you a sitting right now.
@@ -25,7 +25,7 @@ class SessionNudge {
   #asked = "";
 
   /** Which sitting it is, by the clock — the same question the session screen asks. */
-  readonly slot = $derived(slotNow(clock.now));
+  readonly slot = $derived(slotNow(clock.now, preferences.sessions.eveningTime));
 
   /**
    * The minute today's slot falls at, as minutes into the day, from the account's own preferences.
@@ -91,7 +91,7 @@ class SessionNudge {
   /** Re-asks when the slot has moved on since the last question. Cheap when it hasn't. */
   async check() {
     if (!this.#started) return;
-    const slot = slotNow();
+    const slot = this.slot;
     const key = `${slot}|${new Date().toDateString()}`;
     if (this.#asked === key) return;
     this.#asked = key;
@@ -107,9 +107,3 @@ class SessionNudge {
 }
 
 export const sessionNudge = new SessionNudge();
-
-/** "18:00" as minutes into the day; a time the server couldn't parse is treated as midnight. */
-function minutesOf(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
-}

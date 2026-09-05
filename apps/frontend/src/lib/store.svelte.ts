@@ -180,7 +180,7 @@ export function warmStore() {
 
 /**
  * Asks the server for everything again, keeping every row on screen while the answers come back.
- * What ⌘R does: a reload would throw away the session and redraw from the device's copy, which is
+ * What `r` (⌘R in the native shells) does: a reload would throw away the session and redraw from the device's copy, which is
  * exactly the thing the person pressing it has stopped trusting.
  */
 export function refreshStore() {

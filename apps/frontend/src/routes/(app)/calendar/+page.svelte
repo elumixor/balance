@@ -9,7 +9,7 @@
   import { goto } from "$app/navigation";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
-  import { slotNow } from "$lib/planning/zone";
+  import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { Menu } from "lucide-svelte";
   import { untrack } from "svelte";
   import { viewport } from "$lib/viewport.svelte";
@@ -36,7 +36,7 @@
     if (planMode.day === planning) return;
 
     void (async () => {
-      await sessionData.enter(slotNow());
+      await sessionData.enter(sessionNudge.slot);
       const summary = sessionData.summary;
       if (!summary || summary.target.day !== planning) return;
       planMode.day = planning;

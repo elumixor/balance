@@ -6,7 +6,7 @@
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { BalanceRing, DoneFan, DoneList } from "./components";
   import type { Slot } from "$lib/planning/types";
-  import { slotNow } from "$lib/planning/zone";
+  import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { goto } from "$app/navigation";
 
   /**
@@ -23,7 +23,7 @@
    */
   const data = sessionData;
 
-  const slot = $derived((page.url.searchParams.get("slot") as Slot | null) ?? slotNow());
+  const slot = $derived((page.url.searchParams.get("slot") as Slot | null) ?? sessionNudge.slot);
   const summary = $derived(data.summary);
   const week = $derived(summary?.week ?? null);
 

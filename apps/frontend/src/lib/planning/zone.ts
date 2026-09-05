@@ -35,12 +35,21 @@ export function nextDay(day: string) {
   return localDay(new Date(year, month - 1, date + 1));
 }
 
+/** "18:00" as minutes into the day; a time the server couldn't parse is treated as midnight. */
+export function minutesOf(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+}
+
 /**
- * Which sitting it is right now: the evening one from midday on, the morning one before it.
+ * Which sitting it is right now: the evening one from the evening sitting's own time on, the
+ * morning one before it.
  *
- * Only used when a session is opened by hand rather than from its own reminder, which carries the
- * slot it was scheduled for.
+ * The evening sitting looks back on today, so until the hour it is due the day it would describe
+ * is still happening — what is current before then is the morning's: yesterday reviewed, and
+ * today the day to plan. Only used when a session is opened by hand rather than from its own
+ * reminder, which carries the slot it was scheduled for.
  */
-export function slotNow(at: Date = new Date()): "evening" | "morning" {
-  return at.getHours() >= 12 ? "evening" : "morning";
+export function slotNow(at: Date, eveningTime: string): "evening" | "morning" {
+  return at.getHours() * 60 + at.getMinutes() >= minutesOf(eveningTime) ? "evening" : "morning";
 }

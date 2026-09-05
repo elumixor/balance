@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deviceTimeZone, localDay, nextDay, orUtc, slotNow } from "./zone";
+import { deviceTimeZone, localDay, minutesOf, nextDay, orUtc, slotNow } from "./zone";
 
 describe("localDay", () => {
   it("names the local day, not UTC's — late evening is still today", () => {
@@ -28,11 +28,28 @@ describe("nextDay", () => {
 });
 
 describe("slotNow", () => {
-  it("is the morning sitting before midday and the evening one after", () => {
-    expect(slotNow(new Date(2026, 7, 24, 8))).toBe("morning");
-    expect(slotNow(new Date(2026, 7, 24, 11, 59))).toBe("morning");
-    expect(slotNow(new Date(2026, 7, 24, 12))).toBe("evening");
-    expect(slotNow(new Date(2026, 7, 24, 23))).toBe("evening");
+  it("is the morning sitting until the evening one is due, and the evening one from then on", () => {
+    expect(slotNow(new Date(2026, 7, 24, 8), "18:00")).toBe("morning");
+    expect(slotNow(new Date(2026, 7, 24, 14, 31), "18:00")).toBe("morning");
+    expect(slotNow(new Date(2026, 7, 24, 17, 59), "18:00")).toBe("morning");
+    expect(slotNow(new Date(2026, 7, 24, 18), "18:00")).toBe("evening");
+    expect(slotNow(new Date(2026, 7, 24, 23), "18:00")).toBe("evening");
+  });
+
+  it("follows the account's own evening, not the clock's midday", () => {
+    expect(slotNow(new Date(2026, 7, 24, 21, 30), "21:30")).toBe("evening");
+    expect(slotNow(new Date(2026, 7, 24, 21, 29), "21:30")).toBe("morning");
+  });
+
+  it("treats an unreadable time as midnight", () => {
+    expect(slotNow(new Date(2026, 7, 24, 0, 0), "garbage")).toBe("evening");
+  });
+});
+
+describe("minutesOf", () => {
+  it("reads a clock time into minutes and an unreadable one as midnight", () => {
+    expect(minutesOf("18:30")).toBe(1110);
+    expect(minutesOf("x")).toBe(0);
   });
 });
 
