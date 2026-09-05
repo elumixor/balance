@@ -64,6 +64,13 @@
       "when": 1788427396424,
       "tag": "0008_integration_records",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788612597372,
+      "tag": "0009_mapping_hidden",
+      "breakpoints": true
     }
   ]
 }

@@ -168,6 +168,11 @@ export const eventMappings = pgTable(
      * draw. On a series mapping the link covers every occurrence.
      */
     source: text("source"),
+    /**
+     * The card sections folded away on this event, by id. Null means the card shows its
+     * default; a series mapping folds them on every occurrence.
+     */
+    hidden: jsonb("hidden").$type<string[]>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

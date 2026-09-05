@@ -25,6 +25,8 @@ export default handler(
         .regex(/^[a-z][a-z0-9-]{1,40}:[a-z][a-z0-9-]{1,40}$/)
         .nullable()
         .optional(),
+      /** The card sections folded away on it. Absent leaves it alone; null means the default. */
+      hidden: z.array(z.string().max(40)).max(20).nullable().optional(),
       /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
       timer: z
         .union([

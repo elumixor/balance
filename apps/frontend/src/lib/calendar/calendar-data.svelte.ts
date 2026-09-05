@@ -12,7 +12,7 @@ import {
   updateCalendarEvent,
 } from "$lib/queries";
 import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
-import { activities, practices, projects, synced } from "$lib/synced.svelte";
+import { activities, categories, practices, projects, synced } from "$lib/synced.svelte";
 import { type ActivityWeight, type CalendarEvent, type EventTimer, type MappingScope, NOT_A_MEETING } from "$lib/types";
 import { viewport } from "$lib/viewport.svelte";
 import type { HistoryStep } from "./history.svelte";
@@ -122,6 +122,8 @@ export interface Purpose {
   readonly timer: EventTimer | null;
   /** The integration feed it is linked to — "apple-health:sleep" — which is also on the mapping. */
   readonly source: string | null;
+  /** The card sections folded away on it; null means the default. */
+  readonly hidden: string[] | null;
 }
 
 const NO_PURPOSE: Purpose = {
@@ -130,6 +132,7 @@ const NO_PURPOSE: Purpose = {
   taskId: null,
   timer: null,
   source: null,
+  hidden: null,
 };
 
 /** What an event counts as, in the shape the mapping endpoints take. */
@@ -1007,9 +1010,12 @@ class CalendarData {
     const merged = mergePurpose(purposeOf(event), purpose);
     const existing = mappingOf(event);
     const scope: MappingScope = existing?.scope ?? (event.seriesId ? "series" : "instance");
+    // A block that counts as nothing is first made to count as the project's sphere, or as the
+    // buffer — the same place an hour nobody planned already lands — so the purpose has a row.
     const sphere =
       projects.all.find((p) => p.id === merged.projectId)?.categoryId ??
-      practices.all.find((p) => p.id === merged.practiceId)?.categoryId;
+      practices.all.find((p) => p.id === merged.practiceId)?.categoryId ??
+      categories.all.find((c) => c.isBuffer)?.id;
     const choice = existing?.choice ?? (sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null);
     if (!choice) return;
     await this.mapEvent(event, scope, choice, merged);
@@ -1909,6 +1915,7 @@ function purposeOf(event: CalendarEvent): Purpose {
     taskId: event.taskId,
     timer: event.timer,
     source: event.source,
+    hidden: event.hidden,
   };
 }
 
@@ -1922,6 +1929,7 @@ function mappingFieldsOf(was: CalendarEvent) {
     taskId: was.taskId ?? undefined,
     timer: was.timer ?? undefined,
     source: was.source ?? undefined,
+    hidden: was.hidden ?? undefined,
   };
 }
 

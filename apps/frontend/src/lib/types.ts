@@ -61,6 +61,8 @@ export interface CalendarEvent {
   timer: EventTimer | null;
   /** The integration feed it is linked to — "apple-health:sleep" — or null. */
   source: string | null;
+  /** The card sections folded away on this event, or null for the default. */
+  hidden: string[] | null;
   /** What that feed observed for this occurrence, in the feed's own shape; null until a device syncs. */
   record: Record<string, unknown> | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
@@ -97,6 +99,7 @@ export const NOT_A_MEETING = {
   taskId: null,
   timer: null,
   source: null,
+  hidden: null,
   record: null,
   location: null,
   conferenceUrl: null,
@@ -115,6 +118,7 @@ export const NOT_A_MEETING = {
   | "taskId"
   | "timer"
   | "source"
+  | "hidden"
   | "record"
   | "location"
   | "conferenceUrl"

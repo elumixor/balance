@@ -20,6 +20,8 @@ export interface MappingPurpose {
   readonly timer: EventTimer | null;
   /** The integration feed the event is linked to, or null. A series link covers every occurrence. */
   readonly source: string | null;
+  /** The card sections folded away on the event; null means the default. */
+  readonly hidden: string[] | null;
 }
 
 export interface MappingInput extends MappingKey, Partial<MappingPurpose> {
@@ -63,6 +65,7 @@ export class EventMappingService {
       taskId: input.taskId ?? null,
       timer: input.timer ?? null,
       source: input.source ?? null,
+      hidden: input.hidden ?? null,
     };
     const [mapping] = await db
       .insert(eventMappings)
@@ -84,6 +87,7 @@ export class EventMappingService {
           ...(input.taskId === undefined ? {} : { taskId: values.taskId }),
           ...(input.timer === undefined ? {} : { timer: values.timer }),
           ...(input.source === undefined ? {} : { source: values.source }),
+          ...(input.hidden === undefined ? {} : { hidden: values.hidden }),
         },
       })
       .returning();
@@ -143,6 +147,7 @@ export class EventMappingService {
     taskId: string | null;
     timer: EventTimer | null;
     source: string | null;
+    hidden: string[] | null;
     activity: { name: string; weights: { categoryId: string; weightPercent: number }[] } | null;
     weights: { categoryId: string; weightPercent: number }[];
   }): ResolvedMapping {
@@ -158,6 +163,7 @@ export class EventMappingService {
       taskId: row.taskId,
       timer: row.timer,
       source: row.source,
+      hidden: row.hidden,
       weights: weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
     };
   }

@@ -135,6 +135,8 @@ export const saveEventMapping = (input: {
   timer?: EventTimer | null;
   /** The integration feed it is linked to. Absent leaves it alone; null unlinks. */
   source?: string | null;
+  /** The card sections folded away on it. Absent leaves it alone; null means the default. */
+  hidden?: string[] | null;
 }) => callApi(api.calendar.mappings.$post(input)).then(unwrapOk);
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
   callApi(api.calendar.mappings.$delete(input)).then(unwrapOk);

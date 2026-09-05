@@ -329,6 +329,7 @@ export class CalendarEventsService {
               taskId: mapping.taskId,
               timer: mapping.timer,
               source: mapping.source,
+              hidden: mapping.hidden,
             }
           : null,
         weights: mapping?.weights ?? [],

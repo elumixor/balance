@@ -93,10 +93,18 @@
       ? (event.organizer.name ?? event.organizer.email ?? "the organizer")
       : null,
   );
+  /** What this card folds away: its own list once it has one, the account's default until then. */
+  const hidden = $derived(event.hidden ?? preferences.hiddenSections);
   const shown = $derived.by(() => {
-    const hidden = new Set(preferences.hiddenSections);
-    return (id: string) => !hidden.has(id);
+    const set = new Set(hidden);
+    return (id: string) => !set.has(id);
   });
+  function toggleSection(id: string, show: boolean) {
+    const next = new Set(hidden);
+    if (show) next.delete(id);
+    else next.add(id);
+    void data.tagEvent(event, { hidden: [...next] });
+  }
 
   // A repeating event always counts as the same thing on every occurrence — only a one-off event
   // gets an instance-scoped mapping.
@@ -432,7 +440,7 @@
       const guess = plannable.find((c) => c.name.toLowerCase().includes(word)) ?? plannable.find((c) => c.isBuffer);
       if (!guess) return;
       await data.mapEvent(target, targetScope, { weights: [{ categoryId: guess.id, weightPercent: 100 }] }, {
-        ...{ projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer },
+        ...{ projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer, hidden: event.hidden },
         source,
       });
     } else {
@@ -632,7 +640,14 @@
         </button>
       {/if}
       {#if !event.allDay}
-        <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
+        <CardSettings
+          sections={SECTIONS}
+          {hidden}
+          ontoggle={toggleSection}
+          source={event.source}
+          onlink={(source) => void link(source)}
+          onunlink={unlink}
+        />
       {/if}
       <button type="button" title="Close" class={ACTION} onclick={close}>
         <X size={13} />

@@ -11,8 +11,8 @@
 <script lang="ts">
   import { Popover, Switch } from "$lib/components";
   import { FEEDS, INTEGRATIONS, integrations } from "$lib/integrations/integrations.svelte";
-  import { preferences } from "$lib/preferences.svelte";
   import { settings } from "$lib/settings";
+  import { invalidate } from "$lib/store.svelte";
   import { Plug, RefreshCw, X } from "lucide-svelte";
 
   /**
@@ -21,17 +21,23 @@
    * One popover, two groups. The first is integrations: the feed linked to this block — a row
    * that opens the integration's settings, with a sync where this device can read it and a cross
    * to unlink — or the feeds that could be, each with a plug to connect the device and link in
-   * one go. The second is the card's own sections, each with a switch — folding away the
-   * rows you never fill is what keeps the card the size of what it says. Both are "what is on
-   * this card", which is why they are one place rather than two.
+   * one go. The second is the card's own sections, each with a switch — folding away the rows
+   * this event will never fill is what keeps the card the size of what it says, and it is this
+   * event's: a sleep block folds its call away, a meeting keeps it. Both are "what is on this
+   * card", which is why they are one place rather than two.
    */
   let {
     sections,
+    hidden,
+    ontoggle,
     source,
     onlink,
     onunlink,
   }: {
     sections: readonly CardSection[];
+    /** The section ids this card folds away. */
+    hidden: readonly string[];
+    ontoggle: (section: string, shown: boolean) => void;
     /** The feed this block is linked to — "apple-health:sleep" — or null. */
     source: string | null;
     onlink: (source: string) => void;
@@ -39,7 +45,7 @@
   } = $props();
 
   const linked = $derived(source ? (FEEDS.get(source) ?? null) : null);
-  const hidden = $derived(new Set(preferences.hiddenSections));
+  const folded = $derived(new Set(hidden));
 </script>
 
 <Popover width={260} align="end">
@@ -66,18 +72,17 @@
               <linked.integration.icon size={15} class="shrink-0 text-fg-muted" />
               <span class="t-label min-w-0 flex-1 truncate">{linked.integration.name} {linked.feed.label}</span>
             </button>
-            {#if linked.integration.available}
-              <button
-                type="button"
-                title="Sync now"
-                aria-label="Sync {linked.feed.label}"
-                disabled={status.syncing}
-                onclick={() => void integrations.sync(linked.integration, linked.feed)}
-                class="press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg"
-              >
-                <RefreshCw size={13} class={status.syncing ? "animate-spin" : ""} />
-              </button>
-            {/if}
+            <button
+              type="button"
+              title={linked.integration.available ? "Sync now" : "Fetch what the phone has recorded"}
+              aria-label="Sync {linked.feed.label}"
+              disabled={status.syncing}
+              onclick={() =>
+                linked.integration.available ? void integrations.sync(linked.integration, linked.feed) : invalidate.calendar()}
+              class="press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg"
+            >
+              <RefreshCw size={13} class={status.syncing ? "animate-spin" : ""} />
+            </button>
             <button
               type="button"
               title="Unlink"
@@ -117,14 +122,14 @@
 
       <div class="space-y-0.5 border-t border-line pt-2">
         {#each sections as section (section.id)}
-          {@const shown = !hidden.has(section.id)}
+          {@const shown = !folded.has(section.id)}
           <div class="flex items-center gap-2 px-2 py-1">
             <section.icon size={15} class="shrink-0 text-fg-faint" />
             <span class="t-label flex-1 text-fg">Show {section.label.toLowerCase()}</span>
             <Switch
               checked={shown}
               label="Show {section.label.toLowerCase()}"
-              onchange={(next) => preferences.toggleSection(section.id, next)}
+              onchange={(next) => ontoggle(section.id, next)}
             />
           </div>
         {/each}
