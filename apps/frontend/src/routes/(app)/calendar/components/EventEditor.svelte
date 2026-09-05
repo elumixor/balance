@@ -23,6 +23,7 @@
     Clock,
     Copy,
     FolderKanban,
+    HelpCircle,
     Repeat,
     Sparkles,
     Timer,
@@ -380,11 +381,13 @@
   }
 
   type Answer = Exclude<EventResponse, "needsAction">;
-  const RSVP: { value: Answer; label: string }[] = [
-    { value: "accepted", label: "Yes" },
-    { value: "tentative", label: "Maybe" },
-    { value: "declined", label: "No" },
+  const RSVP: { value: Answer; label: string; icon: typeof Check }[] = [
+    { value: "accepted", label: "Yes", icon: Check },
+    { value: "tentative", label: "Maybe", icon: HelpCircle },
+    { value: "declined", label: "No", icon: X },
   ];
+  /** The answer on the card: what was said, or the question while nothing has been. */
+  const said = $derived(RSVP.find((c) => c.value === event.response) ?? RSVP[1]);
   /** The answer currently on its way to the calendar, so the row can't be answered twice at once. */
   let answering = $state<Answer | null>(null);
   /**
@@ -856,22 +859,34 @@
           {#snippet answer()}
             {#if answerable}
               <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
-              <div class="flex items-center gap-1.5 pt-1">
-                {#each RSVP as choice (choice.value)}
-                  {@const chosen = event.response === choice.value}
-                  <button
-                    type="button"
-                    aria-pressed={chosen}
-                    disabled={answering !== null}
-                    class="press-sm t-label rounded-md px-2.5 py-1 {chosen
-                      ? 'bg-ink text-ink-fg'
-                      : 'bg-surface-alt text-fg-muted'}"
-                    onclick={() => void respond(choice.value)}
-                  >
-                    {choice.label}
-                  </button>
-                {/each}
-              </div>
+              <!-- One chip with the answer given; pointed at, it grows the other two, and the row never moves. -->
+              <span class="group/rsvp relative mt-1 inline-block align-baseline">
+                <span class="chip-bare t-label {event.response === 'needsAction' ? 'text-fg-muted' : ''}">
+                  <said.icon size={12} />
+                  {event.response === "needsAction" ? "Going?" : said.label}
+                </span>
+                <span
+                  class="chip-bare absolute top-0 left-0 z-10 h-full max-w-none gap-0.5 whitespace-nowrap opacity-0 transition-opacity group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
+                >
+                  {#each RSVP as choice (choice.value)}
+                    {@const chosen = event.response === choice.value}
+                    <button
+                      type="button"
+                      aria-pressed={chosen}
+                      aria-label={choice.label}
+                      title={choice.label}
+                      disabled={answering !== null}
+                      class="press-sm flex items-center gap-1 rounded px-1 py-0.5 {chosen
+                        ? 'bg-ink text-ink-fg'
+                        : 'text-fg-faint hover:text-fg'}"
+                      onclick={() => void respond(choice.value)}
+                    >
+                      <choice.icon size={12} />
+                      {#if chosen}{choice.label}{/if}
+                    </button>
+                  {/each}
+                </span>
+              </span>
             {/if}
           {/snippet}
         </ParticipantsRow>
