@@ -819,14 +819,14 @@ class CalendarData {
       event,
       e,
       armed: false,
-      longPress: !event.readOnly,
-      locked: event.readOnly,
+      longPress: event.movable,
+      locked: !event.movable,
       copy: e.altKey,
     });
   }
 
   beginResize(event: CalendarEvent, e: PointerEvent) {
-    if (event.readOnly) return;
+    if (!event.movable) return;
     if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     e.stopPropagation();
     // Not armed: a press on the band that never travels is a tap that opens the event, and the
@@ -836,7 +836,7 @@ class CalendarData {
 
   /** Same handle as `beginResize`, dragging the top edge — the end stays put, the start follows. */
   beginResizeStart(event: CalendarEvent, e: PointerEvent) {
-    if (event.readOnly) return;
+    if (!event.movable) return;
     if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
     e.stopPropagation();
     this.#arm({ kind: "resize-start", source: null, event, e, armed: false });
@@ -1465,6 +1465,7 @@ class CalendarData {
       declined: false,
       tentative: false,
       readOnly: false,
+      movable: true,
       countsTowardHours: true,
       url: null,
       mappingScope: source ? "instance" : null,
@@ -1730,9 +1731,9 @@ class CalendarData {
     }
 
     // Dragging one of the gathered blocks drags the lot: the others keep their distance from it,
-    // so a batch moves as the shape it already was. Anything read-only can't come along.
+    // so a batch moves as the shape it already was. Anything that can't be moved stays put.
     const others = this.picked.has(pending.event.id)
-      ? this.pickedEvents.filter((event) => event.id !== pending.event?.id && !event.readOnly && !event.allDay)
+      ? this.pickedEvents.filter((event) => event.id !== pending.event?.id && event.movable && !event.allDay)
       : [];
 
     this.drag = {

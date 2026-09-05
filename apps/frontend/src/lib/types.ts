@@ -38,7 +38,14 @@ export interface CalendarEvent {
   allDay: boolean;
   declined: boolean;
   tentative: boolean;
+  /** The calendar itself can't be written — the account only reads it. */
   readOnly: boolean;
+  /**
+   * Whether its time, shape and words can be changed from here. False on a read-only calendar,
+   * on an invitation whose organizer hasn't let guests modify it, and on an event Google made
+   * out of a Gmail message. Answering, reminders and the app's own mapping still work.
+   */
+  movable: boolean;
   /** All-day and declined events are drawn and mappable, but move no category's total. */
   countsTowardHours: boolean;
   url: string | null;

@@ -40,7 +40,14 @@ export interface ExternalEvent {
   readonly status: EventStatus;
   /** null when the user isn't an attendee, which is the normal case for their own events. */
   readonly selfResponse: SelfResponse | null;
+  /** The calendar itself can't be written — the account only reads it. */
   readonly readOnly: boolean;
+  /**
+   * Whether its time, shape and words can be changed from here. False on a read-only calendar,
+   * on an invitation whose organizer hasn't let guests modify it, and on an event Google made
+   * out of a Gmail message. Answering the invitation and the app's own mapping still work.
+   */
+  readonly movable: boolean;
   readonly url: string | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
   readonly location: string | null;

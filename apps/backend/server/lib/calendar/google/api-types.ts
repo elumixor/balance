@@ -43,6 +43,8 @@ export interface GoogleEvent {
   end: GoogleEventDateTime;
   recurringEventId?: string;
   eventType?: string;
+  /** Whether guests other than the organizer may change the event. Absent means no. */
+  guestsCanModify?: boolean;
   htmlLink?: string;
   hangoutLink?: string;
   conferenceData?: GoogleConferenceData;

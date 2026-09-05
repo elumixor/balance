@@ -20,7 +20,7 @@
   /** A right-click on one of the gathered blocks acts on the whole batch, not just the one under it. */
   const targets = $derived(data.picked.has(event.id) && data.picked.size > 1 ? data.pickedEvents : [event]);
   const batch = $derived(targets.length > 1);
-  const deletable = $derived(targets.every((e) => !e.readOnly && !e.allDay));
+  const deletable = $derived(targets.every((e) => e.movable && !e.allDay));
   const plannable = $derived(categories);
 
   let categoryRect = $state<DOMRect | null>(null);

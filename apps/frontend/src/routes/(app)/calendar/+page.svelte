@@ -65,7 +65,7 @@
     // Delete takes the gathered blocks off the week, or — with none gathered — the open one.
     if ((e.key === "Delete" || e.key === "Backspace") && !typing) {
       const targets = (data.picked.size > 0 ? data.pickedEvents : data.selected ? [data.selected] : []).filter(
-        (event) => !event.readOnly && !event.allDay,
+        (event) => event.movable && !event.allDay,
       );
       if (!targets.length) return;
       e.preventDefault();

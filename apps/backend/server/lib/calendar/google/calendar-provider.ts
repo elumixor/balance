@@ -53,13 +53,27 @@ const RATE_LIMIT_RETRY_MS = 500;
 
 /** Google's own noise: neither belongs on a time grid, and both arrive as all-day events. */
 const IGNORED_EVENT_TYPES = new Set(["workingLocation", "birthday"]);
+/** Google writes these itself from a message, and refuses to let anyone else change them. */
+const UNCHANGEABLE_EVENT_TYPES = new Set(["fromGmail"]);
+
+/**
+ * Whether Google would take a change to the event's time, title or guest list. An invitation is
+ * the organizer's to change: a PATCH from anyone else answers 403 `forbiddenForNonOrganizer`
+ * unless the organizer opened it up with `guestsCanModify`. `organizer.self` is Google's word for
+ * "the organizer is this calendar", which is true of everything the user made themselves.
+ */
+function canBeChanged(event: GoogleEvent): boolean {
+  if (UNCHANGEABLE_EVENT_TYPES.has(event.eventType ?? "")) return false;
+  if (!event.organizer || event.organizer.self === true) return true;
+  return event.guestsCanModify === true;
+}
 
 /**
  * Everything the app reads off an event, asked for by name. Google returns the whole event
  * otherwise, and a week of them is a lot of JSON for fields nothing draws.
  */
 const ITEM_FIELDS =
-  "id,status,summary,description,location,start,end,recurringEventId,recurrence,eventType,htmlLink,hangoutLink," +
+  "id,status,summary,description,location,start,end,recurringEventId,recurrence,eventType,guestsCanModify,htmlLink,hangoutLink," +
   "conferenceData(entryPoints(entryPointType,uri,label,meetingCode),conferenceSolution(name,key/type))," +
   "organizer(email,displayName,self),attendees(email,displayName,self,organizer,optional,resource,responseStatus)," +
   "reminders(useDefault,overrides(method,minutes))";
@@ -263,6 +277,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       status: event.status,
       selfResponse: (self?.responseStatus as SelfResponse | undefined) ?? null,
       readOnly,
+      movable: !readOnly && canBeChanged(event),
       url: event.htmlLink ?? null,
       location: event.location ?? null,
       conferenceUrl: conferenceUrl(event),
@@ -350,6 +365,14 @@ export class GoogleCalendarProvider implements CalendarProvider {
       return this.request<T>(path, { ...options, retried: true });
     }
     if (response.status === 404) throw new ApiError("That event no longer exists in Google Calendar", 404);
+    // The screens hide the handles on an event that can't be changed, so this is the answer to a
+    // stale week — the organizer closed it since the last read — said in words rather than a 502.
+    if (response.status === 403 && reason === "forbiddenForNonOrganizer") {
+      throw new ApiError("Only the organizer can change that event", 409);
+    }
+    if (response.status === 403 && reason === "requiredAccessLevel") {
+      throw new ApiError("You can only read that calendar, so its events can't be changed", 409);
+    }
 
     throw new ApiError(`Google Calendar said: ${body.error?.message ?? response.statusText}`, 502);
   }

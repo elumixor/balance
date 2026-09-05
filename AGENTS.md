@@ -59,6 +59,13 @@ expired" are states the screens render, returned as 200 with `connected` / `need
 a 401, which the frontend reads as a dead Clerk session and bounces to sign-in. And every write
 must call `eventCache.invalidate(userId)`, or the next read is served a 30-second-old memo.
 
+An event also says whether it can be changed at all. `readOnly` is the calendar's access role;
+`movable` folds in the event's own answer — an invitation is the organizer's to move unless they
+set `guestsCanModify`, and Google's own `fromGmail` events take no changes — and is what the drag
+handles, the resize bands, delete and the card's fields read. Answering, reminders and the app's
+own mapping stay open on an event that can't move, and a 403 `forbiddenForNonOrganizer` from a
+stale week comes back as a 409 in words.
+
 ## Writes go through one queue
 
 `@elumixor/synced` owns every write to the app's own records — categories and activities today.

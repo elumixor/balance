@@ -81,7 +81,18 @@
 
   const data = calendarData;
   const plannable = $derived(categories);
-  const editable = $derived(!event.readOnly && !event.allDay);
+  const editable = $derived(event.movable && !event.allDay);
+  /**
+   * Reminders live on your own copy of an event, so an invitation you can't move still takes
+   * them — only a calendar you can't write to at all refuses.
+   */
+  const remindable = $derived(!event.readOnly && !event.allDay);
+  /** Why the card is closed to edits, when there is somebody to name. */
+  const heldBy = $derived(
+    !event.movable && !event.readOnly && event.organizer && !event.organizer.self
+      ? (event.organizer.name ?? event.organizer.email ?? "the organizer")
+      : null,
+  );
   const shown = $derived.by(() => {
     const hidden = new Set(preferences.hiddenSections);
     return (id: string) => !hidden.has(id);
@@ -618,7 +629,7 @@
         <CardRow icon={Folder} set>
           <span class="chip-bare t-label min-w-0">
             <span class="truncate">{purpose}</span>
-            {#if editable && !detaching}
+            {#if !detaching}
               <button
                 type="button"
                 aria-label="Detach from {purpose}"
@@ -722,12 +733,15 @@
         </button>
       {/if}
     </CardRow>
+    {#if heldBy}
+      <p class="t-micro px-2 pt-1 text-fg-faint">Only {heldBy} can move this.</p>
+    {/if}
   </div>
 
   <!-- How you'll be told: the calendar's own reminders, and the rhythm a timer runs at. -->
   {#if !event.allDay}
     <div class="border-t border-line px-2 py-1.5">
-      <RemindersRow reminders={event.reminders} {editable} onchange={chooseReminders} />
+      <RemindersRow reminders={event.reminders} editable={remindable} onchange={chooseReminders} />
       {#if shown("timer") && category}
         <Popover width={200} align="start">
           {#snippet trigger(open)}

@@ -84,6 +84,8 @@ export class CalendarEventDTO {
   readonly declined: boolean;
   readonly tentative: boolean;
   readonly readOnly: boolean;
+  /** Whether its time, shape and words can be changed from here — see `ExternalEvent.movable`. */
+  readonly movable: boolean;
   readonly countsTowardHours: boolean;
   readonly url: string | null;
   readonly mappingScope: MappingScope | null;
@@ -126,6 +128,7 @@ export class CalendarEventDTO {
     this.declined = e.selfResponse === "declined";
     this.tentative = e.status === "tentative" || e.selfResponse === "tentative";
     this.readOnly = e.readOnly;
+    this.movable = e.movable;
     this.countsTowardHours = e.countsTowardHours;
     this.url = e.url;
     this.mappingScope = e.mapping?.scope ?? null;

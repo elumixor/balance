@@ -4,9 +4,8 @@ import { categories, trackingSessions } from "../../db/schema";
 import { ApiError } from "../api-error";
 import { ProviderNeedsReconnectError, ProviderNotConnectedError } from "../calendar/errors";
 import { eventCache } from "../calendar/event-cache";
-import { CalendarEventsService, qualifyCalendarId } from "../calendar/events-service";
+import { CalendarEventsService, qualifyCalendarId, type ResolvedEvent } from "../calendar/events-service";
 import { EventMappingService } from "../calendar/mappings-service";
-import { type ResolvedEvent } from "../calendar/events-service";
 import { NEAR_START_MINUTES, rankMatches } from "./match";
 
 /** How long an open-ended session provisionally claims, so its event isn't zero-length. */
@@ -296,7 +295,7 @@ export class TrackingSessionsService {
 
   /** An event nobody else is on, and that the calendar lets us write — the only kind re-timed. */
   private isOwn(event: ResolvedEvent): boolean {
-    return !event.readOnly && event.attendees.every((a) => a.self || a.resource);
+    return event.movable && event.attendees.every((a) => a.self || a.resource);
   }
 
   /** Re-plans how long the running session plans to run, measured from when it started. */

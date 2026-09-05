@@ -353,6 +353,7 @@
       declined: false,
       tentative: false,
       readOnly: true,
+      movable: false,
       countsTowardHours: true,
       url: null,
       mappingScope: null,
@@ -821,7 +822,7 @@
                   flatTop={segment.continuesBefore}
                   flatBottom={segment.continuesAfter}
                 />
-                {#if bands.band > 0 && !segment.event.readOnly && !segment.continuesAfter}
+                {#if bands.band > 0 && segment.event.movable && !segment.continuesAfter}
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <span
@@ -833,7 +834,7 @@
                     onpointercancel={() => data.endDrag()}
                   ></span>
                 {/if}
-                {#if bands.band > 0 && !segment.event.readOnly && !segment.continuesBefore}
+                {#if bands.band > 0 && segment.event.movable && !segment.continuesBefore}
                   <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
                   <span

@@ -55,6 +55,7 @@ function event(id: string, start: Date, end: Date): CalendarEvent {
     declined: false,
     tentative: false,
     readOnly: false,
+    movable: true,
     countsTowardHours: true,
     url: null,
     mappingScope: null,

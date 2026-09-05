@@ -15,6 +15,7 @@ function event(partial: Partial<CalendarEvent> & { start: string; end: string })
     declined: false,
     tentative: false,
     readOnly: false,
+    movable: true,
     countsTowardHours: true,
     url: null,
     mappingScope: "instance",
