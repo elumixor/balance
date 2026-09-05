@@ -15,8 +15,8 @@ export default handler(
       latitude: z.number().min(-90).max(90),
       longitude: z.number().min(-180).max(180),
       /** The size the map is drawn at, in CSS pixels; it comes back at twice that. */
-      width: z.number().int().min(80).max(640).default(320),
-      height: z.number().int().min(60).max(400).default(140),
+      width: z.number().int().min(80).max(320).default(320),
+      height: z.number().int().min(60).max(320).default(140),
       /** Painted for the app's dark ground rather than dimmed after the fact. */
       dark: z.boolean().default(false),
     },

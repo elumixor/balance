@@ -206,8 +206,10 @@ export async function staticMap(input: {
     center: `${input.latitude},${input.longitude}`,
     // Close enough that the streets are named: a district is not an answer to "which one".
     zoom: "16",
-    size: `${input.width}x${input.height}`,
-    scale: "2",
+    // Twice the pixels asked for at scale 1 rather than scale 2: the same picture on a retina
+    // screen, but Google's logo and notice are drawn at a single pixel scale and take half the room.
+    size: `${input.width * 2}x${input.height * 2}`,
+    scale: "1",
     key: env.GOOGLE_MAPS_API_KEY,
   });
   for (const rule of input.dark ? STYLE_DARK : STYLE_LIGHT) params.append("style", rule);

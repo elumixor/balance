@@ -22,12 +22,12 @@
   class="flex w-full items-center gap-0.5 rounded-xl border border-line bg-surface py-1.5 pr-1.5 pl-2
     shadow-(--shadow-float)"
 >
-  <button type="button" class="press-sm flex min-w-0 flex-1 items-center gap-2.5 text-left" onclick={open}>
+  <button type="button" class="press-sm flex min-w-0 flex-1 items-center gap-2 text-left" onclick={open}>
     <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-alt text-fg">
       <Sunrise size={16} />
     </span>
-    <span class="t-label min-w-0 flex-1 truncate text-fg">Plan {sessionNudge.subject}</span>
-    {#if stars > 0}<StarCount value={stars} size={11} class="shrink-0" />{/if}
+    <span class="t-label min-w-0 truncate text-fg">Plan {sessionNudge.subject}</span>
+    {#if stars > 0}<StarCount value={stars} size={14} class="shrink-0" />{/if}
   </button>
   <button
     type="button"
