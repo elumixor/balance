@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { AddressField, Field, Popover, PopoverItem } from "$lib/components";
+  import { AddressField, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
+  import { iconFor, PLACE_ICON } from "$lib/icons";
+  import type { PlaceDetails } from "$lib/places";
   import { preferences } from "$lib/preferences.svelte";
   import { type OriginChoice, HERE, travelOrigin } from "$lib/travel-origin.svelte";
-  import { LocateFixed, MapPin, Plus } from "lucide-svelte";
+  import { LocateFixed, Plus } from "lucide-svelte";
 
   /**
    * Where this event's journey starts.
@@ -24,6 +26,8 @@
   let adding = $state(false);
   let address = $state("");
   let name = $state("");
+  /** Google's own pin for the address, once the map has looked it up. */
+  let pinned = $state<PlaceDetails | null>(null);
 
   function select(next: OriginChoice, close: () => void) {
     travelOrigin.choose(eventId, next);
@@ -34,12 +38,20 @@
     adding = true;
     address = "";
     name = "";
+    pinned = null;
   }
 
   /** Added and chosen in one gesture: the place was named in order to leave from it. */
   function saveAdded(close: () => void) {
     if (!name.trim() || !address.trim()) return;
-    const id = preferences.addLocation({ label: name, address });
+    const pin = pinned && pinned.address === address.trim() ? pinned : null;
+    const id = preferences.addLocation({
+      label: name,
+      address,
+      placeId: pin?.placeId ?? null,
+      latitude: pin?.latitude,
+      longitude: pin?.longitude,
+    });
     travelOrigin.choose(eventId, { kind: "saved", id });
     adding = false;
     close();
@@ -57,7 +69,8 @@
       {#if choice.kind === "here"}
         <LocateFixed size={13} class="text-fg-muted" />
       {:else}
-        <MapPin size={13} class="text-fg-muted" />
+        {@const Chosen = iconFor(preferences.location(choice.id)?.icon ?? PLACE_ICON)}
+        <Chosen size={13} class="text-fg-muted" />
       {/if}
       <span class="t-micro text-fg-muted">from {label}</span>
     </button>
@@ -74,6 +87,13 @@
             if (!name.trim()) name = suggestion.name;
           }}
           oncommit={() => saveAdded(close)}
+        />
+        <MapPreview
+          {address}
+          onplace={(place) => {
+            if (place.address) address = place.address;
+            pinned = place;
+          }}
         />
         <Field bind:value={name} placeholder="Home, Office" ariaLabel="Name of this place" autocapitalize="sentences" />
         <div class="flex items-center gap-2">
@@ -100,12 +120,13 @@
         {#snippet icon()}<LocateFixed size={15} class="text-fg-muted" />{/snippet}
       </PopoverItem>
       {#each locations as location (location.id)}
+        {@const Glyph = iconFor(location.icon ?? PLACE_ICON)}
         <PopoverItem
           label={location.label}
           selected={choice.kind === "saved" && choice.id === location.id}
           onclick={() => select({ kind: "saved", id: location.id }, close)}
         >
-          {#snippet icon()}<MapPin size={15} class="text-fg-muted" />{/snippet}
+          {#snippet icon()}<Glyph size={15} class="text-fg-muted" />{/snippet}
         </PopoverItem>
       {/each}
       <PopoverItem label="Add a place" onclick={startAdding}>

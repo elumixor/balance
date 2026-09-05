@@ -24,6 +24,9 @@
   import { preferences } from "$lib/preferences.svelte";
   import { deviceTimeZone } from "$lib/planning/zone";
   import { offsetMinutes, shortZoneName } from "$lib/time-zones";
+  import { travelTimes } from "$lib/travel-times.svelte";
+  import { eventCategory } from "$lib/calendar/event-category";
+  import { restColor, withAlpha } from "$lib/colors";
   import {
     allDaySpansForRange,
     BLOCK_GUTTER_PX,
@@ -197,6 +200,37 @@
    * fading each of those in is what made the week look like it was refetching itself.
    */
   const seen = new Set<string>();
+
+  /**
+   * The journeys to the events on screen are asked about here, once per event, so the band above a
+   * block — the time it takes to get there — is drawn without opening the card. Only the columns
+   * the window is over: the runway either side would be requests for a week nobody is looking at.
+   */
+  $effect(() => {
+    for (let index = liveDayOffset; index < liveDayOffset + VISIBLE_DAYS; index++) {
+      for (const segment of placedByDay[index] ?? []) {
+        if (!segment.continuesBefore) travelTimes.ensure(segment.event);
+      }
+    }
+  });
+
+  /**
+   * The band drawn above a block for the journey to it: from when you'd have to leave to when the
+   * block starts, in the block's own colour but faint and dashed, so it reads as time that is
+   * spoken for without being an event. A journey that would start before the column does is cut
+   * at midnight rather than drawn into yesterday's column.
+   */
+  function travelBand(segment: PlacedSegment) {
+    if (segment.continuesBefore) return null;
+    const journey = travelTimes.journeyFor(segment.event);
+    if (!journey) return null;
+    const minutes = journey.seconds / 60 + preferences.travel.bufferMinutes;
+    const top = Math.max(0, segment.top - (minutes / 60) * hourPx);
+    const height = segment.top - top;
+    if (height < 2) return null;
+    const color = eventCategory(segment.event, categories)?.color ?? restColor;
+    return { top, height, color };
+  }
 
   /**
    * A column's blocks. The runway — the days built ahead of the window so a fling has something to
@@ -803,6 +837,16 @@
               <!-- Resize bands sized off the drawn height, so the two can never meet and never eat
                    the middle, which is what opens the event. -->
               {@const bands = resizeBands(segment.height, isSelected)}
+              {@const travel = travelBand(segment)}
+              {#if travel && !dragging}
+                <div
+                  class="pointer-events-none absolute rounded-md border border-dashed"
+                  style="top:{travel.top}px;height:{travel.height}px;left:{segment.left}px;width:{segment.width}px;z-index:{segment.depth};border-color:{withAlpha(
+                    travel.color,
+                    0.55,
+                  )};background:{withAlpha(travel.color, 0.1)}"
+                ></div>
+              {/if}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div

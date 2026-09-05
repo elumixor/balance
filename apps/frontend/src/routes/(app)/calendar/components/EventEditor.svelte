@@ -853,10 +853,9 @@
       {/if}
       {#if shown("location")}
         <LocationRow
-          eventId={event.id}
+          {event}
           location={meeting.location ?? event.location}
           {travelTo}
-          arriveBy={event.start}
           {editable}
           onchange={chooseLocation}
           onopen={(url) => void open(url)}

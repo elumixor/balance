@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { AddressField, CardRow } from "$lib/components";
+  import { AddressField, CardRow, MapPreview } from "$lib/components";
+  import type { CalendarEvent } from "$lib/types";
   import { MapPin, X } from "lucide-svelte";
   import OriginPicker from "./OriginPicker.svelte";
   import TravelChips from "./TravelChips.svelte";
@@ -10,23 +11,23 @@
    * right in place rather than by clearing and starting again.
    */
   let {
-    eventId,
+    event,
     location,
     travelTo,
-    arriveBy,
     editable,
     onchange,
     onopen,
   }: {
-    eventId: string;
+    event: CalendarEvent;
     location: string | null;
     /** The address journeys are worked out to, or null when the location is a room or a link. */
     travelTo: string | null;
-    arriveBy: string;
     editable: boolean;
     onchange: (location: string) => void;
     onopen: (url: string) => void;
   } = $props();
+
+  const eventId = $derived(event.id);
 
   let editing = $state(false);
   let draft = $state("");
@@ -76,9 +77,10 @@
         {/if}
       </div>
       {#if travelTo}
+        <MapPreview address={travelTo} {onopen} />
         <div class="flex flex-wrap items-center gap-2">
           <OriginPicker {eventId} />
-          <TravelChips {eventId} destination={travelTo} {arriveBy} {onopen} />
+          <TravelChips {event} {onopen} />
         </div>
       {/if}
     </div>

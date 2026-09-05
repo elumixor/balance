@@ -555,6 +555,9 @@ export const iconNames = Object.keys(categoryIcons);
 
 export const DEFAULT_ICON = "circle";
 
+/** What a saved place wears in every list it appears in, until somebody picks it something else. */
+export const PLACE_ICON = "map-pin";
+
 /** An unknown name (an older client's icon, a hand-edited row) still draws as something. */
 export const iconFor = (name: string | undefined): IconComponent => categoryIcons[name ?? ""] ?? Circle;
 

@@ -1,10 +1,7 @@
 <script lang="ts">
-  import { iconFor } from "$lib/icons";
+  import { iconFor, PLACE_ICON } from "$lib/icons";
   import IconGrid from "./IconGrid.svelte";
   import Popover from "./Popover.svelte";
-
-  /** What a saved place wears in every list it appears in: a pin until somebody says otherwise. */
-  export const PLACE_ICON = "map-pin";
 
   let {
     icon,

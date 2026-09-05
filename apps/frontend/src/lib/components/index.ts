@@ -20,7 +20,7 @@ export { default as Field } from "./Field.svelte";
 export { default as IconGrid } from "./IconGrid.svelte";
 export { default as MapPreview } from "./MapPreview.svelte";
 export { default as NumberField } from "./NumberField.svelte";
-export { default as PlaceIconPicker, PLACE_ICON } from "./PlaceIconPicker.svelte";
+export { default as PlaceIconPicker } from "./PlaceIconPicker.svelte";
 export { default as Popover } from "./Popover.svelte";
 export { default as PopoverItem } from "./PopoverItem.svelte";
 export { default as ProgressBar } from "./ProgressBar.svelte";
