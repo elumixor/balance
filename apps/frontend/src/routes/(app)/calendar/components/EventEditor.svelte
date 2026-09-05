@@ -385,11 +385,10 @@
   ];
   /** The answer on the card: what was said, or the question while nothing has been. */
   const said = $derived(RSVP.find((c) => c.value === event.response) ?? RSVP[1]);
-  /**
-   * The chip sits on the card's right edge, and the card clips what leaves it, so the choices
-   * have to open leftward — with the answer already given kept last, exactly where it rested.
-   */
-  const choices = $derived([...RSVP.filter((c) => c !== said), said]);
+  /** One icon and its padding, in px, so the open row can slide to put the answer over the closed one. */
+  const RSVP_SLOT = 18;
+  /** How far left the open row sits, so the icon already chosen lands exactly where it rested. */
+  const rsvpShift = $derived(-RSVP.indexOf(said) * RSVP_SLOT);
   /**
    * An all-day invitation is still an invitation, so this isn't `editable` — but a calendar you
    * only have read access to won't take an answer either, and offering one would only fail.
@@ -850,15 +849,16 @@
           {#snippet answer()}
             {#if answerable}
               <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
-              <!-- One icon with the answer given; pointed at, the other two open beside it and it stays put. -->
+              <!-- One icon with the answer given; pointed at, the whole row opens over it, slid so the given answer stays put. -->
               <span class="group/rsvp relative ml-auto inline-block shrink-0 align-middle">
                 <span class="chip-bare px-1 {event.response === 'needsAction' ? 'text-fg-faint' : ''}">
                   <said.icon size={12} />
                 </span>
                 <span
-                  class="chip-bare absolute top-0 right-0 z-10 h-full max-w-none gap-0.5 px-1 whitespace-nowrap opacity-0 transition-opacity group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
+                  class="chip-bare absolute top-0 left-0 z-10 h-full max-w-none gap-0.5 px-1 whitespace-nowrap opacity-0 transition-[opacity,translate] duration-150 group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
+                  style="translate:{rsvpShift}px 0"
                 >
-                  {#each choices as choice (choice.value)}
+                  {#each RSVP as choice (choice.value)}
                     {@const chosen = event.response === choice.value}
                     <button
                       type="button"
