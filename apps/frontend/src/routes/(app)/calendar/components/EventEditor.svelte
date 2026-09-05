@@ -6,7 +6,7 @@
   import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
   import { DEFAULT_ICON } from "$lib/icons";
   import { FEEDS, integrations } from "$lib/integrations/integrations.svelte";
-  import { asGoogleAccount, hasAddress, meetingOf } from "$lib/meeting";
+  import { asGoogleAccount, hasAddress, meetingOf, partsOf } from "$lib/meeting";
   import { deviceTimeZone } from "$lib/planning/zone";
   import { preferences } from "$lib/preferences.svelte";
   import ProjectPicker from "./ProjectPicker.svelte";
@@ -22,7 +22,6 @@
     Check,
     Clock,
     Copy,
-    Link2,
     Repeat,
     Sparkles,
     Timer,
@@ -74,7 +73,6 @@
     { id: "participants", label: "Participants", icon: Users },
     { id: "location", label: "Location", icon: MapPin },
     { id: "description", label: "Description", icon: AlignLeft },
-    { id: "links", label: "Links", icon: Link2 },
   ];
 
   const data = calendarData;
@@ -321,13 +319,17 @@
 
   /** Where the meeting is and how you get into it, read the same way the reminder card reads it. */
   const meeting = $derived(meetingOf(event));
+  /** The notes as words and pills, each link drawn where it was written. */
+  const parts = $derived(partsOf(event.description ?? ""));
   /**
-   * The join link is a link like the others as far as this card is concerned — it belongs in the
-   * list you copy things out of, not only behind the Join button.
+   * Links the notes don't spell out — the conferencing block's, one in the location — still get
+   * a pill, after the words, so the description is the one place a link is copied from.
    */
-  const links = $derived(
-    meeting.join ? [{ url: meeting.join.url, label: meeting.join.label }, ...meeting.links] : meeting.links,
-  );
+  const extraLinks = $derived.by(() => {
+    const written = new Set(parts.flatMap((part) => ("link" in part ? [part.link.url] : [])));
+    const all = meeting.join ? [{ url: meeting.join.url, label: meeting.join.label }, ...meeting.links] : meeting.links;
+    return all.filter((link) => !written.has(link.url));
+  });
   /** Whose calendar this came from: what tells a Google link which signed-in account to open as. */
   const accountEmail = $derived(accountEmailOf(event.calendarId));
   /** The link the Join button actually opens, pointed at the account that was invited. */
@@ -552,21 +554,32 @@
 
 <svelte:window {onkeydown} />
 
-{#snippet copyButton(url: string)}
-  {@const done = copied === url}
-  <button
-    type="button"
-    class="press-sm hoverable shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
-    aria-label={done ? "Link copied" : "Copy link"}
-    title={done ? "Copied" : "Copy link"}
-    onclick={() => void copy(url)}
-  >
-    {#if done}
-      <Check size={14} />
-    {:else}
-      <Copy size={14} />
-    {/if}
-  </button>
+{#snippet pill(link: { url: string; label: string })}
+  {@const done = copied === link.url}
+  <span class="group/pill chip-bare max-w-full align-baseline">
+    <button
+      type="button"
+      class="press-sm min-w-0 truncate text-left"
+      onclick={() => void open(asGoogleAccount(link.url, accountEmail))}
+    >
+      {link.label}
+    </button>
+    <button
+      type="button"
+      class="press-sm -mr-1 shrink-0 rounded p-0.5 text-fg-faint hover:text-fg {done
+        ? ''
+        : 'opacity-0 group-hover/pill:opacity-100 focus-visible:opacity-100'}"
+      aria-label={done ? "Link copied" : "Copy link"}
+      title={done ? "Copied" : "Copy link"}
+      onclick={() => void copy(link.url)}
+    >
+      {#if done}
+        <Check size={12} />
+      {:else}
+        <Copy size={12} />
+      {/if}
+    </button>
+  </span>
 {/snippet}
 
 <AnchoredPopup {rect} width={WIDTH} dismiss={!nested} onclose={close}>
@@ -831,47 +844,40 @@
           {#if editable}
             <Textarea bind:value={notes} oninput={queue} rows={2} placeholder="Description" ariaLabel="Event notes" variant="bare" />
           {:else if event.description}
-            <p class="t-label px-2 py-1.5 whitespace-pre-wrap text-fg-muted">{event.description}</p>
+            <p class="t-label px-2 py-1.5 whitespace-pre-wrap text-fg-muted">
+              {#each parts as part, i (i)}
+                {#if "link" in part}{@render pill(part.link)}{:else}{part.text}{/if}
+              {/each}
+            </p>
           {:else}
             <p class="t-label px-2 py-1.5 text-fg-faint">Description</p>
+          {/if}
+          {#if extraLinks.length > 0}
+            <div class="flex flex-wrap gap-1 px-2 pb-1.5">
+              {#each extraLinks as link (link.url)}
+                {@render pill(link)}
+              {/each}
+            </div>
           {/if}
         </div>
       </CardRow>
     </div>
   {/if}
 
-  <!-- The foot: what's linked out of it, and what's linked into it. -->
-  <div class="border-t border-line px-2 py-1.5">
-    <CardRow icon={Link2} set={links.length > 0} align="start">
-      <div class="flex min-w-0 flex-1 flex-col gap-1.5 py-1">
-        {#if links.length > 0 && shown("links")}
-          {#each links as link (link.url)}
-            <div class="flex min-w-0 items-center gap-1">
-              <button
-                type="button"
-                class="chip-bare press-sm t-label min-w-0 flex-1 py-1 text-left"
-                onclick={() => void open(asGoogleAccount(link.url, accountEmail))}
-              >
-                <span class="block truncate">{link.label}</span>
-              </button>
-              {@render copyButton(link.url)}
-            </div>
-          {/each}
-        {:else}
-          <span class="t-label text-fg-faint">Links</span>
-        {/if}
-      </div>
+  <!-- The foot: what's linked into it. -->
+  {#if !event.allDay || linked}
+    <div class="border-t border-line px-2 py-1.5">
       {#if !event.allDay}
-        <div class="pt-0.5">
+        <div class="flex justify-end">
           <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
         </div>
       {/if}
-    </CardRow>
-    {#if linked}
-      {@const Section = linked.feed.section}
-      <Section {event} />
-    {/if}
-  </div>
+      {#if linked}
+        {@const Section = linked.feed.section}
+        <Section {event} />
+      {/if}
+    </div>
+  {/if}
 
   {#if !event.countsTowardHours}
     <p class="t-micro border-t border-line px-3 py-2 text-fg-faint">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asGoogleAccount, hasAddress, meetingOf } from "./meeting";
+import { asGoogleAccount, hasAddress, meetingOf, partsOf } from "./meeting";
 
 describe("meetingOf", () => {
   it("takes the conferencing block the calendar gives outright", () => {
@@ -108,5 +108,23 @@ describe("asGoogleAccount", () => {
     );
     expect(asGoogleAccount("https://meet.google.com/a", null)).toBe("https://meet.google.com/a");
     expect(asGoogleAccount("meet.google.com/a", "work@example.com")).toBe("meet.google.com/a");
+  });
+});
+
+describe("partsOf", () => {
+  it("keeps the words and turns each link into a labelled pill", () => {
+    expect(partsOf("Agenda: https://docs.google.com/d/1. Join https://meet.google.com/abc")).toEqual([
+      { text: "Agenda: " },
+      { link: { url: "https://docs.google.com/d/1", label: "docs.google.com" } },
+      { text: ". Join " },
+      { link: { url: "https://meet.google.com/abc", label: "Google Meet", provider: "meet" } },
+    ]);
+  });
+
+  it("is only words when there is no link, and only a link when there are no words", () => {
+    expect(partsOf("Bring coffee")).toEqual([{ text: "Bring coffee" }]);
+    expect(partsOf("https://example.com/x")).toEqual([
+      { link: { url: "https://example.com/x", label: "example.com" } },
+    ]);
   });
 });

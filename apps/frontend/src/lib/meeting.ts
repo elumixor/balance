@@ -67,6 +67,26 @@ export function meetingOf(event: MeetingSource): Meeting {
   return { join, links, location: placeOf(event.location) };
 }
 
+/** A run of notes: plain words, or a link with the label its pill wears. */
+export type NotePart = { readonly text: string } | { readonly link: MeetingLink };
+
+/**
+ * The notes split into words and links, so the card can draw each link as a pill where it was
+ * written rather than in a list of its own underneath. A provider's link keeps its name.
+ */
+export function partsOf(text: string): NotePart[] {
+  const parts: NotePart[] = [];
+  let last = 0;
+  for (const match of text.matchAll(URL_PATTERN)) {
+    if (match.index > last) parts.push({ text: text.slice(last, match.index) });
+    const url = match[0];
+    parts.push({ link: asJoin(url) ?? { url, label: siteOf(url) } });
+    last = match.index + url.length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return parts;
+}
+
 /** Whether the event is somewhere, as opposed to being a link or a room booking. */
 export function hasAddress(event: MeetingSource) {
   const place = placeOf(event.location);
