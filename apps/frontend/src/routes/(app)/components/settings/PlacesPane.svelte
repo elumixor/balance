@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { AddressField, Chip, Field, MapPreview, NumberField, PlaceIconPicker, Tooltip } from "$lib/components";
+  import { AddressField, Field, MapPreview, NumberField, PlaceIconPicker, Switch, Tooltip } from "$lib/components";
+  import { iconFor, PLACE_ICON } from "$lib/icons";
   import type { PlaceDetails, PlaceSuggestion } from "$lib/places";
-  import { preferences, type SavedLocation, TRAVEL_MODES } from "$lib/preferences.svelte";
-  import { Check, Plus, Trash2 } from "lucide-svelte";
-  import ChoiceRow from "./ChoiceRow.svelte";
+  import { preferences, type SavedLocation, type TravelMode } from "$lib/preferences.svelte";
+  import { Bike, Bus, Car, Footprints, Pencil, Plus, Trash2 } from "lucide-svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   /**
@@ -14,12 +14,10 @@
    * each place named, and any event's journey can start from whichever one — or from wherever
    * the phone is standing, which is the answer for a day that doesn't start anywhere planned.
    *
-   * The tick is the default rather than a separate control: a list of places where one of them is
-   * the usual one is the whole rule, and a "default" dropdown listing the same names again would
-   * be the second place to change it.
-   *
-   * Pressing an address opens it for editing under a map, the same form a new place is typed
-   * into — a typo is put right where it was made, not by deleting the place and starting over.
+   * A row is a glyph, a name and its address, and nothing on it is a field: everything about a
+   * place is changed in one form, opened by the pencil, which is also the form a new place is
+   * typed into. The default is said in words on the row and set by a switch in the form, because
+   * a tick with no word beside it was read as "done" rather than "from here".
    */
   const locations = $derived(preferences.travel.locations);
   const defaultId = $derived(preferences.travel.defaultLocationId);
@@ -28,6 +26,8 @@
   let editing = $state<"new" | string | null>(null);
   let label = $state("");
   let address = $state("");
+  let icon = $state<string | undefined>(undefined);
+  let isDefault = $state(false);
   /** Google's own pin for what was typed, once a suggestion was chosen or the map looked it up. */
   let pinned = $state<PlaceDetails | null>(null);
 
@@ -35,6 +35,9 @@
     editing = location?.id ?? "new";
     label = location?.label ?? "";
     address = location?.address ?? "";
+    icon = location?.icon;
+    // The first place is the default without asking: somebody who named one address meant it.
+    isDefault = location ? location.id === defaultId : locations.length === 0;
     pinned =
       location?.latitude !== undefined && location.longitude !== undefined
         ? {
@@ -53,22 +56,33 @@
   }
 
   function save() {
-    if (!label.trim() || !address.trim()) return;
+    if (!canSave) return;
     // The pin only describes the address it was looked up for; a retyped one is saved bare.
     const pin = pinned && pinned.address === address.trim() ? pinned : null;
     const patch = {
       label,
       address: address.trim(),
+      icon,
       placeId: pin?.placeId ?? null,
       latitude: pin?.latitude,
       longitude: pin?.longitude,
     };
-    if (editing === "new") preferences.addLocation(patch);
-    else if (editing) preferences.updateLocation(editing, patch);
+    const id = editing === "new" ? preferences.addLocation(patch) : editing;
+    if (!id) return;
+    if (editing !== "new") preferences.updateLocation(id, patch);
+    if (isDefault) preferences.setTravel({ defaultLocationId: id });
+    else if (defaultId === id) preferences.setTravel({ defaultLocationId: null });
     editing = null;
   }
 
   const canSave = $derived(label.trim().length > 0 && address.trim().length > 0);
+
+  const MODES: { value: TravelMode; label: string; icon: typeof Bus }[] = [
+    { value: "transit", label: "Transit", icon: Bus },
+    { value: "drive", label: "Drive", icon: Car },
+    { value: "bicycle", label: "Cycle", icon: Bike },
+    { value: "walk", label: "Walk", icon: Footprints },
+  ];
 </script>
 
 {#snippet form()}
@@ -79,7 +93,17 @@
       save();
     }}
   >
-    <AddressField bind:value={address} ariaLabel="Address of this place" autofocus onpick={picked} oncommit={save} />
+    <div class="flex items-center gap-1">
+      <PlaceIconPicker {icon} label={label || "this place"} onchange={(next) => (icon = next)} />
+      <Field bind:value={label} placeholder="Home, Office" ariaLabel="Name of this place" autocapitalize="sentences" />
+    </div>
+    <AddressField
+      bind:value={address}
+      ariaLabel="Address of this place"
+      autofocus={editing === "new"}
+      onpick={picked}
+      oncommit={save}
+    />
     <MapPreview
       {address}
       placeId={pinned?.address === address.trim() ? pinned.placeId : null}
@@ -88,88 +112,67 @@
         pinned = place;
       }}
     />
-    <div class="flex items-center gap-2">
-      <Field
-        bind:value={label}
-        placeholder="Call it something — Home, Office"
-        ariaLabel="Name of this place"
-        autocapitalize="sentences"
-      />
+    <div class="flex items-center gap-3">
+      <label class="flex items-center gap-2">
+        <Switch checked={isDefault} label="Journeys start here unless an event says otherwise" onchange={(next) => (isDefault = next)} />
+        <span class="t-label text-fg">Start journeys here</span>
+      </label>
+      <span class="flex-1"></span>
+      <button type="button" onclick={() => (editing = null)} class="press t-label h-9 px-2 text-fg-muted">
+        Cancel
+      </button>
       <button
         type="submit"
         disabled={!canSave}
-        class="press t-label h-10 shrink-0 rounded-md border border-ink bg-ink px-3 text-ink-fg
+        class="press t-label h-9 shrink-0 rounded-md border border-ink bg-ink px-3 text-ink-fg
           disabled:border-line disabled:bg-surface-alt disabled:text-fg-faint"
       >
         Save
-      </button>
-      <button type="button" onclick={() => (editing = null)} class="press t-label h-10 px-2 text-fg-muted">
-        Cancel
       </button>
     </div>
   </form>
 {/snippet}
 
-<SettingsGroup
-  title="Places"
-  note="Where journeys start. Any event can be told to leave from a different one."
-  divided={false}
->
+<SettingsGroup title="Places and travel" divided={false}>
   <div class="overflow-hidden rounded-md border border-line">
     {#each locations as location, index (location.id)}
-      {@const isDefault = location.id === defaultId}
+      {@const Glyph = iconFor(location.icon ?? PLACE_ICON)}
       <div class={index > 0 ? "border-t border-line" : ""}>
-        <div class="flex items-center gap-2 px-2 py-2">
-          <Tooltip label={isDefault ? "Journeys start here" : "Start journeys here"}>
-            <button
-              type="button"
-              aria-label="Start journeys from {location.label}"
-              aria-pressed={isDefault}
-              onclick={() => preferences.setTravel({ defaultLocationId: isDefault ? null : location.id })}
-              class="press-sm flex size-5 shrink-0 items-center justify-center rounded-full border
-                {isDefault ? 'border-ink bg-ink text-ink-fg' : 'border-line-strong text-transparent'}"
-            >
-              <Check size={12} />
-            </button>
-          </Tooltip>
-          <PlaceIconPicker
-            icon={location.icon}
-            label={location.label}
-            onchange={(icon) => preferences.updateLocation(location.id, { icon })}
-          />
-          <div class="min-w-0 flex-1">
-            <Field
-              value={location.label}
-              oninput={(next) => preferences.updateLocation(location.id, { label: next })}
-              variant="bare"
-              ariaLabel="Name of this place"
-              autocapitalize="sentences"
-            />
-            {#if editing !== location.id}
-              <button
-                type="button"
-                onclick={() => open(location)}
-                aria-label="Change the address of {location.label}"
-                class="t-micro block max-w-full truncate rounded-md px-2 text-left text-fg-faint hover:text-fg"
-              >
-                {location.address}
-              </button>
-            {/if}
-          </div>
-          <Tooltip label="Remove">
-            <button
-              type="button"
-              aria-label="Remove {location.label}"
-              onclick={() => preferences.removeLocation(location.id)}
-              class="press-sm flex size-7 shrink-0 items-center justify-center rounded-md text-fg-faint
-                hover:text-danger"
-            >
-              <Trash2 size={14} />
-            </button>
-          </Tooltip>
-        </div>
         {#if editing === location.id}
           {@render form()}
+        {:else}
+          <div class="group flex items-center gap-3 px-3 py-2">
+            <Glyph size={16} class="shrink-0 text-fg-muted" />
+            <div class="min-w-0 flex-1">
+              <p class="t-label flex items-center gap-2 text-fg">
+                <span class="truncate">{location.label}</span>
+                {#if location.id === defaultId}
+                  <span class="t-micro shrink-0 rounded-full bg-surface-alt px-1.5 py-px text-fg-muted">default</span>
+                {/if}
+              </p>
+              <p class="t-micro truncate text-fg-faint">{location.address}</p>
+            </div>
+            <Tooltip label="Edit">
+              <button
+                type="button"
+                aria-label="Edit {location.label}"
+                onclick={() => open(location)}
+                class="bare-button size-7"
+              >
+                <Pencil size={14} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Remove">
+              <button
+                type="button"
+                aria-label="Remove {location.label}"
+                onclick={() => preferences.removeLocation(location.id)}
+                class="bare-button size-7 hover:text-danger"
+              >
+                <Trash2 size={14} />
+              </button>
+            </Tooltip>
+          </div>
         {/if}
       </div>
     {/each}
@@ -182,43 +185,44 @@
       <button
         type="button"
         onclick={() => open()}
-        class="hoverable flex w-full items-center gap-2 px-2 py-2.5 {locations.length > 0
-          ? 'border-t border-line'
-          : ''}"
+        class="hoverable flex w-full items-center gap-3 px-3 py-2 {locations.length > 0 ? 'border-t border-line' : ''}"
       >
-        <span class="flex size-5 items-center justify-center">
-          <Plus size={15} class="text-fg-muted" />
-        </span>
+        <Plus size={16} class="shrink-0 text-fg-muted" />
         <span class="t-label text-fg-muted">{locations.length === 0 ? "Add your first place" : "Add a place"}</span>
       </button>
     {/if}
   </div>
-</SettingsGroup>
 
-<SettingsGroup title="Travel">
-  <ChoiceRow label="Ways of getting there" note="A journey is offered for each of them, the first one first.">
-    {#snippet control()}
-      <div class="flex flex-wrap gap-1.5">
-        {#each TRAVEL_MODES as mode (mode.value)}
-          <Chip
-            label={mode.label}
-            selected={preferences.travel.modes.includes(mode.value)}
+  <!-- One line: the ways of going, in the order they're offered, and how early to be there. -->
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div class="flex items-center gap-1" role="group" aria-label="Ways of getting there">
+      {#each MODES as mode (mode.value)}
+        {@const selected = preferences.travel.modes.includes(mode.value)}
+        <Tooltip label={mode.label}>
+          <button
+            type="button"
+            aria-label={mode.label}
+            aria-pressed={selected}
             onclick={() => preferences.toggleMode(mode.value)}
-          />
-        {/each}
-      </div>
-    {/snippet}
-  </ChoiceRow>
-
-  <ChoiceRow label="Be there early by" note="Added to every journey, so leaving on time means arriving early.">
-    {#snippet control()}
+            class="press-sm flex size-8 items-center justify-center rounded-md border transition-colors
+              {selected ? 'border-ink bg-ink text-ink-fg' : 'border-line bg-surface text-fg-muted'}"
+          >
+            <mode.icon size={15} />
+          </button>
+        </Tooltip>
+      {/each}
+    </div>
+    <label class="flex items-center gap-1 text-fg-muted">
+      <span class="t-label">Arrive</span>
       <NumberField
         value={preferences.travel.bufferMinutes}
         unit="min"
         ariaLabel="Minutes to be there early"
         inputmode="numeric"
+        width="w-8"
         onchange={(bufferMinutes) => preferences.setTravel({ bufferMinutes: Math.max(0, Math.round(bufferMinutes)) })}
       />
-    {/snippet}
-  </ChoiceRow>
+      <span class="t-label">early</span>
+    </label>
+  </div>
 </SettingsGroup>

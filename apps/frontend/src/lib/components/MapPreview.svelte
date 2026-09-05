@@ -83,7 +83,15 @@
     class="press-sm relative block w-full overflow-hidden rounded-lg border border-line bg-surface-alt"
     style="aspect-ratio:{MAP_PREVIEW.width} / {MAP_PREVIEW.height}"
   >
-    <img src={image} alt="" draggable="false" class="size-full object-cover" />
+    <!-- Taller than the frame by the bleed each side; the frame clips it around the middle. -->
+    <img
+      src={image}
+      alt=""
+      draggable="false"
+      class="absolute inset-x-0 w-full max-w-none"
+      style="top:{(-100 * MAP_PREVIEW.bleed) / MAP_PREVIEW.height}%;height:{(100 * (MAP_PREVIEW.height + 2 * MAP_PREVIEW.bleed)) /
+        MAP_PREVIEW.height}%"
+    />
     <span class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full text-ink drop-shadow-sm">
       <MapPin size={26} strokeWidth={2.25} fill="var(--surface)" />
     </span>

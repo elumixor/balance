@@ -61,8 +61,13 @@ export function placeUrl(place: { placeId?: string | null; address: string }) {
   return `https://www.google.com/maps/search/?${params}`;
 }
 
-/** The size every preview is drawn at, so two screens asking about one address share a picture. */
-export const MAP_PREVIEW = { width: 320, height: 140 } as const;
+/**
+ * The size every preview is drawn at, so two screens asking about one address share a picture.
+ * The map is asked for taller by a `bleed` at top and bottom and the frame shows only the
+ * middle, which is where the map is about; the strip Google prints its own marks along is what
+ * goes. Both edges rather than one so the pin stays at the centre.
+ */
+export const MAP_PREVIEW = { width: 320, height: 140, bleed: 28 } as const;
 
 const maps = new Map<string, Promise<string | null>>();
 
@@ -74,7 +79,13 @@ export function mapAround(input: { latitude: number; longitude: number; dark: bo
   const key = `${input.latitude.toFixed(5)},${input.longitude.toFixed(5)}|${input.dark}`;
   const hit = maps.get(key);
   if (hit) return hit;
-  const asked = callApi(api.travel.map.$post({ ...input, ...MAP_PREVIEW }))
+  const asked = callApi(
+    api.travel.map.$post({
+      ...input,
+      width: MAP_PREVIEW.width,
+      height: MAP_PREVIEW.height + 2 * MAP_PREVIEW.bleed,
+    }),
+  )
     .then((r) => (unwrapOk(r) as { image: string | null }).image)
     .catch((e) => {
       maps.delete(key);
