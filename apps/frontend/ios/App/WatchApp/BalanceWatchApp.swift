@@ -39,5 +39,7 @@ struct BalanceWatchApp: App {
         WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.categoryID)
         WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.joinCategoryID)
         WKNotificationScene(controller: EventNotificationController.self, category: EventAlarm.startCategoryID)
+        // A sitting's reminder is drawn by the same card, with the glyph the phone puts in it.
+        WKNotificationScene(controller: EventNotificationController.self, category: "balance.session")
     }
 }

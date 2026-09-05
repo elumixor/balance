@@ -6,10 +6,13 @@
   import { categories } from "$lib/synced.svelte";
   import { settings } from "$lib/settings";
   import { page } from "$app/state";
+  import { goto } from "$app/navigation";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { slotNow } from "$lib/planning/zone";
   import { Menu } from "lucide-svelte";
+  import { untrack } from "svelte";
+  import { viewport } from "$lib/viewport.svelte";
 
   /**
    * The whole window is the week. Everything that isn't the grid — the calendars, where you are
@@ -41,6 +44,15 @@
       planMode.threshold = summary.coverageThreshold;
       planMode.award = summary.award;
     })();
+  });
+
+  // The day being planned is brought on screen: in the middle of a phone's three columns, so
+  // both neighbours are there to drag from, and in its own week on a desktop.
+  $effect(() => {
+    const day = planMode.day;
+    if (!day) return;
+    const [year, month, date] = day.split("-").map(Number);
+    untrack(() => data.goToDate(new Date(year, month - 1, date - (viewport.md ? 0 : 1))));
   });
 
   const plan = $derived(categories.all);
@@ -97,7 +109,7 @@
   <CalendarPanel />
 </SidePanelSection>
 
-<div class="flex h-full min-h-0 flex-col">
+<div class="relative flex h-full min-h-0 flex-col">
   <!-- The phone's bar for this screen. A real row rather than chips floating over the grid: a
        translucent button sat on the very day heading it covered, and the notch left it nowhere to
        sit at all. From `md` up the rail carries all of this, so the grid keeps the whole window. -->
@@ -131,20 +143,38 @@
           <Divider />
           <div class="flex items-center justify-between gap-2 px-3 py-2">
             <ThemeToggle />
-            <Button
-              label="Settings"
-              size="sm"
-              variant="outline"
-              onclick={() => {
-                close();
-                settings.show();
-              }}
-            />
+            <div class="flex items-center gap-1.5">
+              <!-- The sitting, on demand: it is asked for twice a day, and worth opening between. -->
+              <Button
+                label="Review"
+                size="sm"
+                variant="outline"
+                onclick={() => {
+                  close();
+                  void goto("/session");
+                }}
+              />
+              <Button
+                label="Settings"
+                size="sm"
+                variant="outline"
+                onclick={() => {
+                  close();
+                  settings.show();
+                }}
+              />
+            </div>
           </div>
         {/snippet}
       </Popover>
     </div>
   </header>
+
+  <!-- Planning wears a strip above the grid rather than a card over it: nothing of the day being
+       filled is hidden by the thing asking for it, on a phone or a desktop. -->
+  {#if planMode.active}
+    <PlanningBar />
+  {/if}
 
   <!-- The grid and everything that floats over it. Its own stacking context, under the bar rather
        than behind it, so a failure or a "connect" card can't land on the notch or on the month. -->
@@ -161,10 +191,6 @@
     <div class="h-full {data.connectionKnown && !data.connected ? 'hidden md:block' : ''}">
       <WeekGrid categories={categoryById} />
     </div>
-
-    {#if planMode.active}
-      <PlanningBar />
-    {/if}
   </div>
 </div>
 

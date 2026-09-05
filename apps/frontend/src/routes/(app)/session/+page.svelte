@@ -1,19 +1,21 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { Button, CategoryIcon, Screen, Skeleton, SplitBar } from "$lib/components";
+  import { Button, CategoryIcon, Skeleton, StarBurst } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
+  import { DAY_STARS, dayRating } from "$lib/planning/rating";
   import { sessionData } from "$lib/planning/session-data.svelte";
-  import { StarPill } from "./components";
+  import { BalanceRing, DoneFan, DoneList, StarPill } from "./components";
   import type { Slot } from "$lib/planning/types";
   import { slotNow } from "$lib/planning/zone";
   import { goto } from "$app/navigation";
 
   /**
-   * The sitting itself: what went well, and one way forward.
+   * The sitting itself: what was done, thrown down like a hand of cards, the stars it earned, the
+   * day as a dial, the list of it — and one button at the bottom for the day after.
    *
-   * Wins and what is ahead are one screen rather than two, because they are one thought — the day
-   * you had is the argument for the day you are about to draw. Planning is the screen after this
-   * one, and it is the calendar, so nothing here has to teach a second way of moving a block.
+   * The review is a payout, so the screen is built like one: the loudest thing on it is the
+   * evidence of the day, and the words come after. Planning is the screen after this one, and it
+   * is the calendar, so nothing here has to teach a second way of moving a block.
    *
    * There is no failure anywhere on this page by construction: the copy is written under a rule
    * that forbids it, and everything drawn from numbers here is a thing that happened rather than a
@@ -27,14 +29,18 @@
 
   $effect(() => void data.enter(slot));
 
-  const splits = $derived(
-    data.categories.map((category) => ({ id: category.categoryId, color: category.color, value: category.hours })),
-  );
-
+  const rating = $derived(summary ? dayRating(summary.review, summary.coverageThreshold) : 0);
   const eventById = $derived(new Map((summary?.review.top ?? []).map((block) => [block.id, block])));
+  const nextDay = $derived(summary?.slot === "morning" ? "today" : "tomorrow");
 
   /** What the button says depends only on whether the day has been planned, and what that pays. */
   const planStars = $derived((summary?.award ?? []).reduce((sum, award) => sum + award.delta, 0) + (summary?.weeklyAward ?? 0));
+
+  const reviewDate = $derived.by(() => {
+    if (!summary) return "";
+    const [year, month, day] = summary.review.day.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  });
 
   function plan() {
     if (!summary) return;
@@ -60,68 +66,87 @@
   function hours(value: number) {
     return `${Math.round(value * 10) / 10}h`;
   }
+
+  /** The caption under the stars only ever names what happened. */
+  const starsCaption = $derived.by(() => {
+    if (!summary) return "";
+    if (summary.review.rest) return "A rest day, kept";
+    if (summary.review.mappedHours > 0) return `${hours(summary.review.mappedHours)} given a meaning`;
+    return "A day off the record";
+  });
 </script>
 
-<Screen title={summary?.copy.title ?? "Your day"} subtitle={summary?.copy.body}>
+<!-- One column, centred, and the whole screen scrolls under a footer that never leaves the thumb. -->
+<div class="safe-top-6 mx-auto flex h-full w-full max-w-md flex-col overflow-y-auto px-5 md:pt-12 [&>*]:shrink-0">
   {#if !summary}
-    <div class="space-y-4">
-      <Skeleton width="100%" height={18} />
-      <Skeleton width="70%" height={18} />
-      <Skeleton width="100%" height={96} />
+    <div class="space-y-4 pt-10">
+      <Skeleton width="100%" height={176} radius={12} />
+      <Skeleton width="70%" height={36} />
+      <Skeleton width="100%" height={124} radius={12} />
     </div>
   {:else}
-    <div class="flex items-center justify-between gap-3">
+    <p class="t-micro text-center text-fg-faint">{reviewDate}</p>
+
+    <DoneFan blocks={summary.review.top} />
+
+    <h1 class="t-title mt-2 text-center">{summary.copy.title}</h1>
+    {#if summary.copy.body}
+      <p class="t-body mt-2 text-center text-fg-muted">{summary.copy.body}</p>
+    {/if}
+
+    <div class="mt-8 flex flex-col items-center gap-2">
+      <StarBurst lit={rating} of={DAY_STARS} />
+      <p class="t-label text-fg-muted">{starsCaption}</p>
+    </div>
+
+    <div class="mt-5 flex items-center justify-center gap-3">
       <StarPill rank={summary.rank} />
       {#if summary.streak > 1}
         <span class="t-micro text-fg-muted">{summary.streak} days in a row</span>
       {/if}
     </div>
 
-    {#if splits.length > 0}
-      <section class="mt-6 space-y-3">
-        <SplitBar {splits} />
-        <ul class="space-y-1.5">
-          {#each data.categories.slice(0, 5) as category (category.categoryId)}
-            <li class="flex items-center gap-2">
-              <CategoryIcon icon={category.icon} color={category.color} size={14} />
-              <span class="t-label flex-1">{category.name}</span>
-              <span class="t-label tabular-nums text-fg-muted">{hours(category.hours)}</span>
-            </li>
-          {/each}
-        </ul>
+    {#if data.categories.length > 0}
+      <section class="mt-10">
+        <BalanceRing categories={data.categories} hours={summary.review.hours} />
       </section>
     {/if}
 
-    <!-- The points are the session. Everything above is the evidence they stand on. -->
-    <ul class="mt-8 space-y-4">
-      {#each summary.copy.points as point, index (index)}
-        <li class="flex gap-3">
-          <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-ink"></span>
-          <div class="space-y-1.5">
-            <p class="t-body">{point.text}</p>
-            {#if point.eventId && eventById.get(point.eventId)}
-              {@const block = eventById.get(point.eventId)}
+    {#if summary.review.blocks.length > 0}
+      <section class="mt-8">
+        <h2 class="t-label mb-2 text-fg-muted">Done</h2>
+        <DoneList blocks={summary.review.blocks} />
+      </section>
+    {/if}
+
+    {#if summary.copy.points.length > 0}
+      <ul class="mt-8 space-y-3">
+        {#each summary.copy.points as point, index (index)}
+          {@const block = point.eventId ? eventById.get(point.eventId) : undefined}
+          <li class="space-y-1.5">
+            <p class="t-body text-fg-muted">{point.text}</p>
+            {#if block}
               <button
                 type="button"
                 class="press t-micro inline-flex items-center gap-1.5 rounded-full bg-surface-alt px-2.5 py-1 text-fg-muted"
                 onclick={() => goto("/calendar")}
               >
-                {#if block?.icon && block?.color}
+                {#if block.icon && block.color}
                   <CategoryIcon icon={block.icon} color={block.color} size={12} />
                 {/if}
-                {block?.title}
+                {block.title}
               </button>
             {/if}
-          </div>
-        </li>
-      {/each}
-    </ul>
+          </li>
+        {/each}
+      </ul>
+    {/if}
 
     {#if week}
       <!-- The week, on the one evening it is the subject rather than the backdrop. -->
       <section class="mt-10 border-t border-line pt-8">
-        <h2 class="t-label mb-3">The week behind you</h2>
-        <p class="t-body text-fg-muted">
+        <h2 class="t-label mb-2 text-fg-muted">The week behind you</h2>
+        <p class="t-body">
           {hours(week.hours)} accounted for, and {Math.round(week.match * 100)}% of the shape you drew.
         </p>
         <ul class="mt-4 space-y-1.5">
@@ -129,24 +154,27 @@
             <li class="flex items-center gap-2">
               <CategoryIcon icon={category.icon} color={category.color} size={14} />
               <span class="t-label flex-1">{category.name}</span>
-              <span class="t-label tabular-nums text-fg-muted">
-                {hours(category.hours)} of {hours(category.targetHours)}
-              </span>
+              <span class="t-data-compact text-fg-muted">{hours(category.hours)} of {hours(category.targetHours)}</span>
             </li>
           {/each}
         </ul>
       </section>
     {/if}
 
-    <div class="mt-10 space-y-3">
+    <!-- Pinned: the day after is the reason the review exists, so the way into it never scrolls off. -->
+    <div class="sticky bottom-0 mt-auto bg-bg pt-6 pb-4">
+      <p class="t-micro mb-2 text-center text-fg-muted capitalize">{nextDay}</p>
       <Button
         full
-        label={summary.target.planned
-          ? `Look over ${summary.slot === "morning" ? "today" : "tomorrow"}`
-          : `Plan ${summary.slot === "morning" ? "today" : "tomorrow"}${planStars > 0 ? ` · +${planStars} ★` : ""}`}
+        label={summary.target.planned ? `Look over ${nextDay}` : `Plan ${nextDay}`}
         onclick={plan}
       />
-      <Button full variant="outline" label="Not now" onclick={() => goto("/calendar")} />
+      {#if !summary.target.planned && planStars > 0}
+        <p class="t-label mt-2 text-center text-fg-muted">+{planStars} ★ for two minutes</p>
+      {/if}
+      <button type="button" class="t-micro mx-auto mt-2 block text-fg-faint" onclick={() => goto("/calendar")}>
+        Not now
+      </button>
     </div>
   {/if}
-</Screen>
+</div>

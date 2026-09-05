@@ -7,6 +7,7 @@
   import { page } from "$app/state";
   import { telemetry } from "$lib/telemetry";
   import { theme } from "$lib/theme.svelte";
+  import { mobileStatusBar } from "$lib/mobile/status-bar.svelte";
   import { viewport } from "$lib/viewport.svelte";
   import { watchdog } from "$lib/watchdog.svelte";
   import type { Snippet } from "svelte";
@@ -20,6 +21,7 @@
   diagnostics.start();
   watchdog.start();
   theme.start();
+  mobileStatusBar.start();
   viewport.start();
   // Failures also surface through `auth.startupError`, which the splash reads; this keeps the
   // rejection handled and puts it where a screen that isn't the splash can show it too.

@@ -107,17 +107,20 @@
     on pointerdown. Without this a field in here could never take focus.
   -->
   <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+  <!-- The sheet rises from the edge it sits on and keeps its last rows above the home indicator;
+       the wide-screen card drifts in beside its block instead. -->
   <div
     bind:this={card}
-    class="max-h-[85dvh] w-full touch-auto select-text overflow-y-auto rounded-t-lg border border-line
-      bg-surface shadow-(--shadow-float) sm:pointer-events-auto sm:absolute sm:w-[var(--popup-w)]
-      sm:rounded-lg {placed ? 'float-in' : ''}"
+    class="max-h-[calc(100dvh-var(--safe-top)-24px)] w-full touch-auto select-text overflow-y-auto rounded-t-2xl
+      border border-line bg-surface shadow-(--shadow-float) max-sm:safe-bottom sm:pointer-events-auto sm:absolute
+      sm:max-h-[85dvh] sm:w-[var(--popup-w)] sm:rounded-lg {placed ? 'max-sm:sheet-in sm:float-in' : ''}"
     style="--popup-w:{width}px;left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{placed
       ? 'visible'
       : 'hidden'}"
     onclick={(e) => e.stopPropagation()}
     onpointerdown={(e) => e.stopPropagation()}
   >
+    <div class="sheet-handle sm:hidden"></div>
     {@render children()}
   </div>
 </div>

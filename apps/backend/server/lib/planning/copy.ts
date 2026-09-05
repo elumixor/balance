@@ -1,12 +1,14 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { generateObject } from "ai";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../db";
 import { sessionCopy } from "../../db/schema";
 import { env } from "../env";
-import type { Day } from "./days";
-import type { CategoryHours, SessionBlock, Slot } from "./service";
+import { addDays, type Day } from "./days";
+import { type Angle, type CopyInput, type SessionCopy, fallback, pickAngle } from "./copy-fallback";
+
+export type { CopyInput, CopyPoint, SessionCopy } from "./copy-fallback";
 
 /**
  * What a session says, in the app's own voice.
@@ -28,22 +30,6 @@ const POINT_MAX = 110;
 
 const MODEL = "anthropic/claude-sonnet-5";
 
-export interface CopyPoint {
-  text: string;
-  /** The event this is about, so the screen can draw it as a pill back to the calendar. */
-  eventId: string | null;
-}
-
-export interface SessionCopy {
-  /** The notification's two lines. */
-  title: string;
-  body: string;
-  /** What the screen shows under them — two to four of them, biggest thing first. */
-  points: CopyPoint[];
-  /** Whether these words came from a model or from the fallback below. */
-  generated: boolean;
-}
-
 const copySchema = z.object({
   title: z.string().max(TITLE_MAX),
   body: z.string().max(BODY_MAX),
@@ -52,22 +38,6 @@ const copySchema = z.object({
     .min(2)
     .max(4),
 });
-
-export interface CopyInput {
-  slot: Slot;
-  /** The day being looked back on, and what happened in it. */
-  reviewed: Day;
-  hours: number;
-  categories: CategoryHours[];
-  top: SessionBlock[];
-  /** The day being planned, and what is on it so far. */
-  target: Day;
-  targetBlocks: SessionBlock[];
-  targetPlanned: boolean;
-  streak: number;
-  stars: number;
-  awardStars: number;
-}
 
 /**
  * The words for a slot, from the store if they have been written, from a model if not.
@@ -82,10 +52,14 @@ export async function sessionCopyFor(userId: string, day: Day, input: CopyInput,
   });
   if (existing) return existing.data as unknown as SessionCopy;
 
-  // Too early to say anything true about a day that is still happening — see `isFresh`.
-  if (!persist) return fallback(input);
+  // Yesterday's words, so today's do not take the same shape — see `copy-fallback.ts`.
+  const previous = await recent(userId, day);
+  const shaped: CopyInput = { ...input, avoid: previous[0]?.angle ?? null };
 
-  const copy = (await generate(input)) ?? fallback(input);
+  // Too early to say anything true about a day that is still happening — see `isFresh`.
+  if (!persist) return fallback(shaped);
+
+  const copy = (await generate(shaped, previous.map((row) => row.title))) ?? fallback(shaped);
   await db
     .insert(sessionCopy)
     .values({ userId, day, slot: input.slot, data: copy as unknown as Record<string, unknown> })
@@ -94,20 +68,35 @@ export async function sessionCopyFor(userId: string, day: Day, input: CopyInput,
   return copy;
 }
 
+/** The last few days' words, newest first — what today's have to differ from. */
+async function recent(userId: string, day: Day): Promise<{ angle: Angle | null; title: string }[]> {
+  const rows = await db.query.sessionCopy.findMany({
+    where: and(eq(sessionCopy.userId, userId), gte(sessionCopy.day, addDays(day, -RECENT_DAYS)), lt(sessionCopy.day, day)),
+    orderBy: (row, { desc }) => [desc(row.day)],
+    limit: RECENT_DAYS,
+  });
+  return rows.map((row) => {
+    const data = row.data as unknown as Partial<SessionCopy>;
+    return { angle: data.angle ?? null, title: data.title ?? "" };
+  });
+}
+const RECENT_DAYS = 3;
+
 /** Forgets a day's words, so the next ask writes them again. */
 export async function clearSessionCopy(userId: string, day: Day) {
   await db.delete(sessionCopy).where(and(eq(sessionCopy.userId, userId), eq(sessionCopy.day, day)));
 }
 
-async function generate(input: CopyInput): Promise<SessionCopy | null> {
+async function generate(input: CopyInput, previousTitles: string[]): Promise<SessionCopy | null> {
+  const angle = pickAngle(input);
   try {
     const { object } = await generateObject({
       model: createGateway({ apiKey: env.AI_GATEWAY_API_KEY })(MODEL),
       schema: copySchema,
       system: SYSTEM,
-      prompt: promptFor(input),
+      prompt: promptFor(input, angle, previousTitles),
     });
-    return { ...object, generated: true };
+    return { ...object, generated: true, angle };
   } catch {
     // A model that is down, rate-limited or slow must not cost the user their reminder.
     return null;
@@ -116,7 +105,7 @@ async function generate(input: CopyInput): Promise<SessionCopy | null> {
 
 const SYSTEM = `You write the two lines of a notification and a few short points for a daily
 planning app called Balance. The person tracks how their week's hours land across the categories
-they care about.
+they care about, and is asked twice a day to look back and to draw the day ahead.
 
 Voice:
 - Write from the far side of the thing: how it will feel to have already done it. Not "finish the
@@ -125,11 +114,20 @@ Voice:
 - Never name a failure, a miss, a shortfall or a streak that broke. There is always something that
   went well, and that is what you say.
 - Use the real numbers and the real event titles you are given. Never invent one.
-- Each point may name the event it is about by its id, so the app can link it. Use null when a
-  point is about the day as a whole.
-- Second person. Never mention that you are an assistant or a model.`;
+- Second person. Never mention that you are an assistant or a model.
 
-function promptFor(input: CopyInput) {
+The notification:
+- The title is a hook, not a summary: one concrete thing — the first block on the day ahead, the
+  biggest thing done, the streak, the stars waiting — never a total of hours.
+- Lead with the angle you are given. It is chosen so consecutive days read differently; the
+  previous titles are listed so you can avoid their shape as well as their words.
+- A day with nothing counted gets no numbers at all: one bright, simple line about the day ahead
+  being a clean page. Never pad a quiet day with statistics.
+- The body is one or two short sentences, and ends on the day ahead.
+- Each point may name the event it is about by its id, so the app can link it. Use null when a
+  point is about the day as a whole.`;
+
+function promptFor(input: CopyInput, angle: Angle, previousTitles: string[]) {
   const lines: string[] = [];
   lines.push(`Slot: ${input.slot}.`);
   lines.push(
@@ -153,12 +151,19 @@ function promptFor(input: CopyInput) {
   lines.push(`\nThe day being planned (${input.target}) currently holds:`);
   if (input.targetBlocks.length === 0) lines.push("- nothing yet");
   for (const block of input.targetBlocks.slice(0, 8)) {
-    lines.push(`- [${block.id}] ${block.title}${block.categoryName ? ` (${block.categoryName})` : ""}`);
+    const at = new Date(block.start).toLocaleTimeString("en-GB", { timeZone: input.timeZone, hour: "2-digit", minute: "2-digit" });
+    lines.push(`- [${block.id}] ${at} ${block.title}${block.categoryName ? ` (${block.categoryName})` : ""}`);
   }
 
   if (input.streak > 1) lines.push(`\nPlanned ${input.streak} days in a row so far.`);
   if (!input.targetPlanned && input.awardStars > 0) {
     lines.push(`Planning it is worth ${input.awardStars} stars, on top of ${input.stars}.`);
+  }
+
+  lines.push(`\nLead with this angle: ${ANGLE_HINTS[angle]}`);
+  if (previousTitles.length > 0) {
+    lines.push("Recent titles, whose shape and words you must not repeat:");
+    for (const title of previousTitles) lines.push(`- ${title}`);
   }
 
   lines.push(
@@ -168,45 +173,15 @@ function promptFor(input: CopyInput) {
   return lines.join("\n");
 }
 
-/**
- * The same shape, from the numbers alone.
- *
- * Not an apology and not a placeholder: an account with no key configured gets this every day and
- * should never be able to tell that something was missing.
- */
-export function fallback(input: CopyInput): SessionCopy {
-  const best = input.categories.filter((category) => category.hours > 0)[0];
-  const biggest = input.top[0];
-  const hours = round(input.hours);
-
-  const title =
-    input.slot === "weekly"
-      ? `A ${hours}-hour week behind you`
-      : input.slot === "morning"
-        ? `Yesterday came to ${hours} hours`
-        : `${hours} hours, accounted for`;
-
-  const body = best
-    ? `${round(best.hours)}h of it on ${best.name.toLowerCase()}. Tomorrow is still yours to shape.`
-    : "Nothing counted yet today — the shape of tomorrow is still entirely open.";
-
-  const points: CopyPoint[] = [];
-  if (biggest) points.push({ text: `${biggest.title} took ${round(biggest.hours)}h of it.`, eventId: biggest.id });
-  if (best)
-    points.push({
-      text: `${best.name} is at ${round(best.hours)}h against ${round(best.targetHours)}h a week.`,
-      eventId: null,
-    });
-  if (input.streak > 1) points.push({ text: `${input.streak} days planned in a row.`, eventId: null });
-  points.push({
-    text: input.targetPlanned
-      ? "Tomorrow is already drawn. Waking up to a day you have already decided is the whole trick."
-      : `Give tomorrow its shape and you will start it knowing exactly what it is for.`,
-    eventId: null,
-  });
-
-  return { title, body, points: points.slice(0, 4), generated: false };
-}
+const ANGLE_HINTS: Record<Angle, string> = {
+  first: "the first block on the day ahead, and its time",
+  biggest: "the biggest thing done in the day looked back on",
+  streak: "the run of days planned in a row, and the one that tonight adds",
+  stars: "the stars that planning the day ahead pays",
+  planned: "the day ahead being already decided, so there is nothing left to work out",
+  quiet: "a clean page — nothing to count, everything to decide; no numbers",
+  week: "the week behind, on the record, and the seven blank days ahead",
+};
 
 function round(hours: number) {
   return Math.round(hours * 10) / 10;

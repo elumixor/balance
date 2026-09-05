@@ -27,6 +27,9 @@
   /* The one elevation in the app: what floats above the page — popovers, the event editor. */
   --shadow-float: 0 10px 30px rgba(21, 23, 26, 0.13),
     0 2px 6px rgba(21, 23, 26, 0.07);
+  /* The insets as variables, so a panel placed from a script can keep out of the notch too. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 html.dark {
@@ -219,11 +222,30 @@ html.dark {
   }
 }
 
+/*
+ * The notch and the home indicator, as padding. The bare form is the inset alone; the numbered
+ * form adds a spacing step on top of it (`safe-top-4` is the inset plus 16px), because a `pt-4`
+ * beside `safe-top` is two answers to one property, and only one of them survives.
+ */
 @utility safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
+@utility safe-top-* {
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--spacing) * --value(integer));
+}
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility safe-bottom-* {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--spacing) * --value(integer));
+}
+/* The grab bar at the top of a sheet: says "this slides", and gives the thumb a target. */
+@utility sheet-handle {
+  margin: 8px auto 0;
+  height: 5px;
+  width: 36px;
+  border-radius: 999px;
+  background-color: var(--line-strong);
 }
 @utility no-scrollbar {
   scrollbar-width: none;
@@ -385,6 +407,19 @@ html.dark {
   animation: float-in 150ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* A sheet rises from the bottom edge, the way every sheet on the phone does. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+.sheet-in {
+  animation: sheet-in 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -415,6 +450,7 @@ html.dark {
   .list-item-in,
   .float-in,
   .fade-in,
+  .sheet-in,
   .skeleton {
     animation: none;
   }

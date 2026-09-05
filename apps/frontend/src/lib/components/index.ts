@@ -26,6 +26,7 @@ export { default as Segmented } from "./Segmented.svelte";
 export { default as Select } from "./Select.svelte";
 export { default as Skeleton } from "./Skeleton.svelte";
 export { default as Spinner } from "./Spinner.svelte";
+export { default as StarBurst } from "./StarBurst.svelte";
 export { default as SplitBar } from "./SplitBar.svelte";
 export { default as Switch } from "./Switch.svelte";
 export { default as Textarea } from "./Textarea.svelte";

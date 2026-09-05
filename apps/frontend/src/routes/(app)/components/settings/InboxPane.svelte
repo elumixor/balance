@@ -26,7 +26,7 @@
       </span>
       <div class="min-w-0 flex-1">
         <p class="t-label text-fg">Plan {sessionNudge.subject}</p>
-        <p class="t-micro text-fg-muted">{stars > 0 ? `Two minutes · +${stars} ★` : "Two minutes"}</p>
+        <p class="t-micro text-fg-muted">{stars > 0 ? `+${stars} ★ for two minutes` : "Two minutes"}</p>
       </div>
       <Button label="Open" size="sm" onclick={openSession} />
     </div>

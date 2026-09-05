@@ -62,7 +62,7 @@
 
 <svelte:window {onkeydown} />
 
-<div class="safe-top mx-auto h-full w-full max-w-2xl overflow-y-auto px-5 pt-4 pb-10 md:px-10 md:pt-8 md:pb-16">
+<div class="safe-top-4 mx-auto h-full w-full max-w-2xl overflow-y-auto px-5 pb-10 md:px-10 md:pt-8 md:pb-16">
   <a href="/projects" class="press-sm hoverable -mx-2 mb-4 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-fg-muted">
     <ArrowLeft size={14} />
     <span class="t-micro">Projects</span>

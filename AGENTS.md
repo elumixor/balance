@@ -162,7 +162,7 @@ have already done it, and never name a failure, a miss or a broken streak. Revie
 
 ## Planning is the calendar, not a screen
 
-`?plan=YYYY-MM-DD` on `/calendar` lights one day and hangs `PlanningBar` off the bottom. Everything
+`?plan=YYYY-MM-DD` on `/calendar` lights one day, dims the rest, and puts `PlanningBar` as a strip above the grid. Everything
 that makes the calendar good — dragging a block in from tomorrow, seeing what sits either side — is
 the point, and the parameter rather than a flag is what survives a reload. `planMode` works coverage
 out on the device so the meter answers a drag immediately; the server checks it again on commit,

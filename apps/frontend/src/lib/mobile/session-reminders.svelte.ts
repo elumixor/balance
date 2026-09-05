@@ -20,6 +20,8 @@ import { isIOSApp } from "./platform";
  */
 
 const ACTION_TYPE = "balance.session";
+/** The glyph the watch shows on a sitting's card — the same one the nudge wears in the app. */
+const SESSION_ICON = "sunrise";
 const SCHEDULED_KEY = "balance.session-reminders-scheduled";
 /** Below what iOS would drop anyway. */
 const MIN_LEAD_MS = 5_000;
@@ -101,7 +103,9 @@ class SessionReminders {
               schedule: { at: new Date(slot.at), allowWhileIdle: true },
               actionTypeId: ACTION_TYPE,
               sound: preferences.reminders.sound ? "default.caf" : undefined,
-              extra: { sessionSlot: slot.slot, day: slot.day },
+              // The watch draws the card off these — a sunrise, in no sphere's colour, because a
+              // sitting is about the whole day rather than one of its blocks.
+              extra: { sessionSlot: slot.slot, day: slot.day, icon: SESSION_ICON, color: "" },
             }))
         : [];
 

@@ -28,7 +28,7 @@
     <span class="min-w-0">
       <span class="t-label block truncate text-fg">Plan {sessionNudge.subject}</span>
       <span class="t-micro block truncate text-fg-muted">
-        {stars > 0 ? `Two minutes · +${stars} ★` : "Two minutes"}
+        {stars > 0 ? `+${stars} ★ for two minutes` : "Two minutes"}
       </span>
     </span>
   </button>

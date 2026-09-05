@@ -151,6 +151,11 @@
        corner on a desktop, with a panel under it on the one screen that has one. `relative` is
        what the strip is placed against. -->
   <div class="flex h-dvh flex-col bg-bg">
+    <!-- The status bar's ground on a phone: screens scroll under the clock, and this keeps their
+         rows from colliding with it the way the system's own bars do. -->
+    <div
+      class="pointer-events-none fixed inset-x-0 top-0 z-40 h-[var(--safe-top)] bg-bg/75 backdrop-blur-md md:hidden"
+    ></div>
     <div class="relative flex min-h-0 flex-1">
       <NavStrip />
       <SideNav />
@@ -176,7 +181,7 @@
         <TabBar />
       </div>
     </div>
-    <!-- A notification rather than a screen: top-right on a desktop, above the bar on a phone. -->
+    <!-- A notification rather than a screen: one more card in the corner's pile. -->
     <SessionNudge />
   </div>
   <!-- Above the shell rather than inside the rail: the hotkey opens it from any screen, and on a

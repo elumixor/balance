@@ -1,5 +1,6 @@
 <script lang="ts">
   import { formatHoursAndMinutes } from "$lib/format";
+  import { safeArea } from "$lib/safe-area";
 
   /**
    * One end of an event, entered the way a calendar lets you enter it: the field carries the span
@@ -115,11 +116,12 @@
   function place() {
     if (!input) return;
     const rect = input.getBoundingClientRect();
+    const safe = safeArea();
     const below = rect.bottom + GAP;
-    const fitsBelow = below + MENU_MAX_HEIGHT <= window.innerHeight - MARGIN;
+    const fitsBelow = below + MENU_MAX_HEIGHT <= window.innerHeight - safe.bottom - MARGIN;
     position = {
       left: Math.min(Math.max(MARGIN, rect.left), window.innerWidth - MENU_WIDTH - MARGIN),
-      top: fitsBelow ? below : Math.max(MARGIN, rect.top - GAP - MENU_MAX_HEIGHT),
+      top: fitsBelow ? below : Math.max(safe.top + MARGIN, rect.top - GAP - MENU_MAX_HEIGHT),
     };
   }
 

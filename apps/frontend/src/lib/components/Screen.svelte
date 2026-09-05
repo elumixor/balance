@@ -22,7 +22,7 @@
 
 <!-- The scroll lives here rather than on the shell, so a screen can opt out of it entirely. -->
 <div
-  class="safe-top mx-auto h-full w-full overflow-y-auto px-5 pt-4 pb-10 md:px-10 md:pt-10 md:pb-16 {wide
+  class="safe-top-4 mx-auto h-full w-full overflow-y-auto px-5 pb-10 md:px-10 md:pt-10 md:pb-16 {wide
     ? 'max-w-5xl'
     : 'max-w-2xl'}"
 >

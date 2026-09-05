@@ -20,6 +20,7 @@
     "@capacitor/ios": "^8.5.0",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/preferences": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.3",
     "@capgo/capacitor-social-login": "^8.3.40",
     "@clerk/clerk-js": "^6.26.0",
     "@elumixor/synced": "^0.1.3",

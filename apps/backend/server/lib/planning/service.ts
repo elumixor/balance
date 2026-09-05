@@ -137,6 +137,7 @@ export class PlanningService {
         reviewed,
         {
           slot,
+          timeZone,
           reviewed,
           hours: reviewHours,
           categories: reviewCategories,

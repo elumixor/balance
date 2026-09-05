@@ -601,7 +601,7 @@
 <div class="relative h-full">
   {#if todayOutOfView && !jumping}
     <div
-      class="pointer-events-none absolute inset-x-0 bottom-3 z-40 flex justify-center"
+      class="pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center"
       in:fly={{ y: 16, duration: 200 }}
       out:fly={{ y: 16, duration: 200 }}
     >
@@ -779,7 +779,14 @@
       >
         {#each days as day, index}
           {@const weekend = day.getDay() === 0 || day.getDay() === 6}
-          <div class="relative snap-start border-line border-l {weekend ? 'bg-fg/[0.02]' : ''}">
+          <!-- While a day is being planned the others step back: still there to drag from, but
+               the lit day is the one the eye lands on. -->
+          {@const dimmed = planMode.active && !planMode.isDay(day)}
+          <div
+            class="relative snap-start border-line border-l transition-opacity duration-300 {weekend
+              ? 'bg-fg/[0.02]'
+              : ''} {dimmed ? 'opacity-45' : ''}"
+          >
             <!-- The column itself is a fixed slot that always exists — it's what the scroll offset
                  is measured in. Only its blocks come and go with the window. -->
             {#each blocksFor(index) as segment (segment.event.id)}

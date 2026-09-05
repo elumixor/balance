@@ -1,7 +1,9 @@
 <script lang="ts">
   import { X } from "lucide-svelte";
   import type { Snippet } from "svelte";
-  import { fade, scale } from "svelte/transition";
+  import { viewport } from "$lib/viewport.svelte";
+  import { cubicOut } from "svelte/easing";
+  import { fade, fly } from "svelte/transition";
 
   /**
    * A centred panel over a dimmed page, for the one thing in the app that isn't the week:
@@ -39,9 +41,11 @@
 {#if open}
   <!-- The backdrop closes on click; the panel stops the click reaching it, which is what lets a
        drag that starts inside the panel end outside it without closing anything. -->
+  <!-- A sheet on a phone, rising from the bottom edge and keeping its last row above the home
+       indicator; a centred panel from `sm` up. -->
   <div
-    class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay-strong p-4
-      {size === 'split' ? 'pt-[5vh]' : 'pt-[6vh]'} backdrop-blur-sm backdrop-saturate-50"
+    class="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-overlay-strong backdrop-blur-sm
+      backdrop-saturate-50 sm:items-start sm:p-4 {size === 'split' ? 'sm:pt-[5vh]' : 'sm:pt-[6vh]'}"
     transition:fade={{ duration: 120 }}
     onclick={onclose}
     onkeydown={() => {}}
@@ -53,12 +57,14 @@
       aria-modal="true"
       aria-label={title}
       tabindex="-1"
-      transition:scale={{ duration: 140, start: 0.98 }}
+      transition:fly={{ duration: 260, y: viewport.sm ? 0 : 400, easing: cubicOut }}
       onclick={(e) => e.stopPropagation()}
       onkeydown={() => {}}
-      class="relative w-full overflow-hidden rounded-lg border border-line bg-surface shadow-float outline-none
+      class="relative flex max-h-[calc(100dvh-var(--safe-top)-24px)] w-full flex-col overflow-hidden rounded-t-2xl
+        border border-line bg-surface shadow-float outline-none max-sm:safe-bottom sm:max-h-none sm:rounded-lg
         {size === 'split' ? 'max-w-4xl' : 'max-w-md'}"
     >
+      <div class="sheet-handle sm:hidden"></div>
       {#if size === "split"}
         <!-- Floated over the page rather than sitting in a bar of its own: a title bar above a rail
              that already names every page would be the same word twice. -->
@@ -84,7 +90,7 @@
             <X size={16} />
           </button>
         </header>
-        <div class="space-y-6 px-5 py-5">
+        <div class="min-h-0 space-y-6 overflow-y-auto px-5 py-5">
           {@render children()}
         </div>
       {/if}

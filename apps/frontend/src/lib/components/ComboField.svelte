@@ -8,6 +8,7 @@
 </script>
 
 <script lang="ts" generics="T">
+  import { safeArea } from "$lib/safe-area";
   import type { Snippet } from "svelte";
 
   /**
@@ -85,11 +86,12 @@
   function place() {
     if (!input) return;
     const rect = input.getBoundingClientRect();
+    const safe = safeArea();
     const below = rect.bottom + GAP;
-    const fitsBelow = below + MENU_MAX_HEIGHT <= window.innerHeight - MARGIN;
+    const fitsBelow = below + MENU_MAX_HEIGHT <= window.innerHeight - safe.bottom - MARGIN;
     position = {
       left: Math.min(Math.max(MARGIN, rect.left), window.innerWidth - width - MARGIN),
-      top: fitsBelow ? below : Math.max(MARGIN, rect.top - GAP - MENU_MAX_HEIGHT),
+      top: fitsBelow ? below : Math.max(safe.top + MARGIN, rect.top - GAP - MENU_MAX_HEIGHT),
     };
   }
 

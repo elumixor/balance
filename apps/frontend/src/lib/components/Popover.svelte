@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { safeArea } from "$lib/safe-area";
   import type { Snippet } from "svelte";
 
   /**
@@ -44,13 +45,16 @@
     if (!rect) return;
 
     const height = panel.offsetHeight;
+    const safe = safeArea();
+    const floor = window.innerHeight - safe.bottom - MARGIN;
+    const ceiling = safe.top + MARGIN;
     const below = rect.bottom + GAP;
-    const flip = below + height > window.innerHeight - MARGIN && rect.top - GAP - height > MARGIN;
+    const flip = below + height > floor && rect.top - GAP - height > ceiling;
     const left = align === "end" ? rect.right - width : rect.left;
 
     position = {
       left: Math.min(Math.max(MARGIN, left), window.innerWidth - width - MARGIN),
-      top: flip ? rect.top - GAP - height : Math.min(below, Math.max(MARGIN, window.innerHeight - MARGIN - height)),
+      top: flip ? rect.top - GAP - height : Math.min(below, Math.max(ceiling, floor - height)),
       flipped: flip,
     };
   });

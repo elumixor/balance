@@ -39,6 +39,7 @@ export default defineConfig({
         "src/lib/integrations/sleep-summary.ts",
         "src/lib/meeting.ts",
         "src/lib/persist.ts",
+        "src/lib/planning/rating.ts",
         "src/lib/planning/zone.ts",
         "src/lib/reminder-lead.ts",
         "src/lib/reminders.ts",
