@@ -570,13 +570,13 @@
         {link.label}
       </button>
       <span
-        class="grid grid-cols-[0fr] transition-[grid-template-columns] duration-150 group-hover/pill:grid-cols-[1fr] has-[:focus-visible]:grid-cols-[1fr] {done
-          ? 'grid-cols-[1fr]'
-          : ''}"
+        class="inline-flex overflow-hidden transition-[max-width] duration-150 {done
+          ? 'max-w-6'
+          : 'max-w-0 group-hover/pill:max-w-6 has-[:focus-visible]:max-w-6'}"
       >
         <button
           type="button"
-          class="press-sm min-w-0 overflow-hidden rounded text-fg-faint hover:text-fg"
+          class="press-sm shrink-0 rounded p-0.5 text-fg-faint hover:text-fg"
           aria-label={done ? "Link copied" : "Copy link"}
           title={done ? "Copied" : "Copy link"}
           onclick={() => void copy(link.url)}
