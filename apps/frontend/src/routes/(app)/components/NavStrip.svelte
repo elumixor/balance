@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { AccountButton, StarBadge, Tooltip } from "$lib/components";
+  import { AccountPill, Tooltip } from "$lib/components";
   import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
 
@@ -56,6 +56,5 @@
 
   <div data-tauri-drag-region={isDesktop ? true : undefined} class="flex-1"></div>
 
-  <StarBadge compact />
-  <AccountButton compact />
+  <AccountPill compact />
 </div>

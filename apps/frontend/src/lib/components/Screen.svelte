@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import AccountButton from "./AccountButton.svelte";
-  import StarBadge from "./StarBadge.svelte";
+  import AccountPill from "./AccountPill.svelte";
 
   /**
    * The frame every screen sits in. It owns the one thing a phone layout forgets: a measure.
@@ -34,9 +33,8 @@
       {/if}
     </div>
     <!-- Account and appearance move into the side rail as soon as there is one. -->
-    <div class="flex items-center gap-1.5 md:hidden">
-      <StarBadge />
-      <AccountButton />
+    <div class="flex items-center md:hidden">
+      <AccountPill />
     </div>
   </header>
 

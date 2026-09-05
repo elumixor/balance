@@ -1,4 +1,4 @@
-export { default as AccountButton } from "./AccountButton.svelte";
+export { default as AccountPill } from "./AccountPill.svelte";
 export { default as AddressField } from "./AddressField.svelte";
 export { default as AnchoredPopup } from "./AnchoredPopup.svelte";
 export { default as AppLoading } from "./AppLoading.svelte";

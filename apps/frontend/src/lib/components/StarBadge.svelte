@@ -6,7 +6,7 @@
   import Tooltip from "./Tooltip.svelte";
 
   /**
-   * The star count next to the avatar on every screen, and the way into the record behind it.
+   * The star count on its own, where the avatar is not beside it — the calendar phone bar — and the way into the record behind it.
    * The same pill as every other count; `compact` is for the rail, where it lines up beside the
    * window buttons and wants their scale.
    */
