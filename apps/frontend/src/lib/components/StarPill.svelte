@@ -14,7 +14,7 @@
 </script>
 
 <div class="flex items-center gap-2">
-  <StarCount value={rank.stars} signed={false} size={13} />
+  <StarCount value={rank.stars} size={13} />
 
   {#if !compact}
     <span class="flex items-center gap-1" aria-label="Tier {rank.tier + 1}, {rank.subtier + 1} of {SUBTIERS}">

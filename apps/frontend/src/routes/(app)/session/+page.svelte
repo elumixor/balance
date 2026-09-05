@@ -156,7 +156,7 @@
           onclick={plan}
         />
         {#if !summary.target.planned && planStars > 0}
-          <p class="t-label mt-2 text-center text-fg-muted"><StarCount value={planStars} size={13} /> for two minutes</p>
+          <p class="t-label mt-2 text-center text-fg-muted"><StarCount value={planStars} size={13} /></p>
         {/if}
         <button type="button" class="t-micro mx-auto mt-2 block text-fg-faint" onclick={() => goto("/calendar")}>
           Not now

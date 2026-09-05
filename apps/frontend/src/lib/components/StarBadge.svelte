@@ -29,7 +29,7 @@
         <StarGlyph size={compact ? 11 : 14} />
       </span>
     {:else}
-      <StarCount value={stars} signed={false} size={compact ? 11 : 14} />
+      <StarCount value={stars} size={compact ? 11 : 14} />
     {/if}
   </button>
 </Tooltip>

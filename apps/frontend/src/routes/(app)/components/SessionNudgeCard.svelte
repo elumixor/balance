@@ -26,12 +26,8 @@
     <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-alt text-fg">
       <Sunrise size={16} />
     </span>
-    <span class="min-w-0">
-      <span class="t-label block truncate text-fg">Plan {sessionNudge.subject}</span>
-      <span class="t-micro block truncate text-fg-muted">
-        {#if stars > 0}<StarCount value={stars} size={11} /> for two minutes{:else}Two minutes{/if}
-      </span>
-    </span>
+    <span class="t-label min-w-0 flex-1 truncate text-fg">Plan {sessionNudge.subject}</span>
+    {#if stars > 0}<StarCount value={stars} size={11} class="shrink-0" />{/if}
   </button>
   <button
     type="button"
