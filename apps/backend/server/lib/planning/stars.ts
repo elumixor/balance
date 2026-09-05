@@ -63,12 +63,21 @@ export interface Award {
 }
 
 /**
+ * The morning's planning window closes at midday. A day planned after it is mostly behind you —
+ * there is nothing to decide about a morning that has happened — so it is written down but pays
+ * nothing, and nobody is asked for it.
+ */
+export const PLAN_UNTIL_MINUTES = 12 * 60;
+
+/**
  * What committing a day pays, before the day has happened.
  *
  * `streak` is the number of planned days ending the day before this one, so committing the third
- * day in a row is the first one that earns the bonus.
+ * day in a row is the first one that earns the bonus. `late` is a same-day commit after the
+ * morning window closed, which pays nothing at all.
  */
-export function dailyAward(options: { ahead: boolean; streak: number }): Award[] {
+export function dailyAward(options: { ahead: boolean; streak: number; late?: boolean }): Award[] {
+  if (options.late) return [];
   const awards: Award[] = [{ reason: "daily", delta: DAILY_STARS }];
   if (options.ahead) awards.push({ reason: "ahead", delta: AHEAD_STARS });
   if (options.streak + 1 >= STREAK_FROM) awards.push({ reason: "streak", delta: STREAK_STARS });

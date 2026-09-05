@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { addDays, dayIn, daysBetween, daysFrom, rangeOf, startOf, timeOn, weekdayOf, weekStartOf } from "./days";
+import { addDays, dayIn, daysBetween, daysFrom, rangeOf, startOf, timeOn, weekdayOf, weekStartOf, minutesIntoDay } from "./days";
 
 const PRAGUE = "Europe/Prague";
 const HOUR = 3_600_000;
@@ -36,6 +36,19 @@ describe("startOf", () => {
   it("works in a zone that is behind UTC and one that is half an hour off", () => {
     expect(startOf("2026-01-15", "America/New_York").toISOString()).toBe("2026-01-15T05:00:00.000Z");
     expect(startOf("2026-01-15", "Asia/Kolkata").toISOString()).toBe("2026-01-14T18:30:00.000Z");
+  });
+});
+
+describe("minutesIntoDay", () => {
+  it("reads the wall clock of the zone, not the server's", () => {
+    // 10:30Z is 13:30 in Kyiv in summer and 03:30 in Los Angeles.
+    const at = new Date("2026-07-01T10:30:00Z");
+    expect(minutesIntoDay("Europe/Kyiv", at)).toBe(13 * 60 + 30);
+    expect(minutesIntoDay("America/Los_Angeles", at)).toBe(3 * 60 + 30);
+  });
+
+  it("names midnight as zero, not twenty-four hours", () => {
+    expect(minutesIntoDay("UTC", new Date("2026-07-01T00:00:00Z"))).toBe(0);
   });
 });
 

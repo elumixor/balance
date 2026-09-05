@@ -44,6 +44,14 @@ export function timeOn(day: Day, timeZone: string, hhmm: string): Date {
   return resolve(Date.parse(`${day}T00:00:00Z`) + (hours * 60 + minutes) * 60_000, timeZone);
 }
 
+/** How far into its local day an instant is, in minutes — `13:30` in Kyiv is 810 wherever the server sits. */
+export function minutesIntoDay(timeZone: string, at: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hour12: false, hour: "2-digit", minute: "2-digit" }).formatToParts(at);
+  const read = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+  // `24` is how en-US names midnight with hour12 off.
+  return (read("hour") % 24) * 60 + read("minute");
+}
+
 /** Days are added as days, not as 24 hours — the length of a day is not a constant. */
 export function addDays(day: Day, count: number): Day {
   const at = new Date(`${day}T00:00:00Z`);

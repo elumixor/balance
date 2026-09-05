@@ -7,7 +7,7 @@ import { CalendarEventsService, type ResolvedEvent } from "../calendar/events-se
 import { PreferencesService } from "../preferences-service";
 import { type SessionCopy, sessionCopyFor } from "./copy";
 import { type Block, balanceMatch, budgetFor, COVERAGE_THRESHOLD, coverage, scheduleMatch } from "./coverage";
-import { addDays, type Day, dayIn, daysBetween, daysFrom, rangeOf, weekStartOf } from "./days";
+import { addDays, type Day, dayIn, daysBetween, daysFrom, minutesIntoDay, rangeOf, weekStartOf } from "./days";
 import { computeProgress, type Progress } from "./progress";
 import { isFresh, type ScheduledSlot, upcomingSlots } from "./schedule";
 import {
@@ -15,6 +15,7 @@ import {
   applyDelta,
   balanceBonus,
   dailyAward,
+  PLAN_UNTIL_MINUTES,
   rankOf,
   STAR_RATES,
   scheduleBonus,
@@ -128,7 +129,7 @@ export class PlanningService {
       rates: STAR_RATES,
       coverageThreshold: COVERAGE_THRESHOLD,
       /** What committing the target day would pay right now, if it isn't already committed. */
-      award: planned ? [] : dailyAward({ ahead: daysBetween(today, target) > 0, streak }),
+      award: planned ? [] : this.awardFor({ today, day: target, timeZone, now, streak }),
       weeklyAward: weekPlanned ? 0 : WEEKLY_STARS,
       review: { ...reviewView, hours: reviewHours, categories: reviewCategories, top },
       target: targetView,
@@ -150,7 +151,7 @@ export class PlanningService {
           stars,
           awardStars: planned
             ? 0
-            : dailyAward({ ahead: daysBetween(today, target) > 0, streak }).reduce((sum, a) => sum + a.delta, 0),
+            : this.awardFor({ today, day: target, timeZone, now, streak }).reduce((sum, a) => sum + a.delta, 0),
         },
         options.persistCopy !== false,
       ),
@@ -251,7 +252,7 @@ export class PlanningService {
     }
 
     const streak = await this.streak(today);
-    const awarded = dailyAward({ ahead: daysBetween(today, day) > 0, streak });
+    const awarded = this.awardFor({ today, day, timeZone, now, streak });
 
     await db.insert(plannedDays).values({
       userId: this.userId,
@@ -265,6 +266,13 @@ export class PlanningService {
 
     await this.award(day, awarded);
     return { alreadyPlanned: false, awarded, stars: await this.stars() };
+  }
+
+  /** What committing `day` pays at `now`: more the evening before, nothing once its morning is gone. */
+  private awardFor(options: { today: Day; day: Day; timeZone: string; now: Date; streak: number }) {
+    const ahead = daysBetween(options.today, options.day) > 0;
+    const late = !ahead && minutesIntoDay(options.timeZone, options.now) >= PLAN_UNTIL_MINUTES;
+    return dailyAward({ ahead, streak: options.streak, late });
   }
 
   /** The longer sitting. Pays flat — the week it plans is what earns the rest. */

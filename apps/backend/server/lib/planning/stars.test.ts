@@ -22,6 +22,10 @@ describe("dailyAward", () => {
     ]);
   });
 
+  it("pays nothing for a day planned after its morning is gone", () => {
+    expect(dailyAward({ ahead: false, streak: 5, late: true })).toEqual([]);
+  });
+
   it("starts the streak bonus on the third consecutive day, not the fourth", () => {
     // Two days already behind it, so this commit is the third.
     expect(dailyAward({ ahead: false, streak: 2 }).map((a) => a.reason)).toEqual(["daily", "streak"]);
