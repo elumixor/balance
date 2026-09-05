@@ -566,9 +566,9 @@
     </button>
     <button
       type="button"
-      class="press-sm -mr-1 shrink-0 rounded p-0.5 text-fg-faint hover:text-fg {done
-        ? ''
-        : 'opacity-0 group-hover/pill:opacity-100 focus-visible:opacity-100'}"
+      class="press-sm shrink-0 overflow-hidden rounded text-fg-faint transition-[width,opacity] hover:text-fg {done
+        ? '-mr-1 w-4 p-0.5 opacity-100'
+        : '-ml-1 w-0 opacity-0 group-hover/pill:-mr-1 group-hover/pill:ml-0 group-hover/pill:w-4 group-hover/pill:p-0.5 group-hover/pill:opacity-100 focus-visible:-mr-1 focus-visible:ml-0 focus-visible:w-4 focus-visible:p-0.5 focus-visible:opacity-100'}"
       aria-label={done ? "Link copied" : "Copy link"}
       title={done ? "Copied" : "Copy link"}
       onclick={() => void copy(link.url)}
