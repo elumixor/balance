@@ -3,8 +3,7 @@
   import { formatClock, formatHoursAndMinutes } from "$lib/format";
   import { isIOSApp } from "$lib/mobile/platform";
   import type { CalendarEvent } from "$lib/types";
-  import { Moon, RefreshCw } from "lucide-svelte";
-  import { FEEDS, integrations } from "./integrations.svelte";
+  import { Moon } from "lucide-svelte";
   import { asSleepScore } from "./sleep-score";
   import { asSleepPlan, asSleepSummary } from "./sleep-summary";
 
@@ -19,11 +18,6 @@
   const score = $derived(asSleepScore(event.record));
   /** What the night was measured against: the block as planned, kept in the record once the block has moved. */
   const plan = $derived(asSleepPlan(event.record));
-  /** The feed behind this row, for the sync button — only where this device can read it. */
-  const entry = $derived(event.source ? (FEEDS.get(event.source) ?? null) : null);
-  const readable = $derived(entry?.integration.available ?? false);
-  const syncing = $derived(entry ? integrations.status(entry.integration.id, entry.feed.id).syncing : false);
-  const sync = () => entry && void integrations.sync(entry.integration, entry.feed);
   const planned = $derived(
     (new Date(plan?.plannedEnd ?? event.end).getTime() - new Date(plan?.plannedStart ?? event.start).getTime()) / 3_600_000,
   );
@@ -58,20 +52,7 @@
   } as const;
 </script>
 
-{#snippet syncButton()}
-  <button
-    type="button"
-    title="Sync from Apple Health"
-    aria-label="Sync from Apple Health"
-    disabled={syncing}
-    onclick={sync}
-    class="press-sm flex size-7 items-center justify-center rounded text-fg-faint hover:text-fg disabled:hover:text-fg-faint"
-  >
-    <RefreshCw size={14} class={syncing ? "animate-spin" : ""} />
-  </button>
-{/snippet}
-
-<CardRow icon={Moon} set={Boolean(summary)} align="start" under={readable ? syncButton : undefined}>
+<CardRow icon={Moon} set={Boolean(summary)} align="start">
   <div class="min-w-0 flex-1 space-y-2 py-1">
     {#if summary}
       <div class="flex items-baseline justify-between gap-3">

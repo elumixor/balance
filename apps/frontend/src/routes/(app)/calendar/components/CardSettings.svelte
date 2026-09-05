@@ -12,14 +12,16 @@
   import { Popover, Switch } from "$lib/components";
   import { FEEDS, INTEGRATIONS, integrations } from "$lib/integrations/integrations.svelte";
   import { preferences } from "$lib/preferences.svelte";
-  import { Plug, X } from "lucide-svelte";
+  import { settings } from "$lib/settings";
+  import { Plug, RefreshCw, X } from "lucide-svelte";
 
   /**
    * What this card shows and what feeds it.
    *
-   * One popover, two groups. The first is integrations: the feed linked to this block, with a
-   * cross to unlink it, or the feeds that could be, each with a plug to connect the device and
-   * link in one go. The second is the card's own sections, each with a switch — folding away the
+   * One popover, two groups. The first is integrations: the feed linked to this block — a row
+   * that opens the integration's settings, with a sync where this device can read it and a cross
+   * to unlink — or the feeds that could be, each with a plug to connect the device and link in
+   * one go. The second is the card's own sections, each with a switch — folding away the
    * rows you never fill is what keeps the card the size of what it says. Both are "what is on
    * this card", which is why they are one place rather than two.
    */
@@ -50,19 +52,43 @@
     <div class="space-y-3 p-2">
       <div class="space-y-1">
         {#if linked}
-          <div class="flex items-center gap-2 rounded-md border border-line px-2 py-1.5">
-            <linked.integration.icon size={15} class="shrink-0 text-fg-muted" />
-            <span class="t-label min-w-0 flex-1 truncate">{linked.integration.name} · {linked.feed.label}</span>
+          {@const status = integrations.status(linked.integration.id, linked.feed.id)}
+          <div class="flex items-center gap-1 rounded-md border border-line py-1 pr-1 pl-2">
             <button
               type="button"
+              title="Open {linked.integration.name} settings"
+              onclick={() => {
+                close();
+                settings.show("integrations");
+              }}
+              class="press-sm flex min-w-0 flex-1 items-center gap-2 py-0.5 text-left"
+            >
+              <linked.integration.icon size={15} class="shrink-0 text-fg-muted" />
+              <span class="t-label min-w-0 flex-1 truncate">{linked.integration.name} {linked.feed.label}</span>
+            </button>
+            {#if linked.integration.available}
+              <button
+                type="button"
+                title="Sync now"
+                aria-label="Sync {linked.feed.label}"
+                disabled={status.syncing}
+                onclick={() => void integrations.sync(linked.integration, linked.feed)}
+                class="press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg"
+              >
+                <RefreshCw size={13} class={status.syncing ? "animate-spin" : ""} />
+              </button>
+            {/if}
+            <button
+              type="button"
+              title="Unlink"
               aria-label="Unlink {linked.feed.label}"
               onclick={() => {
                 onunlink();
                 close();
               }}
-              class="press-sm shrink-0 rounded-full border border-line p-0.5 text-fg-faint hover:text-fg"
+              class="press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg"
             >
-              <X size={11} />
+              <X size={13} />
             </button>
           </div>
         {:else}
@@ -78,7 +104,7 @@
                 class="menu-row"
               >
                 <integration.icon size={15} class="shrink-0 text-fg-faint" />
-                <span class="min-w-0 flex-1 truncate">{integration.name} · {feed.label}</span>
+                <span class="min-w-0 flex-1 truncate">{integration.name} {feed.label}</span>
                 <span class="t-micro shrink-0 text-fg-faint">
                   {integration.available && !integrations.connected(integration.id) ? "Connect" : "Link"}
                 </span>

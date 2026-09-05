@@ -20,8 +20,6 @@
     align = "center",
     onclick,
     disabled = false,
-    /** What sits under the glyph, in its column — a small action about the row, never its content. */
-    under,
     children,
   }: {
     icon: typeof IconType;
@@ -30,7 +28,6 @@
     align?: "center" | "start";
     onclick?: (e: MouseEvent & { currentTarget: HTMLButtonElement }) => void;
     disabled?: boolean;
-    under?: Snippet;
     children?: Snippet;
   } = $props();
 
@@ -41,22 +38,13 @@
 </script>
 
 {#snippet glyph()}
-  {#if under}
-    <span class="flex shrink-0 flex-col items-center gap-1 {align === 'start' ? 'mt-0.5' : ''}">
-      <span class="flex size-7 items-center justify-center {set ? 'text-fg-muted' : 'text-fg-faint'}">
-        <Icon size={16} />
-      </span>
-      {@render under()}
-    </span>
-  {:else}
-    <span
-      class="flex size-7 shrink-0 items-center justify-center {set ? 'text-fg-muted' : 'text-fg-faint'} {align === 'start'
-        ? 'mt-0.5'
-        : ''}"
-    >
-      <Icon size={16} />
-    </span>
-  {/if}
+  <span
+    class="flex size-7 shrink-0 items-center justify-center {set ? 'text-fg-muted' : 'text-fg-faint'} {align === 'start'
+      ? 'mt-0.5'
+      : ''}"
+  >
+    <Icon size={16} />
+  </span>
 {/snippet}
 
 {#snippet body()}
