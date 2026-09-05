@@ -556,7 +556,7 @@
 
 {#snippet pill(link: { url: string; label: string })}
   {@const done = copied === link.url}
-  <span class="group/pill chip-bare max-w-full align-baseline">
+  <span class="group/pill chip-bare relative max-w-full align-baseline">
     <button
       type="button"
       class="press-sm min-w-0 truncate text-left"
@@ -566,9 +566,9 @@
     </button>
     <button
       type="button"
-      class="press-sm shrink-0 overflow-hidden rounded text-fg-faint transition-[width,opacity] hover:text-fg {done
-        ? '-mr-1 w-4 p-0.5 opacity-100'
-        : '-ml-1 w-0 opacity-0 group-hover/pill:-mr-1 group-hover/pill:ml-0 group-hover/pill:w-4 group-hover/pill:p-0.5 group-hover/pill:opacity-100 focus-visible:-mr-1 focus-visible:ml-0 focus-visible:w-4 focus-visible:p-0.5 focus-visible:opacity-100'}"
+      class="press-sm absolute -top-1 -right-1 z-10 rounded-md border border-line bg-surface p-1 text-fg-faint shadow-sm transition-opacity hover:text-fg {done
+        ? 'opacity-100'
+        : 'opacity-0 group-hover/pill:opacity-100 focus-visible:opacity-100'}"
       aria-label={done ? "Link copied" : "Copy link"}
       title={done ? "Copied" : "Copy link"}
       onclick={() => void copy(link.url)}
