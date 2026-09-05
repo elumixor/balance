@@ -85,7 +85,7 @@
 {#if loading}
   <div class="flex items-center gap-2 px-2 py-1.5 text-fg-faint" aria-busy="true">
     <Spinner size={14} />
-    <span class="t-label">Loading calendars…</span>
+    <span class="t-micro">Loading calendars…</span>
   </div>
 {:else}
   <div class="space-y-3">
@@ -109,10 +109,10 @@
                 class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left disabled:cursor-default"
               >
                 <span
-                  class="size-3 shrink-0 rounded-full {isWrite ? 'ring-2 ring-fg ring-offset-1 ring-offset-surface' : ''}"
+                  class="size-1.5 shrink-0 rounded-full {isWrite ? 'ring-1 ring-fg ring-offset-2 ring-offset-surface' : ''}"
                   style="background:{calendar.color ?? restColor}"
                 ></span>
-                <span class="t-label min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
+                <span class="t-micro min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
                   {calendar.name}
                 </span>
               </button>
@@ -121,9 +121,9 @@
                 aria-label={shown ? "Hide {calendar.name}" : "Show {calendar.name}"}
                 aria-pressed={shown}
                 onclick={() => toggle(calendar)}
-                class="press-sm flex size-6 shrink-0 items-center justify-center rounded text-fg-faint hover:text-fg"
+                class="press-sm flex size-5 shrink-0 items-center justify-center rounded text-fg-faint hover:text-fg"
               >
-                {#if shown}<Eye size={14} />{:else}<EyeOff size={14} />{/if}
+                {#if shown}<Eye size={12} />{:else}<EyeOff size={12} />{/if}
               </button>
             </div>
           {/each}
@@ -135,9 +135,9 @@
       type="button"
       disabled={connecting}
       onclick={() => void addAccount()}
-      class="menu-row press-sm text-fg-faint disabled:opacity-60"
+      class="t-micro hoverable press-sm flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-fg-faint disabled:opacity-60"
     >
-      <Plus size={14} />
+      <Plus size={13} />
       <span>Add calendar account</span>
     </button>
   </div>
