@@ -153,3 +153,74 @@ async function noPlace(response: Response): Promise<null> {
   const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
   throw new ApiError(`Google Maps said: ${body.error?.message ?? response.statusText}`, 502);
 }
+
+/** The picture is the same for the life of an address; a day is long enough not to matter. */
+const MAP_CACHE_MS = 24 * 60 * 60_000;
+const MAP_CACHE_MAX = 200;
+const mapCache = new Map<string, { at: number; image: string }>();
+
+/**
+ * How the preview is drawn: Google's own map with the shop pins and road shields taken off and
+ * the colour turned down, so a card reads as the app's rather than as a browser tab. The dark
+ * one paints the same map on the app's dark ground.
+ */
+const STYLE_LIGHT = [
+  "feature:poi|visibility:off",
+  "feature:transit|element:labels.icon|visibility:off",
+  "feature:road|element:labels.icon|visibility:off",
+  "feature:all|saturation:-55",
+  "feature:landscape|color:0xf4f4f2",
+  "feature:water|color:0xd6e0ea",
+  "element:labels.text.fill|color:0x6b6b6b",
+  "element:labels.text.stroke|color:0xffffff",
+];
+const STYLE_DARK = [
+  "feature:poi|visibility:off",
+  "feature:transit|element:labels.icon|visibility:off",
+  "feature:road|element:labels.icon|visibility:off",
+  "feature:all|element:geometry|color:0x242424",
+  "feature:landscape|color:0x1e1e1e",
+  "feature:road|element:geometry|color:0x3a3a3a",
+  "feature:road.highway|element:geometry|color:0x4a4a4a",
+  "feature:road|element:geometry.stroke|visibility:off",
+  "feature:water|color:0x14202b",
+  "element:labels.text.fill|color:0x9a9a9a",
+  "element:labels.text.stroke|color:0x1e1e1e",
+];
+
+/**
+ * A small map centred on a point, as a data URL. Proxied rather than linked because the key
+ * would otherwise sit in an `<img src>` for anyone to read, and an image can't carry the
+ * session header every other request does. The pin is the app's own, drawn over it.
+ */
+export async function staticMap(input: {
+  latitude: number;
+  longitude: number;
+  width: number;
+  height: number;
+  dark: boolean;
+}): Promise<string | null> {
+  const key = `${input.latitude.toFixed(5)},${input.longitude.toFixed(5)}|${input.width}x${input.height}|${input.dark}`;
+  const hit = mapCache.get(key);
+  if (hit && Date.now() - hit.at < MAP_CACHE_MS) return hit.image;
+
+  const params = new URLSearchParams({
+    center: `${input.latitude},${input.longitude}`,
+    zoom: "15",
+    size: `${input.width}x${input.height}`,
+    scale: "2",
+    key: env.GOOGLE_MAPS_API_KEY,
+  });
+  for (const rule of input.dark ? STYLE_DARK : STYLE_LIGHT) params.append("style", rule);
+  const response = await fetch(`https://maps.googleapis.com/maps/api/staticmap?${params}`);
+  if (!response.ok) return null;
+  const type = response.headers.get("content-type") ?? "image/png";
+  const image = `data:${type};base64,${Buffer.from(await response.arrayBuffer()).toString("base64")}`;
+
+  if (mapCache.size >= MAP_CACHE_MAX) {
+    const oldest = mapCache.keys().next().value;
+    if (oldest !== undefined) mapCache.delete(oldest);
+  }
+  mapCache.set(key, { at: Date.now(), image });
+  return image;
+}

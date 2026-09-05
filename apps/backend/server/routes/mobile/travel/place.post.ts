@@ -8,8 +8,8 @@ import { lookupPlace } from "../../../lib/travel/places";
 /**
  * One place, pinned down: its coordinates and the address as Google spells it. Asked once a
  * suggestion is chosen — or for a calendar event's own location, in words — and answers
- * `{ place: null }` when Google knows no such place, which is what "Room 4" gets. The map drawn
- * from the answer is the app's own business; Google's static one wants billing this key hasn't.
+ * `{ place: null }` when Google knows no such place, which is what "Room 4" gets. The map around
+ * it is `/mobile/travel/map`, asked with the coordinates this answers.
  */
 export default handler(
   {

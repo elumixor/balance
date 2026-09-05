@@ -3,7 +3,8 @@
   import { formatClock, formatHoursAndMinutes } from "$lib/format";
   import { isIOSApp } from "$lib/mobile/platform";
   import type { CalendarEvent } from "$lib/types";
-  import { Moon } from "lucide-svelte";
+  import { Moon, RefreshCw } from "lucide-svelte";
+  import { FEEDS, integrations } from "./integrations.svelte";
   import { asSleepSummary } from "./sleep-summary";
 
   /**
@@ -14,6 +15,11 @@
   let { event }: { event: CalendarEvent } = $props();
 
   const summary = $derived(asSleepSummary(event.record));
+  /** The feed behind this row, for the sync button — only where this device can read it. */
+  const entry = $derived(event.source ? (FEEDS.get(event.source) ?? null) : null);
+  const readable = $derived(entry?.integration.available ?? false);
+  const syncing = $derived(entry ? integrations.status(entry.integration.id, entry.feed.id).syncing : false);
+  const sync = () => entry && void integrations.sync(entry.integration, entry.feed);
   const planned = $derived((new Date(event.end).getTime() - new Date(event.start).getTime()) / 3_600_000);
   const upcoming = $derived(new Date(event.end).getTime() > Date.now());
 
@@ -32,7 +38,20 @@
   const delta = $derived(summary ? summary.asleepMinutes / 60 - planned : 0);
 </script>
 
-<CardRow icon={Moon} set={Boolean(summary)} align="start">
+{#snippet syncButton()}
+  <button
+    type="button"
+    title="Sync from Apple Health"
+    aria-label="Sync from Apple Health"
+    disabled={syncing}
+    onclick={sync}
+    class="press-sm flex size-7 items-center justify-center rounded text-fg-faint hover:text-fg disabled:hover:text-fg-faint"
+  >
+    <RefreshCw size={14} class={syncing ? "animate-spin" : ""} />
+  </button>
+{/snippet}
+
+<CardRow icon={Moon} set={Boolean(summary)} align="start" under={readable ? syncButton : undefined}>
   <div class="min-w-0 flex-1 space-y-2 py-1">
     {#if summary}
       <div class="flex items-baseline justify-between gap-3">
