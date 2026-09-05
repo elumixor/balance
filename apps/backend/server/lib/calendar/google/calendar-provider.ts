@@ -374,6 +374,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
       throw new ApiError("You can only read that calendar, so its events can't be changed", 409);
     }
 
-    throw new ApiError(`Google Calendar said: ${body.error?.message ?? response.statusText}`, 502);
+    // Named in full — the request too — because "Bad Request" alone says nothing about which write.
+    const said = body.error?.message ?? body.error?.errors?.[0]?.message ?? response.statusText;
+    const detail = [reason, `${options.method ?? "GET"} ${path.split("?")[0]}`].filter(Boolean).join(", ");
+    throw new ApiError(`Google Calendar said: ${said} (${detail})`, 502);
   }
 }

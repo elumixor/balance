@@ -62,5 +62,5 @@ export interface GoogleEventsResponse {
 }
 
 export interface GoogleErrorResponse {
-  error?: { message?: string; errors?: { reason?: string }[] };
+  error?: { message?: string; errors?: { reason?: string; message?: string }[] };
 }
