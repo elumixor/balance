@@ -2,7 +2,7 @@
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { CalendarPanel, EventEditor, PlanningBar, SidePanelSection, WeekGrid } from "./components";
   import { ConnectGoogle } from "$lib/calendar/components";
-  import { Button, Divider, Popover, ThemeToggle } from "$lib/components";
+  import { Button, Divider, Popover, StarBadge, ThemeToggle } from "$lib/components";
   import { categories } from "$lib/synced.svelte";
   import { settings } from "$lib/settings";
   import { page } from "$app/state";
@@ -130,7 +130,9 @@
       <!-- One door onto everything the phone has no rail for: which calendars are drawn, where in
            the year the grid is, how the week is filling up — and, under the rule, the app's own
            settings, which until now only a keyboard could reach. -->
-      <Popover width={330}>
+      <div class="flex items-center gap-2">
+        <StarBadge />
+        <Popover width={330}>
         {#snippet trigger(open: () => void)}
           <Button variant="bare" class="size-8 bg-surface-alt" title="Calendars, week and settings" onclick={open}>
             {#snippet icon()}<Menu size={18} />{/snippet}
@@ -166,7 +168,8 @@
             </div>
           </div>
         {/snippet}
-      </Popover>
+        </Popover>
+      </div>
     </div>
   </header>
 

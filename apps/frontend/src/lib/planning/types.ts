@@ -111,6 +111,30 @@ export interface CommitResult {
   stars: number;
 }
 
+export interface Achievement {
+  id: string;
+  label: string;
+  detail: string;
+  earned: boolean;
+  /** 0..1 — how far along an unearned one is. */
+  progress: number;
+}
+
+/** The record behind the star — see `server/lib/planning/progress.ts`. */
+export interface StarProgress {
+  rank: Rank;
+  streak: number;
+  bestStreak: number;
+  plannedDays: number;
+  aheadDays: number;
+  restDays: number;
+  weeksPlanned: number;
+  weekStars: number;
+  byReason: Record<string, number>;
+  recent: { day: string; stars: number; planned: boolean; ahead: boolean; rest: boolean }[];
+  achievements: Achievement[];
+}
+
 /** One session reminder, as the phone will schedule it. */
 export interface SessionNotification {
   slot: Slot;

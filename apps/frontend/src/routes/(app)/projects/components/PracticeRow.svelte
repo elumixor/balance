@@ -32,7 +32,7 @@
     <div class="flex items-center gap-2">
       <Field
         bind:element
-        variant="inline-sm"
+        variant="bare-sm"
         value={practice.name}
         placeholder="Practice"
         oninput={(name) => data.updatePractice(practice.id, { name })}

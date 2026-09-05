@@ -6,8 +6,9 @@ import { commitPlannedDay, commitPlannedWeek } from "$lib/queries";
 import { calendarWeek } from "$lib/store.svelte";
 import { telemetry } from "$lib/telemetry";
 import type { CalendarWeek } from "$lib/types";
+import { progressData } from "./progress.svelte";
 import { sessionData } from "./session-data.svelte";
-import type { StarAward } from "./types";
+import type { SessionSummary, StarAward } from "./types";
 import { deviceTimeZone, localDay } from "./zone";
 
 /**
@@ -103,6 +104,18 @@ class PlanMode {
     void goto(`/calendar?plan=${options.day}`);
   }
 
+  /** Planning the day a session is about, with everything the strip needs taken off the summary. */
+  startFrom(summary: SessionSummary) {
+    this.start({
+      day: summary.target.day,
+      budgetHours: summary.target.budgetHours,
+      threshold: summary.coverageThreshold,
+      award: summary.award,
+      weekStart: summary.slot === "weekly" && summary.weeklyAward > 0 ? nextWeekStart(summary.today) : null,
+      weeklyAward: summary.slot === "weekly" ? summary.weeklyAward : 0,
+    });
+  }
+
   stop() {
     this.day = null;
     this.awarded = null;
@@ -138,8 +151,10 @@ class PlanMode {
         rest: options.rest === true,
         stars: awarded.reduce((s, a) => s + a.delta, 0),
       });
-      // The nudge asks whether the day has been planned, and it just has.
+      // The nudge asks whether the day has been planned, and it just has; the badge asks what
+      // that paid.
       void sessionData.refresh();
+      void progressData.refresh();
     } catch (e) {
       diagnostics.report("Planning", e, { title: "Couldn’t save your plan" });
     } finally {
@@ -149,6 +164,15 @@ class PlanMode {
 }
 
 export const planMode = new PlanMode();
+
+/** The Monday after the week being reviewed — the week the Sunday sitting is actually drawing. */
+function nextWeekStart(today: string) {
+  const [year, month, day] = today.split("-").map(Number);
+  const at = new Date(year, month - 1, day);
+  const weekday = at.getDay() === 0 ? 7 : at.getDay();
+  at.setDate(at.getDate() + (8 - weekday));
+  return `${at.getFullYear()}-${`${at.getMonth() + 1}`.padStart(2, "0")}-${`${at.getDate()}`.padStart(2, "0")}`;
+}
 
 /** A local day as the two instants it spans, which is what the calendar's events are stamped in. */
 function dayBounds(day: string) {

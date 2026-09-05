@@ -8,6 +8,7 @@ import { PreferencesService } from "../preferences-service";
 import { type SessionCopy, sessionCopyFor } from "./copy";
 import { type Block, balanceMatch, budgetFor, COVERAGE_THRESHOLD, coverage, scheduleMatch } from "./coverage";
 import { addDays, type Day, dayIn, daysBetween, daysFrom, rangeOf, weekStartOf } from "./days";
+import { computeProgress, type Progress } from "./progress";
 import { isFresh, type ScheduledSlot, upcomingSlots } from "./schedule";
 import {
   type Award,
@@ -199,6 +200,27 @@ export class PlanningService {
       settle: false,
     });
     return summary.copy;
+  }
+
+  /**
+   * The account's record — rank, streaks, payouts, a month of days, achievements — for the stars
+   * pane. Settles first for the same reason the summary does: the ledger is only right once the
+   * missed days have been charged.
+   */
+  async progress(options: { timeZone: string; now?: Date }): Promise<Progress> {
+    const today = dayIn(options.timeZone, options.now ?? new Date());
+    await this.settle({ timeZone: options.timeZone, today, threshold: COVERAGE_THRESHOLD });
+    const [ledger, days] = await Promise.all([
+      db.query.starLedger.findMany({
+        where: eq(starLedger.userId, this.userId),
+        columns: { day: true, delta: true, reason: true },
+      }),
+      db.query.plannedDays.findMany({
+        where: eq(plannedDays.userId, this.userId),
+        columns: { day: true, ahead: true, rest: true, coveragePercent: true },
+      }),
+    ]);
+    return computeProgress({ today, ledger, days });
   }
 
   /**

@@ -684,7 +684,7 @@
         bind:element={titleEl}
         oninput={queue}
         placeholder="Untitled"
-        variant="inline"
+        variant="bare"
         ariaLabel="Event title"
         class="t-heading h-9 py-1"
       />

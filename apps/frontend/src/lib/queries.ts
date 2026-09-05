@@ -1,5 +1,5 @@
 import { api, apiGet, callApi, unwrapOk } from "./api";
-import type { CommitResult, SessionNotification, SessionSummary, Slot } from "./planning/types";
+import type { CommitResult, SessionNotification, SessionSummary, Slot, StarProgress } from "./planning/types";
 import type { StoredPreferences } from "./preferences.svelte";
 import type {
   ActivityWeight,
@@ -52,6 +52,7 @@ export const updatePreferences = (patch: {
 /** The zone travels with every ask: a planning day is a day in a place, and only the device knows. */
 export const getSessionSummary = (slot: Slot, timeZone: string) =>
   apiGet<SessionSummary>("/planning/summary", { slot, timeZone });
+export const getProgress = (timeZone: string) => apiGet<StarProgress>("/planning/progress", { timeZone });
 export const getSessionNotifications = (timeZone: string) =>
   apiGet<{ enabled: boolean; slots: SessionNotification[] }>("/planning/notifications", { timeZone });
 export const commitPlannedDay = (input: { day: string; timeZone: string; rest?: boolean }) =>

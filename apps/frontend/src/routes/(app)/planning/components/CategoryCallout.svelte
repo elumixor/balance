@@ -54,7 +54,7 @@
 
     {#if onchange}
       <Field
-        variant="inline-sm"
+        variant="bare-sm"
         value={name}
         oninput={(value) => onchange?.({ name: value })}
         placeholder="Category name"

@@ -33,7 +33,7 @@
 
 <div class="space-y-3">
   <Field
-    variant="inline"
+    variant="bare"
     value={stage.sentence}
     placeholder="The gate, as a sentence: what has to be true"
     oninput={(sentence) => data.updateStage(stage.id, { sentence })}

@@ -53,7 +53,7 @@
           <Field
             value={saved.label}
             oninput={(next) => preferences.updateZone(saved.id, { label: next })}
-            variant="inline"
+            variant="bare"
             ariaLabel="Name of this zone"
             autocapitalize="sentences"
           />

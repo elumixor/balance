@@ -34,7 +34,7 @@
       <li class="flex items-center gap-2">
         <CategoryIcon icon={category.icon} color={category.color} size={14} />
         <span class="t-label min-w-0 flex-1 truncate">{category.name}</span>
-        <span class="t-data-compact text-fg-muted">{format(category.hours)}</span>
+        <span class="t-data text-fg-muted">{format(category.hours)}</span>
       </li>
     {/each}
   </ul>

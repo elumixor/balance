@@ -27,7 +27,5 @@
   {placeholder}
   {rows}
   aria-label={ariaLabel}
-  class="t-label w-full resize-y {variant === 'bare'
-    ? 'field-bare h-auto py-1.5'
-    : 'rounded-md border border-transparent bg-surface-alt px-3 py-2.5 text-fg placeholder:text-fg-faint focus:border-line-strong'} {klass}"
+  class="h-auto w-full resize-y {variant === 'bare' ? 'field-bare py-1.5' : 'field-boxed py-2'} {klass}"
 ></textarea>

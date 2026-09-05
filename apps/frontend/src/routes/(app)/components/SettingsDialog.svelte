@@ -3,11 +3,12 @@
   import { auth } from "$lib/auth.svelte";
   import { telemetry } from "$lib/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
-  import { GeneralPane, InboxPane, IntegrationsPane, PlacesPane, PlanningPane, RemindersPane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
+  import { GeneralPane, InboxPane, StarsPane, IntegrationsPane, PlacesPane, PlanningPane, RemindersPane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
   import { PANES } from "$lib/settings";
   import { preferences } from "$lib/preferences.svelte";
   import { settings } from "$lib/settings";
   import { clearStore } from "$lib/store.svelte";
+  import { progressData } from "$lib/planning/progress.svelte";
   import { Dialog } from "$lib/components";
 
   /**
@@ -30,6 +31,7 @@
     telemetry.forget();
     // Whatever is cached belongs to the account that just left.
     await clearStore();
+    progressData.reset();
     await goto("/sign-in");
   }
 </script>
@@ -63,7 +65,9 @@
     </div>
 
     <div class="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 md:px-6 md:py-6 md:pr-12">
-      {#if settings.pane === "inbox"}
+      {#if settings.pane === "stars"}
+        <StarsPane />
+      {:else if settings.pane === "inbox"}
         <InboxPane />
       {:else if settings.pane === "general"}
         <GeneralPane onsignout={() => void signOut()} />

@@ -9,6 +9,7 @@ export { default as PlanningPane } from "./PlanningPane.svelte";
 export { default as RemindersPane } from "./RemindersPane.svelte";
 export { default as SettingsGroup } from "./SettingsGroup.svelte";
 export { default as SettingsNav } from "./SettingsNav.svelte";
+export { default as StarsPane } from "./StarsPane.svelte";
 export { default as TimeInput } from "./TimeInput.svelte";
 export { default as TimeZonesPane } from "./TimeZonesPane.svelte";
 export { default as ToggleRow } from "./ToggleRow.svelte";

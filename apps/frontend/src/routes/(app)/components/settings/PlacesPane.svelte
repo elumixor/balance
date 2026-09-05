@@ -63,7 +63,7 @@
           <Field
             value={location.label}
             oninput={(next) => preferences.updateLocation(location.id, { label: next })}
-            variant="inline"
+            variant="bare"
             ariaLabel="Name of this place"
             autocapitalize="sentences"
           />

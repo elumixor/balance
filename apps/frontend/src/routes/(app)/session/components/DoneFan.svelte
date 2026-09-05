@@ -32,7 +32,7 @@
           <CategoryIcon icon={block.icon} color={block.color} size={16} />
         {/if}
         <span class="t-label min-w-0 flex-1 truncate">{block.title}</span>
-        <span class="t-data-compact text-fg-muted">{hours(block.hours)}</span>
+        <span class="t-data text-fg-muted">{hours(block.hours)}</span>
       </div>
       {#if block.categoryName}
         <p class="t-micro mt-1 truncate text-fg-muted">{block.categoryName}</p>

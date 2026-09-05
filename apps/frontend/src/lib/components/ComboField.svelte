@@ -8,7 +8,7 @@
 </script>
 
 <script lang="ts" generics="T">
-  import { safeArea } from "$lib/safe-area";
+  import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "./float";
   import type { Snippet } from "svelte";
 
   /**
@@ -26,6 +26,7 @@
     placeholder,
     ariaLabel,
     autofocus = false,
+    autocapitalize = "off",
     width = 240,
     onpick,
     /** Enter on text that isn't in the list. Left out, such text is simply not an answer. */
@@ -41,6 +42,7 @@
     placeholder?: string;
     ariaLabel: string;
     autofocus?: boolean;
+    autocapitalize?: "off" | "sentences";
     width?: number;
     onpick: (option: ComboOption<T>) => void;
     onfree?: (text: string) => void;
@@ -49,15 +51,11 @@
     class?: string;
   } = $props();
 
-  const MENU_MAX_HEIGHT = 280;
-  const GAP = 6;
-  const MARGIN = 12;
-
   let input = $state<HTMLInputElement>();
   let list = $state<HTMLElement>();
   let open = $state(false);
   let highlighted = $state(0);
-  let position = $state<{ left: number; top: number } | null>(null);
+  let position = $state<FloatPosition | null>(null);
 
   const shown = $derived(open && options.length > 0);
 
@@ -82,17 +80,8 @@
     focus();
   });
 
-  /** Below the field when the list fits there, above it otherwise. */
   function place() {
-    if (!input) return;
-    const rect = input.getBoundingClientRect();
-    const safe = safeArea();
-    const below = rect.bottom + GAP;
-    const fitsBelow = below + MENU_MAX_HEIGHT <= window.innerHeight - safe.bottom - MARGIN;
-    position = {
-      left: Math.min(Math.max(MARGIN, rect.left), window.innerWidth - width - MARGIN),
-      top: fitsBelow ? below : Math.max(safe.top + MARGIN, rect.top - GAP - MENU_MAX_HEIGHT),
-    };
+    if (input) position = placeMenu(input, width);
   }
 
   function show() {
@@ -130,21 +119,8 @@
   }
 
   $effect(() => {
-    if (!open) return;
-    const reposition = () => place();
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
+    if (open) return followAnchor(place);
   });
-
-  /** The list belongs to the page: inside the card it would be clipped by the card's own scroll. */
-  function layer(node: HTMLElement) {
-    document.body.appendChild(node);
-    return () => node.remove();
-  }
 </script>
 
 <input
@@ -157,13 +133,11 @@
   onblur={() => (open = false)}
   {onkeydown}
   {placeholder}
+  {autocapitalize}
   aria-label={ariaLabel}
   autocomplete="off"
-  autocapitalize="off"
   spellcheck="false"
-  class="t-label w-full {variant === 'bare'
-    ? 'field-bare'
-    : 'h-10 rounded-md border border-line bg-surface px-3 text-fg transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none'} {klass}"
+  class="w-full {variant === 'bare' ? 'field-bare' : 'field-boxed'} {klass}"
 />
 
 {#if shown && position}
@@ -174,7 +148,7 @@
     bind:this={list}
     data-popup-layer
     onpointerdown={(e) => e.preventDefault()}
-    class="float-in fixed z-50 overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-(--shadow-float)"
+    class="menu float-in fixed z-50"
     style="left:{position.left}px;top:{position.top}px;width:{width}px;max-height:{MENU_MAX_HEIGHT}px"
   >
     {#each options as option, i (option.key)}
@@ -183,13 +157,12 @@
           type="button"
           onclick={() => choose(i)}
           onpointermove={() => (highlighted = i)}
-          class="hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left
-            {i === highlighted ? 'bg-surface-alt' : ''}"
+          class="menu-row {i === highlighted ? 'bg-surface-alt' : ''}"
         >
           {#if row}
             {@render row(option, i === highlighted)}
           {:else}
-            <span class="t-label min-w-0 flex-1 truncate text-fg">{option.label}</span>
+            <span class="min-w-0 flex-1 truncate">{option.label}</span>
             {#if option.hint}
               <span class="t-micro shrink-0 text-fg-muted">{option.hint}</span>
             {/if}

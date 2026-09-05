@@ -1,10 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { Button, CategoryIcon, Skeleton, StarBurst } from "$lib/components";
+  import { Button, CategoryIcon, Skeleton, StarBurst, StarPill } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { DAY_STARS, dayRating } from "$lib/planning/rating";
   import { sessionData } from "$lib/planning/session-data.svelte";
-  import { BalanceRing, DoneFan, DoneList, StarPill } from "./components";
+  import { BalanceRing, DoneFan, DoneList } from "./components";
   import type { Slot } from "$lib/planning/types";
   import { slotNow } from "$lib/planning/zone";
   import { goto } from "$app/navigation";
@@ -43,24 +43,7 @@
   });
 
   function plan() {
-    if (!summary) return;
-    planMode.start({
-      day: summary.target.day,
-      budgetHours: summary.target.budgetHours,
-      threshold: summary.coverageThreshold,
-      award: summary.award,
-      weekStart: summary.slot === "weekly" && summary.weeklyAward > 0 ? nextWeekStart(summary.today) : null,
-      weeklyAward: summary.slot === "weekly" ? summary.weeklyAward : 0,
-    });
-  }
-
-  /** The Monday after the week being reviewed — the week the Sunday sitting is actually drawing. */
-  function nextWeekStart(today: string) {
-    const [year, month, day] = today.split("-").map(Number);
-    const at = new Date(year, month - 1, day);
-    const weekday = at.getDay() === 0 ? 7 : at.getDay();
-    at.setDate(at.getDate() + (8 - weekday));
-    return `${at.getFullYear()}-${`${at.getMonth() + 1}`.padStart(2, "0")}-${`${at.getDate()}`.padStart(2, "0")}`;
+    if (summary) planMode.startFrom(summary);
   }
 
   function hours(value: number) {
@@ -154,7 +137,7 @@
             <li class="flex items-center gap-2">
               <CategoryIcon icon={category.icon} color={category.color} size={14} />
               <span class="t-label flex-1">{category.name}</span>
-              <span class="t-data-compact text-fg-muted">{hours(category.hours)} of {hours(category.targetHours)}</span>
+              <span class="t-data text-fg-muted">{hours(category.hours)} of {hours(category.targetHours)}</span>
             </li>
           {/each}
         </ul>

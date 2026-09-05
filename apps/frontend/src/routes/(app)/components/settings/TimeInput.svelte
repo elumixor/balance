@@ -13,10 +13,4 @@
   }: { value: string; label: string; onchange: (value: string) => void } = $props();
 </script>
 
-<input
-  type="time"
-  {value}
-  aria-label={label}
-  onchange={(e) => onchange(e.currentTarget.value)}
-  class="t-body rounded-md border border-line-strong bg-surface px-2 py-1 tabular-nums"
-/>
+<input type="time" {value} aria-label={label} onchange={(e) => onchange(e.currentTarget.value)} class="field-boxed t-data" />

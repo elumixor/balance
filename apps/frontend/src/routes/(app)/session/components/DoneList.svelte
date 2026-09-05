@@ -34,7 +34,7 @@
         <CategoryIcon icon={block.icon} color={block.color} size={14} />
       {/if}
       <span class="t-label min-w-0 flex-1 truncate {done ? '' : 'text-fg-muted'}">{block.title}</span>
-      <span class="t-data-compact text-fg-muted">{hours(block.hours)}</span>
+      <span class="t-data text-fg-muted">{hours(block.hours)}</span>
     </li>
   {/each}
   {#if more > 0}

@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * One text input, three jobs. "boxed" is a form control on its own surface; "inline" sits in a
-   * row and only shows its ground once you point at it, so a list of rows stays a list;
-   * "inline-sm" is the same thing in a ring callout, where the label has a column's worth of room.
+   * One text input. "boxed" is a form control on its own surface; "bare" sits in a row and only
+   * shows its ground once you point at it, so a list of rows stays a list; "bare-sm" is the same
+   * thing in a ring callout, where the label has a column's worth of room.
    */
   let {
     value = $bindable(""),
@@ -26,7 +26,7 @@
     placeholder?: string;
     type?: "text" | "password";
     inputmode?: "numeric" | "decimal" | "email";
-    variant?: "boxed" | "inline" | "inline-sm";
+    variant?: "boxed" | "bare" | "bare-sm";
     numeric?: boolean;
     align?: "left" | "center" | "right";
     ariaLabel?: string;
@@ -45,11 +45,6 @@
   {autocapitalize}
   autocomplete="off"
   aria-label={ariaLabel}
-  class="{numeric ? 't-data' : variant === 'boxed' ? 't-body' : 't-label'} w-full text-fg
-    {variant === 'boxed'
-    ? 'h-10 rounded-md border border-line bg-surface px-3 transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none'
-    : variant === 'inline-sm'
-      ? 'field-bare h-7 px-1'
-      : 'field-bare'}
-    {align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : ''} {klass}"
+  class="w-full {variant === 'boxed' ? 'field-boxed' : variant === 'bare-sm' ? 'field-bare field-sm' : 'field-bare'}
+    {numeric ? 't-data' : ''} {align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : ''} {klass}"
 />
