@@ -21,6 +21,7 @@
   import { projects, stages } from "$lib/synced.svelte";
   import { Bike, Bus, Car, Flag, Footprints, Minus, Plus } from "lucide-svelte";
   import { formatHoursAndMinutes } from "$lib/format";
+  import { openExternal } from "$lib/desktop/open";
   import TimeZonePicker from "./TimeZonePicker.svelte";
   import { preferences, type TravelMode } from "$lib/preferences.svelte";
   import { deviceTimeZone } from "$lib/planning/zone";
@@ -848,8 +849,18 @@
               {@const travel = travelBand(segment)}
               {#if travel && !dragging}
                 {@const Mode = MODE_ICONS[travel.journey.mode]}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div
-                  class="pointer-events-none absolute overflow-hidden rounded-t-sm border border-b-0 border-dashed"
+                  role="link"
+                  tabindex="-1"
+                  aria-label="Open the {travel.journey.mode} route in Maps"
+                  class="absolute cursor-pointer overflow-hidden rounded-t-sm border border-b-0 border-dashed"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    void openExternal(travel.journey.url);
+                  }}
+                  onkeydown={(e) => e.key === "Enter" && void openExternal(travel.journey.url)}
+                  onpointerdown={(e) => e.stopPropagation()}
                   style="top:{travel.top}px;height:{travel.height}px;left:{segment.left}px;width:{segment.width}px;z-index:{segment.depth};border-color:{withAlpha(
                     travel.color,
                     0.45,
@@ -857,7 +868,7 @@
                 >
                   {#if travel.labelled}
                     <span
-                      class="t-micro absolute inset-x-0 top-0 flex items-center justify-center gap-1 truncate px-1 text-fg-muted"
+                      class="t-micro absolute inset-x-0 top-0 flex items-center gap-1 truncate px-1.5 text-fg-muted"
                       style="height:{travel.visible}px"
                     >
                       <Mode size={11} />
