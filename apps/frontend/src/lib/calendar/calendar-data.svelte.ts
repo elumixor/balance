@@ -1134,7 +1134,10 @@ class CalendarData {
       }),
     );
     // A rule reshapes the whole series: the week is asked again rather than patched by hand.
-    if (prompt.patch?.recurrence !== undefined) invalidate.calendar();
+    if (prompt.patch?.recurrence !== undefined) {
+      invalidate.calendar();
+      await this.refreshWeeks();
+    }
   }
 
   /**
@@ -1187,7 +1190,12 @@ class CalendarData {
       return;
     }
 
-    if (patch.recurrence !== undefined) invalidate.calendar();
+    // A rule reshapes the whole series — occurrences appear or go on every day it touches — so
+    // the weeks on screen are asked again now rather than on the next visit.
+    if (patch.recurrence !== undefined) {
+      invalidate.calendar();
+      await this.refreshWeeks();
+    }
     this.history.push({
       undo: async () => (await write(inverse)) !== null,
       redo: async () => (await write(patch)) !== null,

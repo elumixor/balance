@@ -239,7 +239,17 @@ export class CalendarEventsService {
 
     const updated = await connection.provider.updateEvent(calendarId, targetId, targetPatch);
     eventCache.invalidate(this.userId);
-    const mappings = await new EventMappingService(this.userId).all();
+    const mappingService = new EventMappingService(this.userId);
+    if (targetPatch.recurrence !== undefined) {
+      // The event keeps its id across the change but is now the master of a series, or a one-off
+      // again — and its mapping has to say which, or the occurrences count as nothing.
+      const repeats = targetPatch.recurrence.length > 0;
+      await mappingService.rescope(
+        { calendarId, scope: repeats ? "instance" : "series", externalEventId: targetId },
+        repeats ? "series" : "instance",
+      );
+    }
+    const mappings = await mappingService.all();
     return { ...this.attachMappings([updated], mappings)[0], accountId: connection.accountId };
   }
 

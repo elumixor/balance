@@ -105,18 +105,36 @@ export class EventMappingService {
     return this.resolveOne(mapping.id);
   }
 
+  /**
+   * A one-off made into a series keeps its id and becomes the master, so the instance mapping it
+   * had would cover none of the occurrences; the reverse strands a series mapping on a one-off.
+   * The row moves scope instead. When the other scope already has a row, that one stands and this
+   * one goes — a series mapping wins over an instance one anyway.
+   */
+  async rescope(key: MappingKey, scope: MappingScope): Promise<void> {
+    if (key.scope === scope) return;
+    const other = await db.query.eventMappings.findFirst({
+      where: this.whereKey({ ...key, scope }),
+    });
+    if (other) {
+      await this.remove(key);
+      return;
+    }
+    await db.update(eventMappings).set({ scope }).where(this.whereKey(key));
+  }
+
   async remove(key: MappingKey): Promise<void> {
-    await db
-      .delete(eventMappings)
-      .where(
-        and(
-          eq(eventMappings.userId, this.userId),
-          eq(eventMappings.provider, PROVIDER),
-          eq(eventMappings.calendarId, key.calendarId),
-          eq(eventMappings.scope, key.scope),
-          eq(eventMappings.externalEventId, key.externalEventId),
-        ),
-      );
+    await db.delete(eventMappings).where(this.whereKey(key));
+  }
+
+  private whereKey(key: MappingKey) {
+    return and(
+      eq(eventMappings.userId, this.userId),
+      eq(eventMappings.provider, PROVIDER),
+      eq(eventMappings.calendarId, key.calendarId),
+      eq(eventMappings.scope, key.scope),
+      eq(eventMappings.externalEventId, key.externalEventId),
+    );
   }
 
   /** Every mapping the user has, in one query — the week grid needs them all at once anyway. */
