@@ -59,7 +59,9 @@ class SessionNudge {
     const matches =
       summary.slot === this.slot ||
       (this.slot === "evening" && summary.slot === "weekly");
-    return matches && !summary.target.planned;
+    // A day whose morning is gone pays nothing, and the server says so by paying nothing: the
+    // planning window runs from the evening before to midday, and outside it nobody is asked.
+    return matches && !summary.target.planned && this.stars > 0;
   });
 
   readonly #snoozed = $derived(
