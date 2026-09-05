@@ -77,6 +77,9 @@ describe("asSleepPlan", () => {
   it("reads the planned block back, and nothing from a record written before there was one", () => {
     expect(asSleepPlan(null)).toBeNull();
     expect(asSleepPlan({ start: "x" })).toBeNull();
-    expect(asSleepPlan({ plannedStart: "a", plannedEnd: "b", other: 1 })).toEqual({ plannedStart: "a", plannedEnd: "b" });
+    expect(asSleepPlan({ plannedStart: "a", plannedEnd: "b", other: 1 })).toEqual({
+      plannedStart: "a",
+      plannedEnd: "b",
+    });
   });
 });

@@ -100,7 +100,10 @@ const appleHealth: Integration = {
           window,
         );
         if (!summary) return null;
-        const planned = asSleepPlan(previous) ?? { plannedStart: window.start.toISOString(), plannedEnd: window.end.toISOString() };
+        const planned = asSleepPlan(previous) ?? {
+          plannedStart: window.start.toISOString(),
+          plannedEnd: window.end.toISOString(),
+        };
         return { ...summary, ...planned, score: sleepScore(summary, new Date(planned.plannedStart)) };
       },
       actual(record) {

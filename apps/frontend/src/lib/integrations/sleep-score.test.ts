@@ -17,11 +17,19 @@ const night = (over: Partial<SleepSummary> = {}): SleepSummary => ({
 
 describe("sleepScore", () => {
   it("a full night, to bed on time, unbroken, is 100", () => {
-    expect(sleepScore(night(), planned)).toEqual({ total: 100, duration: 50, bedtime: 30, interruptions: 20, band: "Very high" });
+    expect(sleepScore(night(), planned)).toEqual({
+      total: 100,
+      duration: 50,
+      bedtime: 30,
+      interruptions: 20,
+      band: "Very high",
+    });
   });
 
   it("sleeping past a full night costs nothing", () => {
-    expect(sleepScore(night({ asleepMinutes: 600, stages: { deep: 80, rem: 120, core: 400 } }), planned).duration).toBe(50);
+    expect(sleepScore(night({ asleepMinutes: 600, stages: { deep: 80, rem: 120, core: 400 } }), planned).duration).toBe(
+      50,
+    );
   });
 
   it("an hour short costs under six points, two hours thirteen, four everything", () => {
@@ -33,7 +41,9 @@ describe("sleepScore", () => {
   });
 
   it("interpolates between the knots", () => {
-    expect(sleepScore(night({ asleepMinutes: 440, stages: { deep: 100, rem: 100, core: 240 } }), planned).duration).toBe(48);
+    expect(
+      sleepScore(night({ asleepMinutes: 440, stages: { deep: 100, rem: 100, core: 240 } }), planned).duration,
+    ).toBe(48);
   });
 
   it("thin deep and REM stages cost five each, but only when stages were recorded", () => {
@@ -57,14 +67,24 @@ describe("sleepScore", () => {
   });
 
   it("eleven minutes awake and two wakings are free; then four minutes or two wakings a point", () => {
-    expect(sleepScore(night({ stages: { deep: 60, rem: 90, core: 320, awake: 11 }, awakenings: 2 }), planned).interruptions).toBe(20);
-    expect(sleepScore(night({ stages: { deep: 60, rem: 90, core: 320, awake: 51 }, awakenings: 2 }), planned).interruptions).toBe(10);
+    expect(
+      sleepScore(night({ stages: { deep: 60, rem: 90, core: 320, awake: 11 }, awakenings: 2 }), planned).interruptions,
+    ).toBe(20);
+    expect(
+      sleepScore(night({ stages: { deep: 60, rem: 90, core: 320, awake: 51 }, awakenings: 2 }), planned).interruptions,
+    ).toBe(10);
     expect(sleepScore(night({ awakenings: 6 }), planned).interruptions).toBe(18);
-    expect(sleepScore(night({ stages: { deep: 60, rem: 90, core: 320, awake: 200 }, awakenings: 30 }), planned).interruptions).toBe(0);
+    expect(
+      sleepScore(night({ stages: { deep: 60, rem: 90, core: 320, awake: 200 }, awakenings: 30 }), planned)
+        .interruptions,
+    ).toBe(0);
   });
 
   it("adds the rounded parts up and names the band", () => {
-    const score = sleepScore(night({ asleepMinutes: 350, stages: { deep: 100, rem: 100, core: 150 }, start: at(120).toISOString() }), planned);
+    const score = sleepScore(
+      night({ asleepMinutes: 350, stages: { deep: 100, rem: 100, core: 150 }, start: at(120).toISOString() }),
+      planned,
+    );
     expect(score).toMatchObject({ duration: 37, bedtime: 20, interruptions: 20, total: 77, band: "OK" });
   });
 });
@@ -72,7 +92,16 @@ describe("sleepScore", () => {
 describe("sleepBand", () => {
   it("cuts where Health does", () => {
     expect([0, 40, 41, 60, 61, 80, 81, 95, 96, 100].map(sleepBand)).toEqual([
-      "Very low", "Very low", "Low", "Low", "OK", "OK", "High", "High", "Very high", "Very high",
+      "Very low",
+      "Very low",
+      "Low",
+      "Low",
+      "OK",
+      "OK",
+      "High",
+      "High",
+      "Very high",
+      "Very high",
     ]);
   });
 });
@@ -81,7 +110,16 @@ describe("asSleepScore", () => {
   it("reads a stored score back and refuses a record without one", () => {
     expect(asSleepScore(null)).toBeNull();
     expect(asSleepScore({ start: "x" })).toBeNull();
-    expect(asSleepScore({ score: { total: 77 } })).toEqual({ total: 77, duration: 0, bedtime: 0, interruptions: 0, band: "OK" });
-    expect(asSleepScore({ score: { total: 90, duration: 45, bedtime: 25, interruptions: 20 } })).toMatchObject({ band: "High", duration: 45 });
+    expect(asSleepScore({ score: { total: 77 } })).toEqual({
+      total: 77,
+      duration: 0,
+      bedtime: 0,
+      interruptions: 0,
+      band: "OK",
+    });
+    expect(asSleepScore({ score: { total: 90, duration: 45, bedtime: 25, interruptions: 20 } })).toMatchObject({
+      band: "High",
+      duration: 45,
+    });
   });
 });
