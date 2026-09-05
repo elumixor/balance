@@ -556,29 +556,39 @@
 
 {#snippet pill(link: { url: string; label: string })}
   {@const done = copied === link.url}
-  <span class="group/pill chip-bare relative max-w-full align-baseline">
-    <button
-      type="button"
-      class="press-sm min-w-0 truncate text-left"
-      onclick={() => void open(asGoogleAccount(link.url, accountEmail))}
-    >
-      {link.label}
-    </button>
-    <button
-      type="button"
-      class="press-sm absolute -top-1 -right-1 z-10 rounded-md border border-line bg-surface p-1 text-fg-faint shadow-sm transition-opacity hover:text-fg {done
+  <span class="group/pill relative inline-block max-w-full align-baseline">
+    <span class="chip-bare max-w-full">
+      <span class="min-w-0 truncate">{link.label}</span>
+    </span>
+    <!-- The same pill, laid over the first and grown by an icon when pointed at, so the words never move. -->
+    <span
+      class="chip-bare absolute top-0 left-0 z-10 h-full max-w-none whitespace-nowrap opacity-0 transition-opacity group-hover/pill:opacity-100 has-[:focus-visible]:opacity-100 {done
         ? 'opacity-100'
-        : 'opacity-0 group-hover/pill:opacity-100 focus-visible:opacity-100'}"
-      aria-label={done ? "Link copied" : "Copy link"}
-      title={done ? "Copied" : "Copy link"}
-      onclick={() => void copy(link.url)}
+        : ''}"
     >
-      {#if done}
-        <Check size={12} />
-      {:else}
-        <Copy size={12} />
-      {/if}
-    </button>
+      <button type="button" class="press-sm text-left" onclick={() => void open(asGoogleAccount(link.url, accountEmail))}>
+        {link.label}
+      </button>
+      <span
+        class="grid grid-cols-[0fr] transition-[grid-template-columns] duration-150 group-hover/pill:grid-cols-[1fr] has-[:focus-visible]:grid-cols-[1fr] {done
+          ? 'grid-cols-[1fr]'
+          : ''}"
+      >
+        <button
+          type="button"
+          class="press-sm min-w-0 overflow-hidden rounded text-fg-faint hover:text-fg"
+          aria-label={done ? "Link copied" : "Copy link"}
+          title={done ? "Copied" : "Copy link"}
+          onclick={() => void copy(link.url)}
+        >
+          {#if done}
+            <Check size={12} />
+          {:else}
+            <Copy size={12} />
+          {/if}
+        </button>
+      </span>
+    </span>
   </span>
 {/snippet}
 
