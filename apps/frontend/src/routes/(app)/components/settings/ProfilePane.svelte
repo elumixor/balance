@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/auth.svelte";
-  import { buildInfo } from "$lib/build-info";
   import { Button, Skeleton, StarCount, StarGlyph, Tooltip } from "$lib/components";
   import { desktopAutostart } from "$lib/desktop/autostart.svelte";
   import { isDesktop, isNativeShell } from "$lib/desktop/platform";
@@ -19,8 +18,7 @@
 
   /**
    * Who is signed in, where they stand, and the two things the app is for: the last recap and the
-   * next day. No headings — three short rows, each read in one glance, and the build stamped in
-   * the corner where a version number belongs.
+   * next day. No headings — three short rows, each read in one glance.
    *
    * The sitting lives here on purpose rather than only behind a notification: one waved away is
    * still owed, and this is where the avatar's dot leads. The plan button is inked while it is.
@@ -61,7 +59,7 @@
   <StarCount {value} size={11} />
 {/snippet}
 
-<div class="flex min-h-full flex-col">
+<div>
   <!-- Who. -->
   <div class="flex items-center gap-3">
     <span
@@ -158,13 +156,4 @@
       <DesktopUpdate />
     {/if}
   </div>
-
-  <!-- The native shells carry their own copy of the frontend, and this is the only thing on
-       screen that says how old it is. -->
-  <p class="t-data-micro mt-auto flex select-text flex-wrap justify-end gap-x-2 pt-8 text-fg-faint">
-    {#each buildInfo.parts as part, index (part)}
-      {#if index > 0}<span class="text-line-strong">·</span>{/if}
-      <span>{part}</span>
-    {/each}
-  </p>
 </div>

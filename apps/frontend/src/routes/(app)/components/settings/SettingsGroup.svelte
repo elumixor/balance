@@ -16,8 +16,7 @@
 </script>
 
 <section class={divided ? "border-t border-line pt-7" : ""}>
-  <h3 class="t-heading mb-1 text-fg">{title}</h3>
-  <div class="h-3"></div>
+  <h3 class="t-body-strong mb-3 text-fg">{title}</h3>
   <div class="space-y-4">
     {@render children()}
   </div>

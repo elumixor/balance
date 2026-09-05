@@ -3,6 +3,7 @@
   import { isNativeShell } from "$lib/desktop/platform";
   import { preferences } from "$lib/preferences.svelte";
   import TimeInput from "./TimeInput.svelte";
+  import SettingsGroup from "./SettingsGroup.svelte";
   import ToggleRow from "./ToggleRow.svelte";
 
   /**
@@ -38,7 +39,7 @@
   </label>
 {/snippet}
 
-<div class="space-y-8">
+<SettingsGroup title="Notifications" divided={false}>
   <section class="space-y-4">
     <ToggleRow
       label="Ask me to plan"
@@ -100,4 +101,4 @@
       <ToggleRow label="Sound" checked={reminders.sound} onchange={(sound) => preferences.setReminders({ sound })} />
     </div>
   </section>
-</div>
+</SettingsGroup>
