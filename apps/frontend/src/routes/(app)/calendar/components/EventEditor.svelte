@@ -32,6 +32,7 @@
     X,
   } from "lucide-svelte";
   import { accountEmailOf, type Answer, calendarData } from "$lib/calendar/calendar-data.svelte";
+  import { layer } from "$lib/components/float";
   import CardSettings, { type CardSection } from "./CardSettings.svelte";
   import ConferencingRow from "./ConferencingRow.svelte";
   import LocationRow from "./LocationRow.svelte";
@@ -389,6 +390,33 @@
   const RSVP_SLOT = 18;
   /** How far left the open row sits, so the icon already chosen lands exactly where it rested. */
   const rsvpShift = $derived(-RSVP.indexOf(said) * RSVP_SLOT);
+  /**
+   * Where the closed chip is on screen while the row is open. The row is laid over it from the
+   * body rather than in the line, because the card clips its own overflow and the chip is on its
+   * right edge — the same reason a tooltip floats.
+   */
+  let rsvpAt = $state<{ left: number; top: number } | null>(null);
+  let rsvpLeaving: ReturnType<typeof setTimeout> | null = null;
+
+  function openRsvp(e: Event) {
+    if (rsvpLeaving) clearTimeout(rsvpLeaving);
+    rsvpLeaving = null;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    rsvpAt = { left: rect.left, top: rect.top };
+  }
+
+  /** A moment's grace, so the pointer can cross from the chip onto the row laid over it. */
+  function leaveRsvp() {
+    rsvpLeaving ??= setTimeout(() => {
+      rsvpAt = null;
+      rsvpLeaving = null;
+    }, 80);
+  }
+
+  function stayRsvp() {
+    if (rsvpLeaving) clearTimeout(rsvpLeaving);
+    rsvpLeaving = null;
+  }
   /**
    * An all-day invitation is still an invitation, so this isn't `editable` — but a calendar you
    * only have read access to won't take an answer either, and offering one would only fail.
@@ -850,13 +878,29 @@
             {#if answerable}
               <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
               <!-- One icon with the answer given; pointed at, the whole row opens over it, slid so the given answer stays put. -->
-              <span class="group/rsvp relative ml-auto inline-block shrink-0 align-middle">
-                <span class="chip-bare px-1 {event.response === 'needsAction' ? 'text-fg-faint' : ''}">
-                  <said.icon size={12} />
-                </span>
+              <button
+                type="button"
+                aria-label="Reply: {event.response === 'needsAction' ? 'not yet' : said.label}"
+                class="chip-bare press-sm ml-auto shrink-0 px-1 {event.response === 'needsAction' ? 'text-fg-faint' : ''}"
+                onpointerenter={openRsvp}
+                onpointerleave={leaveRsvp}
+                onfocus={openRsvp}
+                onblur={leaveRsvp}
+              >
+                <said.icon size={12} />
+              </button>
+              {#if rsvpAt}
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <span
-                  class="chip-bare absolute top-0 left-0 z-10 h-full max-w-none gap-0.5 px-1 whitespace-nowrap opacity-0 transition-[opacity,translate] duration-150 group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
-                  style="translate:{rsvpShift}px 0"
+                  {@attach layer}
+                  role="group"
+                  aria-label="Reply"
+                  class="chip-bare fixed z-70 gap-0.5 px-1 whitespace-nowrap transition-[translate] duration-150"
+                  style="left:{rsvpAt.left}px;top:{rsvpAt.top}px;translate:{rsvpShift}px 0"
+                  onpointerenter={stayRsvp}
+                  onpointerleave={leaveRsvp}
+                  onfocusin={stayRsvp}
+                  onfocusout={leaveRsvp}
                 >
                   {#each RSVP as choice (choice.value)}
                     {@const chosen = event.response === choice.value}
@@ -872,7 +916,7 @@
                     </button>
                   {/each}
                 </span>
-              </span>
+              {/if}
             {/if}
           {/snippet}
         </ParticipantsRow>
