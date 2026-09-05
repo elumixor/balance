@@ -608,109 +608,109 @@
 
 <AnchoredPopup {rect} width={WIDTH} dismiss={!nested} onclose={close}>
   <div class="relative">
-  <!--
-    What can be done to it, pinned to the corner: on the project line when there is one, and
-    beside the name when the project has been folded away.
-  -->
-  <div class="absolute right-3 flex items-center gap-0.5 {shown('project') ? 'top-2' : 'top-3.5'}">
-    <!-- The assistant's seat at the table. What it does when pressed is the next thing to build. -->
-    <button type="button" title="Ask about this event" class={ACTION} onclick={() => undefined}>
-      <Sparkles size={13} />
-    </button>
-    {#if editable}
-      <button
-        type="button"
-        title="Delete event"
-        class={ACTION}
-        onclick={() => {
-          deleted = true;
-          if (timer) clearTimeout(timer);
-          void data.deleteEvent(event);
-        }}
-      >
-        <Trash2 size={13} />
+    <!--
+      What can be done to it, pinned to the corner: on the project line when there is one, and
+      beside the name when the project has been folded away.
+    -->
+    <div class="absolute right-3 flex items-center gap-0.5 {shown('project') ? 'top-2' : 'top-3.5'}">
+      <!-- The assistant's seat at the table. What it does when pressed is the next thing to build. -->
+      <button type="button" title="Ask about this event" class={ACTION} onclick={() => undefined}>
+        <Sparkles size={13} />
       </button>
-    {/if}
-    {#if !event.allDay}
-      <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
-    {/if}
-    <button type="button" title="Close" class={ACTION} onclick={close}>
-      <X size={13} />
-    </button>
-    </div>
-
-  <!--
-    The line above everything: what the hour was for. The sphere is the icon beside the name, so
-    it is not said twice; the purpose is tagged from here, because tagging a grey block after the
-    fact is how a real week is reconciled and it should cost one tap.
-  -->
-  {#if shown("project")}
-  <div class="flex min-w-0 items-center gap-1.5 px-3 pt-2 pr-28">
-    {#if purpose}
-      <span class="t-micro flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-fg-muted">
+      {#if editable}
         <button
           type="button"
-          class="press-sm min-w-0 truncate hover:text-fg"
-          title="Change what this is for"
-          onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
+          title="Delete event"
+          class={ACTION}
+          onclick={() => {
+            deleted = true;
+            if (timer) clearTimeout(timer);
+            void data.deleteEvent(event);
+          }}
         >
-          {purpose}
+          <Trash2 size={13} />
         </button>
-        {#if !detaching}
+      {/if}
+      {#if !event.allDay}
+        <CardSettings sections={SECTIONS} source={event.source} onlink={(source) => void link(source)} onunlink={unlink} />
+      {/if}
+      <button type="button" title="Close" class={ACTION} onclick={close}>
+        <X size={13} />
+      </button>
+      </div>
+
+    <!--
+      The line above everything: what the hour was for. The sphere is the icon beside the name, so
+      it is not said twice; the purpose is tagged from here, because tagging a grey block after the
+      fact is how a real week is reconciled and it should cost one tap.
+    -->
+    {#if shown("project")}
+    <div class="flex min-w-0 items-center gap-1.5 px-3 pt-2 pr-28">
+      {#if purpose}
+        <span class="t-micro flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-fg-muted">
           <button
             type="button"
-            aria-label="Detach from {purpose}"
-            onclick={() => (detaching = true)}
-            class="press-sm shrink-0 rounded p-0.5 text-fg-faint hover:text-fg"
+            class="press-sm min-w-0 truncate hover:text-fg"
+            title="Change what this is for"
+            onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
           >
-            <X size={11} />
+            {purpose}
           </button>
-        {/if}
-      </span>
-      {#if detaching}
-        <span class="t-micro flex shrink-0 items-center gap-2 text-fg-muted">
-          Detach?
-          <button type="button" onclick={detach} class="press-sm t-micro text-fg underline">Yes</button>
-          <button type="button" onclick={() => (detaching = false)} class="press-sm t-micro text-fg-faint">No</button>
+          {#if !detaching}
+            <button
+              type="button"
+              aria-label="Detach from {purpose}"
+              onclick={() => (detaching = true)}
+              class="press-sm shrink-0 rounded p-0.5 text-fg-faint hover:text-fg"
+            >
+              <X size={11} />
+            </button>
+          {/if}
         </span>
+        {#if detaching}
+          <span class="t-micro flex shrink-0 items-center gap-2 text-fg-muted">
+            Detach?
+            <button type="button" onclick={detach} class="press-sm t-micro text-fg underline">Yes</button>
+            <button type="button" onclick={() => (detaching = false)} class="press-sm t-micro text-fg-faint">No</button>
+          </span>
+        {/if}
+      {:else}
+        <button
+          type="button"
+          class="press-sm t-micro shrink-0 rounded px-1 py-0.5 text-fg-faint hover:text-fg"
+          onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
+        >
+          Add Project
+        </button>
       {/if}
-    {:else}
+    </div>
+    {/if}
+
+    <!-- Header: what it counts as and what it's called, beside the things you can do to it. -->
+    <div class="flex items-center gap-1 px-3 pb-2 {shown('project') ? 'pt-1' : 'pt-2 pr-28'}">
+      <!-- The same badge the block on the grid wears, opening the same list. -->
       <button
         type="button"
-        class="press-sm t-micro shrink-0 rounded px-1 py-0.5 text-fg-faint hover:text-fg"
-        onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
+        aria-label="Change category"
+        class="press-sm shrink-0 rounded-md"
+        onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
       >
-        Add Project
+        <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={28} />
       </button>
-    {/if}
-  </div>
-  {/if}
-
-  <!-- Header: what it counts as and what it's called, beside the things you can do to it. -->
-  <div class="flex items-center gap-1 px-3 pb-2 {shown('project') ? 'pt-1' : 'pt-2 pr-28'}">
-    <!-- The same badge the block on the grid wears, opening the same list. -->
-    <button
-      type="button"
-      aria-label="Change category"
-      class="press-sm shrink-0 rounded-md"
-      onclick={(e) => (pickerRect = e.currentTarget.getBoundingClientRect())}
-    >
-      <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={28} />
-    </button>
-    {#if editable}
-      <Field
-        bind:value={title}
-        bind:element={titleEl}
-        oninput={queue}
-        placeholder="Untitled"
-        variant="bare"
-        ariaLabel="Event title"
-        class="t-heading h-9 py-1"
-      />
-    {:else}
-      <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
-    {/if}
-  </div>
+      {#if editable}
+        <Field
+          bind:value={title}
+          bind:element={titleEl}
+          oninput={queue}
+          placeholder="Untitled"
+          variant="bare"
+          ariaLabel="Event title"
+          class="t-heading h-9 py-1"
+        />
+      {:else}
+        <h2 class="t-heading flex-1 truncate px-2 py-1">{event.title}</h2>
+      {/if}
+    </div>
   </div>
 
   <!-- When it runs. The clock owns the whole block, so the date sits under the times it belongs to. -->
