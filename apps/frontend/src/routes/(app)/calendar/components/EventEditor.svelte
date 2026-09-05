@@ -851,7 +851,7 @@
                   <said.icon size={12} />
                 </span>
                 <span
-                  class="chip-bare absolute top-0 right-0 z-10 h-full max-w-none gap-0.5 px-1 whitespace-nowrap opacity-0 transition-opacity group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
+                  class="chip-bare absolute top-0 left-0 z-10 h-full max-w-none gap-0.5 px-1 whitespace-nowrap opacity-0 transition-opacity group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
                 >
                   {#each RSVP as choice (choice.value)}
                     {@const chosen = event.response === choice.value}
