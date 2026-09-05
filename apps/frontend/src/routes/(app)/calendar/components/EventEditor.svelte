@@ -859,14 +859,13 @@
           {#snippet answer()}
             {#if answerable}
               <!-- Only the guest list gets an answer to give, which is why this row isn't an edit. -->
-              <!-- One chip with the answer given; pointed at, it grows the other two, and the row never moves. -->
-              <span class="group/rsvp relative mt-1 inline-block align-baseline">
-                <span class="chip-bare t-label {event.response === 'needsAction' ? 'text-fg-muted' : ''}">
+              <!-- One icon with the answer given; pointed at, it grows the other two, and the line never moves. -->
+              <span class="group/rsvp relative inline-block shrink-0 align-middle">
+                <span class="chip-bare px-1 {event.response === 'needsAction' ? 'text-fg-faint' : ''}">
                   <said.icon size={12} />
-                  {event.response === "needsAction" ? "Going?" : said.label}
                 </span>
                 <span
-                  class="chip-bare absolute top-0 left-0 z-10 h-full max-w-none gap-0.5 whitespace-nowrap opacity-0 transition-opacity group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
+                  class="chip-bare absolute top-0 right-0 z-10 h-full max-w-none gap-0.5 px-1 whitespace-nowrap opacity-0 transition-opacity group-hover/rsvp:opacity-100 has-[:focus-visible]:opacity-100"
                 >
                   {#each RSVP as choice (choice.value)}
                     {@const chosen = event.response === choice.value}
@@ -876,13 +875,10 @@
                       aria-label={choice.label}
                       title={choice.label}
                       disabled={answering !== null}
-                      class="press-sm flex items-center gap-1 rounded px-1 py-0.5 {chosen
-                        ? 'bg-ink text-ink-fg'
-                        : 'text-fg-faint hover:text-fg'}"
+                      class="press-sm rounded p-0.5 {chosen ? 'bg-ink text-ink-fg' : 'text-fg-faint hover:text-fg'}"
                       onclick={() => void respond(choice.value)}
                     >
                       <choice.icon size={12} />
-                      {#if chosen}{choice.label}{/if}
                     </button>
                   {/each}
                 </span>

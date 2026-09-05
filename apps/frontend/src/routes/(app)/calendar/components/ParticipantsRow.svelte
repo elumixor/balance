@@ -22,7 +22,7 @@
     /** Whether this is your event to invite people to. */
     editable: boolean;
     onchange: (attendees: { email: string; optional?: boolean }[]) => void;
-    /** The row's own RSVP, drawn under the list — only when there is one to give. */
+    /** Your own RSVP, drawn at the end of your line — only when there is one to give. */
     answer?: Snippet;
   } = $props();
 
@@ -115,6 +115,7 @@
           <Dot color={RESPONSE_COLORS[organizer.response]} size={6} />
           <span class="t-label truncate">{nameOf(organizer)}</span>
           <span class="t-micro shrink-0 text-fg-faint">organizer</span>
+          {#if organizer.self && answer}{@render answer()}{/if}
         </div>
       {/if}
       {#each listed as attendee, i (attendee.email ?? attendee.name ?? i)}
@@ -122,6 +123,7 @@
           <Dot color={RESPONSE_COLORS[attendee.response]} size={6} />
           <span class="t-label min-w-0 flex-1 truncate text-fg-muted">{nameOf(attendee)}</span>
           {#if attendee.optional}<span class="t-micro shrink-0 text-fg-faint">optional</span>{/if}
+          {#if attendee.self && answer}{@render answer()}{/if}
           {#if editable && attendee.email && !attendee.self}
             <button
               type="button"
@@ -152,7 +154,6 @@
           Invite
         </button>
       {/if}
-      {#if answer}{@render answer()}{/if}
     </div>
   </CardRow>
 {/if}
