@@ -22,7 +22,6 @@
     Check,
     Clock,
     Copy,
-    Folder,
     Link2,
     Repeat,
     Sparkles,
@@ -70,7 +69,6 @@
 
   /** The sections that can be folded away, in card order. Time and reminders are always drawn. */
   const SECTIONS: readonly CardSection[] = [
-    { id: "projects", label: "Projects", icon: Folder },
     { id: "timer", label: "Timer", icon: Timer },
     { id: "conferencing", label: "Conferencing", icon: Video },
     { id: "participants", label: "Participants", icon: Users },
@@ -572,8 +570,51 @@
 {/snippet}
 
 <AnchoredPopup {rect} width={WIDTH} dismiss={!nested} onclose={close}>
-  <!-- The sphere, said once above everything: the icon beside the name is the same answer. -->
-  <p class="t-micro truncate px-4 pt-2 text-fg-faint">{category?.name ?? "No sphere yet"}</p>
+  <!--
+    The line above everything: the sphere, then what the hour was for. The icon beside the name is
+    the same answer as the sphere; the purpose is tagged from here, because tagging a grey block
+    after the fact is how a real week is reconciled and it should cost one tap.
+  -->
+  <div class="flex min-w-0 items-center gap-1.5 px-4 pt-2">
+    <span class="t-micro shrink-0 truncate text-fg-faint">{category?.name ?? "No sphere yet"}</span>
+    {#if purpose}
+      <span class="t-micro flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-fg-muted">
+        <button
+          type="button"
+          class="press-sm min-w-0 truncate hover:text-fg"
+          title="Change what this is for"
+          onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
+        >
+          {purpose}
+        </button>
+        {#if !detaching}
+          <button
+            type="button"
+            aria-label="Detach from {purpose}"
+            onclick={() => (detaching = true)}
+            class="press-sm shrink-0 rounded p-0.5 text-fg-faint hover:text-fg"
+          >
+            <X size={11} />
+          </button>
+        {/if}
+      </span>
+      {#if detaching}
+        <span class="t-micro flex shrink-0 items-center gap-2 text-fg-muted">
+          Detach?
+          <button type="button" onclick={detach} class="press-sm t-micro text-fg underline">Yes</button>
+          <button type="button" onclick={() => (detaching = false)} class="press-sm t-micro text-fg-faint">No</button>
+        </span>
+      {/if}
+    {:else}
+      <button
+        type="button"
+        class="press-sm t-micro shrink-0 rounded px-1 py-0.5 text-fg-faint hover:text-fg"
+        onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
+      >
+        + Project
+      </button>
+    {/if}
+  </div>
 
   <!-- Header: what it counts as and what it's called, beside the things you can do to it. -->
   <div class="flex items-center gap-1 px-3 pt-1 pb-2">
@@ -620,43 +661,6 @@
       {#snippet icon()}<X size={16} class="text-fg-muted" />{/snippet}
     </Button>
   </div>
-
-  <!-- What it was for: the project or practice whose evidence this hour is. Tagging after the
-       fact is how a real week is reconciled, so the row is there even when empty. -->
-  {#if shown("projects")}
-    <div class="px-2 pb-2">
-      {#if purpose}
-        <CardRow icon={Folder} set>
-          <span class="chip-bare t-label min-w-0">
-            <span class="truncate">{purpose}</span>
-            {#if !detaching}
-              <button
-                type="button"
-                aria-label="Detach from {purpose}"
-                onclick={() => (detaching = true)}
-                class="press-sm -mr-1 shrink-0 rounded p-0.5 text-fg-faint hover:text-fg"
-              >
-                <X size={12} />
-              </button>
-            {/if}
-          </span>
-          {#if detaching}
-            <span class="t-micro flex shrink-0 items-center gap-2 text-fg-muted">
-              Detach?
-              <button type="button" onclick={detach} class="press-sm t-micro text-fg underline">Yes</button>
-              <button type="button" onclick={() => (detaching = false)} class="press-sm t-micro text-fg-faint">No</button>
-            </span>
-          {/if}
-        </CardRow>
-      {:else}
-        <CardRow
-          icon={Folder}
-          label="Projects"
-          onclick={(e) => (projectRect = e.currentTarget.getBoundingClientRect())}
-        />
-      {/if}
-    </div>
-  {/if}
 
   <!-- When it runs. The clock owns the whole block, so the date sits under the times it belongs to. -->
   <div class="border-t border-line px-2 py-2">
