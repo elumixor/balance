@@ -1,6 +1,6 @@
 <script lang="ts">
+  import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "$lib/components/float";
   import { formatHoursAndMinutes } from "$lib/format";
-  import { safeArea } from "$lib/safe-area";
 
   /**
    * One end of an event, entered the way a calendar lets you enter it: the field carries the span
@@ -36,15 +36,12 @@
   /** A full day of quarter hours, so a block can be given any length without leaving the list. */
   const SLOTS = 96;
   const MENU_WIDTH = 190;
-  const MENU_MAX_HEIGHT = 280;
-  const GAP = 6;
-  const MARGIN = 12;
 
   let input = $state<HTMLInputElement>();
   let list = $state<HTMLElement>();
   let open = $state(false);
   let highlighted = $state(0);
-  let position = $state<{ left: number; top: number } | null>(null);
+  let position = $state<FloatPosition | null>(null);
   /** The time the field is currently arguing for: typed, or walked to in the list. */
   let candidate = $state<string | null>(null);
   /** What the field said when it was last agreed on, and what anything unreadable goes back to. */
@@ -112,17 +109,8 @@
     return Math.min(options.length - 1, Math.max(0, end ? slots - 1 : SLOTS - slots));
   }
 
-  /** Below the field when the list fits there, above it otherwise. */
   function place() {
-    if (!input) return;
-    const rect = input.getBoundingClientRect();
-    const safe = safeArea();
-    const below = rect.bottom + GAP;
-    const fitsBelow = below + MENU_MAX_HEIGHT <= window.innerHeight - safe.bottom - MARGIN;
-    position = {
-      left: Math.min(Math.max(MARGIN, rect.left), window.innerWidth - MENU_WIDTH - MARGIN),
-      top: fitsBelow ? below : Math.max(safe.top + MARGIN, rect.top - GAP - MENU_MAX_HEIGHT),
-    };
+    if (input) position = placeMenu(input, MENU_WIDTH);
   }
 
   function show() {
@@ -212,31 +200,15 @@
 
   // The field can move under the list — the card re-places itself as its content grows.
   $effect(() => {
-    if (!open) return;
-    const reposition = () => place();
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
+    if (open) return followAnchor(place);
   });
-
-  /**
-   * The list belongs to the page, not to the card that holds this field: left inside it, it would
-   * be cut off by the card's own scrolling and placed against the card instead of the window.
-   */
-  function layer(node: HTMLElement) {
-    document.body.appendChild(node);
-    return () => node.remove();
-  }
 </script>
 
 <!-- The box is the field: the input holds the time, the span sits beside it inside the same border. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   onpointerdown={focus}
-  class="field-bare flex shrink-0 items-center gap-2 focus-within:bg-surface-alt"
+  class="field-bare flex shrink-0 items-center gap-2"
 >
   <input
     bind:this={input}
@@ -260,11 +232,11 @@
     aria-label={ariaLabel}
     autocomplete="off"
     autocapitalize="off"
-    class="t-label w-11 bg-transparent text-fg outline-none"
+    class="w-11 bg-transparent outline-none"
   />
   <!-- The span belongs to one field, not both: saying it twice in one row says nothing extra. -->
   {#if end && span}
-    <span class="t-label shrink-0 text-fg-faint">{span}</span>
+    <span class="shrink-0 text-fg-faint">{span}</span>
   {/if}
 </div>
 
@@ -276,7 +248,7 @@
     bind:this={list}
     data-popup-layer
     onpointerdown={(e) => e.preventDefault()}
-    class="float-in fixed z-50 overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-(--shadow-float)"
+    class="menu float-in fixed z-50"
     style="left:{position.left}px;top:{position.top}px;width:{MENU_WIDTH}px;max-height:{MENU_MAX_HEIGHT}px"
   >
     {#each options as option, i (option.clock + i)}
@@ -284,11 +256,10 @@
         <button
           type="button"
           onclick={() => choose(i)}
-          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hoverable
-            {i === highlighted ? 'bg-surface-alt' : ''}"
+          class="menu-row {i === highlighted ? 'bg-surface-alt' : ''}"
         >
-          <span class="t-label">{option.clock}</span>
-          <span class="t-label text-fg-faint">{option.span}</span>
+          <span>{option.clock}</span>
+          <span class="text-fg-faint">{option.span}</span>
         </button>
       </li>
     {/each}

@@ -71,7 +71,7 @@
         placeholder="New goal, as a sentence"
         aria-label="New goal"
         onkeydown={(e) => e.key === "Enter" && add(close)}
-        class="t-label h-8 min-w-0 flex-1 bg-transparent placeholder:text-fg-faint focus:outline-none"
+        class="field-bare flex-1"
       />
     </div>
   {/snippet}

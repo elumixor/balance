@@ -88,7 +88,7 @@
         placeholder="Who — a name or handle"
         aria-label="Person"
         onkeydown={(e) => e.key === "Enter" && log()}
-        class="t-label h-8 min-w-0 flex-1 rounded-md border border-line bg-surface px-2 placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
+        class="field-boxed flex-1"
       />
     {:else if stage.metric !== "event"}
       <input
@@ -96,7 +96,7 @@
         placeholder={stage.metric === "days" ? "What happened today (optional)" : "What (optional)"}
         aria-label="Note"
         onkeydown={(e) => e.key === "Enter" && log()}
-        class="t-label h-8 min-w-0 flex-1 rounded-md border border-line bg-surface px-2 placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
+        class="field-boxed flex-1"
       />
       {#if stage.metric === "throughput" || stage.metric === "hours"}
         <input
@@ -105,7 +105,7 @@
           step={stage.metric === "hours" ? 0.25 : 1}
           bind:value={amount}
           aria-label="Amount"
-          class="t-data h-8 w-16 rounded-md border border-line bg-surface px-2 text-right focus:border-line-strong focus:outline-none"
+          class="field-boxed t-data w-20 text-right"
         />
       {/if}
     {:else}
@@ -114,7 +114,7 @@
         placeholder="What happened (optional)"
         aria-label="Note"
         onkeydown={(e) => e.key === "Enter" && log()}
-        class="t-label h-8 min-w-0 flex-1 rounded-md border border-line bg-surface px-2 placeholder:text-fg-faint focus:border-line-strong focus:outline-none"
+        class="field-boxed flex-1"
       />
     {/if}
     <Button

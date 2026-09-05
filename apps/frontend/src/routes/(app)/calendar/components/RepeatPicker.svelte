@@ -74,9 +74,7 @@
       <button
         type="button"
         onclick={() => onchoose(null)}
-        class="hoverable t-label flex w-full items-center rounded-md px-2 py-1.5 text-left {value
-          ? 'text-fg-muted'
-          : 'text-fg'}"
+        class="menu-row {value ? 'text-fg-muted' : ''}"
       >
         Doesn’t repeat
       </button>
@@ -85,9 +83,7 @@
         <button
           type="button"
           onclick={() => onchoose(choice.rule)}
-          class="hoverable t-label flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left {chosen
-            ? 'text-fg'
-            : 'text-fg-muted'}"
+          class="menu-row {chosen ? '' : 'text-fg-muted'}"
         >
           <span class="flex-1">{choice.label}</span>
           {#if chosen}<span class="size-1.5 rounded-full bg-ink"></span>{/if}
@@ -96,7 +92,7 @@
       <button
         type="button"
         onclick={() => (custom = true)}
-        class="hoverable t-label flex w-full items-center rounded-md px-2 py-1.5 text-left text-fg-muted"
+        class="menu-row text-fg-muted"
       >
         Custom…
       </button>
@@ -150,7 +146,7 @@
             value={draft.end.day}
             oninput={(e) => (draft = { ...draft, end: { kind: "until", day: e.currentTarget.value } })}
             aria-label="Last day"
-            class="field-bare t-label w-full"
+            class="field-bare w-full"
           />
         {:else if draft.end.kind === "count"}
           <div class="flex items-center gap-2">

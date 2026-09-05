@@ -82,9 +82,7 @@
         spellcheck="false"
         autocomplete="off"
         aria-label="Search icons"
-        class="t-body h-9 w-full shrink-0 rounded-md border border-line bg-surface px-2.5
-          transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong
-          focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
+        class="field-boxed w-full shrink-0"
       />
 
       <!-- Tall enough to scan, short enough that the hue slider stays in view under it. -->

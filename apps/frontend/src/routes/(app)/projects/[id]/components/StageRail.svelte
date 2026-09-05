@@ -47,7 +47,7 @@
           value={stage.name}
           oninput={(e) => data.updateStage(stage.id, { name: e.currentTarget.value })}
           aria-label="Stage name"
-          class="t-body-strong h-8 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-fg hover:border-line focus:border-line-strong focus:outline-none"
+          class="field-bare t-body-strong -mx-2 flex-1"
         />
         {#if done && stage.outcome}
           <span class="t-micro text-fg-faint">

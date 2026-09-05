@@ -98,7 +98,7 @@
       aria-label="Call link"
       autocomplete="off"
       spellcheck="false"
-      class="field-bare t-label flex-1"
+      class="field-bare flex-1"
     />
   </CardRow>
 {:else if editable}

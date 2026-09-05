@@ -128,16 +128,14 @@
       spellcheck="false"
       autocomplete="off"
       aria-label="Search projects"
-      class="t-body h-9 w-full shrink-0 rounded-md border border-line bg-surface px-2.5
-        transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong
-        focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
+      class="field-boxed w-full shrink-0"
     />
     <div bind:this={list} class="max-h-60 overflow-y-auto">
       {#if !query.trim() && value}
         <button
           type="button"
           onclick={() => onchoose({ projectId: null, practiceId: null })}
-          class="t-body flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-fg-muted"
+          class="menu-row text-fg-muted"
         >
           <span class="w-3"></span>
           Nothing in particular
@@ -149,7 +147,7 @@
           onclick={() => onchoose(row.purpose)}
           onpointermove={() => (active = i)}
           aria-pressed={row.key === value}
-          class="t-body flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left {i === active ? 'bg-surface-alt' : ''}"
+          class="menu-row {i === active ? 'bg-surface-alt' : ''}"
         >
           {#if row.practice}
             <Repeat size={12} style="color:{row.color}" />
@@ -164,9 +162,7 @@
           type="button"
           onclick={() => createProject(newName)}
           onpointermove={() => (active = matches.length)}
-          class="t-body flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left {active === matches.length
-            ? 'bg-surface-alt'
-            : ''}"
+          class="menu-row {active === matches.length ? 'bg-surface-alt' : ''}"
         >
           <span class="flex w-3 justify-center"><Plus size={12} /></span>
           <span class="flex-1 truncate text-fg-muted">New project “{newName}”</span>

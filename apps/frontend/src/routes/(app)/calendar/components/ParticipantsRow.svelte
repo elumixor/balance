@@ -95,7 +95,7 @@
     aria-label="Invite by email"
     autocomplete="off"
     spellcheck="false"
-    class="field-bare t-label w-full"
+    class="field-bare w-full"
   />
 {/snippet}
 

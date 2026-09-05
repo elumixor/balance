@@ -88,9 +88,7 @@
       spellcheck="false"
       autocomplete="off"
       aria-label="Search categories"
-      class="t-body h-9 w-full shrink-0 rounded-md border border-line bg-surface px-2.5
-        transition-[border-color,box-shadow] duration-150 placeholder:text-fg-faint hover:border-line-strong
-        focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus:outline-none"
+      class="field-boxed w-full shrink-0"
     />
 
     <div bind:this={list} class="max-h-60 overflow-y-auto">
@@ -100,8 +98,7 @@
           onclick={() => onchoose(c.id)}
           onpointermove={() => (active = i)}
           aria-pressed={c.id === value}
-          class="t-body flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left
-            {i === active ? 'bg-surface-alt' : ''}"
+          class="menu-row {i === active ? 'bg-surface-alt' : ''}"
         >
           <CategoryIcon icon={c.icon} color={c.color} size={22} />
           <span class="flex-1 truncate {c.id === value ? 'text-fg' : 'text-fg-muted'}">{c.name}</span>

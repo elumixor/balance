@@ -93,7 +93,7 @@
             oninput={(e) => data.update(project.id, { name: e.currentTarget.value })}
             placeholder="Name the project"
             aria-label="Project name"
-            class="t-title -mx-1 h-12 w-full rounded-md border border-transparent bg-transparent px-1 text-fg placeholder:text-fg-faint hover:border-line focus:border-line-strong focus:outline-none"
+            class="field-bare t-title -mx-2 h-12 w-full"
           />
           <Textarea
             value={project.description}
@@ -172,7 +172,7 @@
               value={project.deadline ?? ""}
               onchange={(e) => data.update(project.id, { deadline: e.currentTarget.value || null })}
               aria-label="Deadline"
-              class="t-label h-9 rounded-md border border-line bg-surface px-2 text-fg focus:border-line-strong focus:outline-none"
+              class="field-boxed"
             />
           </label>
         {/if}

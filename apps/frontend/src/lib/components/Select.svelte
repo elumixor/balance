@@ -37,10 +37,9 @@
       onclick={open}
       aria-label={label}
       style="min-width:{width}px"
-      class="press-sm flex h-10 items-center gap-2 rounded-md border border-line bg-surface px-3 text-left
-        transition-colors duration-150 hover:border-line-strong"
+      class="field-boxed press-sm flex items-center gap-2 text-left"
     >
-      <span class="t-body flex-1 truncate text-fg">
+      <span class="flex-1 truncate">
         {shown}{#if suffix}<span class="text-fg-faint"> {suffix}</span>{/if}
       </span>
       <ChevronDown size={15} class="shrink-0 text-fg-faint" />

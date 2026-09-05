@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
    * A quantity with its unit welded on: right-aligned tabular digits, faint unit, no spinner.
-   * The box belongs to the pair, not the input, so the unit sits inside the same outline the
-   * digits get on focus.
+   * The ground belongs to the pair, not the input, so the unit sits inside the same field the
+   * digits light up on focus.
    *
    * What's typed is kept as typed, not parsed, until Enter or focusout applies it — so "1." or a
    * half-finished expression like "7*" never collapses mid-keystroke. Escape drops it instead.
@@ -69,11 +69,7 @@
   }
 </script>
 
-<span
-  class="flex items-center rounded-md border border-transparent transition-[border-color,box-shadow]
-    duration-150 hover:border-line focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10
-    {size === 'sm' ? 'h-6 pr-1 pl-0.5' : 'h-9 pr-1.5 pl-1'}"
->
+<span class="field-bare flex items-center {size === 'sm' ? 'field-sm' : ''}">
   <input
     {inputmode}
     autocomplete="off"
@@ -82,7 +78,7 @@
     oninput={(e) => (typed = e.currentTarget.value)}
     onkeydown={keydown}
     onfocusout={commit}
-    class="{type} {width} bg-transparent text-right text-fg focus:outline-none"
+    class="{type} {width} bg-transparent text-right outline-none"
   />
   <span class="{type} pl-0.5 text-fg-faint">{unit}</span>
 </span>

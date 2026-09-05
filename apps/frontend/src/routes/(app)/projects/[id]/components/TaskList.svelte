@@ -42,8 +42,7 @@
         value={task.title}
         oninput={(e) => data.updateTask(task.id, { title: e.currentTarget.value })}
         aria-label="Task"
-        class="t-label h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-fg
-          hover:border-line focus:border-line-strong focus:outline-none {task.done ? 'line-through' : ''}"
+        class="field-bare field-sm flex-1 {task.done ? 'line-through' : ''}"
       />
       <NumberField
         value={task.estimateHours ?? 0}
@@ -66,7 +65,7 @@
       placeholder="Add a subtask"
       aria-label="New subtask"
       onkeydown={(e) => e.key === "Enter" && add()}
-      class="t-label h-7 min-w-0 flex-1 bg-transparent px-1 placeholder:text-fg-faint focus:outline-none"
+      class="field-bare field-sm flex-1"
     />
   </div>
 </div>

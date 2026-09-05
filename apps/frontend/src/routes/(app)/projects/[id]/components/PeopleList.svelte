@@ -37,7 +37,7 @@
       aria-label="Add a person"
       onkeydown={(e) => e.key === "Enter" && add()}
       onblur={add}
-      class="t-micro h-6 w-32 bg-transparent placeholder:text-fg-faint focus:outline-none"
+      class="field-bare field-sm w-32"
     />
   </span>
 </div>

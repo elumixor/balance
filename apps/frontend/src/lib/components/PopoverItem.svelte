@@ -22,7 +22,7 @@
   role={selected === undefined ? "menuitem" : "menuitemradio"}
   aria-checked={selected}
   {onclick}
-  class="t-body flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-surface-alt {tone === 'danger'
+  class="t-label flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-surface-alt {tone === 'danger'
     ? 'text-danger'
     : 'text-fg'}"
 >

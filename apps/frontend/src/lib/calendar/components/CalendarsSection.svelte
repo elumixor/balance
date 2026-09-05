@@ -135,10 +135,10 @@
       type="button"
       disabled={connecting}
       onclick={() => void addAccount()}
-      class="hoverable press-sm flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-fg-faint disabled:opacity-60"
+      class="menu-row press-sm text-fg-faint disabled:opacity-60"
     >
       <Plus size={14} />
-      <span class="t-label">Add calendar account</span>
+      <span>Add calendar account</span>
     </button>
   </div>
 {/if}

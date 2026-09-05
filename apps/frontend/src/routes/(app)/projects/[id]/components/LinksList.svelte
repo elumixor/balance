@@ -44,7 +44,7 @@
         value={link.label}
         oninput={(e) => relabel(i, e.currentTarget.value)}
         aria-label="Link label"
-        class="t-label h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-fg hover:border-line focus:border-line-strong focus:outline-none"
+        class="field-bare field-sm flex-1"
       />
       <Button variant="bare" title="Remove link" onclick={() => onchange(links.filter((_, j) => j !== i))}>
         {#snippet icon()}<X size={13} class="text-fg-faint" />{/snippet}
@@ -59,7 +59,7 @@
       aria-label="New link"
       onkeydown={(e) => e.key === "Enter" && add()}
       onblur={add}
-      class="t-label h-7 min-w-0 flex-1 bg-transparent px-1 placeholder:text-fg-faint focus:outline-none"
+      class="field-bare field-sm flex-1"
     />
   </div>
 </div>

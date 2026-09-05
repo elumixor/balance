@@ -75,10 +75,10 @@
                   onlink(`${integration.id}:${feed.id}`);
                   close();
                 }}
-                class="hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left"
+                class="menu-row"
               >
                 <integration.icon size={15} class="shrink-0 text-fg-faint" />
-                <span class="t-label min-w-0 flex-1 truncate text-fg">{integration.name} · {feed.label}</span>
+                <span class="min-w-0 flex-1 truncate">{integration.name} · {feed.label}</span>
                 <span class="t-micro shrink-0 text-fg-faint">
                   {integration.available && !integrations.connected(integration.id) ? "Connect" : "Link"}
                 </span>

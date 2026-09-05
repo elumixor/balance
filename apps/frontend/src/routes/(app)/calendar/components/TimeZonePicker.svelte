@@ -87,7 +87,7 @@
         onfree={free}
       >
         {#snippet row(option, _active)}
-          <span class="t-label min-w-0 flex-1 truncate {option.value === value ? 'text-fg' : 'text-fg-muted'}">
+          <span class="min-w-0 flex-1 truncate {option.value === value ? 'text-fg' : 'text-fg-muted'}">
             {option.label}
           </span>
           <span class="t-micro shrink-0 text-fg-faint">{option.hint}</span>
@@ -97,10 +97,10 @@
         <button
           type="button"
           onclick={() => free(query.trim())}
-          class="hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left"
+          class="menu-row"
         >
           <Plus size={14} class="shrink-0 text-fg-faint" />
-          <span class="t-label text-fg">Name a zone “{query.trim()}”</span>
+          <span>Name a zone “{query.trim()}”</span>
         </button>
       {/if}
       {#if footer}

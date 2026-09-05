@@ -92,7 +92,8 @@
   const zoneTicks = $derived(
     zoneColumns.map((zone) => ({
       zone,
-      label: shortZoneName(zone, zoneAt),
+      // A zone this account has named wears that name; any other, the shortest the runtime has.
+      label: preferences.zoneNamed(zone)?.label ?? shortZoneName(zone, zoneAt),
       ticks: gutterTicks(hourPx, offsetMinutes(zone, zoneAt) - offsetMinutes(deviceTimeZone(), zoneAt)),
     })),
   );
@@ -936,20 +937,20 @@
         <button
           type="button"
           onclick={addZoneColumn}
-          class="hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left"
+          class="menu-row"
         >
           <Plus size={14} class="shrink-0 text-fg-faint" />
-          <span class="t-body text-fg">Add another zone</span>
+          <span>Add another zone</span>
         </button>
       {/if}
       {#if zoneColumns.length > 1}
         <button
           type="button"
           onclick={removeZoneColumn}
-          class="hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left"
+          class="menu-row"
         >
           <Minus size={14} class="shrink-0 text-fg-faint" />
-          <span class="t-body text-fg">Remove this column</span>
+          <span>Remove this column</span>
         </button>
       {/if}
     {/snippet}

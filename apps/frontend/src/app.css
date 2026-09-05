@@ -128,11 +128,12 @@ html.dark {
   line-height: 16.5px;
   letter-spacing: 0.2px;
 }
+/* The data rungs are the text rungs with tabular digits: a quantity beside a label sits on its line. */
 @utility t-data {
   font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 15.5px;
-  line-height: 21px;
+  font-weight: 500;
+  font-size: 14.5px;
+  line-height: 20px;
   font-variant-numeric: tabular-nums;
 }
 @utility t-data-strong {
@@ -142,18 +143,12 @@ html.dark {
   line-height: 25.5px;
   font-variant-numeric: tabular-nums;
 }
-@utility t-data-compact {
-  font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 19px;
-  font-variant-numeric: tabular-nums;
-}
 @utility t-data-micro {
   font-family: var(--font-sans);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 12px;
   line-height: 16.5px;
+  letter-spacing: 0.2px;
   font-variant-numeric: tabular-nums;
 }
 /*
@@ -181,16 +176,43 @@ html.dark {
  * `hover: hover` so a touch screen never leaves a row stuck in its hovered state.
  */
 /*
- * A field with no box of its own: it sits in a row of a card, and only shows its ground when
- * pointed at or typed in. Every input on the event card is one of these, so they read as one.
+ * Every field in the app is one of two: "boxed" stands on its own surface — a form, a search at
+ * the top of a picker — and "bare" sits in a row of a card, showing its ground only when pointed
+ * at or typed in. Both speak at `t-label`, the app's working size; a title or a readout that is
+ * also a field says so itself. `field-sm` is either one a rung shorter, for a ring callout.
+ * Applied to a wrapper as well as to an input, so a unit or a span can sit inside the same box.
  */
+@utility field {
+  @apply t-label min-w-0 rounded-md text-fg outline-none transition-[background-color,border-color,box-shadow] duration-150 placeholder:text-fg-faint;
+}
+@utility field-boxed {
+  @apply field h-10 border border-line bg-surface px-3 focus:border-line-strong focus:ring-2 focus:ring-fg/10 focus-within:border-line-strong focus-within:ring-2 focus-within:ring-fg/10;
+  @media (hover: hover) {
+    &:hover {
+      border-color: var(--line-strong);
+    }
+  }
+}
 @utility field-bare {
-  @apply h-8 min-w-0 rounded-md border-0 bg-transparent px-2 text-fg outline-none transition-colors duration-150 placeholder:text-fg-faint focus:bg-surface-alt;
+  @apply field h-8 border-0 bg-transparent px-2 focus:bg-surface-alt focus-within:bg-surface-alt;
   @media (hover: hover) {
     &:hover {
       background-color: var(--surface-alt);
     }
   }
+}
+@utility field-sm {
+  @apply h-7 px-1.5;
+}
+/*
+ * A list that floats under a field — zones, times, addresses — and the rows in it. The same rows
+ * serve a list that sits still inside a popup, so a menu reads the same whether it floats or not.
+ */
+@utility menu {
+  @apply overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-(--shadow-float);
+}
+@utility menu-row {
+  @apply t-label hoverable flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-fg;
 }
 /* A small labelled thing on a card — a reminder, a journey, a place — drawn on its ground alone. */
 @utility chip-bare {
