@@ -39,6 +39,12 @@ export const locationSchema = z.object({
   label: z.string().min(1).max(60),
   /** The address as Google Maps knows it — what the Routes API is actually asked about. */
   address: z.string().min(1).max(240),
+  /** The glyph it wears in pickers, by its Lucide name; absent, it wears a pin. */
+  icon: z.string().max(60).optional(),
+  /** Google's id for it and where it is, kept when a suggestion was chosen so the map is free. */
+  placeId: z.string().max(200).nullable().optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 });
 export type SavedLocation = z.infer<typeof locationSchema>;
 

@@ -5,12 +5,12 @@ import type { Component } from "svelte";
 import { diagnostics } from "$lib/diagnostics.svelte";
 import { isIOSApp } from "$lib/mobile/platform";
 import { readSetting, writeSetting } from "$lib/persist";
-import { getCalendarWeek, saveIntegrationRecords } from "$lib/queries";
+import { getCalendarWeek, saveIntegrationRecords, updateCalendarEvent } from "$lib/queries";
 import { invalidate } from "$lib/store.svelte";
 import type { CalendarEvent } from "$lib/types";
 import { healthKit } from "./health-kit";
 import SleepSection from "./SleepSection.svelte";
-import { sleepSummary } from "./sleep-summary";
+import { asSleepSummary, sleepSummary } from "./sleep-summary";
 
 /**
  * Things outside the app that know how some hours actually went, hung off the events that
@@ -21,8 +21,8 @@ import { sleepSummary } from "./sleep-summary";
  * Health knows what happened under it. From then on the device that can read the feed (only an
  * iPhone can read Health) looks up each past occurrence, works out the feed's record for it, and
  * writes it to the server; every screen then draws the feed's own section on the card, under the
- * block, from that record. Nothing moves the block: the calendar stays the plan, the record is
- * what happened.
+ * block, from that record. Where the feed knows when the thing actually happened, the occurrence
+ * is moved to it: the calendar ends up holding the night as it was slept, not as it was planned.
  *
  * The link is on the mapping (`source`), so it survives the way a category does; what this device
  * keeps for itself is only whether the person has let it read each integration.
@@ -40,6 +40,8 @@ export interface Feed {
   readonly note: string;
   /** Reads the feed for one occurrence's window. Null when it saw nothing. */
   record(window: RecordWindow): Promise<Record<string, unknown> | null>;
+  /** When the record says the thing really happened, for the occurrence to be moved to. */
+  actual?(record: Record<string, unknown>): RecordWindow | null;
   /** The section the event card draws for a linked event. */
   readonly section: Component<{ event: CalendarEvent }>;
 }
@@ -94,6 +96,10 @@ const appleHealth: Integration = {
         );
         return summary ? { ...summary } : null;
       },
+      actual(record) {
+        const summary = asSleepSummary(record);
+        return summary ? { start: new Date(summary.start), end: new Date(summary.end) } : null;
+      },
       section: SleepSection,
     },
   ],
@@ -112,6 +118,11 @@ export const FEEDS: ReadonlyMap<string, { integration: Integration; feed: Feed }
 );
 
 const IDLE: FeedStatus = { syncing: false, syncedAt: null, error: null };
+
+/** A block is left alone once it is within a minute of the record, so a sync that moved it stops there. */
+const differs = (actual: RecordWindow, event: CalendarEvent) =>
+  Math.abs(actual.start.getTime() - new Date(event.start).getTime()) >= 60_000 ||
+  Math.abs(actual.end.getTime() - new Date(event.end).getTime()) >= 60_000;
 
 class Integrations {
   /** Which integrations this device has been let read. */
@@ -179,7 +190,8 @@ class Integrations {
   /**
    * One feed, now: every past occurrence linked to it in the last two weeks is looked up and its
    * record written. Occurrences the feed saw nothing for are skipped rather than written empty —
-   * a watch that synced late fills them in next time.
+   * a watch that synced late fills them in next time. An occurrence the feed dates differently is
+   * moved to when it actually happened, once: the next sync finds the block where the record is.
    */
   async sync(integration: Integration, feed: Feed) {
     const key = feedKey(integration.id, feed.id);
@@ -196,14 +208,23 @@ class Integrations {
         .slice(-MAX_OCCURRENCES);
 
       const records = [];
+      let moved = false;
       for (const event of linked) {
         const data = await feed.record({ start: new Date(event.start), end: new Date(event.end) });
-        if (data) records.push({ calendarId: event.calendarId, externalEventId: event.id, data });
+        if (!data) continue;
+        records.push({ calendarId: event.calendarId, externalEventId: event.id, data });
+        const actual = feed.actual?.(data);
+        if (actual && event.movable && differs(actual, event)) {
+          await updateCalendarEvent(event.id, {
+            calendarId: event.calendarId,
+            start: actual.start.toISOString(),
+            end: actual.end.toISOString(),
+          });
+          moved = true;
+        }
       }
-      if (records.length > 0) {
-        await saveIntegrationRecords({ source: key, records });
-        invalidate.calendar();
-      }
+      if (records.length > 0) await saveIntegrationRecords({ source: key, records });
+      if (records.length > 0 || moved) invalidate.calendar();
       this.#syncedAt = { ...this.#syncedAt, [key]: Date.now() };
       writeSetting(`${SETTINGS_KEY}:synced`, this.#syncedAt);
       this.#setStatus(key, { syncing: false });

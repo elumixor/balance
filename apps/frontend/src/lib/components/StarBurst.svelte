@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { Star } from "lucide-svelte";
+  import StarGlyph from "./StarGlyph.svelte";
 
   /**
    * Stars, arriving. The one moment the app is allowed to be loud: each star pops in after the
-   * last, a ring of light spreads behind the row, and then it all settles into a rating anyone
-   * can read at a glance — the lit ones filled, the rest drawn in outline so the row is always
-   * the same width.
+   * last, a ring spreads behind the row, and then it all settles into a rating anyone can read
+   * at a glance — the lit ones filled, the rest drawn in outline so the row is always the same
+   * width.
    */
   let {
     lit,
@@ -21,15 +21,11 @@
   const STAGGER_MS = 140;
 </script>
 
-<div class="relative flex items-center justify-center gap-2" role="img" aria-label="{lit} of {of} stars">
+<div class="relative flex items-center justify-center gap-3" role="img" aria-label="{lit} of {of} stars">
   <span class="star-halo" style="width:{size * of * 1.6}px;height:{size * 1.6}px"></span>
   {#each Array.from({ length: of }) as _, index (index)}
-    {@const on = index < lit}
-    <span
-      class="star-pop relative {on ? 'text-amber-400' : 'text-line-strong'}"
-      style="animation-delay:{index * STAGGER_MS}ms"
-    >
-      <Star {size} fill={on ? "currentColor" : "none"} strokeWidth={on ? 1.5 : 1.75} />
+    <span class="star-pop relative" style="animation-delay:{index * STAGGER_MS}ms">
+      <StarGlyph {size} lit={index < lit} />
     </span>
   {/each}
 </div>
@@ -51,7 +47,7 @@
   .star-halo {
     position: absolute;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--color-amber-400) 22%, transparent);
+    background: color-mix(in oklab, var(--ink) 14%, transparent);
     animation: star-halo 900ms ease-out both;
     animation-delay: 120ms;
     pointer-events: none;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { Button, EmptyState } from "$lib/components";
+  import { Button, EmptyState, StarCount } from "$lib/components";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";
   import { Sunrise } from "lucide-svelte";
@@ -26,7 +26,9 @@
       </span>
       <div class="min-w-0 flex-1">
         <p class="t-label text-fg">Plan {sessionNudge.subject}</p>
-        <p class="t-micro text-fg-muted">{stars > 0 ? `+${stars} ★ for two minutes` : "Two minutes"}</p>
+        <p class="t-micro text-fg-muted">
+          {#if stars > 0}<StarCount value={stars} size={11} /> for two minutes{:else}Two minutes{/if}
+        </p>
       </div>
       <Button label="Open" size="sm" onclick={openSession} />
     </div>

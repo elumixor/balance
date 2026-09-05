@@ -307,8 +307,10 @@ screen as it was.
 feed being sleep. A feed is linked to an event from the event's own card ("Integrations…" row):
 the link is the mapping's `source` (`"apple-health:sleep"`), so a series link covers every
 occurrence and survives the way a category does, and a block that counted as nothing is first
-made to count as the category named for the feed, or the buffer. The block never moves: the
-calendar stays the plan, the record is what happened.
+made to count as the category named for the feed, or the buffer. A one-off block is made a daily
+series first, so the link covers every night. The block then follows the record: a sync that finds
+the night began or ended elsewhere moves the occurrence to it, so the calendar ends up holding what
+happened and the record explains it.
 
 Reading a source happens on the device that can — Health only on the iPhone — and only after the
 person has let it (`integrations.connect`, kept in `persist.readSetting`, never aged out). On

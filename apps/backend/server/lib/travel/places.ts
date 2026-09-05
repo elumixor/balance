@@ -78,3 +78,115 @@ export async function suggestPlaces(input: { query: string; sessionToken?: strin
     })
     .filter((suggestion) => suggestion.address.length > 0);
 }
+
+/** Where a place is, precisely enough to draw it and to route from it. */
+export interface PlaceDetails {
+  readonly placeId: string | null;
+  /** The address as Google spells it — the one worth saving. */
+  readonly address: string;
+  readonly latitude: number;
+  readonly longitude: number;
+}
+
+const DETAILS_FIELDS = "id,formattedAddress,location";
+
+/**
+ * A place, pinned down: by Google's id when a suggestion was chosen, or by searching for the
+ * address in words when it was typed — a calendar event's location is words. Null when Google
+ * knows no such place, which is a normal answer for "Room 4".
+ */
+export async function lookupPlace(input: {
+  placeId?: string;
+  address?: string;
+  sessionToken?: string;
+}): Promise<PlaceDetails | null> {
+  if (input.placeId) return await placeById(input.placeId, input.sessionToken);
+  const address = input.address?.trim();
+  if (!address) return null;
+  return await placeByText(address);
+}
+
+interface RawPlace {
+  id?: string;
+  formattedAddress?: string;
+  location?: { latitude?: number; longitude?: number };
+}
+
+function asDetails(place: RawPlace | undefined): PlaceDetails | null {
+  if (!place?.location || place.location.latitude === undefined || place.location.longitude === undefined) return null;
+  return {
+    placeId: place.id ?? null,
+    address: place.formattedAddress ?? "",
+    latitude: place.location.latitude,
+    longitude: place.location.longitude,
+  };
+}
+
+async function placeById(placeId: string, sessionToken: string | undefined) {
+  const params = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : "";
+  const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}${params}`, {
+    headers: { "x-goog-api-key": env.GOOGLE_MAPS_API_KEY, "x-goog-fieldmask": DETAILS_FIELDS },
+  });
+  if (!response.ok) return await noPlace(response);
+  return asDetails((await response.json()) as RawPlace);
+}
+
+async function placeByText(query: string) {
+  const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-goog-api-key": env.GOOGLE_MAPS_API_KEY,
+      "x-goog-fieldmask": DETAILS_FIELDS.split(",")
+        .map((field) => `places.${field}`)
+        .join(","),
+    },
+    body: JSON.stringify({ textQuery: query, pageSize: 1 }),
+  });
+  if (!response.ok) return await noPlace(response);
+  const body = (await response.json()) as { places?: RawPlace[] };
+  return asDetails(body.places?.[0]);
+}
+
+async function noPlace(response: Response): Promise<null> {
+  if ([400, 401, 403, 404].includes(response.status)) return null;
+  const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+  throw new ApiError(`Google Maps said: ${body.error?.message ?? response.statusText}`, 502);
+}
+
+/** The picture is the same for the life of an address; a day is long enough not to matter. */
+const MAP_CACHE_MS = 24 * 60 * 60_000;
+const MAP_CACHE_MAX = 200;
+const mapCache = new Map<string, { at: number; image: string }>();
+
+/**
+ * A small map with a pin on the place, as a data URL. Proxied rather than linked because the
+ * Static Maps key would otherwise sit in an `<img src>` for anyone to read — and an image can't
+ * carry the session header every other request does.
+ */
+export async function staticMap(input: { latitude: number; longitude: number; width: number; height: number }) {
+  const key = `${input.latitude.toFixed(5)},${input.longitude.toFixed(5)}|${input.width}x${input.height}`;
+  const hit = mapCache.get(key);
+  if (hit && Date.now() - hit.at < MAP_CACHE_MS) return hit.image;
+
+  const params = new URLSearchParams({
+    center: `${input.latitude},${input.longitude}`,
+    zoom: "15",
+    size: `${input.width}x${input.height}`,
+    scale: "2",
+    markers: `color:0x111111|${input.latitude},${input.longitude}`,
+    key: env.GOOGLE_MAPS_API_KEY,
+  });
+  const response = await fetch(`https://maps.googleapis.com/maps/api/staticmap?${params}`);
+  if (!response.ok) return null;
+  const image = `data:${response.headers.get("content-type") ?? "image/png"};base64,${Buffer.from(
+    await response.arrayBuffer(),
+  ).toString("base64")}`;
+
+  if (mapCache.size >= MAP_CACHE_MAX) {
+    const oldest = mapCache.keys().next().value;
+    if (oldest !== undefined) mapCache.delete(oldest);
+  }
+  mapCache.set(key, { at: Date.now(), image });
+  return image;
+}

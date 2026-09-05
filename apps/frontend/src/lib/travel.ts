@@ -1,5 +1,5 @@
 import { api, callApi, unwrapOk } from "./api";
-import type { TravelMode } from "./preferences.svelte";
+import { preferences, type TravelMode } from "./preferences.svelte";
 
 /** How long it takes to get somewhere, one way of going. */
 export interface TravelLeg {
@@ -26,3 +26,12 @@ export const getTravelTimes = (input: {
   modes: TravelMode[];
   arriveBy?: string;
 }) => callApi(api.travel.$post(input)).then((r) => unwrapOk(r) as TravelAnswer);
+
+/**
+ * When a journey has to arrive: the event's start, less the minutes you'd rather be there early.
+ * Every journey is asked about this instant — the reminder, the chips on the card and the band on
+ * the grid — so they can never disagree about when to leave.
+ */
+export function arrivalFor(start: string) {
+  return new Date(new Date(start).getTime() - preferences.travel.bufferMinutes * 60_000).toISOString();
+}

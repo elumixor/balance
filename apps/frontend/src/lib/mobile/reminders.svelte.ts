@@ -10,7 +10,7 @@ import { DEFAULT_ICON } from "$lib/icons";
 import { hasAddress, meetingOf } from "$lib/meeting";
 import { preferences } from "$lib/preferences.svelte";
 import { REMINDER_KINDS, reminderDueAt } from "$lib/reminders";
-import { getTravelTimes, type TravelLeg } from "$lib/travel";
+import { arrivalFor, getTravelTimes, type TravelLeg } from "$lib/travel";
 import { travelOrigin } from "$lib/travel-origin.svelte";
 import type { CalendarEvent } from "$lib/types";
 import { isIOSApp } from "./platform";
@@ -239,7 +239,7 @@ class MobileReminders {
         this.#travel.set(event.id, []);
         return;
       }
-      const answer = await getTravelTimes({ origin, destination: meeting.location, modes, arriveBy: event.start });
+      const answer = await getTravelTimes({ origin, destination: meeting.location, modes, arriveBy: arrivalFor(event.start) });
       this.#travel.set(event.id, answer.legs);
     } catch {
       // A route that can't be worked out costs the leave-in-time reminder, not the reminder itself.

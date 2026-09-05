@@ -36,7 +36,7 @@
   import ConferencingRow from "./ConferencingRow.svelte";
   import LocationRow from "./LocationRow.svelte";
   import ParticipantsRow from "./ParticipantsRow.svelte";
-  import { describe, fromRecurrence, type Rule, toRRule } from "$lib/calendar/recurrence";
+  import { describe, fromRecurrence, NEVER, type Rule, toRRule } from "$lib/calendar/recurrence";
   import RemindersRow from "./RemindersRow.svelte";
   import RepeatPicker from "./RepeatPicker.svelte";
   import TimeField from "./TimeField.svelte";
@@ -415,16 +415,26 @@
   async function link(source: string) {
     const entry = FEEDS.get(source);
     if (!entry) return;
+    // A feed records every night, so a one-off block is first made a daily series, and the link
+    // lands on the series: the block becomes its master, and every occurrence carries the feed.
+    let target = event;
+    let targetScope = scope;
+    if (!event.seriesId && !rule) {
+      const lines = [toRRule({ frequency: "daily", interval: 1, weekdays: [], end: NEVER })];
+      await data.patchEvent(event, { recurrence: lines }, { recurrence: [] });
+      target = { ...event, seriesId: event.id, recurrence: lines };
+      targetScope = "series";
+    }
     if (!category) {
       const word = entry.feed.label.toLowerCase();
       const guess = plannable.find((c) => c.name.toLowerCase().includes(word)) ?? plannable.find((c) => c.isBuffer);
       if (!guess) return;
-      await data.mapEvent(event, scope, { weights: [{ categoryId: guess.id, weightPercent: 100 }] }, {
+      await data.mapEvent(target, targetScope, { weights: [{ categoryId: guess.id, weightPercent: 100 }] }, {
         ...{ projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer },
         source,
       });
     } else {
-      await data.tagEvent(event, { source });
+      await data.tagEvent(target, { source });
     }
     if (entry.integration.available) void integrations.sync(entry.integration, entry.feed);
   }

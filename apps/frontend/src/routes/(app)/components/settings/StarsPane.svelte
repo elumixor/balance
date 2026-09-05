@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { Button, Skeleton, StarPill, Tooltip } from "$lib/components";
+  import { Button, Skeleton, StarCount, StarPill, Tooltip } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { progressData } from "$lib/planning/progress.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
@@ -32,7 +32,7 @@
           { label: "Planned ahead", value: `${progress.aheadDays}` },
           { label: "Rest days", value: `${progress.restDays}` },
           { label: "Weeks planned", value: `${progress.weeksPlanned}` },
-          { label: "Earned this week", value: `+${progress.weekStars} ★` },
+          { label: "Earned this week", value: progress.weekStars },
         ]
       : [],
   );
@@ -65,7 +65,7 @@
       <StarPill rank={progress.rank} />
       {#if progress.streak > 0}
         <span class="t-label flex items-center gap-1.5 text-fg-muted">
-          <Flame size={14} class="text-amber-400" />
+          <Flame size={14} />
           {progress.streak} {progress.streak === 1 ? "day" : "days"} in a row
         </span>
       {/if}
@@ -83,14 +83,14 @@
       {/if}
     </div>
 
-    <!-- Four weeks of days: lit when planned, amber when planned the evening before. -->
+    <!-- Four weeks of days: lit when planned, green when planned the evening before. -->
     <div class="mt-6 grid grid-cols-14 gap-1">
       {#each progress.recent as cell (cell.day)}
-        <Tooltip label="{dayLabel(cell.day)}{cell.stars ? ` · ${cell.stars > 0 ? '+' : ''}${cell.stars} ★` : ''}">
+        <Tooltip label="{dayLabel(cell.day)}{cell.stars > 0 ? `, +${cell.stars} stars` : ''}">
           <span
             class="block aspect-square w-full rounded-sm {cell.planned
               ? cell.ahead
-                ? 'bg-amber-400'
+                ? 'bg-positive'
                 : 'bg-ink'
               : 'bg-surface-alt'} {cell.rest ? 'opacity-50' : ''}"
           ></span>
@@ -102,7 +102,9 @@
       {#each stats as stat (stat.label)}
         <div>
           <dt class="t-micro text-fg-faint">{stat.label}</dt>
-          <dd class="t-data-strong">{stat.value}</dd>
+          <dd class="t-data-strong">
+            {#if typeof stat.value === "number"}<StarCount value={stat.value} size={16} />{:else}{stat.value}{/if}
+          </dd>
         </div>
       {/each}
     </dl>
@@ -116,7 +118,7 @@
         <li class="flex items-center gap-3">
           <span
             class="flex size-7 shrink-0 items-center justify-center rounded-full {achievement.earned
-              ? 'bg-amber-400 text-ink-fg'
+              ? 'bg-ink text-ink-fg'
               : 'border border-line-strong text-fg-faint'}"
           >
             {#if achievement.earned}<Check size={14} strokeWidth={3} />{/if}

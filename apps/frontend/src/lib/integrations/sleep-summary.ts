@@ -3,9 +3,10 @@ import { type SleepSample, type SleepStage, sleepSessions } from "./sleep-sessio
 /**
  * One night, as the card under a "Sleep" block shows it.
  *
- * The block is the plan — eleven to seven, every night. Health has what happened, as samples. The
- * summary is the night those samples make that belongs to this block: the session overlapping
- * it most, since a nap on the same afternoon is a different thing. Everything is in minutes and
+ * The block is where the night was expected — eleven to seven, every night. Health has what
+ * happened, as samples. The summary is the night those samples make that belongs to this block:
+ * the session overlapping it most, since a nap on the same afternoon is a different thing. The
+ * block is then moved to that night, so the next read finds it where the record already is. Everything is in minutes and
  * instants, so the card can say "7h 20m, 23:41 to 07:12" without touching a sample again.
  *
  * This is what a record holds on the server (`integration_records.data`), so its shape is a

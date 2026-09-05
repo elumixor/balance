@@ -19,3 +19,54 @@ export interface PlaceSuggestion {
  */
 export const suggestPlaces = (input: { query: string; sessionToken?: string }) =>
   callApi(api.travel.places.$post(input)).then((r) => (unwrapOk(r) as { suggestions: PlaceSuggestion[] }).suggestions);
+
+/** A place pinned down: where it is, how Google spells it, and a small map with a pin on it. */
+export interface PlaceDetails {
+  placeId: string | null;
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface PlaceLookup {
+  place: PlaceDetails | null;
+  /** A data URL, drawn at twice the size asked for; null when Google knows no such place. */
+  map: string | null;
+}
+
+/** The size every preview is drawn at, so two screens asking about one address share an answer. */
+export const MAP_PREVIEW = { width: 320, height: 140 } as const;
+
+const lookups = new Map<string, Promise<PlaceLookup>>();
+
+/**
+ * One place, asked about once per session: a saved address is looked up on every card it appears
+ * on, and the answer — a picture of a street — does not change between them. A lookup that fails
+ * is forgotten, so the next card asks again rather than inheriting a blank.
+ */
+export function lookupPlace(input: { placeId?: string | null; address?: string; sessionToken?: string }) {
+  const key = input.placeId ? `id:${input.placeId}` : `q:${input.address?.trim().toLowerCase() ?? ""}`;
+  const hit = lookups.get(key);
+  if (hit) return hit;
+  const asked = callApi(
+    api.travel.place.$post({
+      ...(input.placeId ? { placeId: input.placeId } : { address: input.address }),
+      ...(input.sessionToken ? { sessionToken: input.sessionToken } : {}),
+      ...MAP_PREVIEW,
+    }),
+  )
+    .then((r) => unwrapOk(r) as PlaceLookup)
+    .catch((e) => {
+      lookups.delete(key);
+      throw e;
+    });
+  lookups.set(key, asked);
+  return asked;
+}
+
+/** Google Maps opened on the place itself — what tapping the preview does. */
+export function placeUrl(place: { placeId?: string | null; address: string }) {
+  const params = new URLSearchParams({ api: "1", query: place.address });
+  if (place.placeId) params.set("query_place_id", place.placeId);
+  return `https://www.google.com/maps/search/?${params}`;
+}

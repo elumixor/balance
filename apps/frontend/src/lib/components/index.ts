@@ -28,6 +28,8 @@ export { default as Skeleton } from "./Skeleton.svelte";
 export { default as Spinner } from "./Spinner.svelte";
 export { default as StarBadge } from "./StarBadge.svelte";
 export { default as StarBurst } from "./StarBurst.svelte";
+export { default as StarCount } from "./StarCount.svelte";
+export { default as StarGlyph } from "./StarGlyph.svelte";
 export { default as StarPill } from "./StarPill.svelte";
 export { default as SplitBar } from "./SplitBar.svelte";
 export { default as Switch } from "./Switch.svelte";

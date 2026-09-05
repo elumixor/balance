@@ -6,7 +6,7 @@ import { DEFAULT_ICON } from "$lib/icons";
 import { asGoogleAccount, hasAddress, meetingOf } from "$lib/meeting";
 import { preferences } from "$lib/preferences.svelte";
 import { REMINDER_KINDS, reminderDueAt } from "$lib/reminders";
-import { getTravelTimes, type TravelLeg } from "$lib/travel";
+import { arrivalFor, getTravelTimes, type TravelLeg } from "$lib/travel";
 import { travelOrigin } from "$lib/travel-origin.svelte";
 import type { CalendarEvent } from "$lib/types";
 import { desktopAgenda } from "./agenda.svelte";
@@ -115,7 +115,7 @@ class DesktopReminders {
         this.#travel.set(event.id, []);
         return;
       }
-      const answer = await getTravelTimes({ origin, destination: meeting.location, modes, arriveBy: event.start });
+      const answer = await getTravelTimes({ origin, destination: meeting.location, modes, arriveBy: arrivalFor(event.start) });
       this.#travel.set(event.id, answer.legs);
     } catch (e) {
       // A route that can't be worked out costs the leave-in-time card, not the reminder itself.

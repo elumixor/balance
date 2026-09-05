@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { Button, CategoryIcon, Skeleton, StarBurst, StarPill } from "$lib/components";
+  import { Button, CategoryIcon, Skeleton, StarBurst, StarCount, StarPill } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { DAY_STARS, dayRating } from "$lib/planning/rating";
   import { sessionData } from "$lib/planning/session-data.svelte";
@@ -153,7 +153,7 @@
         onclick={plan}
       />
       {#if !summary.target.planned && planStars > 0}
-        <p class="t-label mt-2 text-center text-fg-muted">+{planStars} ★ for two minutes</p>
+        <p class="t-label mt-2 text-center text-fg-muted"><StarCount value={planStars} size={13} /> for two minutes</p>
       {/if}
       <button type="button" class="t-micro mx-auto mt-2 block text-fg-faint" onclick={() => goto("/calendar")}>
         Not now

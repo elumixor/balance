@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { Button, Popover, PopoverItem, StarBurst } from "$lib/components";
+  import { Button, Popover, PopoverItem, StarBurst, StarCount } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { BedDouble, LogOut, MoreHorizontal } from "lucide-svelte";
 
@@ -47,7 +47,7 @@
   <div class="fade-in absolute inset-0 z-40 flex items-center justify-center bg-overlay p-6">
     <div class="float-in flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-line bg-surface p-8 text-center shadow-(--shadow-float)">
       <StarBurst lit={Math.min(3, Math.max(1, paid))} of={3} size={40} />
-      <p class="t-title">+{paid} ★</p>
+      <p class="t-title"><StarCount value={paid} size={28} class="gap-1.5" /></p>
       <p class="t-body text-fg-muted">{dayLabel} is decided. You get to wake up and just do it.</p>
       <Button full label="Done" onclick={close} />
     </div>
@@ -62,7 +62,7 @@
             <span>{tenth(planMode.mappedHours)}h of {tenth(planMode.budgetHours)}h</span>
             {#if planMode.stars > 0}
               <!-- What finishing pays, worn by the strip rather than spelled into the button. -->
-              <span class="rounded-full bg-surface-alt px-1.5 py-px text-fg">+{planMode.stars} ★</span>
+              <StarCount value={planMode.stars} size={11} class="rounded-full bg-surface-alt px-1.5 py-px text-fg" />
             {/if}
           </span>
         </div>
@@ -70,7 +70,7 @@
              yourself crossing is worth more than a number you have to remember. -->
         <div class="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-alt">
           <div
-            class="h-full rounded-full transition-[width,background-color] duration-300 {planMode.ready ? 'bg-amber-400' : 'bg-ink'}"
+            class="h-full rounded-full transition-[width,background-color] duration-300 {planMode.ready ? 'bg-positive' : 'bg-ink'}"
             style="width:{Math.min(100, percent)}%"
           ></div>
           <div class="absolute inset-y-0 w-px bg-line-strong" style="left:{target}%"></div>

@@ -70,8 +70,24 @@ export async function travelTimes(input: {
   return { available: true, legs: legs.filter((one): one is TravelLeg => one !== null) };
 }
 
-/** A maps link for a journey, whether or not Google would tell us how long it takes. */
-export function directionsUrl(origin: string, destination: string, mode: TravelMode) {
+/** The mode as the `data=` form of a maps link spells it — the only form that takes a time. */
+const DATA_MODE: Record<TravelMode, number> = { drive: 0, bicycle: 1, walk: 2, transit: 3 };
+
+/**
+ * A maps link for a journey, whether or not Google would tell us how long it takes.
+ *
+ * Opened on "arrive by" when the journey has an arrival to make: the documented `?api=1` form
+ * can't say when, so Maps would plan from the moment the link is tapped and get the timetable
+ * wrong for anything later today. The `data=` form (`!6e1` arrive by, `!8j` when, `!3e` the
+ * mode) is undocumented but has held for a decade; an arrival already gone is left out, because
+ * Maps has nothing to say about a bus that has left.
+ */
+export function directionsUrl(origin: string, destination: string, mode: TravelMode, arriveBy?: Date) {
+  if (arriveBy && arriveBy.getTime() > Date.now()) {
+    const at = Math.round(arriveBy.getTime() / 1000);
+    const path = [origin, destination].map((place) => encodeURIComponent(place).replace(/%20/g, "+")).join("/");
+    return `https://www.google.com/maps/dir/${path}/data=!4m6!4m5!2m3!6e1!7e2!8j${at}!3e${DATA_MODE[mode]}`;
+  }
   const params = new URLSearchParams({
     api: "1",
     origin,
@@ -94,7 +110,8 @@ async function leg(
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.leg;
 
-  const answer = await compute(mode, origin, destination, arriveBy);
+  const timed = await compute(mode, origin, destination, arriveBy);
+  const answer = timed ? { ...timed, url: directionsUrl(origin, destination, mode, arriveBy) } : null;
   if (cache.size >= CACHE_MAX) {
     const oldest = cache.keys().next().value;
     if (oldest !== undefined) cache.delete(oldest);
@@ -103,12 +120,35 @@ async function leg(
   return answer;
 }
 
+/**
+ * Driving is asked twice when the meeting is later than the traffic horizon: once without
+ * traffic, to learn roughly how long the road takes, and again with traffic predicted for the
+ * moment you'd actually set off — which is the arrival less that first answer. Google can only be
+ * asked about a departure, and "now" is the wrong departure for a six o'clock meeting.
+ */
 async function compute(
   mode: TravelMode,
   origin: string,
   destination: string,
   arriveBy: Date | undefined,
-): Promise<TravelLeg | null> {
+): Promise<Omit<TravelLeg, "url"> | null> {
+  const first = await ask(mode, origin, destination, timing(mode, arriveBy));
+  if (!first || mode !== "drive" || !arriveBy) return first;
+  const departAt = new Date(arriveBy.getTime() - first.seconds * 1000);
+  if (departAt.getTime() - Date.now() < TRAFFIC_HORIZON_MS) return first;
+  const predicted = await ask(mode, origin, destination, {
+    routingPreference: "TRAFFIC_AWARE",
+    departureTime: departAt.toISOString(),
+  });
+  return predicted ?? first;
+}
+
+async function ask(
+  mode: TravelMode,
+  origin: string,
+  destination: string,
+  when: Record<string, string>,
+): Promise<Omit<TravelLeg, "url"> | null> {
   const response = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
@@ -122,7 +162,7 @@ async function compute(
       origin: waypoint(origin),
       destination: waypoint(destination),
       travelMode: ROUTES_MODE[mode],
-      ...timing(mode, arriveBy),
+      ...when,
     }),
   });
 
@@ -147,7 +187,6 @@ async function compute(
     // Routes answers a duration as protobuf does — "1543s".
     seconds: Number.parseInt(route.duration, 10),
     meters: route.distanceMeters ?? 0,
-    url: directionsUrl(origin, destination, mode),
   };
 }
 
@@ -167,9 +206,10 @@ const COORDINATES = /^(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)$/;
  * takes a departure, and a departure in the past is refused outright — so driving is asked about
  * with today's traffic when the meeting is soon, and without any traffic at all when it isn't.
  */
-function timing(mode: TravelMode, arriveBy: Date | undefined) {
+function timing(mode: TravelMode, arriveBy: Date | undefined): Record<string, string> {
   if (!arriveBy) return mode === "drive" ? { routingPreference: "TRAFFIC_AWARE" } : {};
-  if (mode === "transit") return { arrivalTime: arriveBy.toISOString() };
+  // A bus that has already left can't be asked about; a meeting that has started is planned from now.
+  if (mode === "transit") return arriveBy.getTime() > Date.now() ? { arrivalTime: arriveBy.toISOString() } : {};
   if (mode !== "drive") return {};
   const soon = arriveBy.getTime() - Date.now() < TRAFFIC_HORIZON_MS;
   // A departure in the past is refused outright, and the request itself takes a moment, so "now"

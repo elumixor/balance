@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Star } from "lucide-svelte";
   import type { Rank } from "$lib/planning/types";
+  import StarGlyph from "./StarGlyph.svelte";
 
   /**
    * Where you are, in one line: the stars, and how far the next line is.
@@ -15,7 +15,7 @@
 
 <div class="flex items-center gap-2">
   <span class="flex items-center gap-1 rounded-full bg-surface-alt px-2.5 py-1">
-    <Star size={13} class="text-amber-400" fill="currentColor" />
+    <StarGlyph size={13} />
     <span class="t-label tabular-nums">{rank.stars}</span>
   </span>
 

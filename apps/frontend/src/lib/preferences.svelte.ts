@@ -48,6 +48,12 @@ export interface SavedLocation {
   /** What you call it: "Home", "Office". */
   label: string;
   address: string;
+  /** The glyph it wears in pickers, a Lucide name from `$lib/icons`; absent, it wears a pin. */
+  icon?: string;
+  /** Google's id for it and where it is, kept when a suggestion was chosen so the map is free. */
+  placeId?: string | null;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface TravelPrefs {
@@ -230,9 +236,9 @@ class Preferences {
    * gesture. The first place saved becomes the default — somebody who has named exactly one
    * address meant that one.
    */
-  addLocation(input: { label: string; address: string }): string {
+  addLocation(input: Omit<SavedLocation, "id">): string {
     const id = crypto.randomUUID();
-    const locations = [...this.travel.locations, { id, label: input.label.trim(), address: input.address.trim() }];
+    const locations = [...this.travel.locations, { ...input, id, label: input.label.trim(), address: input.address.trim() }];
     this.setTravel({
       locations,
       defaultLocationId: this.travel.defaultLocationId ?? id,
