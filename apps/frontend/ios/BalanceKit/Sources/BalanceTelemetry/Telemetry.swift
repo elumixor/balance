@@ -32,6 +32,9 @@ public enum Telemetry {
     public static func start(platform: String) {
         guard !started else { return }
         started = true
+        // A debug build says nothing to anyone: a crash from a simulator would land in the same
+        // project as a crash from somebody's wrist. TestFlight and the App Store are release builds.
+        guard !isDebugBuild else { return }
 
         let info = Bundle.main.infoDictionary ?? [:]
         let version = info["CFBundleShortVersionString"] as? String ?? "0"
@@ -41,7 +44,7 @@ public enum Telemetry {
             SentrySDK.start { options in
                 options.dsn = dsn
                 options.releaseName = "balance@\(version)+\(build)"
-                options.environment = isDebugBuild ? "development" : "production"
+                options.environment = "production"
                 // Crashes and errors, not traces. A watch is a small battery, and a sampled
                 // transaction is radio time spent on a question nobody has asked.
                 options.tracesSampleRate = 0

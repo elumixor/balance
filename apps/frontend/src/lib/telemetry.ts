@@ -27,6 +27,13 @@ const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST;
  */
 const RELEASE = `balance@${buildInfo.version}+${buildInfo.commit}`;
 
+/**
+ * A development build says nothing to anyone. Every error thrown while a feature is half-written
+ * would otherwise land in the same project as production's, and the dev server counts as a
+ * session in every funnel. `DEV` is Vite's own flag, so a preview build still reports.
+ */
+const ENABLED = !import.meta.env.DEV;
+
 class Telemetry {
   #started = false;
 
@@ -35,13 +42,13 @@ class Telemetry {
    * fails is inside the window rather than in front of it.
    */
   start() {
-    if (this.#started || typeof window === "undefined") return;
+    if (this.#started || typeof window === "undefined" || !ENABLED) return;
     this.#started = true;
 
     Sentry.init({
       dsn: SENTRY_DSN,
       release: RELEASE,
-      environment: import.meta.env.DEV ? "development" : "production",
+      environment: "production",
       // Errors, not traces: this ships inside a webview on a phone, and a performance sample is
       // a request that competes with the week the person is waiting for.
       tracesSampleRate: 0,
@@ -69,13 +76,14 @@ class Telemetry {
 
   /** Whose session this is, once Clerk has said. Both SDKs key everything else off it. */
   identify(userId: string, email?: string) {
-    if (!userId) return;
+    if (!userId || !ENABLED) return;
     Sentry.setUser({ id: userId, email });
     posthog.identify(userId, email ? { email } : undefined);
   }
 
   /** Signing out ends the person as well as the session — the next account is not this one. */
   forget() {
+    if (!ENABLED) return;
     Sentry.setUser(null);
     posthog.reset();
   }
@@ -85,12 +93,14 @@ class Telemetry {
    * everything the app already knows how to say arrives here without being told twice.
    */
   capture(scope: string, error: unknown, detail?: string) {
+    if (!ENABLED) return;
     Sentry.captureException(error, { tags: { scope }, extra: detail ? { detail } : undefined });
     posthog.capture("app_error", { scope, message: messageOf(error), detail });
   }
 
   /** Something the app did on purpose, for the funnel that says whether the ritual is working. */
   event(name: string, properties?: Record<string, unknown>) {
+    if (!ENABLED) return;
     posthog.capture(name, properties);
     // A breadcrumb rather than an event: what Sentry wants from this is the trail before a crash.
     Sentry.addBreadcrumb({ category: "app", message: name, data: properties, level: "info" });
@@ -98,6 +108,7 @@ class Telemetry {
 
   /** A screen was opened. Manual, because one URL can be a week, a day and a plan in turn. */
   screen(path: string) {
+    if (!ENABLED) return;
     posthog.capture("$pageview", { $current_url: path, path });
     Sentry.addBreadcrumb({ category: "navigation", message: path, level: "info" });
   }

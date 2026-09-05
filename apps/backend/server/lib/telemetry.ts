@@ -18,6 +18,13 @@ import { env } from "./env";
 const RELEASE = `balance-api@${process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev"}`;
 const ENVIRONMENT = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
 
+/**
+ * A local `nitro dev` says nothing to anyone: a stack from a half-written route would land in the
+ * same project as production's. The same test `current-user.ts` uses to decide whether the dev
+ * account is allowed, read the other way round.
+ */
+const ENABLED = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+
 /** How long a send is given before the answer goes out without it. A report is never worth a hang. */
 const FLUSH_MS = 2_000;
 
@@ -59,6 +66,7 @@ export interface ErrorContext {
  * frozen the moment it answers — an unflushed report is no report at all.
  */
 export async function captureError(error: unknown, context: ErrorContext = {}) {
+  if (!ENABLED) return;
   startSentry();
   Sentry.captureException(error, {
     tags: { path: context.path, method: context.method, status: context.status },
@@ -82,6 +90,7 @@ export async function captureError(error: unknown, context: ErrorContext = {}) {
 
 /** Something the API did on purpose and wants counted — a commit, a connection, a first sync. */
 export async function track(userId: string, event: string, properties?: Record<string, unknown>) {
+  if (!ENABLED) return;
   const client = startPostHog();
   client.capture({ distinctId: userId, event, properties: { ...properties, environment: ENVIRONMENT } });
   await client.flush().catch(() => {
