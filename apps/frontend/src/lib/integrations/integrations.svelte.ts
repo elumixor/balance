@@ -10,7 +10,8 @@ import { invalidate } from "$lib/store.svelte";
 import type { CalendarEvent } from "$lib/types";
 import { healthKit } from "./health-kit";
 import SleepSection from "./SleepSection.svelte";
-import { asSleepSummary, sleepSummary } from "./sleep-summary";
+import { sleepScore } from "./sleep-score";
+import { asSleepPlan, asSleepSummary, sleepSummary } from "./sleep-summary";
 
 /**
  * Things outside the app that know how some hours actually went, hung off the events that
@@ -38,8 +39,12 @@ export interface Feed {
   readonly label: string;
   /** What linking does, in one line under the name. */
   readonly note: string;
-  /** Reads the feed for one occurrence's window. Null when it saw nothing. */
-  record(window: RecordWindow): Promise<Record<string, unknown> | null>;
+  /**
+   * Reads the feed for one occurrence's window. Null when it saw nothing. The record it wrote
+   * last time is handed back, for whatever it has to carry forward — the block's planned time
+   * survives there once the block has been moved to the night.
+   */
+  record(window: RecordWindow, previous: Record<string, unknown> | null): Promise<Record<string, unknown> | null>;
   /** When the record says the thing really happened, for the occurrence to be moved to. */
   actual?(record: Record<string, unknown>): RecordWindow | null;
   /** The section the event card draws for a linked event. */
@@ -86,7 +91,7 @@ const appleHealth: Integration = {
       id: "sleep",
       label: "Sleep",
       note: "The night Health recorded: how long, when, and how deep.",
-      async record(window) {
+      async record(window, previous) {
         const from = new Date(window.start.getTime() - 4 * 60 * 60_000);
         const to = new Date(window.end.getTime() + 4 * 60 * 60_000);
         const { samples } = await healthKit.sleepSamples({ from: from.toISOString(), to: to.toISOString() });
@@ -94,7 +99,9 @@ const appleHealth: Integration = {
           samples.map((s) => ({ start: new Date(s.start), end: new Date(s.end), stage: s.stage })),
           window,
         );
-        return summary ? { ...summary } : null;
+        if (!summary) return null;
+        const planned = asSleepPlan(previous) ?? { plannedStart: window.start.toISOString(), plannedEnd: window.end.toISOString() };
+        return { ...summary, ...planned, score: sleepScore(summary, new Date(planned.plannedStart)) };
       },
       actual(record) {
         const summary = asSleepSummary(record);
@@ -210,7 +217,7 @@ class Integrations {
       const records = [];
       let moved = false;
       for (const event of linked) {
-        const data = await feed.record({ start: new Date(event.start), end: new Date(event.end) });
+        const data = await feed.record({ start: new Date(event.start), end: new Date(event.end) }, event.record);
         if (!data) continue;
         records.push({ calendarId: event.calendarId, externalEventId: event.id, data });
         const actual = feed.actual?.(data);

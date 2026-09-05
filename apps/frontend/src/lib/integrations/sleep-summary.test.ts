@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SleepStage } from "./sleep-sessions";
-import { asSleepSummary, sleepSummary, WINDOW_SLACK_MS } from "./sleep-summary";
+import { asSleepPlan, asSleepSummary, sleepSummary, WINDOW_SLACK_MS } from "./sleep-summary";
 
 /** Minutes past 22:00 UTC on one evening. */
 const at = (minutes: number) => new Date(Date.UTC(2026, 8, 3, 22, minutes));
@@ -70,5 +70,13 @@ describe("asSleepSummary", () => {
   it("fills in what an older record left out", () => {
     const summary = asSleepSummary({ start: "a", end: "b", asleepMinutes: 400 });
     expect(summary).toEqual({ start: "a", end: "b", asleepMinutes: 400, stages: {}, awakenings: 0, staged: false });
+  });
+});
+
+describe("asSleepPlan", () => {
+  it("reads the planned block back, and nothing from a record written before there was one", () => {
+    expect(asSleepPlan(null)).toBeNull();
+    expect(asSleepPlan({ start: "x" })).toBeNull();
+    expect(asSleepPlan({ plannedStart: "a", plannedEnd: "b", other: 1 })).toEqual({ plannedStart: "a", plannedEnd: "b" });
   });
 });

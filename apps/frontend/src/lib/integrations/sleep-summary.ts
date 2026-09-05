@@ -73,6 +73,21 @@ export function sleepSummary(samples: readonly SleepSample[], block: { start: Da
   };
 }
 
+/**
+ * When the block said the night would be, before it was moved to when it was. Written into the
+ * record on the first sync and carried forward by every later one, since the calendar has by then
+ * forgotten; what "as planned" and "to bed on time" are measured against.
+ */
+export interface SleepPlan {
+  readonly plannedStart: string;
+  readonly plannedEnd: string;
+}
+
+export function asSleepPlan(record: Record<string, unknown> | null): SleepPlan | null {
+  const { plannedStart, plannedEnd } = (record ?? {}) as Partial<SleepPlan>;
+  return typeof plannedStart === "string" && typeof plannedEnd === "string" ? { plannedStart, plannedEnd } : null;
+}
+
 /** Reads a stored record back, refusing anything an older build or a different feed wrote. */
 export function asSleepSummary(record: Record<string, unknown> | null): SleepSummary | null {
   if (!record) return null;

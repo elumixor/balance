@@ -35,6 +35,7 @@ export default defineConfig({
         "src/lib/dates.ts",
         "src/lib/format.ts",
         "src/lib/ics.ts",
+        "src/lib/integrations/sleep-score.ts",
         "src/lib/integrations/sleep-sessions.ts",
         "src/lib/integrations/sleep-summary.ts",
         "src/lib/meeting.ts",
