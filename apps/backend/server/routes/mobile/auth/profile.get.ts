@@ -1,6 +1,6 @@
 import { handler } from "@elumixor/nitro-client/server";
-import { handleApiError } from "../../../../lib/api-error";
-import { clerkClient, getDbUserForRequest } from "../../../../lib/current-user";
+import { handleApiError } from "../../../lib/api-error";
+import { clerkClient, getDbUserForRequest } from "../../../lib/current-user";
 
 /**
  * Who this account is, as the sign-in provider knows them: the name and the picture Google or
