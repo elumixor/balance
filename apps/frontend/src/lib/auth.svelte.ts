@@ -3,6 +3,7 @@ import { Preferences } from "@capacitor/preferences";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Clerk } from "@clerk/clerk-js";
 import { API_BASE_URL, DEV_AUTH, DEV_AUTH_EMAIL } from "./env";
+import { getProfile } from "./queries";
 
 // Clerk publishable keys are public identifiers (not secrets) — safe to ship in the client bundle.
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -92,6 +93,7 @@ class Auth {
       // A stable id, because the store throws away what it holds when the account changes — and
       // an empty one would read as "nobody" on every launch.
       this.userId = "dev-auth";
+      void this.#profile();
       // Nothing here ever touches Clerk, so nothing can await a client that will never exist.
       return (this.#ready ??= Promise.resolve(null as unknown as Clerk));
     }
@@ -154,6 +156,30 @@ class Auth {
     this.userId = clerk?.user?.id ?? "";
     writeSignedIn(this.signedIn);
     if (isNativeApp && clerk?.session) void ensureDeviceGrant(clerk);
+    if (clerk?.session) void this.#profile();
+  }
+
+  /**
+   * The name and the face, from the server rather than the session: the session's own copy is
+   * empty on a device that skipped signing in, and a face that shows on one device and not on
+   * another reads as a bug. A profile that doesn't arrive costs an initial, not a screen.
+   */
+  #profileFor = "";
+
+  async #profile() {
+    const userId = this.userId;
+    if (this.#profileFor === userId) return;
+    this.#profileFor = userId;
+    try {
+      const profile = await getProfile();
+      if (this.userId !== userId) return;
+      this.name ||= profile.name;
+      this.email ||= profile.email;
+      this.avatarUrl ||= profile.imageUrl;
+    } catch (e) {
+      this.#profileFor = "";
+      console.warn("[auth] profile didn't load", e);
+    }
   }
 
   /** The session token every API request carries, or null when nobody is signed in. */

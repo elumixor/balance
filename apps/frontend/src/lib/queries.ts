@@ -20,6 +20,8 @@ import type {
 } from "./types";
 
 // Auth
+/** The name and the picture the sign-in provider holds for this account. */
+export const getProfile = () => apiGet<{ name: string; email: string; imageUrl: string }>("/auth/profile");
 /** Trades this browser's session for a ticket the macOS app can sign in with — see `/desktop-link`. */
 export const createDesktopTicket = () => callApi(api.auth.desktop.ticket.$post()).then((r) => unwrapOk(r).ticket);
 
