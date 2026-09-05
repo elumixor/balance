@@ -19,9 +19,10 @@
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import { decisionMarkers } from "$lib/calendar/markers";
   import { projects, stages } from "$lib/synced.svelte";
-  import { Flag, Minus, Plus } from "lucide-svelte";
+  import { Bike, Bus, Car, Flag, Footprints, Minus, Plus } from "lucide-svelte";
+  import { formatHoursAndMinutes } from "$lib/format";
   import TimeZonePicker from "./TimeZonePicker.svelte";
-  import { preferences } from "$lib/preferences.svelte";
+  import { preferences, type TravelMode } from "$lib/preferences.svelte";
   import { deviceTimeZone } from "$lib/planning/zone";
   import { offsetMinutes, shortZoneName } from "$lib/time-zones";
   import { travelTimes } from "$lib/travel-times.svelte";
@@ -214,11 +215,16 @@
     }
   });
 
+  /** The glyph of each way of going, the same ones the card's chips wear. */
+  const MODE_ICONS: Record<TravelMode, typeof Bus> = { transit: Bus, drive: Car, bicycle: Bike, walk: Footprints };
+
   /**
    * The band drawn above a block for the journey to it: from when you'd have to leave to when the
-   * block starts, in the block's own colour but faint and dashed, so it reads as time that is
-   * spoken for without being an event. A journey that would start before the column does is cut
-   * at midnight rather than drawn into yesterday's column.
+   * block starts, hatched in the block's own colour, so it reads as time that is spoken for
+   * without being an event. It runs on down behind the block to the block's middle, with no edge
+   * of its own at the bottom, so the two read as one thing rather than a box parked over
+   * another. A journey that would start before the column does is cut at midnight rather than
+   * drawn into yesterday's column.
    */
   function travelBand(segment: PlacedSegment) {
     if (segment.continuesBefore) return null;
@@ -229,7 +235,9 @@
     const height = segment.top - top;
     if (height < 2) return null;
     const color = eventCategory(segment.event, categories)?.color ?? restColor;
-    return { top, height, color };
+    // Room for a line of words: below that the band stays a hatch and says nothing.
+    const labelled = height >= 18;
+    return { top, height: height + segment.height / 2, visible: height, labelled, color, journey };
   }
 
   /**
@@ -839,13 +847,24 @@
               {@const bands = resizeBands(segment.height, isSelected)}
               {@const travel = travelBand(segment)}
               {#if travel && !dragging}
+                {@const Mode = MODE_ICONS[travel.journey.mode]}
                 <div
-                  class="pointer-events-none absolute rounded-md border border-dashed"
+                  class="pointer-events-none absolute overflow-hidden rounded-t-sm border border-b-0 border-dashed"
                   style="top:{travel.top}px;height:{travel.height}px;left:{segment.left}px;width:{segment.width}px;z-index:{segment.depth};border-color:{withAlpha(
                     travel.color,
-                    0.55,
-                  )};background:{withAlpha(travel.color, 0.1)}"
-                ></div>
+                    0.45,
+                  )};background:repeating-linear-gradient(135deg,{withAlpha(travel.color, 0.16)} 0 3px,transparent 3px 8px)"
+                >
+                  {#if travel.labelled}
+                    <span
+                      class="t-micro absolute inset-x-0 top-0 flex items-center justify-center gap-1 truncate px-1 text-fg-muted"
+                      style="height:{travel.visible}px"
+                    >
+                      <Mode size={11} />
+                      <span class="truncate">travel {formatHoursAndMinutes(travel.journey.seconds / 3600)}</span>
+                    </span>
+                  {/if}
+                </div>
               {/if}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
