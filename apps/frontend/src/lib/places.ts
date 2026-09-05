@@ -60,3 +60,26 @@ export function placeUrl(place: { placeId?: string | null; address: string }) {
   if (place.placeId) params.set("query_place_id", place.placeId);
   return `https://www.google.com/maps/search/?${params}`;
 }
+
+/** The size every preview is drawn at, so two screens asking about one address share a picture. */
+export const MAP_PREVIEW = { width: 320, height: 140 } as const;
+
+const maps = new Map<string, Promise<string | null>>();
+
+/**
+ * A small map around a point, as a data URL, asked once per session per point and theme. Null
+ * when Google wouldn't draw one — the card then shows the address alone.
+ */
+export function mapAround(input: { latitude: number; longitude: number; dark: boolean }) {
+  const key = `${input.latitude.toFixed(5)},${input.longitude.toFixed(5)}|${input.dark}`;
+  const hit = maps.get(key);
+  if (hit) return hit;
+  const asked = callApi(api.travel.map.$post({ ...input, ...MAP_PREVIEW }))
+    .then((r) => (unwrapOk(r) as { image: string | null }).image)
+    .catch((e) => {
+      maps.delete(key);
+      throw e;
+    });
+  maps.set(key, asked);
+  return asked;
+}

@@ -168,24 +168,22 @@ const STYLE_LIGHT = [
   "feature:poi|visibility:off",
   "feature:transit|element:labels.icon|visibility:off",
   "feature:road|element:labels.icon|visibility:off",
-  "feature:all|saturation:-55",
-  "feature:landscape|color:0xf4f4f2",
-  "feature:water|color:0xd6e0ea",
-  "element:labels.text.fill|color:0x6b6b6b",
-  "element:labels.text.stroke|color:0xffffff",
+  "feature:all|saturation:-30",
+  "feature:road|element:geometry.stroke|color:0xd8d8d8",
+  "feature:road|element:labels.text.fill|color:0x555555",
 ];
 const STYLE_DARK = [
   "feature:poi|visibility:off",
   "feature:transit|element:labels.icon|visibility:off",
   "feature:road|element:labels.icon|visibility:off",
-  "feature:all|element:geometry|color:0x242424",
-  "feature:landscape|color:0x1e1e1e",
-  "feature:road|element:geometry|color:0x3a3a3a",
-  "feature:road.highway|element:geometry|color:0x4a4a4a",
+  "feature:all|element:geometry|color:0x262626",
+  "feature:landscape|color:0x1f1f1f",
+  "feature:road|element:geometry.fill|color:0x4a4a4a",
+  "feature:road.highway|element:geometry.fill|color:0x5c5c5c",
   "feature:road|element:geometry.stroke|visibility:off",
-  "feature:water|color:0x14202b",
-  "element:labels.text.fill|color:0x9a9a9a",
-  "element:labels.text.stroke|color:0x1e1e1e",
+  "feature:water|color:0x16222d",
+  "element:labels.text.fill|color:0xb4b4b4",
+  "element:labels.text.stroke|color:0x1f1f1f",
 ];
 
 /**
@@ -206,7 +204,8 @@ export async function staticMap(input: {
 
   const params = new URLSearchParams({
     center: `${input.latitude},${input.longitude}`,
-    zoom: "15",
+    // Close enough that the streets are named: a district is not an answer to "which one".
+    zoom: "16",
     size: `${input.width}x${input.height}`,
     scale: "2",
     key: env.GOOGLE_MAPS_API_KEY,
