@@ -34,7 +34,7 @@ describe("tilesFor", () => {
 
   it("names the tile Prague actually sits on", () => {
     const urls = tilesFor(frame).map((t) => t.url);
-    expect(urls.some((url) => url.endsWith("/15/17700/11101@2x.png"))).toBe(true);
+    expect(urls.some((url) => url.endsWith("/15/17700/11101.png"))).toBe(true);
   });
 
   it("wraps across the antimeridian rather than asking for a tile that doesn't exist", () => {
