@@ -47,7 +47,7 @@
   <div class="fade-in absolute inset-0 z-40 flex items-center justify-center bg-overlay p-6">
     <div class="float-in flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl border border-line bg-surface p-8 text-center shadow-(--shadow-float)">
       <StarBurst lit={Math.min(3, Math.max(1, paid))} of={3} size={40} />
-      <p class="t-title"><StarCount value={paid} size={28} class="gap-1.5" /></p>
+      <p class="t-title"><StarCount value={paid} size={28} /></p>
       <p class="t-body text-fg-muted">{dayLabel} is decided. You get to wake up and just do it.</p>
       <Button full label="Done" onclick={close} />
     </div>
@@ -62,7 +62,7 @@
             <span>{tenth(planMode.mappedHours)}h of {tenth(planMode.budgetHours)}h</span>
             {#if planMode.stars > 0}
               <!-- What finishing pays, worn by the strip rather than spelled into the button. -->
-              <StarCount value={planMode.stars} size={11} class="rounded-full bg-surface-alt px-1.5 py-px text-fg" />
+              <StarCount value={planMode.stars} size={11} />
             {/if}
           </span>
         </div>

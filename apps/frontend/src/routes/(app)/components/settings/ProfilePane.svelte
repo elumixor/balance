@@ -58,7 +58,7 @@
 </script>
 
 {#snippet starCount(value: number)}
-  <StarCount {value} size={12} class="opacity-70" />
+  <StarCount {value} size={11} />
 {/snippet}
 
 <div class="flex min-h-full flex-col">

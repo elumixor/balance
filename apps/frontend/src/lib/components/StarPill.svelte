@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Rank } from "$lib/planning/types";
-  import StarGlyph from "./StarGlyph.svelte";
+  import StarCount from "./StarCount.svelte";
 
   /**
    * Where you are, in one line: the stars, and how far the next line is.
@@ -14,10 +14,7 @@
 </script>
 
 <div class="flex items-center gap-2">
-  <span class="flex items-center gap-1 rounded-full bg-surface-alt px-2.5 py-1">
-    <StarGlyph size={13} />
-    <span class="t-label tabular-nums">{rank.stars}</span>
-  </span>
+  <StarCount value={rank.stars} signed={false} size={13} />
 
   {#if !compact}
     <span class="flex items-center gap-1" aria-label="Tier {rank.tier + 1}, {rank.subtier + 1} of {SUBTIERS}">
