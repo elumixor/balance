@@ -5,15 +5,13 @@ import {
   Globe,
   MapPin,
   Plug,
-  SlidersHorizontal,
   UserRound,
 } from "lucide-svelte";
 
 /** The pages of the settings panel, in the order the rail lists them. */
 export type Pane =
   | "general"
-  | "planning"
-  | "reminders"
+  | "notifications"
   | "places"
   | "zones"
   | "calendars"
@@ -21,8 +19,7 @@ export type Pane =
 
 export const PANES: { value: Pane; label: string; icon: typeof IconType }[] = [
   { value: "general", label: "Profile", icon: UserRound },
-  { value: "planning", label: "Planning", icon: SlidersHorizontal },
-  { value: "reminders", label: "Reminders", icon: Bell },
+  { value: "notifications", label: "Notifications", icon: Bell },
   { value: "places", label: "Places & travel", icon: MapPin },
   { value: "zones", label: "Time zones", icon: Globe },
   { value: "calendars", label: "Calendars", icon: CalendarDays },
