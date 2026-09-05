@@ -3,7 +3,7 @@
   import { auth } from "$lib/auth.svelte";
   import { telemetry } from "$lib/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
-  import { GeneralPane, InboxPane, StarsPane, IntegrationsPane, PlacesPane, PlanningPane, RemindersPane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
+  import { IntegrationsPane, PlacesPane, PlanningPane, ProfilePane, RemindersPane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
   import { PANES } from "$lib/settings";
   import { preferences } from "$lib/preferences.svelte";
   import { settings } from "$lib/settings";
@@ -65,12 +65,8 @@
     </div>
 
     <div class="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-5 md:px-6 md:py-6 md:pr-12">
-      {#if settings.pane === "stars"}
-        <StarsPane />
-      {:else if settings.pane === "inbox"}
-        <InboxPane />
-      {:else if settings.pane === "general"}
-        <GeneralPane onsignout={() => void signOut()} />
+      {#if settings.pane === "general"}
+        <ProfilePane onsignout={() => void signOut()} />
       {:else if settings.pane === "planning"}
         <PlanningPane />
       {:else if settings.pane === "reminders"}

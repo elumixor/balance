@@ -25,14 +25,20 @@ class SessionNudge {
   #asked = "";
 
   /** Which sitting it is, by the clock — the same question the session screen asks. */
-  readonly slot = $derived(slotNow(clock.now, preferences.sessions.eveningTime));
+  readonly slot = $derived(
+    slotNow(clock.now, preferences.sessions.eveningTime)
+  );
 
   /**
    * The minute today's slot falls at, as minutes into the day, from the account's own preferences.
    * Before it there is nothing to ask for: the evening's summary describes a day still happening.
    */
   readonly #dueMinutes = $derived(
-    minutesOf(this.slot === "morning" ? preferences.sessions.morningTime : preferences.sessions.eveningTime),
+    minutesOf(
+      this.slot === "morning"
+        ? preferences.sessions.morningTime
+        : preferences.sessions.eveningTime
+    )
   );
 
   /**
@@ -50,11 +56,15 @@ class SessionNudge {
     const summary = sessionData.summary;
     if (!summary) return false;
     // The Sunday sitting answers as `weekly` where the clock only knows about evenings.
-    const matches = summary.slot === this.slot || (this.slot === "evening" && summary.slot === "weekly");
+    const matches =
+      summary.slot === this.slot ||
+      (this.slot === "evening" && summary.slot === "weekly");
     return matches && !summary.target.planned;
   });
 
-  readonly #snoozed = $derived(clock.now.getTime() - this.#dismissedAt < SNOOZE_MS);
+  readonly #snoozed = $derived(
+    clock.now.getTime() - this.#dismissedAt < SNOOZE_MS
+  );
 
   /** Owed and not yet waved away: what the toast shows. */
   readonly pending = $derived(this.owed && !this.#snoozed);
@@ -66,7 +76,10 @@ class SessionNudge {
   readonly stars = $derived.by(() => {
     const summary = sessionData.summary;
     if (!summary) return 0;
-    return summary.award.reduce((sum, award) => sum + award.delta, 0) + summary.weeklyAward;
+    return (
+      summary.award.reduce((sum, award) => sum + award.delta, 0) +
+      summary.weeklyAward
+    );
   });
 
   /** "tomorrow" for the evening sitting, "today" for the morning one. */

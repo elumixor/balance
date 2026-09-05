@@ -37,6 +37,5 @@ export { default as StarPill } from "./StarPill.svelte";
 export { default as SplitBar } from "./SplitBar.svelte";
 export { default as Switch } from "./Switch.svelte";
 export { default as Textarea } from "./Textarea.svelte";
-export { default as ThemeToggle } from "./ThemeToggle.svelte";
 export { default as Tooltip } from "./Tooltip.svelte";
 export { default as TooltipAnchor } from "./TooltipAnchor.svelte";

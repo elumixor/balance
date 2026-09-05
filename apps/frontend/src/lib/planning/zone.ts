@@ -38,7 +38,10 @@ export function nextDay(day: string) {
 /** "18:00" as minutes into the day; a time the server couldn't parse is treated as midnight. */
 export function minutesOf(time: string) {
   const [hours, minutes] = time.split(":").map(Number);
-  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+  return (
+    (Number.isFinite(hours) ? hours : 0) * 60 +
+    (Number.isFinite(minutes) ? minutes : 0)
+  );
 }
 
 /**
@@ -51,5 +54,7 @@ export function minutesOf(time: string) {
  * reminder, which carries the slot it was scheduled for.
  */
 export function slotNow(at: Date, eveningTime: string): "evening" | "morning" {
-  return at.getHours() * 60 + at.getMinutes() >= minutesOf(eveningTime) ? "evening" : "morning";
+  return at.getHours() * 60 + at.getMinutes() >= minutesOf(eveningTime)
+    ? "evening"
+    : "morning";
 }

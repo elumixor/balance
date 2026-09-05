@@ -44,7 +44,10 @@ async function withDeadline<T>(promise: Promise<T>, message: string) {
     return await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new TimeoutError(message)), STARTUP_TIMEOUT_MS);
+        timer = setTimeout(
+          () => reject(new TimeoutError(message)),
+          STARTUP_TIMEOUT_MS
+        );
       }),
     ]);
   } finally {
@@ -64,6 +67,8 @@ class Auth {
   readonly wasSignedIn = readSignedIn();
   signedIn = $state(false);
   email = $state("");
+  /** The name the account signed up with — Google's or Apple's — or empty when it gave none. */
+  name = $state("");
   /**
    * The picture the account signed up with — Google's, for anyone who came in through it. Empty
    * when there isn't one: Clerk answers `imageUrl` regardless, with initials it drew itself, and
@@ -120,12 +125,16 @@ class Auth {
       // development instance then can't run its browser handshake at all, and every launch fails
       // with "Unable to authenticate this browser for your development instance".
       if (isNativeApp && !clerk.session) {
-        await withDeadline(restoreNativeSession(clerk), "Signing this device back in took too long.");
+        await withDeadline(
+          restoreNativeSession(clerk),
+          "Signing this device back in took too long."
+        );
       }
     } catch (e) {
       // A signed-out app is still usable enough to show what went wrong; hanging on the
       // splash tells the person holding the phone nothing at all.
-      this.startupError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      this.startupError =
+        e instanceof Error ? `${e.name}: ${e.message}` : String(e);
       this.loaded = true;
       throw e;
     }
@@ -140,7 +149,8 @@ class Auth {
     const clerk = this.#clerk;
     this.signedIn = Boolean(clerk?.session);
     this.email = clerk?.user?.primaryEmailAddress?.emailAddress ?? "";
-    this.avatarUrl = clerk?.user?.hasImage ? (clerk.user.imageUrl ?? "") : "";
+    this.name = clerk?.user?.fullName ?? "";
+    this.avatarUrl = clerk?.user?.hasImage ? clerk.user.imageUrl ?? "" : "";
     this.userId = clerk?.user?.id ?? "";
     writeSignedIn(this.signedIn);
     if (isNativeApp && clerk?.session) void ensureDeviceGrant(clerk);
@@ -194,24 +204,38 @@ class Auth {
    */
   async signInWithNativeGoogle() {
     await SocialLogin.initialize({
-      google: { iOSClientId: "836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com" },
+      google: {
+        iOSClientId:
+          "836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com",
+      },
     });
-    const { result } = await SocialLogin.login({ provider: "google", options: { scopes: ["email", "profile"] } });
+    const { result } = await SocialLogin.login({
+      provider: "google",
+      options: { scopes: ["email", "profile"] },
+    });
     const idToken = "idToken" in result ? result.idToken : undefined;
     if (!idToken) throw new Error("Google didn't return an ID token.");
     await this.redeemTicket(await this.#nativeTicket("google", idToken));
   }
 
   async signInWithNativeApple() {
-    await SocialLogin.initialize({ apple: { clientId: "com.elumixor.balance" } });
-    const { result } = await SocialLogin.login({ provider: "apple", options: { scopes: ["email", "name"] } });
+    await SocialLogin.initialize({
+      apple: { clientId: "com.elumixor.balance" },
+    });
+    const { result } = await SocialLogin.login({
+      provider: "apple",
+      options: { scopes: ["email", "name"] },
+    });
     const idToken = "idToken" in result ? result.idToken : undefined;
     if (!idToken) throw new Error("Apple didn't return an ID token.");
     await this.redeemTicket(await this.#nativeTicket("apple", idToken));
   }
 
   async #nativeTicket(provider: "google" | "apple", idToken: string) {
-    const { ticket } = await postJson<{ ticket: string }>(`/mobile/auth/native/${provider}`, { idToken });
+    const { ticket } = await postJson<{ ticket: string }>(
+      `/mobile/auth/native/${provider}`,
+      { idToken }
+    );
     return ticket;
   }
 
@@ -257,7 +281,10 @@ async function restoreNativeSession(clerk: Clerk) {
   const token = await readDeviceGrant();
   if (!token) return;
   try {
-    const { ticket, token: rotated } = await postJson<{ ticket: string; token: string }>("/mobile/auth/device/ticket", {
+    const { ticket, token: rotated } = await postJson<{
+      ticket: string;
+      token: string;
+    }>("/mobile/auth/device/ticket", {
       token,
     });
     await Preferences.set({ key: DEVICE_GRANT_KEY, value: rotated });
@@ -266,7 +293,8 @@ async function restoreNativeSession(clerk: Clerk) {
     // A grant the server refuses (revoked, expired, or spent by a restore interrupted after it
     // rotated) is worth forgetting; a launch with no network is not — throwing that grant away
     // would turn every offline start into a sign-in screen the next time there is a signal.
-    if (e instanceof RequestError && e.rejected) await Preferences.remove({ key: DEVICE_GRANT_KEY });
+    if (e instanceof RequestError && e.rejected)
+      await Preferences.remove({ key: DEVICE_GRANT_KEY });
   }
 }
 
@@ -286,7 +314,11 @@ async function issueDeviceGrant(clerk: Clerk) {
     if (await readDeviceGrant()) return;
     const sessionToken = await clerk.session?.getToken();
     if (!sessionToken) return;
-    const { token } = await postJson<{ token: string }>("/mobile/auth/device", {}, sessionToken);
+    const { token } = await postJson<{ token: string }>(
+      "/mobile/auth/device",
+      {},
+      sessionToken
+    );
     await Preferences.set({ key: DEVICE_GRANT_KEY, value: token });
   } catch {
     // Worst case the next launch asks for a sign-in, which is what it did before this existed.
@@ -313,16 +345,14 @@ async function redeemTicket(clerk: Clerk, ticket: string) {
   const signIn = clerk.client?.signIn;
   if (!signIn) throw new Error("Clerk isn't ready yet.");
   const result = await signIn.create({ strategy: "ticket", ticket });
-  if (result.status !== "complete" || !result.createdSessionId) throw new Error("Sign in didn't finish.");
+  if (result.status !== "complete" || !result.createdSessionId)
+    throw new Error("Sign in didn't finish.");
   await clerk.setActive({ session: result.createdSessionId });
 }
 
 /** A request the server answered, so its verdict is the server's — not the network's. */
 class RequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
+  constructor(message: string, readonly status: number) {
     super(message);
   }
 
@@ -336,8 +366,14 @@ class RequestError extends Error {
  * The generated API client signs every request with a Clerk session token, which is exactly what
  * the sign-in calls don't have (or, for a device grant, don't need), so they go out by hand.
  */
-async function postJson<T>(path: string, body: unknown, sessionToken?: string): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+async function postJson<T>(
+  path: string,
+  body: unknown,
+  sessionToken?: string
+): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
   // A request with no limit on it is the one that leaves a launch hanging — see `withDeadline`.
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -347,13 +383,20 @@ async function postJson<T>(path: string, body: unknown, sessionToken?: string): 
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   const payload = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new RequestError(payload.error ?? `Request to ${path} failed.`, response.status);
+  if (!response.ok)
+    throw new RequestError(
+      payload.error ?? `Request to ${path} failed.`,
+      response.status
+    );
   return payload;
 }
 
 function readSignedIn() {
   try {
-    return typeof localStorage !== "undefined" && localStorage.getItem(SIGNED_IN_KEY) === "1";
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem(SIGNED_IN_KEY) === "1"
+    );
   } catch {
     return false;
   }
@@ -371,7 +414,9 @@ function writeSignedIn(signedIn: boolean) {
 
 /** Clerk error bodies are structured; the long message is the one worth showing. */
 export function authErrorMessage(error: unknown, fallback: string) {
-  const errors = (error as { errors?: { longMessage?: string; message?: string }[] })?.errors;
+  const errors = (
+    error as { errors?: { longMessage?: string; message?: string }[] }
+  )?.errors;
   const first = errors?.[0];
   if (first) return first.longMessage ?? first.message ?? fallback;
   return error instanceof Error ? error.message : fallback;

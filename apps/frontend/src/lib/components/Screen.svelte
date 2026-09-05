@@ -2,7 +2,6 @@
   import type { Snippet } from "svelte";
   import AccountButton from "./AccountButton.svelte";
   import StarBadge from "./StarBadge.svelte";
-  import ThemeToggle from "./ThemeToggle.svelte";
 
   /**
    * The frame every screen sits in. It owns the one thing a phone layout forgets: a measure.
@@ -37,7 +36,6 @@
     <!-- Account and appearance move into the side rail as soon as there is one. -->
     <div class="flex items-center gap-1.5 md:hidden">
       <StarBadge />
-      <ThemeToggle />
       <AccountButton />
     </div>
   </header>

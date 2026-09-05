@@ -16,7 +16,7 @@
 
   const initial = $derived((auth.email || "?").charAt(0).toUpperCase());
 
-  /** A dismissed ask is still owed: the dot says so, and the click lands on the inbox. */
+  /** A dismissed ask is still owed: the dot says so, and the profile page holds the button. */
   const waiting = $derived(sessionNudge.dismissed);
 </script>
 
@@ -25,7 +25,7 @@
 <Tooltip label={waiting ? "Something is waiting" : "Settings"} hotkey={SETTINGS_HOTKEY}>
   <button
     type="button"
-    onclick={() => settings.show(waiting ? "inbox" : undefined)}
+    onclick={() => settings.show(waiting ? "general" : undefined)}
     aria-label={waiting ? "Settings, something waiting" : "Settings"}
     class="press-sm relative flex shrink-0 {compact ? 'size-[18px]' : 'size-7'}"
   >

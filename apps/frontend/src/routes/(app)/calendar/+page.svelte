@@ -2,7 +2,7 @@
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { CalendarPanel, EventEditor, PlanningBar, SidePanelSection, WeekGrid } from "./components";
   import { ConnectGoogle } from "$lib/calendar/components";
-  import { Button, Divider, Popover, StarBadge, ThemeToggle } from "$lib/components";
+  import { Button, Divider, Popover, StarBadge } from "$lib/components";
   import { categories } from "$lib/synced.svelte";
   import { settings } from "$lib/settings";
   import { page } from "$app/state";
@@ -143,8 +143,7 @@
             <CalendarPanel />
           </div>
           <Divider />
-          <div class="flex items-center justify-between gap-2 px-3 py-2">
-            <ThemeToggle />
+          <div class="flex items-center justify-end gap-2 px-3 py-2">
             <div class="flex items-center gap-1.5">
               <!-- The sitting, on demand: it is asked for twice a day, and worth opening between. -->
               <Button

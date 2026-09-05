@@ -1,13 +1,26 @@
 import type { Icon as IconType } from "lucide-svelte";
-import { Bell, CalendarDays, Globe, Inbox, MapPin, Plug, Settings2, SlidersHorizontal, Star } from "lucide-svelte";
+import {
+  Bell,
+  CalendarDays,
+  Globe,
+  MapPin,
+  Plug,
+  SlidersHorizontal,
+  UserRound,
+} from "lucide-svelte";
 
 /** The pages of the settings panel, in the order the rail lists them. */
-export type Pane = "stars" | "inbox" | "general" | "planning" | "reminders" | "places" | "zones" | "calendars" | "integrations";
+export type Pane =
+  | "general"
+  | "planning"
+  | "reminders"
+  | "places"
+  | "zones"
+  | "calendars"
+  | "integrations";
 
 export const PANES: { value: Pane; label: string; icon: typeof IconType }[] = [
-  { value: "stars", label: "Stars", icon: Star },
-  { value: "inbox", label: "Inbox", icon: Inbox },
-  { value: "general", label: "General", icon: Settings2 },
+  { value: "general", label: "Profile", icon: UserRound },
   { value: "planning", label: "Planning", icon: SlidersHorizontal },
   { value: "reminders", label: "Reminders", icon: Bell },
   { value: "places", label: "Places & travel", icon: MapPin },

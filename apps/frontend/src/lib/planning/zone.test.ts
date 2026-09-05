@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { deviceTimeZone, localDay, minutesOf, nextDay, orUtc, slotNow } from "./zone";
+import {
+  deviceTimeZone,
+  localDay,
+  minutesOf,
+  nextDay,
+  orUtc,
+  slotNow,
+} from "./zone";
 
 describe("localDay", () => {
   it("names the local day, not UTC's — late evening is still today", () => {

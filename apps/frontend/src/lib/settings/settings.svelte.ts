@@ -5,7 +5,7 @@ import type { Pane } from "$lib/settings/panes";
  *
  * Module-level rather than a prop, because two unrelated things open it — the avatar in the rail
  * and ⌘, from anywhere — and neither should have to know where the panel is rendered. The page is
- * here too, so the avatar can open straight onto the inbox when something is waiting there.
+ * here too, so the star badge can open straight onto the record behind it.
  */
 class Settings {
   open = $state(false);
