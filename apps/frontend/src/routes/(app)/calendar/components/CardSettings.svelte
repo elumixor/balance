@@ -78,7 +78,7 @@
               aria-label="Sync {linked.feed.label}"
               disabled={status.syncing}
               onclick={() =>
-                linked.integration.available ? void integrations.sync(linked.integration, linked.feed) : invalidate.calendar()}
+                linked.integration.available ? void integrations.sync(linked.integration, linked.feed) : void invalidate.calendarNow()}
               class="press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg"
             >
               <RefreshCw size={13} class={status.syncing ? "animate-spin" : ""} />

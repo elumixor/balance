@@ -1,6 +1,8 @@
 <script lang="ts">
   import { Button, Tooltip } from "$lib/components";
-  import { INTEGRATIONS, type Integration, integrations } from "$lib/integrations/integrations.svelte";
+  import { feedKey, INTEGRATIONS, type Integration, integrations } from "$lib/integrations/integrations.svelte";
+  import { preferences } from "$lib/preferences.svelte";
+  import { invalidate } from "$lib/store.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   /**
@@ -9,10 +11,16 @@
    * sheet. Linking a feed to an event is done from the event's own card, not here; this page is
    * only where the device is let read the source, and where a sync can be forced.
    *
-   * Everything here is this device's: on a machine that can't read one, the button is inert and
-   * says on hover which app can.
+   * Reading is this device's: on a machine that can't read one, the button is inert and says on
+   * hover which app can — unless the phone has already read it for this account, in which case
+   * the row says when, and Refresh fetches what the phone wrote.
    */
   const connected = (integration: Integration) => integrations.connected(integration.id);
+  /** The newest read of any of the integration's feeds, by whichever device could. */
+  const readElsewhere = (integration: Integration) =>
+    integration.feeds
+      .map((feed) => preferences.feedSyncedAt(feedKey(integration.id, feed.id))?.getTime() ?? null)
+      .reduce<number | null>((latest, at) => (at !== null && (latest === null || at > latest) ? at : latest), null);
 
   async function connect(integration: Integration) {
     if (!(await integrations.connect(integration))) return;
@@ -48,9 +56,14 @@
             <p class="t-micro text-fg-faint">{integration.note}</p>
           </div>
           {#if !integration.available}
-            <Tooltip label={integration.unavailableNote}>
-              <Button label="Connect" variant="outline" size="sm" disabled onclick={() => undefined} />
-            </Tooltip>
+            {@const elsewhere = readElsewhere(integration)}
+            {#if elsewhere !== null}
+              <Button label="Refresh" variant="outline" size="sm" onclick={() => void invalidate.calendarNow()} />
+            {:else}
+              <Tooltip label={integration.unavailableNote}>
+                <Button label="Connect" variant="outline" size="sm" disabled onclick={() => undefined} />
+              </Tooltip>
+            {/if}
           {:else if on}
             <Button label="Disconnect" variant="outline" size="sm" onclick={() => integrations.disconnect(integration)} />
           {:else}
@@ -58,6 +71,11 @@
           {/if}
         </div>
 
+        {#if !integration.available && readElsewhere(integration) !== null}
+          <p class="t-micro pl-12 text-fg-faint">
+            Read on your iPhone · {when(readElsewhere(integration))}
+          </p>
+        {/if}
         {#if integration.available && on}
           {#each integration.feeds as feed (feed.id)}
             {@const status = integrations.status(integration.id, feed.id)}

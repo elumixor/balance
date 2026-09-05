@@ -102,12 +102,22 @@ export const cardSchema = z.object({
   hidden: z.array(z.string().max(40)).max(20),
 });
 
+/**
+ * When each integration feed was last read, by the device that can read it — "apple-health:sleep"
+ * to an ISO instant. The feed itself is only readable on one device, so this is how every other
+ * screen knows the account has it at all.
+ */
+export const integrationsSchema = z.object({
+  synced: z.record(z.string().max(80), z.string().datetime()),
+});
+
 export const preferencesSchema = z.object({
   reminders: remindersSchema,
   travel: travelSchema,
   sessions: sessionsSchema,
   zones: zonesSchema,
   card: cardSchema,
+  integrations: integrationsSchema,
 });
 export type Preferences = z.infer<typeof preferencesSchema>;
 
@@ -125,6 +135,7 @@ const DEFAULTS: Preferences = {
   },
   zones: { saved: [], columns: [] },
   card: { hidden: [] },
+  integrations: { synced: {} },
 };
 
 export class PreferencesService {
@@ -147,6 +158,7 @@ export class PreferencesService {
     sessions?: Partial<Preferences["sessions"]>;
     zones?: Partial<Preferences["zones"]>;
     card?: Partial<Preferences["card"]>;
+    integrations?: Partial<Preferences["integrations"]>;
   }) {
     const current = await this.get();
     const next: Preferences = {
@@ -155,6 +167,8 @@ export class PreferencesService {
       sessions: { ...current.sessions, ...patch.sessions },
       zones: { ...current.zones, ...patch.zones },
       card: { ...current.card, ...patch.card },
+      // One feed's stamp at a time: a phone writing sleep must not forget another device's feed.
+      integrations: { synced: { ...current.integrations.synced, ...patch.integrations?.synced } },
     };
 
     await db
@@ -185,6 +199,7 @@ const storedSchema = z.object({
   sessions: sessionsSchema.partial().optional(),
   zones: zonesSchema.partial().optional(),
   card: cardSchema.partial().optional(),
+  integrations: integrationsSchema.partial().optional(),
 });
 
 const HOME_ID = "home";
@@ -211,5 +226,6 @@ function merge(stored: unknown): Preferences {
     sessions: { ...DEFAULTS.sessions, ...value.sessions },
     zones: { ...DEFAULTS.zones, ...value.zones },
     card: { ...DEFAULTS.card, ...value.card },
+    integrations: { ...DEFAULTS.integrations, ...value.integrations },
   };
 }

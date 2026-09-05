@@ -106,12 +106,18 @@ export interface CardPrefs {
   hidden: string[];
 }
 
+/** When each integration feed was last read, by feed key, as ISO instants — written by the device that read it. */
+export interface IntegrationsPrefs {
+  synced: Record<string, string>;
+}
+
 export interface StoredPreferences {
   reminders: RemindersPrefs;
   travel: TravelPrefs;
   sessions: SessionsPrefs;
   zones: ZonesPrefs;
   card: CardPrefs;
+  integrations: IntegrationsPrefs;
 }
 
 /** The same answer the server would give an account that has never set anything. */
@@ -129,6 +135,7 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
   },
   zones: { saved: [], columns: [] },
   card: { hidden: [] },
+  integrations: { synced: {} },
 };
 
 /** Long enough that typing an address is one write, short enough to feel immediate. */
@@ -140,6 +147,7 @@ interface PreferencesPatch {
   sessions?: Partial<SessionsPrefs>;
   zones?: Partial<ZonesPrefs>;
   card?: Partial<CardPrefs>;
+  integrations?: Partial<IntegrationsPrefs>;
 }
 
 class Preferences {
@@ -213,6 +221,17 @@ class Preferences {
     this.#apply({ zones: { saved: this.zones.filter((one) => one.id !== id) } });
   }
 
+  /** When a feed was last read, on whichever device could — null if no device ever has. */
+  feedSyncedAt(feedKey: string): Date | null {
+    const at = this.#value.integrations.synced[feedKey];
+    return at ? new Date(at) : null;
+  }
+
+  /** The device that just read a feed says so, for every other device to see. */
+  markFeedSynced(feedKey: string, at: Date) {
+    this.#apply({ integrations: { synced: { ...this.#value.integrations.synced, [feedKey]: at.toISOString() } } });
+  }
+
   /** Folds one card section away, or brings it back. */
   toggleSection(section: string, shown: boolean) {
     const hidden = new Set(this.hiddenSections);
@@ -238,7 +257,10 @@ class Preferences {
    */
   addLocation(input: Omit<SavedLocation, "id">): string {
     const id = crypto.randomUUID();
-    const locations = [...this.travel.locations, { ...input, id, label: input.label.trim(), address: input.address.trim() }];
+    const locations = [
+      ...this.travel.locations,
+      { ...input, id, label: input.label.trim(), address: input.address.trim() },
+    ];
     this.setTravel({
       locations,
       defaultLocationId: this.travel.defaultLocationId ?? id,
@@ -297,6 +319,7 @@ class Preferences {
       sessions: { ...current.sessions, ...patch.sessions },
       zones: { ...current.zones, ...patch.zones },
       card: { ...current.card, ...patch.card },
+      integrations: { synced: { ...current.integrations.synced, ...patch.integrations?.synced } },
     });
 
     this.#pending = {
@@ -305,6 +328,7 @@ class Preferences {
       sessions: { ...this.#pending.sessions, ...patch.sessions },
       zones: { ...this.#pending.zones, ...patch.zones },
       card: { ...this.#pending.card, ...patch.card },
+      integrations: { synced: { ...this.#pending.integrations?.synced, ...patch.integrations?.synced } },
     };
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = setTimeout(() => this.flush(), SAVE_DELAY_MS);

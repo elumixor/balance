@@ -3,6 +3,7 @@ import { handleApiError } from "../../../lib/api-error";
 import { getDbUserForRequest } from "../../../lib/current-user";
 import {
   cardSchema,
+  integrationsSchema,
   PreferencesService,
   remindersSchema,
   sessionsSchema,
@@ -22,6 +23,7 @@ export default handler(
       sessions: sessionsSchema.partial().optional(),
       zones: zonesSchema.partial().optional(),
       card: cardSchema.partial().optional(),
+      integrations: integrationsSchema.partial().optional(),
     },
   },
   async ({ body, event }) => {

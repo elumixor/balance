@@ -48,6 +48,7 @@ export const updatePreferences = (patch: {
   sessions?: Partial<StoredPreferences["sessions"]>;
   zones?: Partial<StoredPreferences["zones"]>;
   card?: Partial<StoredPreferences["card"]>;
+  integrations?: Partial<StoredPreferences["integrations"]>;
 }) => callApi(api.preferences.$patch(patch)).then(unwrapOk);
 
 // Planning sessions

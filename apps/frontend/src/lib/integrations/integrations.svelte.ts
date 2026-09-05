@@ -5,6 +5,7 @@ import type { Component } from "svelte";
 import { diagnostics } from "$lib/diagnostics.svelte";
 import { isIOSApp } from "$lib/mobile/platform";
 import { readSetting, writeSetting } from "$lib/persist";
+import { preferences } from "$lib/preferences.svelte";
 import { getCalendarWeek, saveIntegrationRecords, updateCalendarEvent } from "$lib/queries";
 import { invalidate } from "$lib/store.svelte";
 import type { CalendarEvent } from "$lib/types";
@@ -234,9 +235,11 @@ class Integrations {
         }
       }
       if (records.length > 0) await saveIntegrationRecords({ source: key, records });
-      if (records.length > 0 || moved) invalidate.calendar();
+      if (records.length > 0 || moved) await invalidate.calendarNow();
       this.#syncedAt = { ...this.#syncedAt, [key]: Date.now() };
       writeSetting(`${SETTINGS_KEY}:synced`, this.#syncedAt);
+      // Said on the account too, so a Mac that can never read Health knows the phone does.
+      preferences.markFeedSynced(key, new Date());
       this.#setStatus(key, { syncing: false });
     } catch (e) {
       this.#setStatus(key, { syncing: false, error: e instanceof Error ? e.message : "Couldn't sync." });

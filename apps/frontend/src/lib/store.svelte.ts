@@ -4,13 +4,7 @@ import { Cached } from "./cache.svelte";
 import { weekKey, weekRange } from "./dates";
 import * as persist from "./persist";
 import { deviceTimeZone, localDay } from "./planning/zone";
-import {
-  getCalendarPrefs,
-  getCalendarWeek,
-  getIntegrations,
-  getPreferences,
-  getProjectProgress,
-} from "./queries";
+import { getCalendarPrefs, getCalendarWeek, getIntegrations, getPreferences, getProjectProgress } from "./queries";
 import { synced } from "./synced.svelte";
 import type { CalendarEvent, CalendarWeek } from "./types";
 
@@ -24,24 +18,9 @@ import type { CalendarEvent, CalendarWeek } from "./types";
  * read, so they live in `synced.svelte.ts`, where a write is a queue entry rather than a refetch.
  */
 export const store = {
-  integrations: new Cached(
-    getIntegrations,
-    "Couldn't check your connected calendars.",
-    "integrations",
-    "Calendars"
-  ),
-  calendars: new Cached(
-    getCalendarPrefs,
-    "Couldn't load your calendars.",
-    "calendars",
-    "Calendars"
-  ),
-  preferences: new Cached(
-    getPreferences,
-    "Couldn't load your settings.",
-    "preferences",
-    "Settings"
-  ),
+  integrations: new Cached(getIntegrations, "Couldn't check your connected calendars.", "integrations", "Calendars"),
+  calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars.", "calendars", "Calendars"),
+  preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences", "Settings"),
   /**
    * What the calendar says every project has had — read fresh from the device's own day, since a
    * week is a week where the person is. Its failure is the projects screen's to show.
@@ -49,7 +28,7 @@ export const store = {
   progress: new Cached(
     () => getProjectProgress(deviceTimeZone(), localDay()),
     "Couldn't read your projects' hours.",
-    "progress"
+    "progress",
   ),
 };
 
@@ -93,11 +72,7 @@ function resolveWeek(key: string) {
     return cached;
   }
   const { from, to } = weekRange(key);
-  const made = new Cached(
-    () => getCalendarWeek(from, to),
-    "Couldn't load that week.",
-    `week:${key}`
-  );
+  const made = new Cached(() => getCalendarWeek(from, to), "Couldn't load that week.", `week:${key}`);
   weeks.set(key, made);
   persist.prune("week:", WEEKS_STORED);
   // Insertion order is least-recently-asked-for first, so the front of the map is what goes.
@@ -115,10 +90,7 @@ function resolveWeek(key: string) {
  */
 export const syncing = {
   get calendar() {
-    return (
-      store.integrations.syncing ||
-      [...weeks.values()].some((week) => week.syncing)
-    );
+    return store.integrations.syncing || [...weeks.values()].some((week) => week.syncing);
   },
   get planning() {
     return synced.syncing;
@@ -146,6 +118,14 @@ export const invalidate = {
   calendar() {
     invalidateWeeks();
     store.progress.invalidate();
+  },
+  /**
+   * The same, and the weeks already on screen are asked for again now rather than on the next
+   * visit — for a button that promises something new has arrived from elsewhere.
+   */
+  calendarNow() {
+    invalidate.calendar();
+    return Promise.all([...weeks.values()].filter((week) => week.hasValue).map((week) => week.refresh()));
   },
   /** A stage opened or decided, a manual count added: what the cards say about evidence moved. */
   projects() {
@@ -225,12 +205,9 @@ export function applyCalendarEvent(event: CalendarEvent, previousId?: string) {
   for (const cached of weeks.values()) {
     const week = cached.value;
     if (!week) continue;
-    const kept = week.events.filter(
-      (one) => one.id !== event.id && one.id !== previousId
-    );
+    const kept = week.events.filter((one) => one.id !== event.id && one.id !== previousId);
     // The week's own range, not its key: an event that straddles Sunday night belongs to both.
-    const overlaps =
-      from < new Date(week.to).getTime() && to > new Date(week.from).getTime();
+    const overlaps = from < new Date(week.to).getTime() && to > new Date(week.from).getTime();
     // A week that neither held this event nor wants it now is left as it was — replacing its
     // array would have the grid re-place every block in it for nothing.
     if (!overlaps && kept.length === week.events.length) continue;
