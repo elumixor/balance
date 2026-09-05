@@ -10,11 +10,9 @@
   import { deviceTimeZone } from "$lib/planning/zone";
   import { preferences } from "$lib/preferences.svelte";
   import ProjectPicker from "./ProjectPicker.svelte";
-  import { respondToCalendarEvent } from "$lib/queries";
-  import { applyCalendarEvent } from "$lib/store.svelte";
   import { practices, projects, tasks } from "$lib/synced.svelte";
   import { offsetLabel, shiftZone } from "$lib/time-zones";
-  import type { CalendarEvent, Category, EventReminder, EventResponse, EventTimer, MappingScope } from "$lib/types";
+  import type { CalendarEvent, Category, EventReminder, EventTimer, MappingScope } from "$lib/types";
   import {
     AlignLeft,
     ArrowRight,
@@ -33,7 +31,7 @@
     MapPin,
     X,
   } from "lucide-svelte";
-  import { accountEmailOf, calendarData } from "$lib/calendar/calendar-data.svelte";
+  import { accountEmailOf, type Answer, calendarData } from "$lib/calendar/calendar-data.svelte";
   import CardSettings, { type CardSection } from "./CardSettings.svelte";
   import ConferencingRow from "./ConferencingRow.svelte";
   import LocationRow from "./LocationRow.svelte";
@@ -380,7 +378,6 @@
     flush();
   }
 
-  type Answer = Exclude<EventResponse, "needsAction">;
   const RSVP: { value: Answer; label: string; icon: typeof Check }[] = [
     { value: "accepted", label: "Yes", icon: Check },
     { value: "tentative", label: "Maybe", icon: HelpCircle },
@@ -388,8 +385,6 @@
   ];
   /** The answer on the card: what was said, or the question while nothing has been. */
   const said = $derived(RSVP.find((c) => c.value === event.response) ?? RSVP[1]);
-  /** The answer currently on its way to the calendar, so the row can't be answered twice at once. */
-  let answering = $state<Answer | null>(null);
   /**
    * An all-day invitation is still an invitation, so this isn't `editable` — but a calendar you
    * only have read access to won't take an answer either, and offering one would only fail.
@@ -397,20 +392,11 @@
   const answerable = $derived(event.invited && !event.readOnly);
 
   /**
-   * Answering an invitation isn't an edit, so it doesn't go through the debounce. The answer
-   * changes whether the block counts toward its category, and the reply carries the event it
-   * changed — so the week takes that, rather than asking for all three of them again.
+   * Answering an invitation isn't an edit, so it doesn't go through the debounce — it's drawn and
+   * queued the way every other write is, and ⌘Z takes it back like one.
    */
-  async function respond(response: Answer) {
-    if (answering) return;
-    answering = response;
-    try {
-      applyCalendarEvent(await respondToCalendarEvent(event.id, event.calendarId, response));
-    } catch (e) {
-      diagnostics.report("Invitation", e, { title: "Couldn’t send your reply" });
-    } finally {
-      answering = null;
-    }
+  function respond(response: Answer) {
+    void data.respondToEvent(event, response);
   }
 
   // --- what feeds it -------------------------------------------------------------------------
@@ -874,9 +860,8 @@
                       aria-pressed={chosen}
                       aria-label={choice.label}
                       title={choice.label}
-                      disabled={answering !== null}
                       class="press-sm rounded p-0.5 {chosen ? 'bg-ink text-ink-fg' : 'text-fg-faint hover:text-fg'}"
-                      onclick={() => void respond(choice.value)}
+                      onclick={() => respond(choice.value)}
                     >
                       <choice.icon size={12} />
                     </button>

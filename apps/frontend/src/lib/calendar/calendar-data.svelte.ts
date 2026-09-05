@@ -8,12 +8,20 @@ import {
   deleteCalendarEvent,
   type EventPatch,
   removeEventMapping,
+  respondToCalendarEvent,
   saveEventMapping,
   updateCalendarEvent,
 } from "$lib/queries";
 import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
 import { activities, categories, practices, projects, synced } from "$lib/synced.svelte";
-import { type ActivityWeight, type CalendarEvent, type EventTimer, type MappingScope, NOT_A_MEETING } from "$lib/types";
+import {
+  type ActivityWeight,
+  type CalendarEvent,
+  type EventResponse,
+  type EventTimer,
+  type MappingScope,
+  NOT_A_MEETING,
+} from "$lib/types";
 import { viewport } from "$lib/viewport.svelte";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
@@ -101,6 +109,22 @@ function drawnWith(event: CalendarEvent, patch: EventPatch): CalendarEvent {
             );
           }),
         }),
+  };
+}
+
+/** What can be said to an invitation — the question itself can't be put back. */
+export type Answer = Exclude<EventResponse, "needsAction">;
+
+/** The event as the calendar will describe it once the reply lands — the same rules the server applies. */
+function answered(event: CalendarEvent, response: Answer): CalendarEvent {
+  return {
+    ...event,
+    response,
+    declined: response === "declined",
+    // Tentative is also the event's own status, which the reply doesn't change.
+    tentative: response === "tentative" || (event.tentative && event.response !== "tentative"),
+    countsTowardHours: !event.allDay && response !== "declined",
+    attendees: event.attendees.map((guest) => (guest.self ? { ...guest, response } : guest)),
   };
 }
 
@@ -987,10 +1011,13 @@ class CalendarData {
     scope: MappingScope,
     choice: { activityId?: string; weights?: ActivityWeight[] },
     purpose?: Purpose,
+    /** Off for a write that isn't an edit — folding a card section — so ⌘Z skips over it. */
+    record = true,
   ) {
     const ref = this.#ref(event);
     const before = mappingOf(event);
     if (!(await this.#writeMapping(ref, event, scope, choice, purpose))) return;
+    if (!record) return;
 
     this.history.push({
       // The write may have been a series mapping over an instance one: clearing what it wrote is
@@ -1020,7 +1047,9 @@ class CalendarData {
       categories.all.find((c) => c.isBuffer)?.id;
     const choice = existing?.choice ?? (sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null);
     if (!choice) return;
-    await this.mapEvent(event, scope, choice, merged);
+    // Which sections a card folds away is how it's drawn, not what the hour was — not a step.
+    const onlyFolds = Object.keys(purpose).every((key) => key === "hidden");
+    await this.mapEvent(event, scope, choice, merged, !onlyFolds);
   }
 
   /** Context-menu duplicate: a new event with the same fields, placed right after the original. */
@@ -1163,12 +1192,20 @@ class CalendarData {
           previousEnd: event.end,
         }
       : {};
-    const write = (fields: EventPatch) =>
-      this.#run(
+    const write = async (fields: EventPatch) => {
+      const answer = await this.#run(
         () => updateCalendarEvent(ref.id, { calendarId: ref.calendarId, ...fields, ...series }),
         { id: ref.id, event: drawnWith(event, fields) },
         (answer) => applyCalendarEvent(answer, ref.id),
       );
+      // A rule reshapes the whole series — occurrences appear or go on every day it touches — so
+      // the weeks on screen are asked again now rather than on the next visit. Undoing one too.
+      if (answer !== null && fields.recurrence !== undefined) {
+        invalidate.calendar();
+        await this.refreshWeeks();
+      }
+      return answer;
+    };
     const offer =
       event.seriesId && !onMaster
         ? this.#offerSeries({
@@ -1192,15 +1229,36 @@ class CalendarData {
       return;
     }
 
-    // A rule reshapes the whole series — occurrences appear or go on every day it touches — so
-    // the weeks on screen are asked again now rather than on the next visit.
-    if (patch.recurrence !== undefined) {
-      invalidate.calendar();
-      await this.refreshWeeks();
-    }
     this.history.push({
       undo: async () => (await write(inverse)) !== null,
       redo: async () => (await write(patch)) !== null,
+    });
+  }
+
+  /**
+   * Yes, no or maybe to an invitation. Not an edit of the event — it's the organizer's — but a
+   * write like any other: the answer is drawn on the card and the block at once, since a no takes
+   * the hour out of its category's total, and it waits its turn in the queue behind whatever
+   * else is on its way to this event. Undoable back to the previous answer; an invitation that
+   * had never been answered can't be un-answered, so that first reply leaves no step.
+   */
+  async respondToEvent(event: CalendarEvent, response: Answer) {
+    if (this.isDraft(event.id)) return;
+    const ref = this.#ref(event);
+    const before = event.response;
+    if (before === response) return;
+    const write = async (answer: Answer) =>
+      (await this.#run(
+        () => respondToCalendarEvent(ref.id, ref.calendarId, answer),
+        { id: ref.id, event: answered(event, answer) },
+        (updated) => applyCalendarEvent(updated, ref.id),
+      )) !== null;
+    if (!(await write(response))) return;
+    if (before === null || before === "needsAction") return;
+
+    this.history.push({
+      undo: () => write(before),
+      redo: () => write(response),
     });
   }
 
@@ -1286,7 +1344,7 @@ class CalendarData {
     return {
       undo: async () =>
         (await this.#writeMapping(ref, event, "instance", null)) &&
-        (before ? this.#writeMapping(ref, event, before.scope, before.choice) : true),
+        (before ? this.#writeMapping(ref, event, before.scope, before.choice, before.purpose) : true),
       redo: () => this.#writeMapping(ref, event, "instance", { weights }),
     };
   }
