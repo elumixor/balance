@@ -67,6 +67,18 @@ html.dark {
   --color-overlay: var(--overlay);
   --color-overlay-strong: var(--overlay-strong);
 
+  /* Apple Health's own night: deep, REM, core, awake — darkest to lightest. */
+  --color-sleep-deep: #3730a3;
+  --color-sleep-rem: #6366f1;
+  --color-sleep-core: #a5b4fc;
+  --color-sleep-awake: #f59e0b;
+  /* The five grades Health gives a night, worst to best. */
+  --color-grade-very-low: #ef4444;
+  --color-grade-low: #f59e0b;
+  --color-grade-ok: #eab308;
+  --color-grade-high: #22c55e;
+  --color-grade-very-high: #0ea5e9;
+
   --font-display: "Bricolage Grotesque", system-ui, sans-serif;
   --font-sans: "Instrument Sans", system-ui, sans-serif;
 

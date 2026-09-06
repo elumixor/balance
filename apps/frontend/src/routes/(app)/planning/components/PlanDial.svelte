@@ -2,7 +2,7 @@
   import { AnchoredPopup, PopoverItem } from "$lib/components";
   import { pointOnRing, RING_START } from "$lib/components/ring/Arc.svelte";
   import WeekRing, { MIN_ICON_FRACTION, ringRadius } from "$lib/components/ring/WeekRing.svelte";
-  import { iconFor } from "$lib/ui/icons/index";
+  import { iconFor } from "$lib/ui/icons";
   import { Scissors, Trash2 } from "lucide-svelte";
   import type { RingSegment } from "$lib/components/ring/types";
   import CategoryCallout from "./CategoryCallout.svelte";

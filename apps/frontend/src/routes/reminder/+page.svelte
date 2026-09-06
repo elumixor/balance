@@ -4,7 +4,7 @@
   import { openExternal } from "$lib/desktop/open";
   import { decodeReminder, type ReminderCard } from "$lib/desktop/reminder";
   import { formatClock, formatHoursAndMinutes } from "$lib/ui/format";
-  import type { TravelMode } from "$lib/account/preferences.svelte";
+  import type { TravelMode } from "$lib/account/preferences-types";
   import { Bike, Bus, Car, Footprints, Link2, MapPin, Video, X } from "lucide-svelte";
 
   /**

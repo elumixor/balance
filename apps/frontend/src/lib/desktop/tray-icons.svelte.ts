@@ -1,5 +1,5 @@
 import { mount, unmount } from "svelte";
-import { iconFor } from "$lib/ui/icons/index";
+import { iconFor } from "$lib/ui/icons";
 
 /**
  * The category icons the tray dropdown draws instead of a plain colour bar.

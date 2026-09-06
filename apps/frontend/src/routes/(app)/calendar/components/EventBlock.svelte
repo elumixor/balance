@@ -4,7 +4,7 @@ import type { Category } from "$lib/core/records";
   import { CategoryIcon, CategoryPicker } from "$lib/components";
   import { restColor } from "$lib/ui/colors";
   import { formatClock } from "$lib/ui/format";
-  import { DEFAULT_ICON } from "$lib/ui/icons/index";
+  import { DEFAULT_ICON } from "$lib/ui/icons";
   import { store } from "$lib/core/store.svelte";
   import type { CalendarEvent } from "$lib/calendar/types";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";

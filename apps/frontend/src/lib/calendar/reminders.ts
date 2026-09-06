@@ -1,4 +1,4 @@
-import type { RemindersPrefs, TravelPrefs } from "$lib/account/preferences.svelte";
+import type { RemindersPrefs, TravelPrefs } from "$lib/account/preferences-types";
 import type { ReminderKind } from "$lib/desktop/reminder";
 
 /**

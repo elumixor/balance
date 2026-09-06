@@ -1,6 +1,6 @@
 <script lang="ts">
   import { safeArea } from "$lib/platform/safe-area";
-  import type { Snippet } from "svelte";
+  import { onDestroy, type Snippet } from "svelte";
 
   /**
    * An anchored panel for inline choices (theme, colour, account). Replaces the
@@ -28,6 +28,8 @@
   let position = $state<{ left: number; top: number; flipped: boolean } | null>(null);
   /** Off for the first frame and again while closing — what the fade and the drift animate on. */
   let shown = $state(false);
+
+  let closing: ReturnType<typeof setTimeout> | undefined;
 
   const IN_MS = 300;
   const OUT_MS = 150;
@@ -71,11 +73,14 @@
   function close() {
     if (!open) return;
     shown = false;
-    setTimeout(() => {
+    clearTimeout(closing);
+    closing = setTimeout(() => {
       open = false;
       position = null;
     }, OUT_MS);
   }
+
+  onDestroy(() => clearTimeout(closing));
 
   /**
    * The panel has to leave the tree it was declared in. A list row carries the stagger animation,

@@ -2,6 +2,7 @@ export { default as DesktopDownload } from "./DesktopDownload.svelte";
 export { default as DesktopUpdate } from "./DesktopUpdate.svelte";
 export { default as IntegrationsPane } from "./IntegrationsPane.svelte";
 export { default as NotificationsPane } from "./NotificationsPane.svelte";
+export { default as PlaceIconPicker } from "./PlaceIconPicker.svelte";
 export { default as PlacesPane } from "./PlacesPane.svelte";
 export { default as ProfilePane } from "./ProfilePane.svelte";
 export { default as SettingsGroup } from "./SettingsGroup.svelte";

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { focusWhenReady } from "$lib/ui/focus";
   import { AnchoredPopup, Dot } from "$lib/components";
   import { restColor } from "$lib/ui/colors";
   import { categories, practices, projects } from "$lib/core/synced.svelte";
@@ -109,19 +110,12 @@
     e.preventDefault();
   }
 
-  function autofocus(node: HTMLInputElement) {
-    const focus = () => {
-      node.focus({ preventScroll: true });
-      if (node.isConnected && document.activeElement !== node) requestAnimationFrame(focus);
-    };
-    focus();
-  }
 </script>
 
 <AnchoredPopup {rect} width={260} {onclose}>
   <div class="flex flex-col gap-1.5 p-1.5">
     <input
-      use:autofocus
+      use:focusWhenReady
       bind:value={query}
       {onkeydown}
       placeholder="Project or practice"

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Check, Copy } from "lucide-svelte";
+  import { onDestroy } from "svelte";
 
   /**
    * The one way the technical half of a failure leaves the device.
@@ -9,17 +10,24 @@
    */
   let { text, label = "Copy details", size = 15 }: { text: () => string; label?: string; size?: number } = $props();
 
+  /** How long the tick stays before the button offers to copy again. */
+  const CONFIRM_MS = 1500;
+
   let copied = $state(false);
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(text());
       copied = true;
-      setTimeout(() => (copied = false), 1500);
+      clearTimeout(timer);
+      timer = setTimeout(() => (copied = false), CONFIRM_MS);
     } catch {
       // A webview without clipboard permission. Nothing to say — the button simply doesn't confirm.
     }
   }
+
+  onDestroy(() => clearTimeout(timer));
 </script>
 
 <button

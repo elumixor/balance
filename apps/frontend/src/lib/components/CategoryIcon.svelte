@@ -1,6 +1,6 @@
 <script lang="ts">
   import { withAlpha } from "$lib/ui/colors";
-  import { iconFor } from "$lib/ui/icons/index";
+  import { iconFor } from "$lib/ui/icons";
 
   /**
    * A category, drawn: its icon in its own colour, on a tint of the same colour. One component so

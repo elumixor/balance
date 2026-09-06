@@ -2,28 +2,38 @@ import { describe, expect, it } from "vitest";
 import type { CalendarEvent } from "./types";
 import { NOT_A_MEETING } from "./types";
 import {
+  allDayRowCount,
   allDaySpansForRange,
   BLOCK_GUTTER_PX,
+  blocksFor,
   CROWDED_HOUR_PX,
+  DRAW_MARGIN_DAYS,
   daySpans,
+  drawnBounds,
   gridLines,
   gutterTicks,
   HALF_HOUR_LINE_PX,
   HOUR_PX,
+  inWindow,
   MAX_HOUR_PX,
   MIN_BLOCK_PX,
+  marqueeBox,
   NEST_HEAD_PX,
   NEST_INSET_PX,
   type PlacedSegment,
   placeDay,
+  placeStrip,
   QUARTER_HOUR_LINE_PX,
   RESIZE_BAND_MAX_PX,
   RESIZE_BAND_SELECTED_PX,
   resizeBands,
   type Segment,
   STAGGER_FRACTION,
+  type StripWindow,
   segmentsForRange,
   snapMinutes,
+  spanInWindow,
+  travelBandBox,
 } from "./week-grid";
 
 /** The fields the grid reads, with the rest of an event filled in as the calendar would. */
@@ -460,5 +470,156 @@ describe("snapMinutes", () => {
     expect(snapMinutes(22.5)).toBe(30);
     expect(snapMinutes(-7.5)).toBe(-0);
     expect(snapMinutes(-8)).toBe(-15);
+  });
+});
+
+describe("placeStrip", () => {
+  it("buckets every segment into its own column, laid out at the given scale", () => {
+    const events = [
+      event(new Date(2026, 7, 10, 9), new Date(2026, 7, 10, 10)),
+      event(new Date(2026, 7, 10, 9, 30), new Date(2026, 7, 10, 11)),
+      event(new Date(2026, 7, 12, 22), new Date(2026, 7, 13, 2)),
+    ];
+    const strip = placeStrip(events, MONDAY, 7, HOUR_PX, 100);
+    expect(strip).toHaveLength(7);
+    expect(strip[0]).toHaveLength(2);
+    expect(strip[0][1].depth).toBe(1);
+    expect(strip[0][0].width).toBe(100 - BLOCK_GUTTER_PX);
+    expect(strip[2]).toHaveLength(1);
+    expect(strip[3]).toHaveLength(1);
+    expect(strip[3][0].continuesBefore).toBe(true);
+    expect(strip[1]).toEqual([]);
+  });
+
+  it("is a strip of empty columns without events", () => {
+    expect(placeStrip([], MONDAY, 3, HOUR_PX, 100)).toEqual([[], [], []]);
+  });
+});
+
+describe("drawnBounds", () => {
+  const window: StripWindow = { offset: 7, visibleDays: 7, stripDays: 21 };
+
+  it("draws the window plus a runway either side", () => {
+    expect(drawnBounds(window)).toEqual({ first: 7 - DRAW_MARGIN_DAYS, last: 13 + DRAW_MARGIN_DAYS });
+  });
+
+  it("never runs off either end of the strip", () => {
+    expect(drawnBounds({ ...window, offset: 0 })).toEqual({ first: 0, last: 6 + DRAW_MARGIN_DAYS });
+    expect(drawnBounds({ ...window, offset: 14 })).toEqual({ first: 14 - DRAW_MARGIN_DAYS, last: 20 });
+  });
+});
+
+describe("inWindow", () => {
+  const window: StripWindow = { offset: 7, visibleDays: 3, stripDays: 21 };
+
+  it("is the columns the window is over, ends included and excluded the way a range is", () => {
+    expect(inWindow(6, window)).toBe(false);
+    expect(inWindow(7, window)).toBe(true);
+    expect(inWindow(9, window)).toBe(true);
+    expect(inWindow(10, window)).toBe(false);
+  });
+});
+
+describe("blocksFor", () => {
+  const window: StripWindow = { offset: 7, visibleDays: 3, stripDays: 21 };
+  // Two different events: the helper's ids are made of their dates.
+  const placed = placeDay([
+    segment(8, 540, 600),
+    { ...segment(8, 660, 720), event: event(new Date(2026, 7, 11), new Date(2026, 7, 12)) },
+  ]);
+  const [first, second] = placed;
+
+  it("is empty off the runway, whatever has been seen", () => {
+    expect(blocksFor(placed, 0, window, new Set([first.event.id]))).toEqual([]);
+    expect(blocksFor(placed, 20, window, new Set())).toEqual([]);
+  });
+
+  it("is every block on a column in the window", () => {
+    expect(blocksFor(placed, 8, window, new Set())).toBe(placed);
+  });
+
+  it("is only the blocks already seen on the runway", () => {
+    const seen = new Set([second.event.id]);
+    expect(blocksFor(placed, 11, window, seen)).toEqual([second]);
+    expect(blocksFor(placed, 4, window, new Set())).toEqual([]);
+  });
+});
+
+describe("spanInWindow", () => {
+  const window: StripWindow = { offset: 7, visibleDays: 3, stripDays: 21 };
+
+  it("counts a banner that touches any day on screen", () => {
+    expect(spanInWindow(5, 3, window)).toBe(true);
+    expect(spanInWindow(9, 4, window)).toBe(true);
+    expect(spanInWindow(4, 3, window)).toBe(false);
+    expect(spanInWindow(10, 1, window)).toBe(false);
+  });
+});
+
+describe("allDayRowCount", () => {
+  const window: StripWindow = { offset: 7, visibleDays: 3, stripDays: 21 };
+  const span = (dayIndex: number, days: number, row: number) => ({
+    event: event(MONDAY, MONDAY, { allDay: true }),
+    dayIndex,
+    days,
+    row,
+  });
+
+  it("is the deepest row among the banners on screen, not on the strip", () => {
+    expect(allDayRowCount([span(7, 1, 0), span(8, 2, 1), span(0, 1, 4)], window)).toBe(2);
+  });
+
+  it("is zero when nothing on screen has a banner", () => {
+    expect(allDayRowCount([span(0, 1, 0)], window)).toBe(0);
+    expect(allDayRowCount([], window)).toBe(0);
+  });
+});
+
+describe("marqueeBox", () => {
+  it("normalises a box dragged up and to the left", () => {
+    expect(marqueeBox({ fromDay: 3, fromMinutes: 600, toDay: 1, toMinutes: 480 }, HOUR_PX, 100)).toEqual({
+      left: 100,
+      top: 8 * HOUR_PX,
+      width: 200,
+      height: 2 * HOUR_PX,
+    });
+  });
+
+  it("is a point where the pointer has not moved", () => {
+    expect(marqueeBox({ fromDay: 2, fromMinutes: 90, toDay: 2, toMinutes: 90 }, HOUR_PX, 100)).toEqual({
+      left: 200,
+      top: 1.5 * HOUR_PX,
+      width: 0,
+      height: 0,
+    });
+  });
+});
+
+describe("travelBandBox", () => {
+  const block = { top: 10 * HOUR_PX, height: HOUR_PX };
+
+  it("runs from when you'd have to leave down to the block's middle", () => {
+    expect(travelBandBox(block, 30, HOUR_PX)).toEqual({
+      top: 9.5 * HOUR_PX,
+      height: HOUR_PX / 2 + HOUR_PX / 2,
+      visible: HOUR_PX / 2,
+      labelled: true,
+    });
+  });
+
+  it("stays a hatch when there is no room for words", () => {
+    const band = travelBandBox(block, 10, HOUR_PX);
+    expect(band?.visible).toBe(8);
+    expect(band?.labelled).toBe(false);
+  });
+
+  it("is nothing for a journey too short to draw", () => {
+    expect(travelBandBox(block, 1, HOUR_PX)).toBeNull();
+  });
+
+  it("is cut at midnight rather than drawn into the day before", () => {
+    const band = travelBandBox({ top: HOUR_PX, height: HOUR_PX }, 120, HOUR_PX);
+    expect(band?.top).toBe(0);
+    expect(band?.visible).toBe(HOUR_PX);
   });
 });

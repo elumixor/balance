@@ -6,7 +6,7 @@
 </script>
 
 <script lang="ts">
-  import { iconFor } from "$lib/ui/icons/index";
+  import { iconFor } from "$lib/ui/icons";
   import type { RingSegment } from "./types";
   import type { Snippet } from "svelte";
   import Arc, { pointOnRing, RING_START } from "./Arc.svelte";

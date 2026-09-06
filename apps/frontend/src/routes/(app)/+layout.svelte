@@ -3,24 +3,16 @@
   import { auth } from "$lib/account/auth.svelte";
   import { AppLoading } from "$lib/components";
   import { IcsDropZone, ImportIcsDialog, NavStrip, SessionNudge, SettingsDialog, SideNav, TabBar } from "./components";
-  import { desktopDock } from "$lib/desktop/dock";
-  import { desktopReminders } from "$lib/desktop/reminders.svelte";
-  import { desktopTray } from "$lib/desktop/tray.svelte";
-  import { desktopUpdates } from "$lib/desktop/updates.svelte";
   import { isBareKey, isRefreshKey, isSettingsKey } from "$lib/platform/keys";
   import { syncStatus } from "$lib/core/synced.svelte";
-  import { icsImport } from "$lib/calendar/ics-import.svelte";
-  import { integrations } from "$lib/integrations/integrations.svelte";
-  import { mobileReminders } from "$lib/mobile/reminders.svelte";
-  import { sessionReminders } from "$lib/mobile/session-reminders.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { clock } from "$lib/platform/clock.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
+  import { startShellServices } from "$lib/shell-services";
   import { settings } from "$lib/settings";
   import { telemetry } from "$lib/platform/telemetry";
   import { adoptUser, refreshStore, warmStore } from "$lib/core/store.svelte";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
-  import { startWatchHandoff } from "$lib/watch/handoff";
   import { untrack, type Snippet } from "svelte";
   import { page } from "$app/state";
 
@@ -65,37 +57,11 @@
     if (error) diagnostics.report("Sync", error, { title: "Couldn’t save your changes" });
   });
 
-  // On macOS the app is also the menu bar item, which outlives every screen — so it starts with
-  // the session rather than with a route, and stops when the session goes. The Dock icon and the
-  // reminders are the same kind of thing, running whether or not anybody is looking at a screen —
-  // and on iOS the same reminders are handed to the system ahead of time, since that shell is
-  // asleep by the time they are due.
-  // The watch handoff belongs to the same list for the same reason: what it hands over is the
-  // session itself, so it can only run while there is one.
+  // The menu bar item, the Dock icon, the reminders, the watch handoff: things that outlive every
+  // screen, so they start with the session rather than with a route and stop when it goes.
   $effect(() => {
     if (!auth.signedIn) return;
-    desktopTray.start();
-    desktopDock.start();
-    desktopUpdates.start();
-    desktopReminders.start();
-    mobileReminders.start();
-    sessionReminders.start();
-    sessionNudge.start();
-    icsImport.start();
-    integrations.start();
-    const stopWatchHandoff = startWatchHandoff();
-    return () => {
-      desktopTray.stop();
-      desktopDock.stop();
-      desktopUpdates.stop();
-      desktopReminders.stop();
-      mobileReminders.stop();
-      sessionReminders.stop();
-      sessionNudge.stop();
-      icsImport.stop();
-      integrations.stop();
-      stopWatchHandoff();
-    };
+    return startShellServices();
   });
 
   // The sitting is owed on a clock, not on a route: the tick is what notices the slot coming round

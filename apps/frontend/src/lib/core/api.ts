@@ -1,6 +1,5 @@
 import { auth } from "$lib/account/auth.svelte";
 import { NitroAPI } from "$lib/api-client";
-import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { API_BASE_URL, apiBaseUrlProblem } from "./env";
 
 export { API_BASE_URL };
@@ -199,12 +198,4 @@ function describe(input: Parameters<typeof fetch>[0]) {
   if (typeof input === "string") return input;
   if (input instanceof URL) return input.toString();
   return input.url;
-}
-
-/**
- * Reports a failure nobody on screen is going to be told about — a background refresh, a write
- * replayed by the queue — so the app can say something went wrong instead of quietly stopping.
- */
-export function reportApiFailure(scope: string, error: unknown, title?: string) {
-  diagnostics.report(scope, error, { title: title ?? `Couldn’t reach the server` });
 }

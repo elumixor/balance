@@ -1,6 +1,6 @@
 <script lang="ts">
   import { restColor } from "$lib/ui/colors";
-  import { updateCalendarPrefs } from "$lib/core/queries";
+  import { saveCalendarPrefs as save } from "$lib/calendar/calendar-prefs";
   import { invalidate, store } from "$lib/core/store.svelte";
   import type { CalendarRef } from "$lib/calendar/types";
   import { Eye, EyeOff, Plus } from "lucide-svelte";
@@ -40,17 +40,6 @@
    * taken back as soon as the answer lands.
    */
   const loading = $derived(!data.connectionKnown || (data.connected && !prefs.hasValue));
-
-  /** Applies the change to the screen immediately, then tells the server — reverting only on failure. */
-  function save(input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) {
-    const previous = prefs.value;
-    if (!previous) return;
-    prefs.set({ ...previous, ...input });
-    void updateCalendarPrefs(input).catch((e) => {
-      prefs.set(previous);
-      diagnostics.report("Calendars", e, { title: "Couldn’t save that" });
-    });
-  }
 
   function toggle(calendar: CalendarRef) {
     const current = visible.length === 0 ? allCalendars.filter((c) => c.primary).map((c) => c.id) : visible;

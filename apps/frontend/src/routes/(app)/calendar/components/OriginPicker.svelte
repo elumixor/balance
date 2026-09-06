@@ -1,6 +1,6 @@
 <script lang="ts">
   import { AddressField, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
-  import { iconFor, PLACE_ICON } from "$lib/ui/icons/index";
+  import { iconFor, PLACE_ICON } from "$lib/ui/icons";
   import type { PlaceDetails } from "$lib/travel/places";
   import { preferences } from "$lib/account/preferences.svelte";
   import { type OriginChoice, HERE, travelOrigin } from "$lib/travel/origin.svelte";

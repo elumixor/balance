@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Rank } from "$lib/planning/types";
-  import StarCount from "./StarCount.svelte";
+  import { StarCount } from "$lib/components";
 
   /**
    * Where you are, in one line: the stars, and how far the next line is.

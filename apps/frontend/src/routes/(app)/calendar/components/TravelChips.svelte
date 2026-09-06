@@ -1,6 +1,6 @@
 <script lang="ts">
   import { formatHoursAndMinutes } from "$lib/ui/format";
-  import type { TravelMode } from "$lib/account/preferences.svelte";
+  import type { TravelMode } from "$lib/account/preferences-types";
   import { travelTimes } from "$lib/travel/times.svelte";
   import type { CalendarEvent } from "$lib/calendar/types";
   import { Bike, Bus, Car, Footprints } from "lucide-svelte";

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { CategoryIcon } from "$lib/components";
+  import CategoryIcon from "./CategoryIcon.svelte";
   import { restColor } from "$lib/ui/colors";
-  import { DEFAULT_ICON } from "$lib/ui/icons/index";
+  import { DEFAULT_ICON } from "$lib/ui/icons";
   import type { Category } from "$lib/core/records";
 
   /**

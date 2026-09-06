@@ -37,7 +37,7 @@
 
 <script lang="ts">
   import { formatHoursDecimal } from "$lib/ui/format";
-  import { iconFor } from "$lib/ui/icons/index";
+  import { iconFor } from "$lib/ui/icons";
   import { theme } from "$lib/ui/theme.svelte";
   import { MIN_ICON_FRACTION, ringRadius } from "$lib/components/ring/WeekRing.svelte";
 

@@ -8,7 +8,7 @@ const DAY_MS = 86_400_000;
 const DAYS_PER_WEEK = 7;
 const MIN_STAGE_DAYS = 7;
 export const EXTENSION_DAYS = 14;
-export const CHECKPOINT_DAYS = 14;
+const CHECKPOINT_DAYS = 14;
 
 /** `YYYY-MM-DD` plus whole days, in UTC arithmetic — a day key has no zone to get wrong. */
 export function addDaysKey(day: string, count: number): string {

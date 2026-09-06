@@ -8,6 +8,7 @@
 </script>
 
 <script lang="ts" generics="T">
+  import { focusWhenReady } from "$lib/ui/focus";
   import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "./float";
   import type { Snippet } from "svelte";
 
@@ -71,13 +72,8 @@
   });
 
   $effect(() => {
-    if (!autofocus) return;
-    // The card holding this can spend its first frames hidden, and a hidden field can't take focus.
-    const focus = () => {
-      input?.focus({ preventScroll: true });
-      if (input?.isConnected && document.activeElement !== input) requestAnimationFrame(focus);
-    };
-    focus();
+    if (!autofocus || !input) return;
+    return focusWhenReady(input).cancel;
   });
 
   function place() {

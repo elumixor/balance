@@ -5,7 +5,7 @@
   import { restColor } from "$lib/ui/colors";
   import { formatHoursDecimal } from "$lib/ui/format";
   import { CheckpointCard, CreateAssist, DecisionSheet, GoalPicker, HoursBars, LinksList, PeopleList, StageRail, TaskList } from "./components";
-  import { ProjectCover, StatusChip } from "../components";
+  import { ProjectCover, StatusChip } from "$lib/components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { TEMPLATES } from "$lib/projects/templates";
   import { synced } from "$lib/core/synced.svelte";

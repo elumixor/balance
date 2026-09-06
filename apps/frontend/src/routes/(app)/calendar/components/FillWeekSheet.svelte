@@ -12,6 +12,12 @@ import type { WeekNote } from "$lib/projects/assist";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { DEFAULT_FILL, type FillBlock, fillWeek, freeSlots } from "$lib/calendar/filler";
   import { projectHours } from "$lib/calendar/project-hours";
+  import { untrack } from "svelte";
+
+  /** Free hours are told to the assistant to the quarter hour; finer is false precision. */
+  const QUARTER_HOURS = 4;
+  /** How many of the week's fixed events are named to the assistant — enough to see the shape. */
+  const FIXED_EVENTS_NAMED = 20;
 
   /**
    * The coming week, proposed: each live project's remaining claim laid into the free working
@@ -63,21 +69,29 @@ import type { WeekNote } from "$lib/projects/assist";
   const nameOf = (id: string) => wants.find((w) => w.id === id)?.name || "Untitled project";
   const colorFor = (id: string) => colorOf.get(wants.find((w) => w.id === id)?.categoryId ?? "") ?? restColor;
 
-  // The note is asked for once per opening, and only when there is something to say about.
+  // The note is asked for once per opening, and only when there is something to say about. Only
+  // `open` is tracked: the week the note describes is read untracked, or every block accepted
+  // from the sheet would ask again and throw the deselections away.
   $effect(() => {
     if (!open) return;
-    removed = new Set();
-    note = null;
-    if (wants.length === 0) return;
-    void assistWeek({
-      freeHours: Math.round(freeHours * 4) / 4,
-      projects: wants.map((w, i) => ({ id: w.id, name: w.name, claimed: w.claimed, logged: w.logged, priority: i + 1 })),
-      fixed: data.events.filter((e) => e.countsTowardHours && new Date(e.end) > now).map((e) => e.title).slice(0, 20),
-    })
-      .then((r) => {
-        if (r.available) note = r.suggestion;
+    untrack(() => {
+      removed = new Set();
+      note = null;
+      if (wants.length === 0) return;
+      void assistWeek({
+        freeHours: Math.round(freeHours * QUARTER_HOURS) / QUARTER_HOURS,
+        projects: wants.map((w, i) => ({ id: w.id, name: w.name, claimed: w.claimed, logged: w.logged, priority: i + 1 })),
+        fixed: data.events
+          .filter((e) => e.countsTowardHours && new Date(e.end) > now)
+          .map((e) => e.title)
+          .slice(0, FIXED_EVENTS_NAMED),
       })
-      .catch(() => undefined);
+        .then((r) => {
+          if (r.available) note = r.suggestion;
+        })
+        // A proposal that never arrives leaves the sheet as it was — that is the assistant's rule.
+        .catch(() => undefined);
+    });
   });
 
   /** Accepts the list as it stands: one block at a time, each its own step of undo. */

@@ -12,7 +12,7 @@ import { clock } from "$lib/platform/clock.svelte";
 import { arrivalFor, getTravelTimes, type TravelLeg } from "$lib/travel/legs";
 import { travelOrigin } from "$lib/travel/origin.svelte";
 import { restColor } from "$lib/ui/colors";
-import { DEFAULT_ICON } from "$lib/ui/icons/index";
+import { DEFAULT_ICON } from "$lib/ui/icons";
 import { isIOSApp } from "./platform";
 
 /**

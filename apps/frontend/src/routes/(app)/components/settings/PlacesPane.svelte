@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { AddressField, Field, MapPreview, NumberField, PlaceIconPicker, Switch, Tooltip } from "$lib/components";
-  import { iconFor, PLACE_ICON } from "$lib/ui/icons/index";
+  import { AddressField, Field, MapPreview, NumberField, Switch, Tooltip } from "$lib/components";
+  import PlaceIconPicker from "./PlaceIconPicker.svelte";
+  import { iconFor, PLACE_ICON } from "$lib/ui/icons";
   import type { PlaceDetails, PlaceSuggestion } from "$lib/travel/places";
-  import { preferences, type SavedLocation, type TravelMode } from "$lib/account/preferences.svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
+  import type { SavedLocation, TravelMode } from "$lib/account/preferences-types";
   import { Bike, Bus, Car, Footprints, Pencil, Plus, Trash2 } from "lucide-svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 

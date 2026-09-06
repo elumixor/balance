@@ -8,6 +8,7 @@
 </script>
 
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { theme } from "$lib/ui/theme.svelte";
 
   let {
@@ -82,6 +83,9 @@
     if (press) clearTimeout(press.timer);
     press = null;
   }
+
+  // A finger still down when the ring unmounts must not open a menu on whatever replaced it.
+  onDestroy(endPress);
 
   function startPress(event: PointerEvent) {
     if (event.pointerType === "mouse") return;

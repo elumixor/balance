@@ -1,4 +1,4 @@
-import { addDays, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "./dates";
+import { addDays, daysBetween, MINUTES_PER_DAY, minutesIntoDay } from "./dates";
 import type { CalendarEvent } from "./types";
 
 /** An hour's height at rest. Pinching scales it — see `time-scale.svelte.ts`. */
@@ -347,5 +347,139 @@ export function snapMinutes(minutes: number): number {
  * Rounding a whole number of local midnights apart is right in both directions.
  */
 function dayIndexOf(date: Date, rangeStart: Date): number {
-  return Math.round((startOfDay(date).getTime() - startOfDay(rangeStart).getTime()) / (24 * 60 * 60 * 1000));
+  return daysBetween(rangeStart, date);
+}
+
+/**
+ * The whole strip's segments, bucketed by column and laid out. One pass rather than a filter per
+ * column, which would walk every segment once per column for every change to the events behind
+ * them.
+ */
+export function placeStrip(
+  events: readonly CalendarEvent[],
+  stripStart: Date,
+  dayCount: number,
+  hourPx: number,
+  columnPx: number,
+): PlacedSegment[][] {
+  const byDay: Segment[][] = Array.from({ length: dayCount }, () => []);
+  // Every segment's day is inside the range it was cut for, so its bucket is always there.
+  for (const segment of segmentsForRange(events, stripStart, dayCount)) byDay[segment.dayIndex].push(segment);
+  return byDay.map((segments) => placeDay(segments, hourPx, columnPx));
+}
+
+/**
+ * Which columns of the strip are on screen, and how far past them blocks are still drawn. The
+ * strip is wide so a fling always has columns ahead of it, but only the days near the window are
+ * worth building: the rest would be a few hundred absolutely-positioned nodes nobody can see,
+ * rebuilt on every write. Three days of margin covers the columns a fling exposes between two
+ * scroll ticks.
+ */
+export const DRAW_MARGIN_DAYS = 3;
+
+export interface StripWindow {
+  /** The leftmost column on screen. */
+  readonly offset: number;
+  readonly visibleDays: number;
+  readonly stripDays: number;
+}
+
+/** The first and last column blocks are built for — the window plus its runway. */
+export function drawnBounds(window: StripWindow): { readonly first: number; readonly last: number } {
+  return {
+    first: Math.max(0, window.offset - DRAW_MARGIN_DAYS),
+    last: Math.min(window.stripDays - 1, window.offset + window.visibleDays - 1 + DRAW_MARGIN_DAYS),
+  };
+}
+
+/** The columns the window is actually over, as against the runway either side of them. */
+export function inWindow(index: number, window: StripWindow): boolean {
+  return index >= window.offset && index < window.offset + window.visibleDays;
+}
+
+/**
+ * A column's blocks. The runway — the days built ahead of the window so a fling has something to
+ * scroll onto — carries only blocks that have already had their moment: an event nobody has seen
+ * yet waits until its column is really on screen, so that its fade happens where it can be
+ * watched instead of three days out of view.
+ */
+export function blocksFor(
+  placed: readonly PlacedSegment[],
+  index: number,
+  window: StripWindow,
+  seen: ReadonlySet<string>,
+): readonly PlacedSegment[] {
+  const { first, last } = drawnBounds(window);
+  if (index < first || index > last) return [];
+  return inWindow(index, window) ? placed : placed.filter((segment) => seen.has(segment.event.id));
+}
+
+/** Whether a span of whole columns touches the days on screen. */
+export function spanInWindow(dayIndex: number, days: number, window: StripWindow): boolean {
+  return dayIndex + days > window.offset && dayIndex < window.offset + window.visibleDays;
+}
+
+/** How many rows the banners over the days on screen take — none when there are none. */
+export function allDayRowCount(spans: readonly AllDaySpan[], window: StripWindow): number {
+  return spans.reduce(
+    (max, span) => (spanInWindow(span.dayIndex, span.days, window) ? Math.max(max, span.row + 1) : max),
+    0,
+  );
+}
+
+/** A box in the grid's own units — a continuous day index and minutes into the day, both corners unsnapped. */
+export interface GridBox {
+  readonly fromDay: number;
+  readonly fromMinutes: number;
+  readonly toDay: number;
+  readonly toMinutes: number;
+}
+
+export interface PixelBox {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The gathering box, in pixels down the grid rather than the grid's own day-and-minute units. */
+export function marqueeBox(box: GridBox, hourPx: number, columnPx: number): PixelBox {
+  return {
+    left: Math.min(box.fromDay, box.toDay) * columnPx,
+    top: (Math.min(box.fromMinutes, box.toMinutes) / 60) * hourPx,
+    width: Math.abs(box.toDay - box.fromDay) * columnPx,
+    height: (Math.abs(box.toMinutes - box.fromMinutes) / 60) * hourPx,
+  };
+}
+
+/** Room for a line of words: below this a travel band stays a hatch and says nothing. */
+export const TRAVEL_LABEL_PX = 18;
+/** Under this a journey is too short to draw at all. */
+export const TRAVEL_BAND_MIN_PX = 2;
+
+export interface TravelBandBox {
+  readonly top: number;
+  /** Down to the block's middle, so the band and the block read as one thing. */
+  readonly height: number;
+  /** The part above the block — where the words go. */
+  readonly visible: number;
+  readonly labelled: boolean;
+}
+
+/**
+ * The band drawn above a block for the journey to it: from when you'd have to leave to when the
+ * block starts. It runs on down behind the block to the block's middle, with no edge of its own
+ * at the bottom, so the two read as one thing rather than a box parked over another. A journey
+ * that would start before the column does is cut at midnight rather than drawn into yesterday's
+ * column.
+ */
+export function travelBandBox(
+  segment: Pick<PlacedSegment, "top" | "height">,
+  minutes: number,
+  hourPx: number,
+): TravelBandBox | null {
+  const top = Math.max(0, segment.top - (minutes / 60) * hourPx);
+  const visible = segment.top - top;
+  if (visible < TRAVEL_BAND_MIN_PX) return null;
+  return { top, height: visible + segment.height / 2, visible, labelled: visible >= TRAVEL_LABEL_PX };
 }

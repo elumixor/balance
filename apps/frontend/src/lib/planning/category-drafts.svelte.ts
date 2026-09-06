@@ -3,7 +3,7 @@ import type { Category } from "$lib/core/records";
 import { invalidate } from "$lib/core/store.svelte";
 import { categories, synced, syncStatus } from "$lib/core/synced.svelte";
 import { restColor, swatchPalette } from "$lib/ui/colors";
-import { DEFAULT_ICON, randomIcon } from "$lib/ui/icons/index";
+import { DEFAULT_ICON, randomIcon } from "$lib/ui/icons";
 
 export const WEEK_HOURS = 168;
 

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { Button, CategoryIcon, Skeleton, StarBurst, StarCount, StarPill } from "$lib/components";
+  import { Button, CategoryIcon, Skeleton, StarBurst, StarCount } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { DAY_STARS, dayRating } from "$lib/planning/rating";
   import { sessionData } from "$lib/planning/session-data.svelte";
-  import { BalanceRing, DoneFan, DoneList } from "./components";
+  import { BalanceRing, DoneFan, DoneList, StarPill } from "./components";
   import type { Slot } from "$lib/planning/types";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { goto } from "$app/navigation";

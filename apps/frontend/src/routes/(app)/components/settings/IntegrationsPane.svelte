@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button, Tooltip } from "$lib/components";
-  import { feedKey, INTEGRATIONS, type Integration, integrations } from "$lib/integrations/integrations.svelte";
+  import { feedKey, INTEGRATIONS, integrations } from "$lib/integrations/integrations.svelte";
+  import type { Integration } from "$lib/integrations/types";
   import { preferences } from "$lib/account/preferences.svelte";
   import { invalidate } from "$lib/core/store.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";

@@ -8,7 +8,7 @@ import { asGoogleAccount, meetingOf } from "$lib/calendar/meeting";
 import type { CalendarEvent } from "$lib/calendar/types";
 import { restColor } from "$lib/ui/colors";
 import { formatClock, formatDayDate, formatHoursAndMinutes } from "$lib/ui/format";
-import { DEFAULT_ICON } from "$lib/ui/icons/index";
+import { DEFAULT_ICON } from "$lib/ui/icons";
 import { desktopAgenda } from "./agenda.svelte";
 import { isDesktop } from "./platform";
 import { report } from "./report";

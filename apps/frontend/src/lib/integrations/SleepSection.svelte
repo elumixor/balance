@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { CardRow, SplitBar } from "$lib/components";
+  import { CardRow } from "$lib/components";
+  import SplitBar from "./SplitBar.svelte";
   import { formatClock, formatHoursAndMinutes } from "$lib/ui/format";
   import { isIOSApp } from "$lib/mobile/platform";
   import type { CalendarEvent } from "$lib/calendar/types";
@@ -25,11 +26,11 @@
 
   /** Deep, REM, core, awake — darkest to lightest, the way the Health app orders a night. */
   const STAGES = [
-    { id: "deep", label: "Deep", color: "#3730a3" },
-    { id: "rem", label: "REM", color: "#6366f1" },
-    { id: "core", label: "Core", color: "#a5b4fc" },
-    { id: "asleep", label: "Asleep", color: "#a5b4fc" },
-    { id: "awake", label: "Awake", color: "#f59e0b" },
+    { id: "deep", label: "Deep", color: "var(--color-sleep-deep)" },
+    { id: "rem", label: "REM", color: "var(--color-sleep-rem)" },
+    { id: "core", label: "Core", color: "var(--color-sleep-core)" },
+    { id: "asleep", label: "Asleep", color: "var(--color-sleep-core)" },
+    { id: "awake", label: "Awake", color: "var(--color-sleep-awake)" },
   ] as const;
 
   const splits = $derived(
@@ -44,11 +45,11 @@
     { id: "interruptions", label: "Interruptions", max: 20 },
   ] as const;
   const BAND_COLORS = {
-    "Very low": "#ef4444",
-    Low: "#f59e0b",
-    OK: "#eab308",
-    High: "#22c55e",
-    "Very high": "#0ea5e9",
+    "Very low": "var(--color-grade-very-low)",
+    Low: "var(--color-grade-low)",
+    OK: "var(--color-grade-ok)",
+    High: "var(--color-grade-high)",
+    "Very high": "var(--color-grade-very-high)",
   } as const;
 </script>
 

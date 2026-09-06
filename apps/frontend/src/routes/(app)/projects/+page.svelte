@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { Dot, EmptyState, Screen, Segmented, Skeleton } from "$lib/components";
-  import { PracticeRow, ProjectCard, RankingPrompt } from "./components";
+  import { Dot, Screen, Segmented, Skeleton } from "$lib/components";
+  import { EmptyState, PracticeRow, ProjectCard, RankingPrompt } from "./components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { synced } from "$lib/core/synced.svelte";
   import { Plus, Sparkles } from "lucide-svelte";

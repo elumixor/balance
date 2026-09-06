@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { focusWhenReady } from "$lib/ui/focus";
   import CategoryIcon from "./CategoryIcon.svelte";
   import AnchoredPopup from "./AnchoredPopup.svelte";
   import type { Category } from "$lib/core/records";
@@ -61,27 +62,12 @@
     e.preventDefault();
   }
 
-  /**
-   * The list is all there is to this popup — typing is the only thing you opened it to do. The
-   * popup spends its first frames hidden while it works out where it belongs, though, and a hidden
-   * field can't take focus, so this keeps asking until it lands.
-   */
-  function autofocus(node: HTMLInputElement) {
-    const focus = () => {
-      // Without this, a plain focus() on a field still hidden at (0,0) scrolls whatever
-      // ancestor is scrollable into "view" of that phantom position — a screen wrapped in
-      // Screen.svelte lurches and shows a scrollbar the moment the popup opens.
-      node.focus({ preventScroll: true });
-      if (node.isConnected && document.activeElement !== node) requestAnimationFrame(focus);
-    };
-    focus();
-  }
 </script>
 
 <AnchoredPopup {rect} width={240} {onclose}>
   <div class="flex flex-col gap-1.5 p-1.5">
     <input
-      use:autofocus
+      use:focusWhenReady
       bind:value={query}
       {onkeydown}
       placeholder="Search categories"

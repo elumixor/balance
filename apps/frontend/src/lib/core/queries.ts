@@ -1,4 +1,4 @@
-import type { StoredPreferences } from "$lib/account/preferences.svelte";
+import type { StoredPreferences } from "$lib/account/preferences-types";
 import type {
   CalendarEvent,
   CalendarPrefs,
@@ -9,14 +9,7 @@ import type {
 } from "$lib/calendar/types";
 import type { IntegrationStatus } from "$lib/integrations/types";
 import type { CommitResult, SessionNotification, SessionSummary, Slot, StarProgress } from "$lib/planning/types";
-import type {
-  Assisted,
-  CheckpointHelp,
-  CreateSuggestion,
-  DecisionAdvice,
-  EventPlan,
-  WeekNote,
-} from "$lib/projects/assist";
+import type { Assisted, CheckpointHelp, CreateSuggestion, DecisionAdvice, WeekNote } from "$lib/projects/assist";
 import type { Progress } from "$lib/projects/types";
 import { api, apiGet, callApi, unwrapOk } from "./api";
 import type { ActivityWeight } from "./records";
@@ -32,8 +25,6 @@ export const getIntegrations = () =>
   callApi(api.integrations.$get()).then((r) => unwrapOk(r).integrations as IntegrationStatus[]);
 export const startGoogleConnect = (mode: "app" | "web", origin: string) =>
   callApi(api.integrations.google.start.$post({ mode, origin })).then((r) => unwrapOk(r).url);
-export const disconnectGoogle = (accountId: string) =>
-  callApi(api.integrations.google.$delete({ accountId })).then(unwrapOk);
 
 // Preferences
 /** What an integration on this device observed for the occurrences it is linked to — see `integrations.svelte.ts`. */
@@ -186,27 +177,3 @@ export const assistDecision = (input: {
   isLast: boolean;
   checkpoints: { day: string; count: number; moved: boolean; note: string }[];
 }) => callApi(api.projects.assist.decision.$post(input)).then((r) => unwrapOk(r) as Assisted<DecisionAdvice>);
-export type EventPlanInput = {
-  title: string;
-  description: string;
-  hours: number;
-  sphere: string;
-  project: {
-    id: string;
-    name: string;
-    description: string;
-    stage: string;
-    sentence: string;
-    hoursPerWeek: number;
-    tasks: {
-      id: string;
-      title: string;
-      estimateHours: number | null;
-      done: boolean;
-    }[];
-  } | null;
-  candidates: { id: string; name: string; description: string }[];
-  answers: { question: string; answer: string }[];
-};
-export const assistEvent = (input: EventPlanInput) =>
-  callApi(api.projects.assist.event.$post(input)).then((r) => unwrapOk(r) as Assisted<EventPlan>);

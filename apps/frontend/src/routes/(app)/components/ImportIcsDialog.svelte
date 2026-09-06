@@ -2,7 +2,7 @@
   import { Check, ChevronDown, Repeat } from "lucide-svelte";
   import { Button, CategoryIcon, Dialog, Dot, Popover, PopoverItem, ProgressBar } from "$lib/components";
   import { restColor } from "$lib/ui/colors";
-  import { DEFAULT_ICON } from "$lib/ui/icons/index";
+  import { DEFAULT_ICON } from "$lib/ui/icons";
   import { formatClock, formatDayDate } from "$lib/ui/format";
   import type { IcsEvent } from "$lib/calendar/ics";
   import { icsImport } from "$lib/calendar/ics-import.svelte";

@@ -8,6 +8,10 @@ import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { telemetry } from "$lib/platform/telemetry";
 import { progressData } from "./progress.svelte";
 import { sessionData } from "./session-data.svelte";
+
+/** The bar for everyone — the same number the server checks on commit (`planning/coverage.ts`). */
+const COVERAGE_THRESHOLD = 0.7;
+
 import type { SessionSummary, StarAward } from "./types";
 import { deviceTimeZone, localDay } from "./zone";
 
@@ -46,8 +50,8 @@ class PlanMode {
 
   /** Hours the ring gives this day — a seventh of what it claims for the week. */
   budgetHours = $state(0);
-  /** How full the day has to be, 0..1. */
-  threshold = $state(0.7);
+  /** How full the day has to be, 0..1 — the server's `COVERAGE_THRESHOLD`, until the summary says. */
+  threshold = $state(COVERAGE_THRESHOLD);
   /** What committing pays, worked out when the session opened. */
   award = $state<StarAward[]>([]);
   /** Set for the Sunday sitting, so finishing also commits the week. */

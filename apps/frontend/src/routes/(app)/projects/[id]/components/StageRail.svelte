@@ -3,7 +3,7 @@
   import type { GateProgress, Project, Stage } from "$lib/projects/types";
   import { Check, Plus, X } from "lucide-svelte";
   import { formatDayKey } from "$lib/projects/decide-on";
-  import { DecisionFuse } from "../../components";
+  import { DecisionFuse } from "$lib/components";
   import GatePanel from "./GatePanel.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import StageFields from "./StageFields.svelte";

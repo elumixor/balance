@@ -1,6 +1,6 @@
 import type { Category } from "$lib/core/records";
 import { restColor } from "$lib/ui/colors";
-import { DEFAULT_ICON } from "$lib/ui/icons/index";
+import { DEFAULT_ICON } from "$lib/ui/icons";
 import type { CalendarEvent } from "./types";
 
 const MS_PER_HOUR = 3_600_000;

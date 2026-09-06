@@ -1,7 +1,7 @@
 <script lang="ts">
   import { hueOf, withHue } from "$lib/ui/colors";
   import { CategoryIcon, IconGrid, Popover } from "$lib/components";
-  import { iconFor } from "$lib/ui/icons/index";
+  import { iconFor } from "$lib/ui/icons";
   import { Slider } from "bits-ui";
 
   /**

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Category } from "$lib/core/records";
 import { restColor } from "$lib/ui/colors";
-import { DEFAULT_ICON } from "$lib/ui/icons/index";
+import { DEFAULT_ICON } from "$lib/ui/icons";
 import { eventCategory } from "./event-category";
 import type { CalendarEvent } from "./types";
 import { NOT_A_MEETING } from "./types";

@@ -1,4 +1,5 @@
-import { preferences, type TravelMode } from "$lib/account/preferences.svelte";
+import { preferences } from "$lib/account/preferences.svelte";
+import type { TravelMode } from "$lib/account/preferences-types";
 import { api, callApi, unwrapOk } from "$lib/core/api";
 
 /** How long it takes to get somewhere, one way of going. */
@@ -42,7 +43,7 @@ export function arrivalFor(start: string) {
  * because Google Maps takes an "arrive by" as local time, and a UTC instant put there arrives
  * two hours early in Prague.
  */
-export function withOffset(instant: Date) {
+function withOffset(instant: Date) {
   const offset = -instant.getTimezoneOffset();
   const sign = offset < 0 ? "-" : "+";
   const pad = (n: number) => String(Math.abs(n)).padStart(2, "0");
