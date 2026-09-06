@@ -17,7 +17,8 @@ export function formatHoursDecimal(hours: number): string {
   return `${sign}${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}h`;
 }
 
-const pad = (n: number) => n.toString().padStart(2, "0");
+/** Two digits, the way a clock and a date input both want them. */
+export const pad2 = (n: number) => n.toString().padStart(2, "0");
 
 /** "14:05" — the format the inline entry editor reads and writes. */
 export function formatClock(date: Date) {

@@ -3,6 +3,12 @@ import { formatDateInput } from "$lib/ui/format";
 export const DAYS_PER_WEEK = 7;
 export const MINUTES_PER_DAY = 24 * 60;
 export const MS_PER_MINUTE = 60_000;
+export const MS_PER_DAY = MINUTES_PER_DAY * MS_PER_MINUTE;
+
+/** Whole local midnights between two instants — rounding is what survives the 23-hour DST day. */
+export function daysBetween(from: Date, to: Date): number {
+  return Math.round((startOfDay(to).getTime() - startOfDay(from).getTime()) / MS_PER_DAY);
+}
 
 export function startOfDay(date: Date): Date {
   const start = new Date(date);
