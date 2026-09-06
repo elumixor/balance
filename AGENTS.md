@@ -48,7 +48,7 @@ they're module-level singletons.
 
 Events live in Google Calendar and are never cached here. `apps/backend/server/lib/calendar/` owns
 the whole integration: a `CalendarProvider` interface with one Google implementation, the OAuth
-grant in `provider_accounts` (tokens encrypted, see `lib/crypto.ts`), and `event_mappings` saying
+grant in `provider_accounts` (tokens encrypted, see `calendar/crypto.ts`), and `event_mappings` saying
 what each event counts as. `CalendarEventsService.resolve` is the single read path — the calendar
 screen and `/mobile/stats` both go through it, so they can't disagree about a week.
 
@@ -261,6 +261,20 @@ client keys are public by design and live in one place (`VITE_SENTRY_DSN`, `VITE
 which the release lane writes into the iOS and watchOS `Info.plist`s so all four platforms report
 to one project.
 
+## A route is a signature, a service is the work
+
+`server/lib/` is one folder per subject — `auth`, `categories`, `calendar`, `planning`, `projects`,
+`preferences`, `tracking`, `travel`, `stats`, `sync`, `watch` — and `db/schema/` is split the same
+way, re-exported from its `index.ts`. Every import is `~/lib/...`, never a relative climb. A route
+under `routes/mobile/**` is `authed(schemas, fn)` from `lib/http/authed.ts`: the schemas, the user
+already resolved, the service call, the DTO — and nothing else. No route catches: `server/error.ts`
+is the one place an error becomes a response. An `ApiError` (`lib/http/api-error.ts`, with the
+typed 401/404/409/502 subclasses) is an answer and goes out as its status with `{ error }`; a zod
+refusal goes out as 400 naming the field; anything else is reported to Sentry and answered as a
+500 that says nothing about what broke. The typed client is generated from those signatures, so a
+route's return type is its contract — the `{ error }` union that every caller used to unwrap is
+gone with the catches.
+
 ## Configuration is required, never defaulted
 
 `server/lib/env.ts` is the only place the API reads its environment: one zod schema, every key
@@ -325,7 +339,7 @@ observation. `allocate.ts` fits claims under the cap top-down; applying it is a 
 presses. Filling the week is a solver (`calendar/filler.ts`): remaining claims into free working
 hours, projects taking turns in rank order, shown as a diff of blocks to accept or trim.
 
-The model's six moments are `server/lib/projects/assist.ts` and the `projects/assist/*` routes,
+The model's six moments are `server/lib/projects/assist/` (schemas, prompts, the five entry points, all over one `lib/ai/gateway.ts`) and the `projects/assist/*` routes,
 and all of them are proposals: gate sentences for a vague idea (including "this is a recurring
 event"), a note over the week's fill about what to drop, subtasks out of a stuck checkpoint's note,
 a recommendation on decision day, and a calendar block worked out into a project, a task, steps and a length (the route exists; the card's assistant button does not call it yet). None of them writes a record, moves a date, marks a gate or
