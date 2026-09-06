@@ -1,4 +1,4 @@
-import { api, callApi, unwrapOk } from "./api";
+import { api, callApi, unwrapOk } from "$lib/core/api";
 
 /** One address Google recognises, as it is offered while somebody types. */
 export interface PlaceSuggestion {

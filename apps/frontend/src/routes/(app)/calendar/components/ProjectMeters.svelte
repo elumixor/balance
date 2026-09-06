@@ -1,9 +1,10 @@
 <script lang="ts">
   import { Dot, ProgressBar } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { formatHoursDecimal } from "$lib/format";
-  import { projects } from "$lib/synced.svelte";
-  import type { CalendarEvent, Category } from "$lib/types";
+import type { Category } from "$lib/core/records";
+  import { restColor } from "$lib/ui/colors";
+  import { formatHoursDecimal } from "$lib/ui/format";
+  import { projects } from "$lib/core/synced.svelte";
+  import type { CalendarEvent } from "$lib/calendar/types";
   import { projectHours } from "$lib/calendar/project-hours";
 
   /**

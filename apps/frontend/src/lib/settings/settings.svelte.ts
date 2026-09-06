@@ -1,4 +1,4 @@
-import type { Pane } from "$lib/settings/panes";
+import type { Pane } from "./panes";
 
 /**
  * Whether the settings panel is open, and on which page.

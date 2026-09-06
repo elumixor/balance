@@ -4,7 +4,7 @@
   import { Dot, EmptyState, Screen, Segmented, Skeleton } from "$lib/components";
   import { PracticeRow, ProjectCard, RankingPrompt } from "./components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
-  import { synced } from "$lib/synced.svelte";
+  import { synced } from "$lib/core/synced.svelte";
   import { Plus, Sparkles } from "lucide-svelte";
 
   /**

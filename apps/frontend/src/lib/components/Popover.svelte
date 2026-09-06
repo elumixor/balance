@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { safeArea } from "$lib/safe-area";
+  import { safeArea } from "$lib/platform/safe-area";
   import type { Snippet } from "svelte";
 
   /**

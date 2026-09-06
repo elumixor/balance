@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Button } from "$lib/components";
-  import { formatHoursDecimal } from "$lib/format";
-  import type { Category } from "$lib/types";
-  import { projects } from "$lib/synced.svelte";
+  import { formatHoursDecimal } from "$lib/ui/format";
+  import type { Category } from "$lib/core/records";
+  import { projects } from "$lib/core/synced.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
 
   /**

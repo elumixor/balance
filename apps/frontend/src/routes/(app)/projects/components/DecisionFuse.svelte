@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { restColor } from "$lib/colors";
+  import { restColor } from "$lib/ui/colors";
   import { addDaysKey, checkpointsBetween, daysBetweenKeys, EXTENSION_DAYS } from "$lib/projects/decide-on";
 
   /**

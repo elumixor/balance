@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Dot } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { formatHoursDecimal } from "$lib/format";
+  import { restColor } from "$lib/ui/colors";
+  import { formatHoursDecimal } from "$lib/ui/format";
   import { CircleDashed, Flag } from "lucide-svelte";
   import DecisionFuse from "./DecisionFuse.svelte";
   import ProjectCover from "./ProjectCover.svelte";

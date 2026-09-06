@@ -1,5 +1,5 @@
-import { addDays, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "$lib/dates";
-import type { CalendarEvent } from "$lib/types";
+import { addDays, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "./dates";
+import type { CalendarEvent } from "./types";
 
 /** An hour's height at rest. Pinching scales it — see `time-scale.svelte.ts`. */
 export const HOUR_PX = 48;

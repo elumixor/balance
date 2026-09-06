@@ -1,7 +1,7 @@
 import { App } from "@capacitor/app";
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { API_BASE_URL } from "$lib/api";
-import { auth } from "$lib/auth.svelte";
+import { auth } from "$lib/account/auth.svelte";
+import { API_BASE_URL } from "$lib/core/api";
 
 /**
  * Giving the watch app a session of its own.

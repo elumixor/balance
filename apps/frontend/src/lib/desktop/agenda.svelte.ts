@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
-import { agenda } from "$lib/agenda.svelte";
-import type { CalendarEvent, Category } from "$lib/types";
+import { agenda } from "$lib/calendar/agenda.svelte";
+import type { CalendarEvent } from "$lib/calendar/types";
+import type { Category } from "$lib/core/records";
 import { isDesktop } from "./platform";
 
 /**

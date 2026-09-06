@@ -1,5 +1,5 @@
 import { CalendarDays, ChartPie, Hexagon } from "lucide-svelte";
-import { syncing } from "$lib/store.svelte";
+import { syncing } from "$lib/core/store.svelte";
 
 /**
  * The three views of the app: the week as it happens, the week as you meant it to go, and the

@@ -1,8 +1,9 @@
 <script lang="ts">
   import { Button, Textarea } from "$lib/components";
-  import { formatHoursDecimal } from "$lib/format";
-  import { assistCheckpoint } from "$lib/queries";
-  import type { CheckpointHelp, GateProgress, Stage } from "$lib/types";
+import type { GateProgress, Stage } from "$lib/projects/types";
+  import { formatHoursDecimal } from "$lib/ui/format";
+  import { assistCheckpoint } from "$lib/core/queries";
+  import type { CheckpointHelp } from "$lib/projects/assist";
   import { formatDayKey } from "$lib/projects/decide-on";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { gateReadout } from "$lib/projects/templates";

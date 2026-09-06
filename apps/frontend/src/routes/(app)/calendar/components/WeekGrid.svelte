@@ -1,8 +1,9 @@
 <script lang="ts">
   import { planMode } from "$lib/planning/plan-mode.svelte";
-  import { clock } from "$lib/clock.svelte";
-  import { addDays, minutesIntoDay, startOfDay } from "$lib/dates";
-  import { type CalendarEvent, type Category, NOT_A_MEETING } from "$lib/types";
+import { type Category } from "$lib/core/records";
+  import { clock } from "$lib/platform/clock.svelte";
+  import { addDays, minutesIntoDay, startOfDay } from "$lib/calendar/dates";
+  import { type CalendarEvent, NOT_A_MEETING } from "$lib/calendar/types";
   import { calendarData, STRIP_DAYS } from "$lib/calendar/calendar-data.svelte";
   import { Button } from "$lib/components";
   import { LocateFixed } from "lucide-svelte";
@@ -14,21 +15,21 @@
   import { freeScroll, onWheelGesture, wheelGestureActive } from "$lib/calendar/free-scroll";
   import { pinch } from "$lib/calendar/pinch";
   import { anchoredScrollTop, timeScale } from "$lib/calendar/time-scale.svelte";
-  import { theme } from "$lib/theme.svelte";
-  import { viewport } from "$lib/viewport.svelte";
+  import { theme } from "$lib/ui/theme.svelte";
+  import { viewport } from "$lib/platform/viewport.svelte";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import { decisionMarkers } from "$lib/calendar/markers";
-  import { projects, stages } from "$lib/synced.svelte";
+  import { projects, stages } from "$lib/core/synced.svelte";
   import { Bike, Bus, Car, Flag, Footprints, Minus, Plus } from "lucide-svelte";
-  import { formatHoursAndMinutes } from "$lib/format";
+  import { formatHoursAndMinutes } from "$lib/ui/format";
   import { openExternal } from "$lib/desktop/open";
   import TimeZonePicker from "./TimeZonePicker.svelte";
-  import { preferences, type TravelMode } from "$lib/preferences.svelte";
+  import { preferences, type TravelMode } from "$lib/account/preferences.svelte";
   import { deviceTimeZone } from "$lib/planning/zone";
-  import { offsetMinutes, shortZoneName } from "$lib/time-zones";
-  import { travelTimes } from "$lib/travel-times.svelte";
+  import { offsetMinutes, shortZoneName } from "$lib/calendar/time-zones";
+  import { travelTimes } from "$lib/travel/times.svelte";
   import { eventCategory } from "$lib/calendar/event-category";
-  import { restColor, withAlpha } from "$lib/colors";
+  import { restColor, withAlpha } from "$lib/ui/colors";
   import {
     allDaySpansForRange,
     BLOCK_GUTTER_PX,

@@ -1,4 +1,5 @@
-import type { CalendarEvent, Category } from "$lib/types";
+import type { Category } from "$lib/core/records";
+import type { CalendarEvent } from "./types";
 
 /**
  * The category an event reads as: the heaviest slice of its activity's mix.

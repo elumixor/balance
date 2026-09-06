@@ -1,7 +1,7 @@
 <script lang="ts">
   import { CalendarPlus } from "lucide-svelte";
   import { fade } from "svelte/transition";
-  import { icsImport } from "$lib/ics-import.svelte";
+  import { icsImport } from "$lib/calendar/ics-import.svelte";
   import { isIOSApp } from "$lib/mobile/platform";
 
   /**

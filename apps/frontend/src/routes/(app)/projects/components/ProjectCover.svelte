@@ -1,8 +1,8 @@
 <script lang="ts">
   import { CategoryIcon } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { DEFAULT_ICON } from "$lib/icons";
-  import type { Category } from "$lib/types";
+  import { restColor } from "$lib/ui/colors";
+  import { DEFAULT_ICON } from "$lib/ui/icons/index";
+  import type { Category } from "$lib/core/records";
 
   /**
    * What a project looks like at a glance: its art, its logo, an emoji — or, with none of those,

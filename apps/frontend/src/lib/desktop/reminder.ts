@@ -1,4 +1,4 @@
-import type { TravelLeg } from "$lib/travel";
+import type { TravelLeg } from "$lib/travel/legs";
 
 /**
  * What a reminder card shows, and how it gets to the window that shows it.

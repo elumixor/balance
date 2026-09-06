@@ -1,9 +1,6 @@
 import { model, type Signals, type SyncedStorage, syncedClient } from "@elumixor/synced/client";
 import type { SyncResponse } from "@elumixor/synced/protocol";
-import { api, callApi } from "./api";
 import type {
-  Activity,
-  Category,
   GateEvent,
   Goal,
   Practice,
@@ -12,7 +9,9 @@ import type {
   Stage,
   StageOutcome,
   Task,
-} from "./types";
+} from "$lib/projects/types";
+import { api, callApi } from "./api";
+import type { Activity, Category } from "./records";
 
 /**
  * The app's own records — the ones this server owns, as opposed to the calendar's.

@@ -1,4 +1,4 @@
-import { isNativeShell } from "./desktop/platform";
+import { isNativeShell } from "$lib/desktop/platform";
 
 /**
  * Whether a keystroke belongs to a text field rather than to the app.

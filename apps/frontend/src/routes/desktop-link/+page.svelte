@@ -1,9 +1,9 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { auth, authErrorMessage } from "$lib/auth.svelte";
+  import { auth, authErrorMessage } from "$lib/account/auth.svelte";
   import { AuthShell, Button, Spinner } from "$lib/components";
-  import { createDesktopTicket } from "$lib/queries";
-  import { diagnostics } from "$lib/diagnostics.svelte";
+  import { createDesktopTicket } from "$lib/core/queries";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
 
   /**
    * The browser half of signing in to the macOS app.

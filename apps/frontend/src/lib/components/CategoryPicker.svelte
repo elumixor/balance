@@ -1,7 +1,7 @@
 <script lang="ts">
-  import CategoryIcon from "$lib/components/CategoryIcon.svelte";
-  import AnchoredPopup from "$lib/components/AnchoredPopup.svelte";
-  import type { Category } from "$lib/types";
+  import CategoryIcon from "./CategoryIcon.svelte";
+  import AnchoredPopup from "./AnchoredPopup.svelte";
+  import type { Category } from "$lib/core/records";
 
   /**
    * A category, chosen by typing. The whole picker is one thing whether it's answering for the

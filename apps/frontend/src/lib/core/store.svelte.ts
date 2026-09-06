@@ -1,12 +1,12 @@
 import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
+import { weekKey, weekRange } from "$lib/calendar/dates";
+import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
+import { deviceTimeZone, localDay } from "$lib/planning/zone";
 import { Cached } from "./cache.svelte";
-import { weekKey, weekRange } from "./dates";
 import * as persist from "./persist";
-import { deviceTimeZone, localDay } from "./planning/zone";
 import { getCalendarPrefs, getCalendarWeek, getIntegrations, getPreferences, getProjectProgress } from "./queries";
 import { synced } from "./synced.svelte";
-import type { CalendarEvent, CalendarWeek } from "./types";
 
 /**
  * What the app reads but never writes: the calendar's answer to a week, and the state of the

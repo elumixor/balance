@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Popover, PopoverItem } from "$lib/components";
-  import { goals } from "$lib/synced.svelte";
-  import type { Goal } from "$lib/types";
+  import { goals } from "$lib/core/synced.svelte";
+  import type { Goal } from "$lib/projects/types";
   import { ChevronDown, Flag, Plus } from "lucide-svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
 

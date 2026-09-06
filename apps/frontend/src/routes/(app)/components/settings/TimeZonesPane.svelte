@@ -1,8 +1,8 @@
 <script lang="ts">
   import { ComboField, Field, Tooltip } from "$lib/components";
-  import { clock } from "$lib/clock.svelte";
-  import { preferences } from "$lib/preferences.svelte";
-  import { offsetLabel, searchZones } from "$lib/time-zones";
+  import { clock } from "$lib/platform/clock.svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
+  import { offsetLabel, searchZones } from "$lib/calendar/time-zones";
   import { Plus, Trash2 } from "lucide-svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { auth } from "$lib/auth.svelte";
-  import { SETTINGS_HOTKEY } from "$lib/keys";
+  import { auth } from "$lib/account/auth.svelte";
+  import { SETTINGS_HOTKEY } from "$lib/platform/keys";
   import { progressData } from "$lib/planning/progress.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";

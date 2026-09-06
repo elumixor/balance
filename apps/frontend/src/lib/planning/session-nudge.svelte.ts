@@ -1,5 +1,5 @@
-import { clock } from "$lib/clock.svelte";
-import { preferences } from "$lib/preferences.svelte";
+import { preferences } from "$lib/account/preferences.svelte";
+import { clock } from "$lib/platform/clock.svelte";
 import { planMode } from "./plan-mode.svelte";
 import { sessionData } from "./session-data.svelte";
 import { minutesOf, slotNow } from "./zone";

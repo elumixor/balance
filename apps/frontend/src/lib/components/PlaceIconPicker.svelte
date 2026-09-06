@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { iconFor, PLACE_ICON } from "$lib/icons";
+  import { iconFor, PLACE_ICON } from "$lib/ui/icons/index";
   import IconGrid from "./IconGrid.svelte";
   import Popover from "./Popover.svelte";
 

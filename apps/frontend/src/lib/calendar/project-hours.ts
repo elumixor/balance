@@ -1,4 +1,5 @@
-import type { CalendarEvent, Project } from "$lib/types";
+import type { Project } from "$lib/projects/types";
+import type { CalendarEvent } from "./types";
 
 const MS_PER_HOUR = 3_600_000;
 

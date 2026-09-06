@@ -1,7 +1,7 @@
 <script lang="ts">
   import ComboField, { type ComboOption } from "$lib/components/ComboField.svelte";
-  import { describeLead, formatLead, LEAD_PRESETS, parseLead } from "$lib/reminder-lead";
-  import type { EventReminder } from "$lib/types";
+  import { describeLead, formatLead, LEAD_PRESETS, parseLead } from "$lib/calendar/reminder-lead";
+  import type { EventReminder } from "$lib/calendar/types";
   import { Bell, Plus, X } from "lucide-svelte";
   import { CardRow } from "$lib/components";
 

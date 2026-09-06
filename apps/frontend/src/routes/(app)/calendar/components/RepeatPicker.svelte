@@ -1,6 +1,6 @@
 <script lang="ts">
   import { AnchoredPopup, NumberField, Segmented } from "$lib/components";
-  import { formatDateInput } from "$lib/format";
+  import { formatDateInput } from "$lib/ui/format";
   import { describe, type Frequency, NEVER, presets, type Rule, type RuleEnd, toRRule } from "$lib/calendar/recurrence";
 
   /**

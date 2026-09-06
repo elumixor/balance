@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { iconFor, iconLabel, searchIcons } from "$lib/icons";
+  import { iconFor, iconLabel, searchIcons } from "$lib/ui/icons/index";
 
   /**
    * Every glyph the app has, searched and picked. The category picker draws a hue slider under

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { CategoryIcon } from "$lib/components";
-  import { restColor } from "$lib/colors";
+  import { restColor } from "$lib/ui/colors";
   import type { SessionBlock } from "$lib/planning/types";
 
   /**

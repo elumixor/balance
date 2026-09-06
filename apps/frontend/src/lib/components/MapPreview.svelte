@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { lookupPlace, MAP_PREVIEW, mapAround, type PlaceDetails, placeUrl } from "$lib/places";
-  import { theme } from "$lib/theme.svelte";
+  import { lookupPlace, MAP_PREVIEW, mapAround, type PlaceDetails, placeUrl } from "$lib/travel/places";
+  import { theme } from "$lib/ui/theme.svelte";
   import { MapPin } from "lucide-svelte";
   import Skeleton from "./Skeleton.svelte";
 

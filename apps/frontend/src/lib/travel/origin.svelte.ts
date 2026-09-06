@@ -1,5 +1,5 @@
-import { read, write } from "./persist";
-import { preferences } from "./preferences.svelte";
+import { preferences } from "$lib/account/preferences.svelte";
+import { read, write } from "$lib/core/persist";
 
 /**
  * Where a journey starts.

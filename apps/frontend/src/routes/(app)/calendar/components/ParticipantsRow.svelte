@@ -1,6 +1,6 @@
 <script lang="ts">
   import { CardRow, Dot, Tooltip } from "$lib/components";
-  import type { EventAttendee, EventResponse } from "$lib/types";
+  import type { EventAttendee, EventResponse } from "$lib/calendar/types";
   import { Crown, Plus, Users, X } from "lucide-svelte";
   import type { Snippet } from "svelte";
 

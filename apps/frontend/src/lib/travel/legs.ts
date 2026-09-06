@@ -1,5 +1,5 @@
-import { api, callApi, unwrapOk } from "./api";
-import { preferences, type TravelMode } from "./preferences.svelte";
+import { preferences, type TravelMode } from "$lib/account/preferences.svelte";
+import { api, callApi, unwrapOk } from "$lib/core/api";
 
 /** How long it takes to get somewhere, one way of going. */
 export interface TravelLeg {

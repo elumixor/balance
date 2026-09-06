@@ -1,6 +1,5 @@
-import { clock } from "$lib/clock.svelte";
-import { localDay } from "$lib/planning/zone";
-import { invalidate, store } from "$lib/store.svelte";
+import type { Category } from "$lib/core/records";
+import { invalidate, store } from "$lib/core/store.svelte";
 import {
   categories,
   comparisons,
@@ -13,12 +12,14 @@ import {
   synced,
   syncStatus,
   tasks,
-} from "$lib/synced.svelte";
-import type { Category, GateProgress, Goal, Practice, Project, ProjectStatus, Stage, Task } from "$lib/types";
+} from "$lib/core/synced.svelte";
+import { localDay } from "$lib/planning/zone";
+import { clock } from "$lib/platform/clock.svelte";
 import { allocate, overclaim } from "./allocate";
 import { daysBetweenKeys, dueCheckpoint } from "./decide-on";
 import { type Dimension, nextQuestion, pattern, type Question, rankOrder } from "./ranking";
 import { ARCHIVE_STATUSES, type StageTemplate, templateOf } from "./templates";
+import type { GateProgress, Goal, Practice, Project, ProjectStatus, Stage, Task } from "./types";
 
 /** How long after the last keystroke an edit burst counts as finished — one press of undo. */
 const BURST_MS = 700;

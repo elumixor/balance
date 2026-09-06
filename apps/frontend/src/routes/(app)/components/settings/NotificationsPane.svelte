@@ -1,7 +1,7 @@
 <script lang="ts">
   import { NumberField, Select } from "$lib/components";
   import { isNativeShell } from "$lib/desktop/platform";
-  import { preferences } from "$lib/preferences.svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
   import TimeInput from "./TimeInput.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
   import ToggleRow from "./ToggleRow.svelte";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Split } from "$lib/types";
+  import type { Split } from "$lib/components/ring/types";
 
   /**
    * The same stacked bar shows an activity's category mix everywhere it appears —

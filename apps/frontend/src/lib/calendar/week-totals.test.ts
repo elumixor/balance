@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { restColor } from "$lib/colors";
-import { DEFAULT_ICON } from "$lib/icons";
-import type { CalendarEvent, Category } from "$lib/types";
-import { NOT_A_MEETING } from "$lib/types";
+import type { Category } from "$lib/core/records";
+import { restColor } from "$lib/ui/colors";
+import { DEFAULT_ICON } from "$lib/ui/icons/index";
 import { eventCategory } from "./event-category";
+import type { CalendarEvent } from "./types";
+import { NOT_A_MEETING } from "./types";
 import { weekTotals } from "./week-totals";
 
 function category(id: string, extra: Partial<Category> = {}): Category {

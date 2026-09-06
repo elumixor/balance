@@ -12,7 +12,7 @@
   import { Popover, Switch } from "$lib/components";
   import { FEEDS, INTEGRATIONS, integrations } from "$lib/integrations/integrations.svelte";
   import { settings } from "$lib/settings";
-  import { invalidate } from "$lib/store.svelte";
+  import { invalidate } from "$lib/core/store.svelte";
   import { Plug, RefreshCw, X } from "lucide-svelte";
 
   /**

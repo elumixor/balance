@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { clock } from "$lib/clock.svelte";
+  import { clock } from "$lib/platform/clock.svelte";
+import type { Category } from "$lib/core/records";
   import { CategoryIcon, CategoryPicker } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { formatClock } from "$lib/format";
-  import { DEFAULT_ICON } from "$lib/icons";
-  import { store } from "$lib/store.svelte";
-  import type { CalendarEvent, Category } from "$lib/types";
+  import { restColor } from "$lib/ui/colors";
+  import { formatClock } from "$lib/ui/format";
+  import { DEFAULT_ICON } from "$lib/ui/icons/index";
+  import { store } from "$lib/core/store.svelte";
+  import type { CalendarEvent } from "$lib/calendar/types";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { eventCategory } from "$lib/calendar/event-category";
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { auth } from "$lib/auth.svelte";
+  import { auth } from "$lib/account/auth.svelte";
   import { AppLoading } from "$lib/components";
 
   // Where Clerk drops the browser after a provider round-trip; it reads the result

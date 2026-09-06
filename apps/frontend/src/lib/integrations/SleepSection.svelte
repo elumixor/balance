@@ -1,8 +1,8 @@
 <script lang="ts">
   import { CardRow, SplitBar } from "$lib/components";
-  import { formatClock, formatHoursAndMinutes } from "$lib/format";
+  import { formatClock, formatHoursAndMinutes } from "$lib/ui/format";
   import { isIOSApp } from "$lib/mobile/platform";
-  import type { CalendarEvent } from "$lib/types";
+  import type { CalendarEvent } from "$lib/calendar/types";
   import { Moon } from "lucide-svelte";
   import { asSleepScore } from "./sleep-score";
   import { asSleepPlan, asSleepSummary } from "./sleep-summary";

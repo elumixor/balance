@@ -1,8 +1,9 @@
 <script lang="ts">
   import { Button, Dialog, Field, NumberField, Select, Textarea } from "$lib/components";
-  import { assistDecision } from "$lib/queries";
-  import type { DecisionAdvice, GateMetric, GateProgress, Project, Stage, StageOutcome } from "$lib/types";
-  import { formatHoursDecimal } from "$lib/format";
+import type { GateMetric, GateProgress, Project, Stage, StageOutcome } from "$lib/projects/types";
+  import { assistDecision } from "$lib/core/queries";
+  import type { DecisionAdvice } from "$lib/projects/assist";
+  import { formatHoursDecimal } from "$lib/ui/format";
   import { formatDayKey } from "$lib/projects/decide-on";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { gateReadout, METRIC_LABELS } from "$lib/projects/templates";

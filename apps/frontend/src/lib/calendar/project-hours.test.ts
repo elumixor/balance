@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { type CalendarEvent, NOT_A_MEETING, type Project } from "$lib/types";
+import type { Project } from "$lib/projects/types";
 import { projectHours } from "./project-hours";
+import { type CalendarEvent, NOT_A_MEETING } from "./types";
 
 const weekStart = new Date(2026, 8, 7); // Monday 7 Sep 2026, local
 

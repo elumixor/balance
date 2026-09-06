@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ProjectStatus } from "$lib/types";
+  import type { ProjectStatus } from "$lib/projects/types";
   import { STATUS_LABELS } from "$lib/projects/templates";
 
   /**

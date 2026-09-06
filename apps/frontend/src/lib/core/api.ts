@@ -1,6 +1,6 @@
-import { NitroAPI } from "./api-client";
-import { auth } from "./auth.svelte";
-import { diagnostics } from "./diagnostics.svelte";
+import { auth } from "$lib/account/auth.svelte";
+import { NitroAPI } from "$lib/api-client";
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { API_BASE_URL, apiBaseUrlProblem } from "./env";
 
 export { API_BASE_URL };

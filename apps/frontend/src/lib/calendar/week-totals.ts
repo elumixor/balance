@@ -1,6 +1,7 @@
-import { restColor } from "$lib/colors";
-import { DEFAULT_ICON } from "$lib/icons";
-import type { CalendarEvent, Category } from "$lib/types";
+import type { Category } from "$lib/core/records";
+import { restColor } from "$lib/ui/colors";
+import { DEFAULT_ICON } from "$lib/ui/icons/index";
+import type { CalendarEvent } from "./types";
 
 const MS_PER_HOUR = 3_600_000;
 const HOURS_PER_WEEK = 168;

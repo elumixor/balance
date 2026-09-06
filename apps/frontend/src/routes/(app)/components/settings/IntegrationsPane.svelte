@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Button, Tooltip } from "$lib/components";
   import { feedKey, INTEGRATIONS, type Integration, integrations } from "$lib/integrations/integrations.svelte";
-  import { preferences } from "$lib/preferences.svelte";
-  import { invalidate } from "$lib/store.svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
+  import { invalidate } from "$lib/core/store.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   /**

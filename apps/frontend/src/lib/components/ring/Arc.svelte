@@ -8,7 +8,7 @@
 </script>
 
 <script lang="ts">
-  import { theme } from "$lib/theme.svelte";
+  import { theme } from "$lib/ui/theme.svelte";
 
   let {
     cx,

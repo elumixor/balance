@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { type PlaceSuggestion, suggestPlaces } from "$lib/places";
+  import { type PlaceSuggestion, suggestPlaces } from "$lib/travel/places";
   import ComboField, { type ComboOption } from "./ComboField.svelte";
   import { MapPin } from "lucide-svelte";
 

@@ -2,9 +2,9 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { startGoogleConnect } from "$lib/core/queries";
+import { invalidate, store } from "$lib/core/store.svelte";
 import { isDesktop } from "$lib/desktop/platform";
-import { startGoogleConnect } from "$lib/queries";
-import { invalidate, store } from "$lib/store.svelte";
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 60_000;

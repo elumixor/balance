@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { auth } from "$lib/auth.svelte";
+  import { auth } from "$lib/account/auth.svelte";
   import BrandMark from "./BrandMark.svelte";
   import Button from "./Button.svelte";
 

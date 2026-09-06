@@ -2,8 +2,8 @@ import { Capacitor } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
 import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Clerk } from "@clerk/clerk-js";
-import { API_BASE_URL, DEV_AUTH, DEV_AUTH_EMAIL } from "./env";
-import { getProfile } from "./queries";
+import { API_BASE_URL, DEV_AUTH, DEV_AUTH_EMAIL } from "$lib/core/env";
+import { getProfile } from "$lib/core/queries";
 
 // Clerk publishable keys are public identifiers (not secrets) — safe to ship in the client bundle.
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;

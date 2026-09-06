@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { Cached } from "./cache.svelte";
-import { diagnostics } from "./diagnostics.svelte";
 import * as persist from "./persist";
 
 /** A fetcher whose answers the test hands out one at a time. */

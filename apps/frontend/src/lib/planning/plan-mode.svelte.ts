@@ -1,11 +1,11 @@
 import { goto } from "$app/navigation";
-import type { Cached } from "$lib/cache.svelte";
-import { weekKey } from "$lib/dates";
-import { diagnostics } from "$lib/diagnostics.svelte";
-import { commitPlannedDay, commitPlannedWeek } from "$lib/queries";
-import { calendarWeek } from "$lib/store.svelte";
-import { telemetry } from "$lib/telemetry";
-import type { CalendarWeek } from "$lib/types";
+import { weekKey } from "$lib/calendar/dates";
+import type { CalendarWeek } from "$lib/calendar/types";
+import type { Cached } from "$lib/core/cache.svelte";
+import { commitPlannedDay, commitPlannedWeek } from "$lib/core/queries";
+import { calendarWeek } from "$lib/core/store.svelte";
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
+import { telemetry } from "$lib/platform/telemetry";
 import { progressData } from "./progress.svelte";
 import { sessionData } from "./session-data.svelte";
 import type { SessionSummary, StarAward } from "./types";

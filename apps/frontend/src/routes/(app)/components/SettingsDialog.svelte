@@ -1,15 +1,15 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { tick } from "svelte";
-  import { auth } from "$lib/auth.svelte";
-  import { buildInfo } from "$lib/build-info";
-  import { telemetry } from "$lib/telemetry";
+  import { auth } from "$lib/account/auth.svelte";
+  import { buildInfo } from "$lib/core/build-info";
+  import { telemetry } from "$lib/platform/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
   import { IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
   import { type Pane, PANES } from "$lib/settings";
-  import { preferences } from "$lib/preferences.svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
   import { settings } from "$lib/settings";
-  import { clearStore } from "$lib/store.svelte";
+  import { clearStore } from "$lib/core/store.svelte";
   import { progressData } from "$lib/planning/progress.svelte";
   import { Dialog } from "$lib/components";
 

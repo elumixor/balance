@@ -1,6 +1,6 @@
 <script lang="ts">
   import { CardRow, Popover, PopoverItem } from "$lib/components";
-  import type { Meeting } from "$lib/meeting";
+  import type { Meeting } from "$lib/calendar/meeting";
   import { Check, Copy, Video, X } from "lucide-svelte";
 
   /**

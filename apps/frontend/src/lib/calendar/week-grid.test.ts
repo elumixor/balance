@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CalendarEvent } from "$lib/types";
-import { NOT_A_MEETING } from "$lib/types";
+import type { CalendarEvent } from "./types";
+import { NOT_A_MEETING } from "./types";
 import {
   allDaySpansForRange,
   BLOCK_GUTTER_PX,

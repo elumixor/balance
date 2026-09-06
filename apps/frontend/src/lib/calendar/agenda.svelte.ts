@@ -1,9 +1,10 @@
 import { untrack } from "svelte";
-import type { Cached } from "$lib/cache.svelte";
-import { addDays, DAYS_PER_WEEK, startOfWeek, weekKey } from "$lib/dates";
-import { calendarWeek, invalidate } from "$lib/store.svelte";
-import { categories, synced } from "$lib/synced.svelte";
-import type { CalendarEvent, CalendarWeek, Category } from "$lib/types";
+import type { Cached } from "$lib/core/cache.svelte";
+import type { Category } from "$lib/core/records";
+import { calendarWeek, invalidate } from "$lib/core/store.svelte";
+import { categories, synced } from "$lib/core/synced.svelte";
+import { addDays, DAYS_PER_WEEK, startOfWeek, weekKey } from "./dates";
+import type { CalendarEvent, CalendarWeek } from "./types";
 
 /**
  * What's still coming, for the parts of the app that outlive every screen.

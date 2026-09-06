@@ -1,6 +1,7 @@
 <script lang="ts">
   import { AnchoredPopup, CategoryPicker, PopoverItem } from "$lib/components";
-  import type { CalendarEvent, Category } from "$lib/types";
+import type { Category } from "$lib/core/records";
+  import type { CalendarEvent } from "$lib/calendar/types";
   import ProjectPicker from "./ProjectPicker.svelte";
   import { Copy, Hexagon, Tag, Trash2 } from "lucide-svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";

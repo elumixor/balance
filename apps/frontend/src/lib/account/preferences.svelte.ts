@@ -1,6 +1,6 @@
+import { updatePreferences } from "$lib/core/queries";
+import { store } from "$lib/core/store.svelte";
 import { deviceTimeZone } from "$lib/planning/zone";
-import { updatePreferences } from "./queries";
-import { store } from "./store.svelte";
 
 /**
  * How you want to be reminded, and how you get around.

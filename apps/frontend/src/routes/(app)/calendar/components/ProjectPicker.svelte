@@ -1,7 +1,7 @@
 <script lang="ts">
   import { AnchoredPopup, Dot } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { categories, practices, projects } from "$lib/synced.svelte";
+  import { restColor } from "$lib/ui/colors";
+  import { categories, practices, projects } from "$lib/core/synced.svelte";
   import { projectsData } from "$lib/projects/projects-data.svelte";
   import { Plus, Repeat } from "lucide-svelte";
 

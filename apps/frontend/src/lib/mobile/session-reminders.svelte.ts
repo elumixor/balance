@@ -1,9 +1,9 @@
 import { type LocalNotificationSchema, LocalNotifications } from "@capacitor/local-notifications";
 import { goto } from "$app/navigation";
-import { clock } from "$lib/clock.svelte";
+import { preferences } from "$lib/account/preferences.svelte";
+import { getSessionNotifications } from "$lib/core/queries";
 import { deviceTimeZone } from "$lib/planning/zone";
-import { preferences } from "$lib/preferences.svelte";
-import { getSessionNotifications } from "$lib/queries";
+import { clock } from "$lib/platform/clock.svelte";
 import { isIOSApp } from "./platform";
 
 /**

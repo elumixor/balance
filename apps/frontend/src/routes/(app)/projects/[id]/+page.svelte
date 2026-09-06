@@ -2,14 +2,14 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { Button, CategoryPicker, Dot, Field, NumberField, Popover, PopoverItem, Select, Skeleton, Textarea } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { formatHoursDecimal } from "$lib/format";
+  import { restColor } from "$lib/ui/colors";
+  import { formatHoursDecimal } from "$lib/ui/format";
   import { CheckpointCard, CreateAssist, DecisionSheet, GoalPicker, HoursBars, LinksList, PeopleList, StageRail, TaskList } from "./components";
   import { ProjectCover, StatusChip } from "../components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { TEMPLATES } from "$lib/projects/templates";
-  import { synced } from "$lib/synced.svelte";
-  import type { ProjectTemplate } from "$lib/types";
+  import { synced } from "$lib/core/synced.svelte";
+  import type { ProjectTemplate } from "$lib/projects/types";
   import { ArrowLeft, MoreHorizontal } from "lucide-svelte";
 
   /**

@@ -1,5 +1,5 @@
-import type { ReminderKind } from "./desktop/reminder";
-import type { RemindersPrefs, TravelPrefs } from "./preferences.svelte";
+import type { RemindersPrefs, TravelPrefs } from "$lib/account/preferences.svelte";
+import type { ReminderKind } from "$lib/desktop/reminder";
 
 /**
  * When a reminder is due — the one answer the Mac's cards, the phone's notifications and the

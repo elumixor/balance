@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/svelte";
 import posthog from "posthog-js";
-import { buildInfo } from "./build-info";
-import { API_BASE_URL } from "./env";
+import { buildInfo } from "$lib/core/build-info";
+import { API_BASE_URL } from "$lib/core/env";
 
 /**
  * Where a failure goes once the app has said it out loud.

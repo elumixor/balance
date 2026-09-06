@@ -1,11 +1,12 @@
 <script lang="ts">
   import { Button, Dialog, Dot, NumberField } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { formatClock, formatDayDate, formatHoursDecimal } from "$lib/format";
+import type { WeekNote } from "$lib/projects/assist";
+  import { restColor } from "$lib/ui/colors";
+  import { formatClock, formatDayDate, formatHoursDecimal } from "$lib/ui/format";
   import { projectsData } from "$lib/projects/projects-data.svelte";
-  import { assistWeek } from "$lib/queries";
-  import { comparisons, projects } from "$lib/synced.svelte";
-  import type { Category, WeekNote } from "$lib/types";
+  import { assistWeek } from "$lib/core/queries";
+  import { comparisons, projects } from "$lib/core/synced.svelte";
+  import type { Category } from "$lib/core/records";
   import { rankOrder } from "$lib/projects/ranking";
   import { X } from "lucide-svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";

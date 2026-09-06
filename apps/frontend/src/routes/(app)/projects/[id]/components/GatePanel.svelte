@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components";
-  import { gateEvents } from "$lib/synced.svelte";
-  import type { GateProgress, Stage } from "$lib/types";
+  import { gateEvents } from "$lib/core/synced.svelte";
+  import type { GateProgress, Stage } from "$lib/projects/types";
   import { CircleDashed, PenLine, X } from "lucide-svelte";
   import { formatDayKey } from "$lib/projects/decide-on";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";

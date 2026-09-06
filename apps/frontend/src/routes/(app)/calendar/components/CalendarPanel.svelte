@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { categories } from "$lib/synced.svelte";
+  import { categories } from "$lib/core/synced.svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { CalendarsSection } from "$lib/calendar/components";
   import MonthGrid from "./MonthGrid.svelte";

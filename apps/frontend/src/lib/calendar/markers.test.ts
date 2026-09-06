@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Category, Project, Stage } from "$lib/types";
+import type { Category } from "$lib/core/records";
+import type { Project, Stage } from "$lib/projects/types";
 import { decisionMarkers } from "./markers";
 
 const stripStart = new Date(2026, 8, 7); // Mon 7 Sep 2026

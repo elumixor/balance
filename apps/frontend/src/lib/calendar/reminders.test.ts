@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PREFERENCES, type RemindersPrefs } from "./preferences.svelte";
+import { DEFAULT_PREFERENCES, type RemindersPrefs } from "$lib/account/preferences.svelte";
 import { JOIN_LEAD_MS, popupMinutes, REMINDER_KINDS, reminderDueAt } from "./reminders";
 
 const START = new Date("2026-03-10T09:00:00.000Z").getTime();

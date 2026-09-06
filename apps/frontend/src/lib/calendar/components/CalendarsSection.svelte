@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { restColor } from "$lib/colors";
-  import { updateCalendarPrefs } from "$lib/queries";
-  import { invalidate, store } from "$lib/store.svelte";
-  import type { CalendarRef } from "$lib/types";
+  import { restColor } from "$lib/ui/colors";
+  import { updateCalendarPrefs } from "$lib/core/queries";
+  import { invalidate, store } from "$lib/core/store.svelte";
+  import type { CalendarRef } from "$lib/calendar/types";
   import { Eye, EyeOff, Plus } from "lucide-svelte";
   import { Spinner } from "$lib/components";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { connectGoogle } from "$lib/calendar/connect";
-  import { diagnostics } from "$lib/diagnostics.svelte";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
 
   /**
    * Every connected account, grouped by the address it's signed in as, and which of their

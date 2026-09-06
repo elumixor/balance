@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components";
   import { openExternal } from "$lib/desktop/open";
-  import type { ProjectLink } from "$lib/types";
+  import type { ProjectLink } from "$lib/projects/types";
   import { Link2, Plus, X } from "lucide-svelte";
 
   /** Where the project lives elsewhere: a repo, a store page, the Notion page it was imported from. */

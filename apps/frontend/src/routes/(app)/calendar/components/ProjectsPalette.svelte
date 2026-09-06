@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Dot } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { formatHoursDecimal } from "$lib/format";
+  import { restColor } from "$lib/ui/colors";
+  import { formatHoursDecimal } from "$lib/ui/format";
   import { projectsData } from "$lib/projects/projects-data.svelte";
-  import type { Category } from "$lib/types";
+  import type { Category } from "$lib/core/records";
   import { CalendarPlus, GripVertical } from "lucide-svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import FillWeekSheet from "./FillWeekSheet.svelte";

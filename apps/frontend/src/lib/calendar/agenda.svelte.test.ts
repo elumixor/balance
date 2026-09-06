@@ -6,7 +6,7 @@ import type { CalendarWeek } from "./types";
  * The agenda reaches the calendar through the store, and the store reaches the network. None of
  * what's tested here is about either — only about what asking for a week does to whoever asked.
  */
-vi.mock("./queries", () => ({
+vi.mock("$lib/core/queries", () => ({
   getCalendarWeek: async (from: string, to: string): Promise<CalendarWeek> => ({
     from,
     to,
@@ -19,7 +19,7 @@ vi.mock("./queries", () => ({
   getCalendarPrefs: async () => ({ accounts: [], visibleCalendarIds: [] }),
   getPreferences: async () => ({}),
 }));
-vi.mock("./synced.svelte", () => ({
+vi.mock("$lib/core/synced.svelte", () => ({
   synced: { ensure: vi.fn(async () => undefined), syncing: false },
   categories: { all: [] },
 }));

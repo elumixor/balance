@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { clock } from "$lib/clock.svelte";
-  import { addDays, startOfWeek } from "$lib/dates";
-  import { theme } from "$lib/theme.svelte";
+  import { clock } from "$lib/platform/clock.svelte";
+  import { addDays, startOfWeek } from "$lib/calendar/dates";
+  import { theme } from "$lib/ui/theme.svelte";
   import { ChevronDown, ChevronUp, Undo2 } from "lucide-svelte";
   import { untrack } from "svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";

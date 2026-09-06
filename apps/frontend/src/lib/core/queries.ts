@@ -1,23 +1,25 @@
-import { api, apiGet, callApi, unwrapOk } from "./api";
-import type { CommitResult, SessionNotification, SessionSummary, Slot, StarProgress } from "./planning/types";
-import type { StoredPreferences } from "./preferences.svelte";
+import type { StoredPreferences } from "$lib/account/preferences.svelte";
 import type {
-  ActivityWeight,
-  Assisted,
   CalendarEvent,
   CalendarPrefs,
   CalendarWeek,
+  EventReminder,
+  EventTimer,
+  MappingScope,
+} from "$lib/calendar/types";
+import type { IntegrationStatus } from "$lib/integrations/types";
+import type { CommitResult, SessionNotification, SessionSummary, Slot, StarProgress } from "$lib/planning/types";
+import type {
+  Assisted,
   CheckpointHelp,
   CreateSuggestion,
   DecisionAdvice,
   EventPlan,
-  EventReminder,
-  EventTimer,
-  IntegrationStatus,
-  MappingScope,
-  Progress,
   WeekNote,
-} from "./types";
+} from "$lib/projects/assist";
+import type { Progress } from "$lib/projects/types";
+import { api, apiGet, callApi, unwrapOk } from "./api";
+import type { ActivityWeight } from "./records";
 
 // Auth
 /** The name and the picture the sign-in provider holds for this account. */

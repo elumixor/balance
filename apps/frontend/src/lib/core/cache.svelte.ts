@@ -1,4 +1,4 @@
-import { diagnostics } from "./diagnostics.svelte";
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import * as persist from "./persist";
 
 /**

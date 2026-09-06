@@ -3,7 +3,7 @@
   import { CalendarPanel, EventEditor, PlanningBar, SidePanelSection, WeekGrid } from "./components";
   import { ConnectGoogle } from "$lib/calendar/components";
   import { Button, Divider, Popover, StarBadge } from "$lib/components";
-  import { categories } from "$lib/synced.svelte";
+  import { categories } from "$lib/core/synced.svelte";
   import { settings } from "$lib/settings";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -12,7 +12,7 @@
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { Menu } from "lucide-svelte";
   import { untrack } from "svelte";
-  import { viewport } from "$lib/viewport.svelte";
+  import { viewport } from "$lib/platform/viewport.svelte";
 
   /**
    * The whole window is the week. Everything that isn't the grid — the calendars, where you are

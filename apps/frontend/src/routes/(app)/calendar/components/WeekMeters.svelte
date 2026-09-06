@@ -1,6 +1,7 @@
 <script lang="ts">
   import CategoryDial, { type DialSegment } from "./CategoryDial.svelte";
-  import type { CalendarEvent, Category } from "$lib/types";
+import type { Category } from "$lib/core/records";
+  import type { CalendarEvent } from "$lib/calendar/types";
   import { weekTotals } from "$lib/calendar/week-totals";
 
   /**

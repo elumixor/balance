@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { auth } from "$lib/auth.svelte";
+  import { auth } from "$lib/account/auth.svelte";
   import { ProblemToasts } from "./components";
-  import { diagnostics } from "$lib/diagnostics.svelte";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import { watchDesktopFocus } from "$lib/desktop/focus-sync";
   import { watchDesktopSignIn } from "$lib/desktop/sign-in";
   import { page } from "$app/state";
-  import { telemetry } from "$lib/telemetry";
-  import { theme } from "$lib/theme.svelte";
+  import { telemetry } from "$lib/platform/telemetry";
+  import { theme } from "$lib/ui/theme.svelte";
   import { mobileStatusBar } from "$lib/mobile/status-bar.svelte";
-  import { viewport } from "$lib/viewport.svelte";
-  import { watchdog } from "$lib/watchdog.svelte";
+  import { viewport } from "$lib/platform/viewport.svelte";
+  import { watchdog } from "$lib/platform/watchdog.svelte";
   import type { Snippet } from "svelte";
   import "../app.css";
 

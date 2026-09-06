@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { diagnostics, type Problem } from "$lib/diagnostics.svelte";
+  import { diagnostics, type Problem } from "$lib/platform/diagnostics.svelte";
   import { RefreshCw, X } from "lucide-svelte";
   import { CopyButton } from "$lib/components";
 

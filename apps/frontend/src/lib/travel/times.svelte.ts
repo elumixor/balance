@@ -1,8 +1,8 @@
-import { hasAddress, meetingOf } from "./meeting";
-import { preferences } from "./preferences.svelte";
-import { arrivalFor, getTravelTimes, type TravelLeg } from "./travel";
-import { travelOrigin } from "./travel-origin.svelte";
-import type { CalendarEvent } from "./types";
+import { preferences } from "$lib/account/preferences.svelte";
+import { hasAddress, meetingOf } from "$lib/calendar/meeting";
+import type { CalendarEvent } from "$lib/calendar/types";
+import { arrivalFor, getTravelTimes, type TravelLeg } from "./legs";
+import { travelOrigin } from "./origin.svelte";
 
 /**
  * How long it takes to get to each event, remembered for the session.

@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { isDesktop, isNativeShell } from "./desktop/platform";
+import { isDesktop, isNativeShell } from "$lib/desktop/platform";
 
 /**
  * Which build of the app is on screen.

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { diagnostics } from "$lib/diagnostics.svelte";
-  import { theme } from "$lib/theme.svelte";
-  import { viewport } from "$lib/viewport.svelte";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
+  import { theme } from "$lib/ui/theme.svelte";
+  import { viewport } from "$lib/platform/viewport.svelte";
   import { Toaster, toast } from "svelte-sonner";
   import ProblemCard from "./ProblemCard.svelte";
 

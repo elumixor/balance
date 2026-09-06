@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Screen, Skeleton } from "$lib/components";
-  import { synced } from "$lib/synced.svelte";
+  import { synced } from "$lib/core/synced.svelte";
   import { categoryDrafts as week, WEEK_HOURS } from "$lib/planning/category-drafts.svelte";
   import { PlanDial } from "./components";
 

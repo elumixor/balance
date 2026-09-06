@@ -1,6 +1,6 @@
 <script lang="ts">
   import { AddressField, CardRow, MapPreview } from "$lib/components";
-  import type { CalendarEvent } from "$lib/types";
+  import type { CalendarEvent } from "$lib/calendar/types";
   import { MapPin, X } from "lucide-svelte";
   import OriginPicker from "./OriginPicker.svelte";
   import TravelChips from "./TravelChips.svelte";

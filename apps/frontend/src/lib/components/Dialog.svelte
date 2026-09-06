@@ -1,7 +1,7 @@
 <script lang="ts">
   import { X } from "lucide-svelte";
   import type { Snippet } from "svelte";
-  import { viewport } from "$lib/viewport.svelte";
+  import { viewport } from "$lib/platform/viewport.svelte";
   import { cubicOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
 

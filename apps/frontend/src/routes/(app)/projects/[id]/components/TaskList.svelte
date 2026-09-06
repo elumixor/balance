@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button, Divider, NumberField } from "$lib/components";
-  import type { Task } from "$lib/types";
+  import type { Task } from "$lib/projects/types";
   import { Check, GripVertical, Plus, X } from "lucide-svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
 

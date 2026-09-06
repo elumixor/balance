@@ -1,8 +1,5 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { clock } from "$lib/clock.svelte";
-import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "$lib/dates";
-import { diagnostics } from "$lib/diagnostics.svelte";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -11,20 +8,17 @@ import {
   respondToCalendarEvent,
   saveEventMapping,
   updateCalendarEvent,
-} from "$lib/queries";
-import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/store.svelte";
-import { activities, categories, practices, projects, synced } from "$lib/synced.svelte";
-import {
-  type ActivityWeight,
-  type CalendarEvent,
-  type EventResponse,
-  type EventTimer,
-  type MappingScope,
-  NOT_A_MEETING,
-} from "$lib/types";
-import { viewport } from "$lib/viewport.svelte";
+} from "$lib/core/queries";
+import type { ActivityWeight } from "$lib/core/records";
+import { applyCalendarEvent, calendarWeek, dropCalendarEvent, invalidate, store } from "$lib/core/store.svelte";
+import { activities, categories, practices, projects, synced } from "$lib/core/synced.svelte";
+import { clock } from "$lib/platform/clock.svelte";
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
+import { viewport } from "$lib/platform/viewport.svelte";
+import { addDays, DAYS_PER_WEEK, MINUTES_PER_DAY, startOfDay, startOfWeek, weekKey } from "./dates";
 import type { HistoryStep } from "./history.svelte";
 import { CalendarHistory } from "./history.svelte";
+import { type CalendarEvent, type EventResponse, type EventTimer, type MappingScope, NOT_A_MEETING } from "./types";
 import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } from "./week-grid";
 
 /**

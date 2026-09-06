@@ -1,18 +1,19 @@
 <script lang="ts">
   import { AnchoredPopup, CardRow, CategoryIcon, CategoryPicker, Field, Popover, PopoverItem, Textarea } from "$lib/components";
-  import { restColor } from "$lib/colors";
+import type { Category } from "$lib/core/records";
+  import { restColor } from "$lib/ui/colors";
   import { openExternal } from "$lib/desktop/open";
-  import { diagnostics } from "$lib/diagnostics.svelte";
-  import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/format";
-  import { DEFAULT_ICON } from "$lib/icons";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
+  import { formatClock, formatDateInput, formatDayDate, formatHoursAndMinutes, parseDateAndClock } from "$lib/ui/format";
+  import { DEFAULT_ICON } from "$lib/ui/icons/index";
   import { FEEDS, integrations } from "$lib/integrations/integrations.svelte";
-  import { asGoogleAccount, hasAddress, meetingOf, partsOf } from "$lib/meeting";
+  import { asGoogleAccount, hasAddress, meetingOf, partsOf } from "$lib/calendar/meeting";
   import { deviceTimeZone } from "$lib/planning/zone";
-  import { preferences } from "$lib/preferences.svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
   import ProjectPicker from "./ProjectPicker.svelte";
-  import { practices, projects, tasks } from "$lib/synced.svelte";
-  import { offsetLabel, shiftZone } from "$lib/time-zones";
-  import type { CalendarEvent, Category, EventReminder, EventTimer, MappingScope } from "$lib/types";
+  import { practices, projects, tasks } from "$lib/core/synced.svelte";
+  import { offsetLabel, shiftZone } from "$lib/calendar/time-zones";
+  import type { CalendarEvent, EventReminder, EventTimer, MappingScope } from "$lib/calendar/types";
   import {
     AlignLeft,
     ArrowRight,

@@ -1,6 +1,6 @@
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { auth } from "$lib/auth.svelte";
+import { auth } from "$lib/account/auth.svelte";
 import { isDesktop } from "./platform";
 
 /**

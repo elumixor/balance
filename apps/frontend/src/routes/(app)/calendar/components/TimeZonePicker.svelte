@@ -2,8 +2,8 @@
   import { AnchoredPopup } from "$lib/components";
   import ComboField, { type ComboOption } from "$lib/components/ComboField.svelte";
   import { deviceTimeZone } from "$lib/planning/zone";
-  import { preferences } from "$lib/preferences.svelte";
-  import { defaultZones, isValidZone, offsetLabel, searchZones, type ZoneOption } from "$lib/time-zones";
+  import { preferences } from "$lib/account/preferences.svelte";
+  import { defaultZones, isValidZone, offsetLabel, searchZones, type ZoneOption } from "$lib/calendar/time-zones";
   import { Plus } from "lucide-svelte";
   import type { Snippet } from "svelte";
 

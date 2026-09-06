@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button } from "$lib/components";
-  import type { GateProgress, Project, Stage } from "$lib/types";
+  import type { GateProgress, Project, Stage } from "$lib/projects/types";
   import { Check, Plus, X } from "lucide-svelte";
   import { formatDayKey } from "$lib/projects/decide-on";
   import { DecisionFuse } from "../../components";

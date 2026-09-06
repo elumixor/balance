@@ -1,14 +1,14 @@
 <script lang="ts">
   import { Check, ChevronDown, Repeat } from "lucide-svelte";
   import { Button, CategoryIcon, Dialog, Dot, Popover, PopoverItem, ProgressBar } from "$lib/components";
-  import { restColor } from "$lib/colors";
-  import { DEFAULT_ICON } from "$lib/icons";
-  import { formatClock, formatDayDate } from "$lib/format";
-  import type { IcsEvent } from "$lib/ics";
-  import { icsImport } from "$lib/ics-import.svelte";
-  import { store } from "$lib/store.svelte";
-  import { categories } from "$lib/synced.svelte";
-  import type { Category } from "$lib/types";
+  import { restColor } from "$lib/ui/colors";
+  import { DEFAULT_ICON } from "$lib/ui/icons/index";
+  import { formatClock, formatDayDate } from "$lib/ui/format";
+  import type { IcsEvent } from "$lib/calendar/ics";
+  import { icsImport } from "$lib/calendar/ics-import.svelte";
+  import { store } from "$lib/core/store.svelte";
+  import { categories } from "$lib/core/synced.svelte";
+  import type { Category } from "$lib/core/records";
   import type { Snippet } from "svelte";
 
   /**

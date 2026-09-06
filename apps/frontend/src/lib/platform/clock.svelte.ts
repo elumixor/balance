@@ -1,6 +1,6 @@
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { MS_PER_MINUTE } from "./dates";
+import { MS_PER_MINUTE } from "$lib/calendar/dates";
 
 /**
  * One ticking "now" for everything that draws the passage of time — the now line, the today

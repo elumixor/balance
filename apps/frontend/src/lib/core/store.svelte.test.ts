@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarEvent, CalendarWeek } from "./types";
-import { NOT_A_MEETING } from "./types";
+import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
+import { NOT_A_MEETING } from "$lib/calendar/types";
 
 /**
  * The store is the only module that reaches the network, and none of what's tested here is about

@@ -3,8 +3,8 @@
   import { CategoryIcon } from "$lib/components";
   import { openExternal } from "$lib/desktop/open";
   import { decodeReminder, type ReminderCard } from "$lib/desktop/reminder";
-  import { formatClock, formatHoursAndMinutes } from "$lib/format";
-  import type { TravelMode } from "$lib/preferences.svelte";
+  import { formatClock, formatHoursAndMinutes } from "$lib/ui/format";
+  import type { TravelMode } from "$lib/account/preferences.svelte";
   import { Bike, Bus, Car, Footprints, Link2, MapPin, Video, X } from "lucide-svelte";
 
   /**

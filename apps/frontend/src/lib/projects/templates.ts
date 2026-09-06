@@ -1,4 +1,4 @@
-import type { GateMetric, ProjectStatus, ProjectTemplate, Stage } from "$lib/types";
+import type { GateMetric, ProjectStatus, ProjectTemplate, Stage } from "./types";
 
 /** The starting shape of one stage — what a template fills in, all of it editable afterwards. */
 export type StageTemplate = Pick<Stage, "name" | "sentence" | "metric" | "threshold" | "windowDays" | "budgetHours">;

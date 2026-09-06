@@ -1,8 +1,8 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { auth, authErrorMessage } from "$lib/auth.svelte";
+  import { auth, authErrorMessage } from "$lib/account/auth.svelte";
   import { AuthShell, Button, Field } from "$lib/components";
-  import { diagnostics } from "$lib/diagnostics.svelte";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
 
   let email = $state("");
   let password = $state("");

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Tooltip } from "$lib/components";
-  import { theme, type ThemeMode } from "$lib/theme.svelte";
+  import { theme, type ThemeMode } from "$lib/ui/theme.svelte";
   import { Monitor, Moon, Sun } from "lucide-svelte";
 
   /**

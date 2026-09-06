@@ -1,6 +1,6 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { calendarData } from "$lib/calendar/calendar-data.svelte";
-import { store } from "$lib/store.svelte";
+import { store } from "$lib/core/store.svelte";
 import { isDesktop } from "./platform";
 
 /**

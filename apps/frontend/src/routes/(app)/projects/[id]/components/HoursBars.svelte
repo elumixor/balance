@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatHoursDecimal } from "$lib/format";
+  import { formatHoursDecimal } from "$lib/ui/format";
   import { formatDayKey } from "$lib/projects/decide-on";
 
   /**

@@ -1,6 +1,7 @@
-import { restColor } from "$lib/colors";
+import type { Category } from "$lib/core/records";
 import { checkpointsBetween } from "$lib/projects/decide-on";
-import type { Category, Project, Stage } from "$lib/types";
+import type { Project, Stage } from "$lib/projects/types";
+import { restColor } from "$lib/ui/colors";
 
 export type MarkerKind = "decision" | "checkpoint";
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { BrowserWait, Button } from "$lib/components";
-  import { diagnostics } from "$lib/diagnostics.svelte";
-  import { invalidate, store } from "$lib/store.svelte";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
+  import { invalidate, store } from "$lib/core/store.svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { ConnectCancelled, connectGoogle } from "$lib/calendar/connect";
 

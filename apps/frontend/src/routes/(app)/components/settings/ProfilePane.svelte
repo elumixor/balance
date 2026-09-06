@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { auth } from "$lib/auth.svelte";
+  import { auth } from "$lib/account/auth.svelte";
   import { Button, Skeleton, StarCount, StarGlyph, Tooltip } from "$lib/components";
   import { desktopAutostart } from "$lib/desktop/autostart.svelte";
   import { isDesktop, isNativeShell } from "$lib/desktop/platform";

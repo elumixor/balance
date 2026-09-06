@@ -1,4 +1,4 @@
-import { formatDateInput } from "./format";
+import { formatDateInput } from "$lib/ui/format";
 
 export const DAYS_PER_WEEK = 7;
 export const MINUTES_PER_DAY = 24 * 60;

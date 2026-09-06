@@ -1,6 +1,6 @@
 import { untrack } from "svelte";
-import { buildInfo } from "./build-info";
-import { API_BASE_URL } from "./env";
+import { buildInfo } from "$lib/core/build-info";
+import { API_BASE_URL } from "$lib/core/env";
 import { telemetry } from "./telemetry";
 
 /** One thing that went wrong, in the shape the card shows it. */

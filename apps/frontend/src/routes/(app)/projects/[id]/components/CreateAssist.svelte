@@ -1,10 +1,12 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+import type { CreateSuggestion } from "$lib/projects/assist";
+import type { Project } from "$lib/projects/types";
   import { Button, Field } from "$lib/components";
-  import { formatHoursDecimal } from "$lib/format";
-  import { assistCreate } from "$lib/queries";
-  import { projects } from "$lib/synced.svelte";
-  import type { Category, CreateSuggestion, Project } from "$lib/types";
+  import { formatHoursDecimal } from "$lib/ui/format";
+  import { assistCreate } from "$lib/core/queries";
+  import { projects } from "$lib/core/synced.svelte";
+  import type { Category } from "$lib/core/records";
   import { Sparkles } from "lucide-svelte";
   import { decideOnFor, formatDayKey } from "$lib/projects/decide-on";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";

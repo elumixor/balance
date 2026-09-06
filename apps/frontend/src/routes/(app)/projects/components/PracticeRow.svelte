@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button, Field, NumberField, ProgressBar, Select } from "$lib/components";
-  import type { Practice, PracticeProgress } from "$lib/types";
+  import type { Practice, PracticeProgress } from "$lib/projects/types";
   import { Repeat, X } from "lucide-svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
 

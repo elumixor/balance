@@ -1,6 +1,6 @@
 <script lang="ts">
   import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "$lib/components/float";
-  import { formatHoursAndMinutes } from "$lib/format";
+  import { formatHoursAndMinutes } from "$lib/ui/format";
 
   /**
    * One end of an event, entered the way a calendar lets you enter it: the field carries the span

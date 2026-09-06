@@ -1,4 +1,4 @@
-import { addDays, DAYS_PER_WEEK, startOfDay } from "$lib/dates";
+import { addDays, DAYS_PER_WEEK, startOfDay } from "./dates";
 
 const MS_PER_MINUTE = 60_000;
 const MS_PER_HOUR = 3_600_000;

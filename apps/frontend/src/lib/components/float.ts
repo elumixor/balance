@@ -6,7 +6,7 @@
  * notch and the home indicator; and a home at the top of the document, because inside the card
  * it would be clipped by the card's own scroll and placed against the card instead of the window.
  */
-import { safeArea } from "$lib/safe-area";
+import { safeArea } from "$lib/platform/safe-area";
 
 export const MENU_MAX_HEIGHT = 280;
 const GAP = 6;

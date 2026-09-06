@@ -1,18 +1,18 @@
 import { Browser } from "@capacitor/browser";
 import { type LocalNotificationSchema, LocalNotifications } from "@capacitor/local-notifications";
 import { goto } from "$app/navigation";
-import { agenda } from "$lib/agenda.svelte";
+import { preferences } from "$lib/account/preferences.svelte";
+import { agenda } from "$lib/calendar/agenda.svelte";
 import { eventCategory } from "$lib/calendar/event-category";
-import { clock } from "$lib/clock.svelte";
-import { restColor } from "$lib/colors";
+import { hasAddress, meetingOf } from "$lib/calendar/meeting";
+import { REMINDER_KINDS, reminderDueAt } from "$lib/calendar/reminders";
+import type { CalendarEvent } from "$lib/calendar/types";
 import type { ReminderKind } from "$lib/desktop/reminder";
-import { DEFAULT_ICON } from "$lib/icons";
-import { hasAddress, meetingOf } from "$lib/meeting";
-import { preferences } from "$lib/preferences.svelte";
-import { REMINDER_KINDS, reminderDueAt } from "$lib/reminders";
-import { arrivalFor, getTravelTimes, type TravelLeg } from "$lib/travel";
-import { travelOrigin } from "$lib/travel-origin.svelte";
-import type { CalendarEvent } from "$lib/types";
+import { clock } from "$lib/platform/clock.svelte";
+import { arrivalFor, getTravelTimes, type TravelLeg } from "$lib/travel/legs";
+import { travelOrigin } from "$lib/travel/origin.svelte";
+import { restColor } from "$lib/ui/colors";
+import { DEFAULT_ICON } from "$lib/ui/icons/index";
 import { isIOSApp } from "./platform";
 
 /**

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Field, NumberField, Select } from "$lib/components";
-  import type { GateMetric, Project, Stage } from "$lib/types";
+  import type { GateMetric, Project, Stage } from "$lib/projects/types";
   import { decideOnFor, formatDayKey } from "$lib/projects/decide-on";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { METRIC_LABELS, templateOf } from "$lib/projects/templates";
