@@ -1,11 +1,9 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { z } from "zod";
-import { handleApiError } from "../../../../lib/api-error";
-import { getDbUserForRequest } from "../../../../lib/current-user";
-import { assist } from "../../../../lib/projects/assist";
+import { authed } from "~/lib/http/authed";
+import { assist } from "~/lib/projects/assist";
 
-/** A proposal, never a write — see `lib/projects/assist.ts`. `available: false` with no model. */
-export default handler(
+/** A proposal, never a write — see `lib/projects/assist`. `available: false` with no model. */
+export default authed(
   {
     body: {
       project: z.string(),
@@ -21,13 +19,8 @@ export default handler(
       checkpoints: z.array(z.object({ day: z.string(), count: z.number(), moved: z.boolean(), note: z.string() })),
     },
   },
-  async ({ body, event }) => {
-    await getDbUserForRequest(event);
-    try {
-      const suggestion = await assist.decision(body);
-      return suggestion ? { available: true as const, suggestion } : { available: false as const, suggestion: null };
-    } catch (e) {
-      return handleApiError(event, e);
-    }
+  async ({ body }) => {
+    const suggestion = await assist.decision(body);
+    return suggestion ? { available: true as const, suggestion } : { available: false as const, suggestion: null };
   },
 );

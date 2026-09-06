@@ -16,6 +16,16 @@ export const NEAR_START_MINUTES = 30;
 /** Scores below this are noise — an event that merely brushed the session's window. */
 const MIN_SCORE = 0.2;
 
+export interface Weight {
+  readonly categoryId: string;
+  readonly weightPercent: number;
+}
+
+/** The category an event counts most towards, or null when it counts towards nothing. */
+export function dominantCategoryId(weights: readonly Weight[]): string | null {
+  return [...weights].sort((a, b) => b.weightPercent - a.weightPercent)[0]?.categoryId ?? null;
+}
+
 export interface MatchWindow {
   readonly start: Date;
   readonly end: Date;

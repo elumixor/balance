@@ -1,13 +1,13 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "../../db";
-import { activities } from "../../db/schema";
-import { ApiError } from "../api-error";
-import type { ActivityWeightInput } from "../categories-service";
-import { type IntegrationRecord, IntegrationRecordService } from "../integrations/records-service";
-import { ProviderNotConnectedError } from "./errors";
+import { db } from "~/db";
+import { activities } from "~/db/schema";
+import type { ActivityWeightInput } from "~/lib/categories/service";
+import { NotFoundError } from "~/lib/http/api-error";
+import { type IntegrationRecord, IntegrationRecordService } from "~/lib/integrations/records-service";
 import { eventCache } from "./event-cache";
 import { EventMappingService, type MappingPurpose, type ResolvedMapping } from "./mappings-service";
-import { type CalendarConnection, calendarConnections } from "./registry";
+import { projectPrefs } from "./prefs-service";
+import { calendarConnections } from "./registry";
 import {
   type EventTimer,
   type ExternalEvent,
@@ -16,6 +16,7 @@ import {
   type SelfResponse,
   type UpdateEventInput,
 } from "./types";
+import { resolveTarget, targetFor, visibleCalendarIds } from "./write-target";
 
 export interface ResolvedEvent extends ExternalEvent {
   readonly mapping:
@@ -52,26 +53,38 @@ const DISCONNECTED: ResolvedCalendarRange = {
   events: [],
 };
 
-/**
- * A calendar id only means something alongside the account it came from — two connected Google
- * accounts each have their own "primary" — so every id that crosses the API boundary is qualified
- * with the account's own id. Nothing on this side of the boundary (the cache, event mappings, the
- * Google API calls themselves) ever sees a qualified id; Google's own ids are already globally
- * unique, so mappings stay keyed on the raw id alone.
- */
-export function qualifyCalendarId(accountId: string, calendarId: string): string {
-  return `${accountId}::${calendarId}`;
+export interface CreateEventOptions {
+  activityId?: string;
+  weights?: ActivityWeightInput[];
+  projectId?: string;
+  practiceId?: string;
+  taskId?: string;
+  timer?: EventTimer | null;
+  /** The integration writing it, so a later pass can tell its own events from everyone else's. */
+  source?: string;
+  start: Date;
+  end: Date;
+  calendarId?: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  allDay?: boolean;
 }
 
-export function splitCalendarId(qualified: string): { accountId: string; calendarId: string } {
-  const at = qualified.indexOf("::");
-  if (at === -1) throw new ApiError("That calendar isn't in your account", 400);
-  return { accountId: qualified.slice(0, at), calendarId: qualified.slice(at + 2) };
+/** A series-scoped edit: which series, and where the occurrence being edited was before. */
+export interface SeriesEdit {
+  readonly seriesId: string;
+  readonly previousStart: Date;
+  readonly previousEnd: Date;
 }
 
 /** The one place the app reads calendar events — the week grid and the balance screen both. */
 export class CalendarEventsService {
-  constructor(private readonly userId: string) {}
+  readonly #mappings: EventMappingService;
+
+  constructor(private readonly userId: string) {
+    this.#mappings = new EventMappingService(userId);
+  }
 
   /**
    * Never throws for "no calendar connected" or "every grant died": both are states the screens
@@ -88,9 +101,8 @@ export class CalendarEventsService {
     const [perAccount, mappings, records] = await Promise.all([
       Promise.all(
         active.map(async (connection) => {
-          const calendarIds = this.visibleCalendarIds(connection);
           const perCalendar = await Promise.all(
-            calendarIds.map((calendarId) =>
+            visibleCalendarIds(connection).map((calendarId) =>
               eventCache.fetch(this.userId, `${connection.accountId}:${calendarId}`, from, to, () =>
                 connection.provider.listEvents([calendarId], from, to),
               ),
@@ -99,22 +111,21 @@ export class CalendarEventsService {
           return perCalendar.flat().map((event) => ({ event, accountId: connection.accountId }));
         }),
       ),
-      new EventMappingService(this.userId).all(),
+      this.#mappings.all(),
       new IntegrationRecordService(this.userId).all(),
     ]);
 
     const tagged = perAccount.flat();
-    const resolved = this.attachMappings(
-      tagged.map((t) => t.event),
-      mappings,
-      records,
-    ).map((event, i) => ({ ...event, accountId: tagged[i].accountId }));
-
+    const prefs = projectPrefs(connections);
     return {
       connected: true,
-      needsReconnect: connections.some((c) => c.account.revokedAt),
-      writeCalendarId: this.writeTarget(active),
-      events: resolved,
+      needsReconnect: prefs.needsReconnect,
+      writeCalendarId: prefs.writeCalendarId,
+      events: attachMappings(
+        tagged.map((t) => t.event),
+        mappings,
+        records,
+      ).map((event, i) => ({ ...event, accountId: tagged[i].accountId })),
     };
   }
 
@@ -127,31 +138,15 @@ export class CalendarEventsService {
    * nothing, or as a split of categories the caller re-applies itself; those come with a title.
    * A block dragged in from a project carries its sphere as weights and the project as purpose.
    */
-  async create(input: {
-    activityId?: string;
-    weights?: ActivityWeightInput[];
-    projectId?: string;
-    practiceId?: string;
-    taskId?: string;
-    timer?: EventTimer | null;
-    /** The integration writing it, so a later pass can tell its own events from everyone else's. */
-    source?: string;
-    start: Date;
-    end: Date;
-    calendarId?: string;
-    title?: string;
-    description?: string;
-    location?: string;
-    allDay?: boolean;
-  }): Promise<ResolvedEvent> {
-    const { connection, calendarId } = await this.resolveTarget(input.calendarId);
+  async create(input: CreateEventOptions): Promise<ResolvedEvent> {
+    const { connection, calendarId } = await resolveTarget(this.userId, input.calendarId);
     const activity = input.activityId
       ? await db.query.activities.findFirst({
           where: and(eq(activities.id, input.activityId), eq(activities.userId, this.userId)),
           with: { weights: true },
         })
       : undefined;
-    if (input.activityId && !activity) throw new ApiError("That activity no longer exists", 404);
+    if (input.activityId && !activity) throw new NotFoundError("That activity no longer exists");
 
     // An event tapped onto the grid is named after the fact, so an untitled one is a real state
     // rather than a mistake — the calendar shows it the way Google does, as no title at all.
@@ -166,14 +161,15 @@ export class CalendarEventsService {
       end: input.end,
       allDay: input.allDay,
     });
-    eventCache.invalidate(this.userId);
 
     const weights = input.weights?.length ? input.weights : undefined;
     if (!activity && !weights) {
-      return { ...this.attachMappings([{ ...created, calendarId }], [])[0], accountId: connection.accountId };
+      eventCache.invalidate(this.userId);
+      return { ...attachMappings([{ ...created, calendarId }], [])[0], accountId: connection.accountId };
     }
 
-    const mapping = await new EventMappingService(this.userId).upsert({
+    // The mapping write is what forgets the cached week — see `EventMappingService`.
+    const mapping = await this.#mappings.upsert({
       calendarId,
       scope: "instance",
       externalEventId: created.id,
@@ -185,20 +181,17 @@ export class CalendarEventsService {
       timer: input.timer ?? null,
       source: input.source ?? null,
     });
-    return {
-      ...this.attachMappings([{ ...created, calendarId }], [mapping])[0],
-      accountId: connection.accountId,
-    };
+    return { ...attachMappings([{ ...created, calendarId }], [mapping])[0], accountId: connection.accountId };
   }
 
   /** One event by id, with what it counts as — for a timer pointed at something already planned. */
   async get(qualifiedCalendarId: string, eventId: string): Promise<ResolvedEvent> {
-    const { connection, calendarId } = await this.targetFor(qualifiedCalendarId);
+    const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
     const [found, mappings] = await Promise.all([
       connection.provider.getEvent(calendarId, eventId),
-      new EventMappingService(this.userId).all(),
+      this.#mappings.all(),
     ]);
-    return { ...this.attachMappings([{ ...found, calendarId }], mappings)[0], accountId: connection.accountId };
+    return { ...attachMappings([{ ...found, calendarId }], mappings)[0], accountId: connection.accountId };
   }
 
   /**
@@ -211,46 +204,46 @@ export class CalendarEventsService {
     qualifiedCalendarId: string,
     eventId: string,
     patch: UpdateEventInput,
-    series?: { seriesId: string; previousStart: Date; previousEnd: Date },
+    series?: SeriesEdit,
   ): Promise<ResolvedEvent> {
-    const { connection, calendarId } = await this.targetFor(qualifiedCalendarId);
-    let targetId = eventId;
-    let targetPatch = patch;
-
-    if (series) {
-      targetId = series.seriesId;
-      const { start, end, ...rest } = patch;
-      const moved =
-        start &&
-        end &&
-        (start.getTime() !== series.previousStart.getTime() || end.getTime() !== series.previousEnd.getTime());
-      if (moved) {
-        const master = await connection.provider.getEvent(calendarId, series.seriesId);
-        targetPatch = {
-          ...rest,
-          start: new Date(master.start.getTime() + start.getTime() - series.previousStart.getTime()),
-          end: new Date(master.end.getTime() + end.getTime() - series.previousEnd.getTime()),
-        };
-      } else {
-        // The occurrence's own times would land on the master as its times — they're only a delta.
-        targetPatch = rest;
-      }
-    }
+    const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
+    const targetId = series ? series.seriesId : eventId;
+    const targetPatch = series ? await this.#seriesPatch(connection.provider, calendarId, patch, series) : patch;
 
     const updated = await connection.provider.updateEvent(calendarId, targetId, targetPatch);
-    eventCache.invalidate(this.userId);
-    const mappingService = new EventMappingService(this.userId);
     if (targetPatch.recurrence !== undefined) {
       // The event keeps its id across the change but is now the master of a series, or a one-off
       // again — and its mapping has to say which, or the occurrences count as nothing.
       const repeats = targetPatch.recurrence.length > 0;
-      await mappingService.rescope(
+      await this.#mappings.rescope(
         { calendarId, scope: repeats ? "instance" : "series", externalEventId: targetId },
         repeats ? "series" : "instance",
       );
     }
-    const mappings = await mappingService.all();
-    return { ...this.attachMappings([updated], mappings)[0], accountId: connection.accountId };
+    eventCache.invalidate(this.userId);
+    const mappings = await this.#mappings.all();
+    return { ...attachMappings([updated], mappings)[0], accountId: connection.accountId };
+  }
+
+  async #seriesPatch(
+    provider: { getEvent(calendarId: string, eventId: string): Promise<ExternalEvent> },
+    calendarId: string,
+    patch: UpdateEventInput,
+    series: SeriesEdit,
+  ): Promise<UpdateEventInput> {
+    const { start, end, ...rest } = patch;
+    const moved =
+      start &&
+      end &&
+      (start.getTime() !== series.previousStart.getTime() || end.getTime() !== series.previousEnd.getTime());
+    // The occurrence's own times would land on the master as its times — they're only a delta.
+    if (!moved) return rest;
+    const master = await provider.getEvent(calendarId, series.seriesId);
+    return {
+      ...rest,
+      start: new Date(master.start.getTime() + start.getTime() - series.previousStart.getTime()),
+      end: new Date(master.end.getTime() + end.getTime() - series.previousEnd.getTime()),
+    };
   }
 
   /**
@@ -258,98 +251,58 @@ export class CalendarEventsService {
    * no category's total — so the cache goes with it and the week is asked again.
    */
   async respond(qualifiedCalendarId: string, eventId: string, response: SelfResponse): Promise<ResolvedEvent> {
-    const { connection, calendarId } = await this.targetFor(qualifiedCalendarId);
+    const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
     const updated = await connection.provider.respondToEvent(calendarId, eventId, response);
     eventCache.invalidate(this.userId);
-    const mappings = await new EventMappingService(this.userId).all();
-    return { ...this.attachMappings([updated], mappings)[0], accountId: connection.accountId };
+    const mappings = await this.#mappings.all();
+    return { ...attachMappings([updated], mappings)[0], accountId: connection.accountId };
   }
 
   async delete(qualifiedCalendarId: string, eventId: string): Promise<void> {
-    const { connection, calendarId } = await this.targetFor(qualifiedCalendarId);
+    const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
     await connection.provider.deleteEvent(calendarId, eventId);
-    eventCache.invalidate(this.userId);
-    await new EventMappingService(this.userId).remove({ calendarId, scope: "instance", externalEventId: eventId });
+    // The mapping's removal forgets the cached week — see `EventMappingService`.
+    await this.#mappings.remove({ calendarId, scope: "instance", externalEventId: eventId });
   }
+}
 
-  /** Resolves a qualified calendar id to the account that owns it — for an update or a delete. */
-  private async targetFor(
-    qualifiedCalendarId: string,
-  ): Promise<{ connection: CalendarConnection; calendarId: string }> {
-    const { accountId, calendarId } = splitCalendarId(qualifiedCalendarId);
-    const connections = await calendarConnections(this.userId);
-    const connection = connections.find((c) => c.accountId === accountId && !c.account.revokedAt);
-    if (!connection) throw new ProviderNotConnectedError("google");
-    return { connection, calendarId };
-  }
+/** A series mapping always wins over an instance mapping on one of its occurrences — category
+ *  changes on a repeating event are meant to apply to every occurrence, not just one. */
+function attachMappings(
+  events: ExternalEvent[],
+  mappings: readonly ResolvedMapping[],
+  records: readonly IntegrationRecord[] = [],
+): Omit<ResolvedEvent, "accountId">[] {
+  const byKey = new Map(mappings.map((m) => [`${m.calendarId}|${m.scope}|${m.externalEventId}`, m]));
+  const recordByKey = new Map(records.map((r) => [`${r.calendarId}|${r.source}|${r.externalEventId}`, r]));
 
-  /** Same idea for a create, except there may be no calendar id yet — the write target stands in. */
-  private async resolveTarget(
-    qualifiedCalendarId?: string,
-  ): Promise<{ connection: CalendarConnection; calendarId: string }> {
-    if (qualifiedCalendarId) return this.targetFor(qualifiedCalendarId);
+  return events.map((event) => {
+    const mapping =
+      (event.seriesId ? byKey.get(`${event.calendarId}|series|${event.seriesId}`) : undefined) ??
+      byKey.get(`${event.calendarId}|instance|${event.id}`);
 
-    const connections = await calendarConnections(this.userId);
-    const active = connections.filter((c) => !c.account.revokedAt);
-    if (active.length === 0) throw new ProviderNotConnectedError("google");
-
-    const withWrite = active.find((c) => c.account.writeCalendarId);
-    if (withWrite)
-      return { connection: withWrite, calendarId: withWrite.account.writeCalendarId ?? PRIMARY_CALENDAR_ID };
-    return { connection: active[0], calendarId: PRIMARY_CALENDAR_ID };
-  }
-
-  private writeTarget(active: readonly CalendarConnection[]): string {
-    const withWrite = active.find((c) => c.account.writeCalendarId);
-    if (withWrite)
-      return qualifyCalendarId(withWrite.accountId, withWrite.account.writeCalendarId ?? PRIMARY_CALENDAR_ID);
-    const fallback = active[0];
-    return fallback ? qualifyCalendarId(fallback.accountId, PRIMARY_CALENDAR_ID) : PRIMARY_CALENDAR_ID;
-  }
-
-  private visibleCalendarIds(connection: CalendarConnection): string[] {
-    const chosen = connection.account.visibleCalendarIds;
-    return chosen.length > 0 ? chosen : [PRIMARY_CALENDAR_ID];
-  }
-
-  /** A series mapping always wins over an instance mapping on one of its occurrences — category
-   *  changes on a repeating event are meant to apply to every occurrence, not just one. */
-  private attachMappings(
-    events: ExternalEvent[],
-    mappings: readonly ResolvedMapping[],
-    records: readonly IntegrationRecord[] = [],
-  ): Omit<ResolvedEvent, "accountId">[] {
-    const byKey = new Map(mappings.map((m) => [`${m.calendarId}|${m.scope}|${m.externalEventId}`, m]));
-    const recordByKey = new Map(records.map((r) => [`${r.calendarId}|${r.source}|${r.externalEventId}`, r]));
-
-    return events.map((event) => {
-      const mapping =
-        (event.seriesId ? byKey.get(`${event.calendarId}|series|${event.seriesId}`) : undefined) ??
-        byKey.get(`${event.calendarId}|instance|${event.id}`);
-
-      return {
-        ...event,
-        mapping: mapping
-          ? {
-              scope: mapping.scope,
-              activityId: mapping.activityId,
-              activityName: mapping.activityName,
-              projectId: mapping.projectId,
-              practiceId: mapping.practiceId,
-              taskId: mapping.taskId,
-              timer: mapping.timer,
-              source: mapping.source,
-              hidden: mapping.hidden,
-            }
-          : null,
-        weights: mapping?.weights ?? [],
-        // A record only means something under the feed that made it: unlinking a series orphans
-        // its records rather than showing them on an event that no longer claims them.
-        record: mapping?.source
-          ? (recordByKey.get(`${event.calendarId}|${mapping.source}|${event.id}`)?.data ?? null)
-          : null,
-        countsTowardHours: !event.allDay && event.selfResponse !== "declined" && event.status !== "cancelled",
-      };
-    });
-  }
+    return {
+      ...event,
+      mapping: mapping
+        ? {
+            scope: mapping.scope,
+            activityId: mapping.activityId,
+            activityName: mapping.activityName,
+            projectId: mapping.projectId,
+            practiceId: mapping.practiceId,
+            taskId: mapping.taskId,
+            timer: mapping.timer,
+            source: mapping.source,
+            hidden: mapping.hidden,
+          }
+        : null,
+      weights: mapping?.weights ?? [],
+      // A record only means something under the feed that made it: unlinking a series orphans
+      // its records rather than showing them on an event that no longer claims them.
+      record: mapping?.source
+        ? (recordByKey.get(`${event.calendarId}|${mapping.source}|${event.id}`)?.data ?? null)
+        : null,
+      countsTowardHours: !event.allDay && event.selfResponse !== "declined" && event.status !== "cancelled",
+    };
+  });
 }

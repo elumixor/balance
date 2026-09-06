@@ -1,9 +1,9 @@
 import { type Envelope, RejectedError, type SyncedStore, syncedModel } from "@elumixor/synced/server";
 import { and, eq, gte } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../../db";
-import { activities, activityCategoryWeights } from "../../db/schema";
-import { ActivityService } from "../categories-service";
+import { db } from "~/db";
+import { activities, activityCategoryWeights } from "~/db/schema";
+import { ActivityService } from "~/lib/categories/service";
 
 export const activitySchema = z.object({
   id: z.uuid(),

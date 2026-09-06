@@ -1,5 +1,5 @@
 import type { Day } from "./days";
-import type { CategoryHours, SessionBlock, Slot } from "./service";
+import type { CategoryHours, SessionBlock, Slot } from "./types";
 
 /**
  * The words for a session when no model wrote them — and the shape the model's words follow.

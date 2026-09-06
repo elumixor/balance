@@ -1,9 +1,9 @@
 import { type Envelope, RejectedError, type SyncedStore, syncedModel } from "@elumixor/synced/server";
 import { and, eq, gte } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../../db";
-import { categories } from "../../db/schema";
-import { bufferCategoryService } from "../buffer-category";
+import { db } from "~/db";
+import { categories } from "~/db/schema";
+import { bufferCategoryService } from "~/lib/categories/buffer";
 
 /**
  * A category as both halves of the app agree it looks.

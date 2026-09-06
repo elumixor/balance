@@ -1,6 +1,6 @@
 import { syncedModel } from "@elumixor/synced/server";
 import { z } from "zod";
-import { practices } from "../../db/schema";
+import { practices } from "~/db/schema";
 import { asNumeric, defined, numeric, TableStore } from "./table-store";
 
 export const practiceSchema = z.object({

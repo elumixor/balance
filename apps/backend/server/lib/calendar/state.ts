@@ -1,8 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { ApiError } from "../api-error";
-import { env } from "../env";
+import { env } from "~/lib/env";
+import { ApiError } from "~/lib/http/api-error";
 
-const TTL_MS = 10 * 60 * 1000;
+const MS_PER_MINUTE = 60_000;
+/** Long enough to read a consent screen, short enough that a link left in history is dead. */
+const TTL_MS = 10 * MS_PER_MINUTE;
 
 /** Where the consent flow was started from, which decides what the callback page does at the end. */
 export type ConnectMode = "app" | "web";
@@ -45,15 +47,15 @@ export function signOAuthState(state: Omit<OAuthState, "exp">): string {
 
 export function verifyOAuthState(state: string): OAuthState {
   const [payload, signature] = state.split(".");
-  if (!payload || !signature) throw new ApiError("Malformed sign-in state", 400);
+  if (!payload || !signature) throw new ApiError("Malformed sign-in state");
 
   const expected = Buffer.from(sign(payload));
   const actual = Buffer.from(signature);
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-    throw new ApiError("Sign-in state failed its signature check", 400);
+    throw new ApiError("Sign-in state failed its signature check");
   }
 
   const decoded = JSON.parse(Buffer.from(payload, "base64url").toString()) as OAuthState;
-  if (decoded.exp < Date.now()) throw new ApiError("This sign-in link has expired — start again", 400);
+  if (decoded.exp < Date.now()) throw new ApiError("This sign-in link has expired — start again");
   return decoded;
 }

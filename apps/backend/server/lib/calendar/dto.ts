@@ -1,49 +1,8 @@
-import type { activityCategoryWeights, categories } from "../db/schema";
-import { qualifyCalendarId, type ResolvedEvent } from "./calendar/events-service";
-import type { CalendarRef, EventTimer, MappingScope, SelfResponse } from "./calendar/types";
-
-/** Serializes a `categories` row into the shape the mobile app expects. */
-export class CategoryDTO {
-  readonly id: string;
-  readonly name: string;
-  readonly color: string;
-  readonly icon: string;
-  readonly targetHoursPerWeek: number;
-  readonly isBuffer: boolean;
-  readonly archived: boolean;
-
-  constructor(c: typeof categories.$inferSelect) {
-    this.id = c.id;
-    this.name = c.name;
-    this.color = c.color;
-    this.icon = c.icon;
-    this.targetHoursPerWeek = Number(c.targetHoursPerWeek);
-    this.isBuffer = c.isBuffer;
-    this.archived = c.archived;
-  }
-}
-
-export type ActivityWeightDTO = { categoryId: string; weightPercent: number };
-
-/** Serializes an activity (with its category weights) into the shape the mobile app expects. */
-export class ActivityDTO {
-  readonly id: string;
-  readonly name: string;
-  readonly archived: boolean;
-  readonly weights: ActivityWeightDTO[];
-
-  constructor(a: {
-    id: string;
-    name: string;
-    archived: boolean;
-    weights: (typeof activityCategoryWeights.$inferSelect)[];
-  }) {
-    this.id = a.id;
-    this.name = a.name;
-    this.archived = a.archived;
-    this.weights = a.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent }));
-  }
-}
+import type { ActivityWeightDTO } from "~/lib/categories/dto";
+import type { ResolvedEvent } from "./events-service";
+import { qualifyCalendarId } from "./ids";
+import type { ProviderAccount } from "./provider-accounts";
+import type { CalendarRef, EventTimer, MappingScope, SelfResponse } from "./types";
 
 /**
  * Serializes one of a connected account's calendars. `id` is qualified with the account it came
@@ -65,6 +24,23 @@ export class CalendarDTO {
     this.color = c.color;
     this.primary = c.primary;
     this.readOnly = c.readOnly;
+  }
+}
+
+/** Connection status only — no token, encrypted or otherwise, ever leaves the backend. */
+export class IntegrationAccountDTO {
+  readonly accountId: string;
+  readonly provider: string;
+  readonly connected: boolean;
+  readonly needsReconnect: boolean;
+  readonly email: string | null;
+
+  constructor(account: ProviderAccount) {
+    this.accountId = account.id;
+    this.provider = account.provider;
+    this.connected = !account.revokedAt;
+    this.needsReconnect = Boolean(account.revokedAt);
+    this.email = account.email;
   }
 }
 
@@ -149,7 +125,7 @@ export class CalendarEventDTO {
     this.conferenceName = e.conferenceName;
     // Rooms and projectors are on the guest list too, and nobody wants to see them there.
     this.attendees = e.attendees.filter((a) => !a.resource).map(person);
-    this.organizer = e.organizer ? { ...person({ ...e.organizer, response: "accepted", optional: false }) } : null;
+    this.organizer = e.organizer ? person({ ...e.organizer, response: "accepted", optional: false }) : null;
     this.invited = e.attendees.some((a) => a.self);
     this.response = e.selfResponse;
     this.reminders = e.reminders.map((r) => ({ method: r.method, minutes: r.minutes }));
@@ -166,12 +142,6 @@ export interface EventAttendeeDTO {
   optional: boolean;
 }
 
-function person(a: {
-  email: string | null;
-  name: string | null;
-  self: boolean;
-  response: SelfResponse;
-  optional: boolean;
-}): EventAttendeeDTO {
+function person(a: EventAttendeeDTO): EventAttendeeDTO {
   return { email: a.email, name: a.name, self: a.self, response: a.response, optional: a.optional };
 }

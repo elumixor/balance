@@ -1,6 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
-import { db } from "../db";
-import { categories } from "../db/schema";
+import { db } from "~/db";
+import { categories } from "~/db/schema";
 
 type Category = typeof categories.$inferSelect;
 
@@ -8,7 +8,7 @@ type Category = typeof categories.$inferSelect;
  * Manages each user's system-managed "Buffer" category, which always absorbs
  * whatever a 168-hour week hasn't been explicitly allocated to other categories.
  */
-export class BufferCategoryService {
+class BufferCategoryService {
   static readonly WEEK_HOURS = 168;
   static readonly NAME = "Buffer";
 

@@ -1,6 +1,6 @@
 import { syncedModel } from "@elumixor/synced/server";
 import { z } from "zod";
-import { gateEvents } from "../../db/schema";
+import { gateEvents } from "~/db/schema";
 import { asNumeric, defined, numeric, TableStore } from "./table-store";
 
 /**

@@ -1,0 +1,162 @@
+import { relations } from "drizzle-orm";
+import { integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import type { EventTimer } from "~/lib/calendar/types";
+import { activities, categories } from "./categories";
+import { practices, projects, tasks } from "./projects";
+import { users } from "./users";
+
+/**
+ * A connected external calendar account — the OAuth grant plus which of that account's
+ * calendars the app reads and writes. One row per user per provider per external account, so a
+ * user can connect several Google accounts and disconnecting one forgets only its own tokens
+ * and preferences.
+ */
+export const providerAccounts = pgTable(
+  "provider_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** "google" today; the column exists so a second provider is a row, not a migration. */
+    provider: text("provider").notNull(),
+    /** The provider's own account id, so reconnecting the same account updates in place. */
+    externalAccountId: text("external_account_id").notNull(),
+    email: text("email"),
+    /** AES-256-GCM, never returned by any endpoint. */
+    refreshTokenEnc: text("refresh_token_enc").notNull(),
+    /** Cached so a page load doesn't cost a token round trip. Same encryption. */
+    accessTokenEnc: text("access_token_enc"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    scopes: text("scopes").notNull(),
+    /** Set when the provider rejects our refresh token, so the app can ask for a reconnect. */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    /** Which calendars the week grid draws. Empty means the primary calendar only. */
+    visibleCalendarIds: jsonb("visible_calendar_ids").$type<string[]>().notNull().default([]),
+    /** Where dragged activities become events. */
+    writeCalendarId: text("write_calendar_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("provider_accounts_user_provider_external").on(table.userId, table.provider, table.externalAccountId),
+  ],
+);
+
+/**
+ * What an external calendar event counts as. `activityId` is the normal case; a null activity
+ * means the event carries its own category weights, held in `event_mapping_weights`.
+ */
+export const eventMappings = pgTable(
+  "event_mappings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("google"),
+    calendarId: text("calendar_id").notNull(),
+    /** "instance" | "series" — an instance mapping always beats the series it belongs to. */
+    scope: text("scope").notNull(),
+    /** The occurrence's own id for instance scope, the series id for series scope. */
+    externalEventId: text("external_event_id").notNull(),
+    activityId: uuid("activity_id").references(() => activities.id, { onDelete: "cascade" }),
+    /**
+     * What the hour was *for*, on top of what it counts as. The category says which sphere an
+     * hour belongs to; these say which project, practice or task earned it — the evidence a gate
+     * counts and the hours a project's card compares against its claim. Any of them may be null:
+     * most hours are for nothing in particular.
+     */
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    practiceId: uuid("practice_id").references(() => practices.id, { onDelete: "set null" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    /**
+     * How a timer run for this event is broken up — a nudge every N minutes, or the event split
+     * into N parts. The length is never stored: the event's own duration is the timer's. Null
+     * means a timer for this event simply runs to the end.
+     */
+    timer: jsonb("timer").$type<EventTimer>(),
+    /**
+     * The integration feed this event is linked to — "apple-health:sleep" — so the device that
+     * can read the feed knows which occurrences to look up, and the card knows which section to
+     * draw. On a series mapping the link covers every occurrence.
+     */
+    source: text("source"),
+    /**
+     * The card sections folded away on this event, by id. Null means the card shows its
+     * default; a series mapping folds them on every occurrence.
+     */
+    hidden: jsonb("hidden").$type<string[]>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("event_mappings_unique").on(
+      table.userId,
+      table.provider,
+      table.calendarId,
+      table.scope,
+      table.externalEventId,
+    ),
+  ],
+);
+
+/**
+ * What an integration observed for one occurrence of an event it is linked to — the night Apple
+ * Health recorded under a "Sleep" block. Read on the device that holds the data, written here so
+ * every other screen can show it. Keyed by the occurrence rather than the series, because a
+ * record is about one night; the shape of `data` is the feed's own, and the server never reads it.
+ */
+export const integrationRecords = pgTable(
+  "integration_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** The feed that made it: "apple-health:sleep". */
+    source: text("source").notNull(),
+    provider: text("provider").notNull().default("google"),
+    calendarId: text("calendar_id").notNull(),
+    externalEventId: text("external_event_id").notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("integration_records_unique").on(
+      table.userId,
+      table.source,
+      table.provider,
+      table.calendarId,
+      table.externalEventId,
+    ),
+  ],
+);
+
+export const eventMappingWeights = pgTable("event_mapping_weights", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mappingId: uuid("mapping_id")
+    .notNull()
+    .references(() => eventMappings.id, { onDelete: "cascade" }),
+  categoryId: uuid("category_id")
+    .notNull()
+    .references(() => categories.id, { onDelete: "cascade" }),
+  weightPercent: integer("weight_percent").notNull(),
+});
+
+export const providerAccountsRelations = relations(providerAccounts, ({ one }) => ({
+  user: one(users, { fields: [providerAccounts.userId], references: [users.id] }),
+}));
+
+export const eventMappingsRelations = relations(eventMappings, ({ one, many }) => ({
+  user: one(users, { fields: [eventMappings.userId], references: [users.id] }),
+  activity: one(activities, { fields: [eventMappings.activityId], references: [activities.id] }),
+  weights: many(eventMappingWeights),
+  project: one(projects, { fields: [eventMappings.projectId], references: [projects.id] }),
+  practice: one(practices, { fields: [eventMappings.practiceId], references: [practices.id] }),
+  task: one(tasks, { fields: [eventMappings.taskId], references: [tasks.id] }),
+}));
+
+export const eventMappingWeightsRelations = relations(eventMappingWeights, ({ one }) => ({
+  mapping: one(eventMappings, { fields: [eventMappingWeights.mappingId], references: [eventMappings.id] }),
+  category: one(categories, { fields: [eventMappingWeights.categoryId], references: [categories.id] }),
+}));

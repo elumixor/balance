@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { rankMatches } from "./match";
+import { dominantCategoryId, rankMatches } from "./match";
 
 const at = (minutes: number) => new Date(Date.UTC(2026, 8, 3, 9, minutes));
 const window = { start: at(0), end: at(60), categoryId: "work" };
@@ -54,5 +54,20 @@ describe("rankMatches", () => {
   test("zero-length spans score nothing", () => {
     expect(rankMatches({ ...window, end: at(0) }, [event("e", 0, 60)])).toEqual([]);
     expect(rankMatches(window, [event("e", 0, 0)])).toEqual([]);
+  });
+});
+
+describe("dominantCategoryId", () => {
+  test("the heaviest weight wins, whatever order they arrive in", () => {
+    expect(
+      dominantCategoryId([
+        { categoryId: "rest", weightPercent: 30 },
+        { categoryId: "work", weightPercent: 70 },
+      ]),
+    ).toBe("work");
+  });
+
+  test("an unmapped event counts towards nothing", () => {
+    expect(dominantCategoryId([])).toBeNull();
   });
 });

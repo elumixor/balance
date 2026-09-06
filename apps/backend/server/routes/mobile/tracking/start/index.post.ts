@@ -1,15 +1,13 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { setResponseStatus } from "h3";
 import { z } from "zod";
-import { handleApiError } from "../../../../lib/api-error";
-import { getDbUserForRequest } from "../../../../lib/current-user";
-import { TrackingSessionsService } from "../../../../lib/tracking/sessions-service";
+import { authed } from "~/lib/http/authed";
+import { TrackingSessionsService } from "~/lib/tracking/sessions-service";
 
 /**
  * Starting a timer writes a real event, so unlike the rest of the tracking routes this one has
  * nowhere to go when no calendar is connected, and says so.
  */
-export default handler(
+export default authed(
   {
     body: {
       categoryId: z.string().min(1),
@@ -21,14 +19,9 @@ export default handler(
       calendarId: z.string().min(1).optional(),
     },
   },
-  async ({ body, event }) => {
-    const user = await getDbUserForRequest(event);
-    try {
-      const active = await new TrackingSessionsService(user.id).start(body);
-      setResponseStatus(event, 201);
-      return { active };
-    } catch (e) {
-      return handleApiError(event, e);
-    }
+  async ({ body, event, user }) => {
+    const active = await new TrackingSessionsService(user.id).start(body);
+    setResponseStatus(event, 201);
+    return { active };
   },
 );

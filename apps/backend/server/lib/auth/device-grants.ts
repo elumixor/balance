@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
-import { db } from "../db";
-import { deviceGrants } from "../db/schema";
-import { ApiError } from "./api-error";
-import { clerkClient } from "./current-user";
+import { db } from "~/db";
+import { deviceGrants } from "~/db/schema";
+import { NotAuthenticatedError } from "~/lib/http/api-error";
+import { clerkClient } from "./service";
 
 /** Long enough that a device signs in about as often as it is reinstalled. */
 const GRANT_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000;
@@ -23,7 +23,7 @@ function expiry() {
  * The device's standing permission to sign itself back in, kept as a hash so the database never
  * holds anything that could be replayed.
  */
-export class DeviceGrantService {
+class DeviceGrantService {
   /** Issues a grant to a device that has just proved it holds a session. */
   async issue(userId: string) {
     const secret = randomBytes(SECRET_BYTES).toString("base64url");
@@ -40,7 +40,7 @@ export class DeviceGrantService {
       where: and(eq(deviceGrants.tokenHash, hash(secret)), gt(deviceGrants.expiresAt, new Date())),
       with: { user: true },
     });
-    if (!grant) throw new ApiError("This device is no longer signed in", 401);
+    if (!grant) throw new NotAuthenticatedError("This device is no longer signed in");
 
     const rotated = randomBytes(SECRET_BYTES).toString("base64url");
     await db

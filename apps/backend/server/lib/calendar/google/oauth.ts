@@ -1,7 +1,7 @@
 import { decodeJwt } from "jose";
-import { ApiError } from "../../api-error";
-import { env } from "../../env";
-import { ProviderNeedsReconnectError } from "../errors";
+import { ProviderNeedsReconnectError } from "~/lib/calendar/errors";
+import { env } from "~/lib/env";
+import { UpstreamError } from "~/lib/http/api-error";
 
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -58,7 +58,7 @@ async function requestTokens(params: Record<string, string>): Promise<TokenSet> 
   if (!response.ok) {
     // `invalid_grant` is Google's single answer to revoked, expired and already-used grants.
     if (body.error === "invalid_grant") throw new ProviderNeedsReconnectError("google");
-    throw new ApiError(`Google rejected the token request: ${body.error_description ?? body.error}`, 502);
+    throw new UpstreamError(`Google rejected the token request: ${body.error_description ?? body.error}`);
   }
 
   return {
@@ -69,7 +69,7 @@ async function requestTokens(params: Record<string, string>): Promise<TokenSet> 
   };
 }
 
-export class GoogleOAuthService {
+class GoogleOAuthService {
   authUrl(state: string): string {
     const { clientId, redirectUri } = credentials();
     const params = new URLSearchParams({
@@ -103,15 +103,15 @@ export class GoogleOAuthService {
     });
     const body = (await response.json()) as TokenResponse & { error?: string; error_description?: string };
     if (!response.ok) {
-      throw new ApiError(`Google rejected the sign-in: ${body.error_description ?? body.error}`, 502);
+      throw new UpstreamError(`Google rejected the sign-in: ${body.error_description ?? body.error}`);
     }
     if (!body.refresh_token) {
-      throw new ApiError("Google didn't return a refresh token — try disconnecting and connecting again", 502);
+      throw new UpstreamError("Google didn't return a refresh token — try disconnecting and connecting again");
     }
-    if (!body.id_token) throw new ApiError("Google didn't say which account this is", 502);
+    if (!body.id_token) throw new UpstreamError("Google didn't say which account this is");
 
     const claims = decodeJwt(body.id_token);
-    if (!claims.sub) throw new ApiError("Google didn't say which account this is", 502);
+    if (!claims.sub) throw new UpstreamError("Google didn't say which account this is");
     return {
       tokens: {
         accessToken: body.access_token,
@@ -135,7 +135,10 @@ export class GoogleOAuthService {
 
   /** Best effort: a grant the user already revoked their side answers 400, which is fine. */
   async revoke(token: string): Promise<void> {
-    await fetch(`${REVOKE_ENDPOINT}?token=${encodeURIComponent(token)}`, { method: "POST" }).catch(() => undefined);
+    await fetch(`${REVOKE_ENDPOINT}?token=${encodeURIComponent(token)}`, { method: "POST" }).catch(() => {
+      // Best effort by design: the row is deleted either way, and a grant Google no longer
+      // recognises is already what disconnecting was for.
+    });
   }
 }
 

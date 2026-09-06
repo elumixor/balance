@@ -1,23 +1,14 @@
-import { handler } from "@elumixor/nitro-client/server";
-import { z } from "zod";
-import { handleApiError } from "../../../lib/api-error";
-import { getDbUserForRequest } from "../../../lib/current-user";
-import { PlanningService } from "../../../lib/planning/service";
+import { authed } from "~/lib/http/authed";
+import { dayField, timeZoneField } from "~/lib/http/schemas";
+import { PlanningService } from "~/lib/planning/service";
 
 /** The Sunday sitting, committed. Flat pay — living the week it draws is what earns the rest. */
-export default handler(
+export default authed(
   {
     body: {
-      weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "weekStart must be YYYY-MM-DD"),
-      timeZone: z.string().max(64),
+      weekStart: dayField,
+      timeZone: timeZoneField,
     },
   },
-  async ({ body, event }) => {
-    const user = await getDbUserForRequest(event);
-    try {
-      return await new PlanningService(user.id).commitWeek(body);
-    } catch (e) {
-      return handleApiError(event, e);
-    }
-  },
+  async ({ body, user }) => new PlanningService(user.id).commitWeek(body),
 );

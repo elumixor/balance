@@ -1,7 +1,7 @@
 import { and, eq, ne } from "drizzle-orm";
-import { db } from "../../db";
-import { providerAccounts } from "../../db/schema";
-import { decryptSecret, encryptSecret } from "../crypto";
+import { db } from "~/db";
+import { providerAccounts } from "~/db/schema";
+import { decryptSecret, encryptSecret } from "./crypto";
 import { ProviderNeedsReconnectError, ProviderNotConnectedError } from "./errors";
 import { type GoogleIdentity, googleOAuthService, type TokenSet } from "./google/oauth";
 
@@ -13,7 +13,7 @@ export interface CalendarPrefsInput {
 }
 
 /** Refresh a little before the token actually dies, so a slow request doesn't run out mid-flight. */
-const EXPIRY_MARGIN_MS = 60 * 1000;
+const EXPIRY_MARGIN_MS = 60_000;
 
 /** The stored OAuth grants for one user's connected calendar accounts, and the tokens they yield. */
 export class ProviderAccountService {

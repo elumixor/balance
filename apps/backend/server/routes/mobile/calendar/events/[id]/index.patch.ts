@@ -1,11 +1,17 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { z } from "zod";
-import { ApiError, handleApiError } from "../../../../../lib/api-error";
-import { CalendarEventsService } from "../../../../../lib/calendar/events-service";
-import { getDbUserForRequest } from "../../../../../lib/current-user";
-import { CalendarEventDTO } from "../../../../../lib/dto";
+import { CalendarEventDTO } from "~/lib/calendar/dto";
+import { CalendarEventsService } from "~/lib/calendar/events-service";
+import { authed } from "~/lib/http/authed";
+import { parseInstant, parseInstantRange, timeZoneField } from "~/lib/http/schemas";
 
-export default handler(
+/** Google's own ceiling on a reminder: four weeks ahead, in minutes. */
+const MAX_REMINDER_MINUTES = 40_320;
+const MAX_REMINDERS = 5;
+const MAX_ATTENDEES = 100;
+const MAX_RRULE_LINES = 4;
+const MAX_RRULE_LENGTH = 400;
+
+export default authed(
   {
     body: {
       calendarId: z.string().min(1),
@@ -14,15 +20,17 @@ export default handler(
       start: z.string().optional(),
       end: z.string().optional(),
       location: z.string().optional(),
-      timeZone: z.string().max(64).optional(),
-      recurrence: z.array(z.string().max(400)).max(4).optional(),
+      timeZone: timeZoneField.optional(),
+      recurrence: z.array(z.string().max(MAX_RRULE_LENGTH)).max(MAX_RRULE_LINES).optional(),
       reminders: z
-        .array(z.object({ method: z.enum(["popup", "email"]), minutes: z.number().int().min(0).max(40_320) }))
-        .max(5)
+        .array(
+          z.object({ method: z.enum(["popup", "email"]), minutes: z.number().int().min(0).max(MAX_REMINDER_MINUTES) }),
+        )
+        .max(MAX_REMINDERS)
         .optional(),
       attendees: z
         .array(z.object({ email: z.string().email(), optional: z.boolean().optional() }))
-        .max(100)
+        .max(MAX_ATTENDEES)
         .optional(),
       conference: z.enum(["create", "remove"]).optional(),
       // Present only when the caller means the whole series, not just this occurrence.
@@ -31,48 +39,36 @@ export default handler(
       previousEnd: z.string().optional(),
     },
   },
-  async ({ body, router, event }) => {
-    const user = await getDbUserForRequest(event);
-    try {
-      const start = parseInstant(body.start, "start");
-      const end = parseInstant(body.end, "end");
-      if (start && end && end <= start) throw new ApiError("An event has to end after it starts");
+  async ({ body, router, user }) => {
+    const range = body.start && body.end ? parseInstantRange(body.start, body.end, ["start", "end"]) : undefined;
+    const start = range?.start ?? (body.start ? parseInstant(body.start, "start") : undefined);
+    const end = range?.end ?? (body.end ? parseInstant(body.end, "end") : undefined);
 
-      const series = body.seriesId
-        ? {
-            seriesId: body.seriesId,
-            previousStart: parseInstant(body.previousStart, "previousStart") ?? new Date(),
-            previousEnd: parseInstant(body.previousEnd, "previousEnd") ?? new Date(),
-          }
-        : undefined;
+    const series = body.seriesId
+      ? {
+          seriesId: body.seriesId,
+          previousStart: body.previousStart ? parseInstant(body.previousStart, "previousStart") : new Date(),
+          previousEnd: body.previousEnd ? parseInstant(body.previousEnd, "previousEnd") : new Date(),
+        }
+      : undefined;
 
-      const updated = await new CalendarEventsService(user.id).update(
-        body.calendarId,
-        router.id,
-        {
-          title: body.title,
-          description: body.description,
-          start,
-          end,
-          location: body.location,
-          timeZone: body.timeZone,
-          recurrence: body.recurrence,
-          reminders: body.reminders,
-          attendees: body.attendees,
-          conference: body.conference,
-        },
-        series,
-      );
-      return { event: new CalendarEventDTO(updated) };
-    } catch (e) {
-      return handleApiError(event, e);
-    }
+    const updated = await new CalendarEventsService(user.id).update(
+      body.calendarId,
+      router.id,
+      {
+        title: body.title,
+        description: body.description,
+        start,
+        end,
+        location: body.location,
+        timeZone: body.timeZone,
+        recurrence: body.recurrence,
+        reminders: body.reminders,
+        attendees: body.attendees,
+        conference: body.conference,
+      },
+      series,
+    );
+    return { event: new CalendarEventDTO(updated) };
   },
 );
-
-function parseInstant(value: string | undefined, field: string): Date | undefined {
-  if (value === undefined) return undefined;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) throw new ApiError(`${field} must be a valid ISO 8601 instant`);
-  return parsed;
-}

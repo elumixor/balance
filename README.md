@@ -47,11 +47,12 @@ one process: `cd apps/backend && bun run dev`, or `cd apps/frontend && bun run d
 Both apps read the one `.env` at the root (symlinked into each). Every key is required, and a
 missing one stops the backend at start-up and the frontend at build time with its name — see
 `apps/backend/server/lib/env.ts` for the full list. The backend needs `DATABASE_URL`,
-`DATABASE_URL_UNPOOLED`, `CLERK_SECRET_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
+`DATABASE_URL_UNPOOLED`, `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
 `GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and `OAUTH_STATE_SECRET` (the last two are
 `openssl rand -base64 32`), `GOOGLE_MAPS_API_KEY` for travel times through the Google Routes API
 and address suggestions through the Places API, `AI_GATEWAY_API_KEY` for the session copy and the
-project proposals, and `SENTRY_DSN`, `POSTHOG_KEY`, `POSTHOG_HOST` for its own failures. The
+project proposals, `SENTRY_DSN`, `POSTHOG_KEY`, `POSTHOG_HOST` for its own failures, and `APPLE_BUNDLE_ID` and
+`GOOGLE_IOS_CLIENT_ID`, which say who a native sign-in token has to be addressed to. The
 frontend needs `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`,
 `VITE_POSTHOG_HOST` and `VITE_API_BASE_URL`. With
 no `VITE_API_BASE_URL`, dev falls back to this machine's LAN address (so a phone on the same

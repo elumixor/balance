@@ -1,8 +1,9 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "../../db";
-import { eventMappings, eventMappingWeights } from "../../db/schema";
-import { ApiError } from "../api-error";
-import { ActivityService, type ActivityWeightInput } from "../categories-service";
+import { db } from "~/db";
+import { eventMappings, eventMappingWeights } from "~/db/schema";
+import { ActivityService, type ActivityWeightInput } from "~/lib/categories/service";
+import { ApiError } from "~/lib/http/api-error";
+import { eventCache } from "./event-cache";
 import type { EventTimer, MappingScope } from "./types";
 
 export interface MappingKey {
@@ -38,7 +39,11 @@ export interface ResolvedMapping extends MappingKey, MappingPurpose {
 
 const PROVIDER = "google";
 
-/** What each of a user's external calendar events counts as. */
+/**
+ * What each of a user's external calendar events counts as. Every write here ends by forgetting
+ * the user's cached weeks: a mapping is half of what a resolved event is, and a memo made before
+ * it would hand the old answer back for thirty seconds.
+ */
 export class EventMappingService {
   constructor(private readonly userId: string) {}
 
@@ -93,7 +98,10 @@ export class EventMappingService {
       .returning();
 
     await db.delete(eventMappingWeights).where(eq(eventMappingWeights.mappingId, mapping.id));
-    if (!usesWeights) return this.resolveOne(mapping.id);
+    if (!usesWeights) {
+      eventCache.invalidate(this.userId);
+      return this.resolveOne(mapping.id);
+    }
 
     // Same rule as an activity's own split: whatever the user left unclaimed is buffer time.
     const weights = await new ActivityService(this.userId).resolveWeightsWithBufferRemainder(input.weights ?? []);
@@ -102,6 +110,7 @@ export class EventMappingService {
       .values(
         weights.map((w) => ({ mappingId: mapping.id, categoryId: w.categoryId, weightPercent: w.weightPercent })),
       );
+    eventCache.invalidate(this.userId);
     return this.resolveOne(mapping.id);
   }
 
@@ -121,10 +130,12 @@ export class EventMappingService {
       return;
     }
     await db.update(eventMappings).set({ scope }).where(this.whereKey(key));
+    eventCache.invalidate(this.userId);
   }
 
   async remove(key: MappingKey): Promise<void> {
     await db.delete(eventMappings).where(this.whereKey(key));
+    eventCache.invalidate(this.userId);
   }
 
   private whereKey(key: MappingKey) {
@@ -151,7 +162,7 @@ export class EventMappingService {
       where: eq(eventMappings.id, id),
       with: { weights: true, activity: { with: { weights: true } } },
     });
-    if (!row) throw new ApiError("The mapping vanished as it was being saved", 500);
+    if (!row) throw new Error(`Mapping ${id} vanished as it was being saved`);
     return this.toResolved(row);
   }
 

@@ -11,7 +11,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../server/db";
 import { categories, projects, users } from "../server/db/schema";
-import { clerkClient } from "../server/lib/current-user";
+import { clerkClient } from "../server/lib/auth/service";
 import { env } from "../server/lib/env";
 import { projectTemplateSchema } from "../server/lib/sync/projects";
 

@@ -1,18 +1,8 @@
-import { handler } from "@elumixor/nitro-client/server";
-import { and, asc, eq } from "drizzle-orm";
-import { db } from "../../../db";
-import { activities } from "../../../db/schema";
-import { getDbUserForRequest } from "../../../lib/current-user";
-import { ActivityDTO } from "../../../lib/dto";
+import { ActivityDTO } from "~/lib/categories/dto";
+import { ActivityService } from "~/lib/categories/service";
+import { authed } from "~/lib/http/authed";
 
-export default handler(async ({ event }) => {
-  const user = await getDbUserForRequest(event);
-
-  const rows = await db.query.activities.findMany({
-    where: and(eq(activities.userId, user.id), eq(activities.archived, false)),
-    orderBy: asc(activities.createdAt),
-    with: { weights: true },
-  });
-
+export default authed(async ({ user }) => {
+  const rows = await new ActivityService(user.id).list();
   return { activities: rows.map((a) => new ActivityDTO(a)) };
 });

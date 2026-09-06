@@ -1,12 +1,15 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { db } from "../../db";
-import { categories, trackingSessions } from "../../db/schema";
-import { ApiError } from "../api-error";
-import { ProviderNeedsReconnectError, ProviderNotConnectedError } from "../calendar/errors";
-import { eventCache } from "../calendar/event-cache";
-import { CalendarEventsService, qualifyCalendarId, type ResolvedEvent } from "../calendar/events-service";
-import { EventMappingService } from "../calendar/mappings-service";
-import { NEAR_START_MINUTES, rankMatches } from "./match";
+import { db } from "~/db";
+import { categories, trackingSessions } from "~/db/schema";
+import { ProviderNeedsReconnectError, ProviderNotConnectedError } from "~/lib/calendar/errors";
+import { eventCache } from "~/lib/calendar/event-cache";
+import { CalendarEventsService, type ResolvedEvent } from "~/lib/calendar/events-service";
+import { qualifyCalendarId } from "~/lib/calendar/ids";
+import { EventMappingService } from "~/lib/calendar/mappings-service";
+import { ApiError, ConflictError, NotFoundError } from "~/lib/http/api-error";
+import { captureError } from "~/lib/telemetry";
+import type { StoppedSession, TrackingSessionDTO } from "./dto";
+import { SessionMatcher } from "./matcher";
 
 /** How long an open-ended session provisionally claims, so its event isn't zero-length. */
 const PROVISIONAL_MINUTES = 30;
@@ -16,40 +19,8 @@ const MIN_MINUTES = 1;
 
 const MS_PER_MINUTE = 60_000;
 
-/** The running session as every screen sees it, category already resolved. */
-export interface TrackingSessionDTO {
-  readonly id: string;
-  readonly categoryId: string;
-  readonly categoryName: string;
-  readonly categoryColor: string;
-  readonly categoryIcon: string;
-  readonly eventId: string;
-  /** Qualified with the account it belongs to — see `qualifyCalendarId`. */
-  readonly calendarId: string;
-  readonly startedAt: string;
-  readonly plannedEndAt: string | null;
-}
-
-/** A planned event a finished timer might have been for — see `match.ts`. */
-export interface MatchCandidateDTO {
-  readonly id: string;
-  /** Qualified with the account it belongs to — see `qualifyCalendarId`. */
-  readonly calendarId: string;
-  readonly title: string;
-  readonly start: string;
-  readonly end: string;
-  readonly categoryId: string | null;
-  readonly score: number;
-}
-
-export interface StoppedSession {
-  readonly stopped: TrackingSessionDTO;
-  /** Best first; empty when the timer was already pointed at something planned. */
-  readonly candidates: MatchCandidateDTO[];
-}
-
-/** How many planned events a wrist is offered after a timer. One is the answer; three is a menu. */
-const MAX_CANDIDATES = 3;
+/** Google's answers that mean the event is not ours to move any more — see `moveEnd`. */
+const EVENT_GONE_STATUSES = new Set([403, 404, 410]);
 
 type SessionRow = typeof trackingSessions.$inferSelect;
 type CategoryRow = typeof categories.$inferSelect;
@@ -63,26 +34,28 @@ type CategoryRow = typeof categories.$inferSelect;
  * session behind, where the other order would leave a session pointing at nothing.
  */
 export class TrackingSessionsService {
-  private readonly events: CalendarEventsService;
+  readonly #events: CalendarEventsService;
+  readonly #mappings: EventMappingService;
+  readonly #matcher: SessionMatcher;
 
   constructor(private readonly userId: string) {
-    this.events = new CalendarEventsService(userId);
+    this.#events = new CalendarEventsService(userId);
+    this.#mappings = new EventMappingService(userId);
+    this.#matcher = new SessionMatcher(userId, this.#events);
   }
 
   /** The session still running, or null. Never throws for a calendar that isn't connected. */
   async current(): Promise<TrackingSessionDTO | null> {
-    const running = await this.running();
+    const running = await this.#running();
     if (!running) return null;
-    return this.toDTO(running.session, running.category);
+    return this.#toDTO(running.session, running.category);
   }
 
   /**
    * A second start means the first one is over: the running session is stopped at this instant
    * rather than refused, which is what someone tapping a different category on their wrist means.
-   *
-   * The new event is written before the old session is closed, so a calendar that refuses the
-   * write — an expired grant, a rate limit — leaves the timer that was already running alone
-   * rather than cancelling it in exchange for nothing.
+   * It is stopped first, so that the new event never sits beside a still-open one; a calendar
+   * that then refuses the new event leaves a closed timer and nothing dangling.
    */
   async start(input: {
     categoryId: string;
@@ -95,12 +68,12 @@ export class TrackingSessionsService {
     const category = await db.query.categories.findFirst({
       where: and(eq(categories.id, input.categoryId), eq(categories.userId, this.userId)),
     });
-    if (!category) throw new ApiError("That category no longer exists", 404);
+    if (!category) throw new NotFoundError("That category no longer exists");
     if (category.archived) throw new ApiError("That category is archived");
 
     if (input.eventId) {
       if (!input.calendarId) throw new ApiError("An event needs its calendar");
-      return this.startFor(category, input.calendarId, input.eventId, input.durationMinutes ?? null);
+      return this.#startFor(category, input.calendarId, input.eventId, input.durationMinutes ?? null);
     }
 
     const startedAt = new Date();
@@ -108,7 +81,9 @@ export class TrackingSessionsService {
     if (minutes < MIN_MINUTES) throw new ApiError("A session has to run for at least a minute");
     const plannedEnd = new Date(startedAt.getTime() + minutes * MS_PER_MINUTE);
 
-    const created = await this.events.create({
+    await this.stop();
+
+    const created = await this.#events.create({
       start: startedAt,
       end: plannedEnd,
       title: input.title?.trim() || category.name,
@@ -118,15 +93,12 @@ export class TrackingSessionsService {
     try {
       // The hour has to count as something, and a session is pointed at exactly one category, so
       // the event carries its own weights rather than borrowing an activity's mix.
-      await new EventMappingService(this.userId).upsert({
+      await this.#mappings.upsert({
         calendarId: created.calendarId,
         scope: "instance",
         externalEventId: created.id,
         weights: [{ categoryId: category.id, weightPercent: 100 }],
       });
-      eventCache.invalidate(this.userId);
-
-      await this.stop();
 
       // Two taps a moment apart — watch and phone, or one impatient finger — both get this far
       // with an event apiece. The partial unique index decides which of them is the session, and
@@ -145,11 +117,11 @@ export class TrackingSessionsService {
         })
         .onConflictDoNothing()
         .returning();
-      if (!session) throw new ApiError("A session is already running", 409);
+      if (!session) throw new ConflictError("A session is already running");
 
-      return this.toDTO(session, category);
+      return this.#toDTO(session, category);
     } catch (e) {
-      await this.discard(calendarId, created.id);
+      await this.#discard(calendarId, created.id);
       throw e;
     }
   }
@@ -160,21 +132,20 @@ export class TrackingSessionsService {
    * the hour to land anywhere, so an unmapped one is mapped to the category on the way in; one
    * already mapped keeps what it says. Somebody else's meeting is never re-timed.
    */
-  private async startFor(
+  async #startFor(
     category: CategoryRow,
     calendarId: string,
     eventId: string,
     durationMinutes: number | null,
   ): Promise<TrackingSessionDTO> {
-    const target = await this.events.get(calendarId, eventId);
+    const target = await this.#events.get(calendarId, eventId);
     if (target.weights.length === 0) {
-      await new EventMappingService(this.userId).upsert({
+      await this.#mappings.upsert({
         calendarId: target.calendarId,
         scope: "instance",
         externalEventId: target.id,
         weights: [{ categoryId: category.id, weightPercent: 100 }],
       });
-      eventCache.invalidate(this.userId);
     }
 
     const startedAt = new Date();
@@ -197,13 +168,13 @@ export class TrackingSessionsService {
         externalEventId: target.id,
         startedAt,
         plannedEndAt,
-        ownsEvent: this.isOwn(target),
+        ownsEvent: isOwn(target),
         fromEvent: true,
       })
       .onConflictDoNothing()
       .returning();
-    if (!session) throw new ApiError("A session is already running", 409);
-    return this.toDTO(session, category);
+    if (!session) throw new ConflictError("A session is already running");
+    return this.#toDTO(session, category);
   }
 
   /**
@@ -213,15 +184,15 @@ export class TrackingSessionsService {
    *
    * What comes back with it is the question the wrist asks next: was this for something that was
    * already on the calendar? Only a timer that wrote its own event is asked — one started from a
-   * reminder already knows — and a calendar that can't be read just answers with nothing to offer.
+   * reminder already knows.
    */
   async stop(): Promise<StoppedSession | null> {
-    const running = await this.running();
+    const running = await this.#running();
     if (!running) return null;
     const { session, category } = running;
 
-    const endedAt = this.atLeastOneMinuteAfter(session.startedAt, new Date());
-    await this.moveEnd(session, endedAt);
+    const endedAt = atLeastOneMinuteAfter(session.startedAt, new Date());
+    await this.#moveEnd(session, endedAt);
 
     const [stopped] = await db
       .update(trackingSessions)
@@ -229,8 +200,8 @@ export class TrackingSessionsService {
       .where(eq(trackingSessions.id, session.id))
       .returning();
 
-    const candidates = stopped.fromEvent ? [] : await this.candidates(stopped).catch(() => []);
-    return { stopped: this.toDTO(stopped, category), candidates };
+    const candidates = stopped.fromEvent ? [] : await this.#matcher.candidates(stopped);
+    return { stopped: this.#toDTO(stopped, category), candidates };
   }
 
   /**
@@ -243,73 +214,44 @@ export class TrackingSessionsService {
       where: and(eq(trackingSessions.id, sessionId), eq(trackingSessions.userId, this.userId)),
       with: { category: true },
     });
-    if (!session) throw new ApiError("That session no longer exists", 404);
+    if (!session) throw new NotFoundError("That session no longer exists");
     if (!session.endedAt) throw new ApiError("The session is still running");
     if (session.fromEvent) throw new ApiError("That session already belongs to a planned event");
-    if (session.externalEventId === eventId) return this.toDTO(session, session.category);
+    if (session.externalEventId === eventId) return this.#toDTO(session, session.category);
 
-    const target = await this.events.get(calendarId, eventId);
-    const own = this.isOwn(target);
-    if (own) await this.events.update(calendarId, target.id, { start: session.startedAt, end: session.endedAt });
+    const target = await this.#events.get(calendarId, eventId);
+    const own = isOwn(target);
+    if (own) await this.#events.update(calendarId, target.id, { start: session.startedAt, end: session.endedAt });
     if (target.weights.length === 0) {
-      await new EventMappingService(this.userId).upsert({
+      await this.#mappings.upsert({
         calendarId: target.calendarId,
         scope: "instance",
         externalEventId: target.id,
         weights: [{ categoryId: session.categoryId, weightPercent: 100 }],
       });
     }
-    await this.discard(session.calendarId, session.externalEventId);
-    eventCache.invalidate(this.userId);
+    await this.#discard(session.calendarId, session.externalEventId);
 
     const [matched] = await db
       .update(trackingSessions)
       .set({ calendarId, externalEventId: target.id, ownsEvent: own, fromEvent: true })
       .where(eq(trackingSessions.id, session.id))
       .returning();
-    return this.toDTO(matched, session.category);
-  }
-
-  private async candidates(session: SessionRow): Promise<MatchCandidateDTO[]> {
-    const end = session.endedAt ?? new Date();
-    const margin = NEAR_START_MINUTES * MS_PER_MINUTE;
-    const range = await this.events.resolve(
-      new Date(session.startedAt.getTime() - margin),
-      new Date(end.getTime() + margin),
-    );
-    const events = range.events
-      .filter((e) => e.id !== session.externalEventId && e.countsTowardHours)
-      .map((e) => ({ ...e, categoryId: dominant(e.weights) }));
-    return rankMatches({ start: session.startedAt, end, categoryId: session.categoryId }, events)
-      .slice(0, MAX_CANDIDATES)
-      .map(({ event, score }) => ({
-        id: event.id,
-        calendarId: qualifyCalendarId(event.accountId, event.calendarId),
-        title: event.title,
-        start: event.start.toISOString(),
-        end: event.end.toISOString(),
-        categoryId: event.categoryId,
-        score,
-      }));
-  }
-
-  /** An event nobody else is on, and that the calendar lets us write — the only kind re-timed. */
-  private isOwn(event: ResolvedEvent): boolean {
-    return event.movable && event.attendees.every((a) => a.self || a.resource);
+    return this.#toDTO(matched, session.category);
   }
 
   /** Re-plans how long the running session plans to run, measured from when it started. */
   async extend(durationMinutes: number): Promise<TrackingSessionDTO> {
-    const running = await this.running();
-    if (!running) throw new ApiError("Nothing is being tracked right now", 404);
+    const running = await this.#running();
+    if (!running) throw new NotFoundError("Nothing is being tracked right now");
     const { session, category } = running;
 
     // Re-planning can shorten a session, but never to before this moment: the time already spent
     // has happened, and pulling the event's end into the past would quietly erase it.
     const requested = new Date(session.startedAt.getTime() + durationMinutes * MS_PER_MINUTE);
     const now = new Date();
-    const plannedEndAt = this.atLeastOneMinuteAfter(session.startedAt, requested > now ? requested : now);
-    await this.moveEnd(session, plannedEndAt);
+    const plannedEndAt = atLeastOneMinuteAfter(session.startedAt, requested > now ? requested : now);
+    await this.#moveEnd(session, plannedEndAt);
 
     const [extended] = await db
       .update(trackingSessions)
@@ -317,10 +259,10 @@ export class TrackingSessionsService {
       .where(eq(trackingSessions.id, session.id))
       .returning();
 
-    return this.toDTO(extended, category);
+    return this.#toDTO(extended, category);
   }
 
-  private async running(): Promise<{ session: SessionRow; category: CategoryRow } | null> {
+  async #running(): Promise<{ session: SessionRow; category: CategoryRow } | null> {
     const session = await db.query.trackingSessions.findFirst({
       where: and(eq(trackingSessions.userId, this.userId), isNull(trackingSessions.endedAt)),
       with: { category: true },
@@ -335,37 +277,33 @@ export class TrackingSessionsService {
    * best-effort while the session's own end is not. Without this a session whose event went
    * missing could never be closed, and the partial unique index would block every later start.
    */
-  private async moveEnd(session: SessionRow, end: Date): Promise<void> {
+  async #moveEnd(session: SessionRow, end: Date): Promise<void> {
     if (!session.ownsEvent) return;
     try {
-      await this.events.update(session.calendarId, session.externalEventId, { end });
+      await this.#events.update(session.calendarId, session.externalEventId, { end });
     } catch (e) {
       if (e instanceof ProviderNotConnectedError || e instanceof ProviderNeedsReconnectError) return;
-      if (e instanceof ApiError && (e.status === 403 || e.status === 404 || e.status === 410)) return;
+      if (e instanceof ApiError && EVENT_GONE_STATUSES.has(e.status)) return;
       throw e;
     }
-    eventCache.invalidate(this.userId);
   }
 
   /**
    * The event a losing start already put in the calendar, taken back out. Whatever went wrong
-   * upstream is what the caller has to hear about, so a cleanup that fails as well stays quiet
-   * rather than replacing the real error with a second one.
+   * upstream is what the caller has to hear about, so a cleanup that fails as well is reported
+   * rather than thrown — a second error would replace the real one — and the week is forgotten
+   * either way, since the event may or may not still be in it.
    */
-  private async discard(calendarId: string, eventId: string): Promise<void> {
+  async #discard(calendarId: string, eventId: string): Promise<void> {
     try {
-      await this.events.delete(calendarId, eventId);
-    } catch {
+      await this.#events.delete(calendarId, eventId);
+    } catch (e) {
+      await captureError(e, { userId: this.userId, path: "tracking/discard" });
       eventCache.invalidate(this.userId);
     }
   }
 
-  private atLeastOneMinuteAfter(start: Date, candidate: Date): Date {
-    const floor = new Date(start.getTime() + MIN_MINUTES * MS_PER_MINUTE);
-    return candidate > floor ? candidate : floor;
-  }
-
-  private toDTO(session: SessionRow, category: CategoryRow): TrackingSessionDTO {
+  #toDTO(session: SessionRow, category: CategoryRow): TrackingSessionDTO {
     return {
       id: session.id,
       categoryId: category.id,
@@ -380,7 +318,12 @@ export class TrackingSessionsService {
   }
 }
 
-/** The category an event counts most towards, or null when it counts towards nothing. */
-function dominant(weights: readonly { categoryId: string; weightPercent: number }[]): string | null {
-  return [...weights].sort((a, b) => b.weightPercent - a.weightPercent)[0]?.categoryId ?? null;
+/** An event nobody else is on, and that the calendar lets us write — the only kind re-timed. */
+function isOwn(event: ResolvedEvent): boolean {
+  return event.movable && event.attendees.every((a) => a.self || a.resource);
+}
+
+function atLeastOneMinuteAfter(start: Date, candidate: Date): Date {
+  const floor = new Date(start.getTime() + MIN_MINUTES * MS_PER_MINUTE);
+  return candidate > floor ? candidate : floor;
 }

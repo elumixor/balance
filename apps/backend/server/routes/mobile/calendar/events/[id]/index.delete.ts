@@ -1,15 +1,8 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { z } from "zod";
-import { handleApiError } from "../../../../../lib/api-error";
-import { CalendarEventsService } from "../../../../../lib/calendar/events-service";
-import { getDbUserForRequest } from "../../../../../lib/current-user";
+import { CalendarEventsService } from "~/lib/calendar/events-service";
+import { authed } from "~/lib/http/authed";
 
-export default handler({ body: { calendarId: z.string().min(1) } }, async ({ body, router, event }) => {
-  const user = await getDbUserForRequest(event);
-  try {
-    await new CalendarEventsService(user.id).delete(body.calendarId, router.id);
-    return { ok: true };
-  } catch (e) {
-    return handleApiError(event, e);
-  }
+export default authed({ body: { calendarId: z.string().min(1) } }, async ({ body, router, user }) => {
+  await new CalendarEventsService(user.id).delete(body.calendarId, router.id);
+  return { ok: true };
 });

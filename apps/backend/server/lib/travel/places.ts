@@ -1,5 +1,6 @@
-import { ApiError } from "../api-error";
-import { env } from "../env";
+import { env } from "~/lib/env";
+import { TtlCache } from "~/lib/ttl-cache";
+import { isNoAnswer } from "./google-maps";
 
 /**
  * Addresses, as you type them.
@@ -45,13 +46,8 @@ export async function suggestPlaces(input: { query: string; sessionToken?: strin
     body: JSON.stringify({ input: query, ...(input.sessionToken ? { sessionToken: input.sessionToken } : {}) }),
   });
 
-  if (!response.ok) {
-    // The same reasoning as a journey Google won't route: a key that isn't allowed to ask is a
-    // configuration problem, and for the person typing it is indistinguishable from no matches.
-    if (response.status === 400 || response.status === 401 || response.status === 403) return [];
-    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new ApiError(`Google Maps said: ${body.error?.message ?? response.statusText}`, 502);
-  }
+  // For the person typing, a key that can't ask is indistinguishable from no matches.
+  if (!response.ok && (await isNoAnswer(response, "places/autocomplete"))) return [];
 
   const body = (await response.json()) as {
     suggestions?: {
@@ -127,7 +123,7 @@ async function placeById(placeId: string, sessionToken: string | undefined) {
   const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}${params}`, {
     headers: { "x-goog-api-key": env.GOOGLE_MAPS_API_KEY, "x-goog-fieldmask": DETAILS_FIELDS },
   });
-  if (!response.ok) return await noPlace(response);
+  if (!response.ok && (await isNoAnswer(response, "places/details"))) return null;
   return asDetails((await response.json()) as RawPlace);
 }
 
@@ -143,21 +139,16 @@ async function placeByText(query: string) {
     },
     body: JSON.stringify({ textQuery: query, pageSize: 1 }),
   });
-  if (!response.ok) return await noPlace(response);
+  if (!response.ok && (await isNoAnswer(response, "places/search"))) return null;
   const body = (await response.json()) as { places?: RawPlace[] };
   return asDetails(body.places?.[0]);
 }
 
-async function noPlace(response: Response): Promise<null> {
-  if ([400, 401, 403, 404].includes(response.status)) return null;
-  const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-  throw new ApiError(`Google Maps said: ${body.error?.message ?? response.statusText}`, 502);
-}
-
 /** The picture is the same for the life of an address; a day is long enough not to matter. */
-const MAP_CACHE_MS = 24 * 60 * 60_000;
+const MS_PER_HOUR = 60 * 60_000;
+const MAP_CACHE_MS = 24 * MS_PER_HOUR;
 const MAP_CACHE_MAX = 200;
-const mapCache = new Map<string, { at: number; image: string }>();
+const mapCache = new TtlCache<string>(MAP_CACHE_MS, MAP_CACHE_MAX);
 
 /**
  * How the preview is drawn: Google's own map with the shop pins and road shields taken off and
@@ -200,7 +191,7 @@ export async function staticMap(input: {
 }): Promise<string | null> {
   const key = `${input.latitude.toFixed(5)},${input.longitude.toFixed(5)}|${input.width}x${input.height}|${input.dark}`;
   const hit = mapCache.get(key);
-  if (hit && Date.now() - hit.at < MAP_CACHE_MS) return hit.image;
+  if (hit) return hit;
 
   const params = new URLSearchParams({
     center: `${input.latitude},${input.longitude}`,
@@ -218,10 +209,6 @@ export async function staticMap(input: {
   const type = response.headers.get("content-type") ?? "image/png";
   const image = `data:${type};base64,${Buffer.from(await response.arrayBuffer()).toString("base64")}`;
 
-  if (mapCache.size >= MAP_CACHE_MAX) {
-    const oldest = mapCache.keys().next().value;
-    if (oldest !== undefined) mapCache.delete(oldest);
-  }
-  mapCache.set(key, { at: Date.now(), image });
+  mapCache.set(key, image);
   return image;
 }

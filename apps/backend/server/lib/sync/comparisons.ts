@@ -1,6 +1,6 @@
 import { syncedModel } from "@elumixor/synced/server";
 import { z } from "zod";
-import { projectComparisons } from "../../db/schema";
+import { projectComparisons } from "~/db/schema";
 import { defined, TableStore } from "./table-store";
 
 export const comparisonSchema = z.object({

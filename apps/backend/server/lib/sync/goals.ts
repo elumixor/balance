@@ -1,6 +1,6 @@
 import { syncedModel } from "@elumixor/synced/server";
 import { z } from "zod";
-import { goals } from "../../db/schema";
+import { goals } from "~/db/schema";
 import { defined, TableStore } from "./table-store";
 
 /** A goal holds no hours, and the schema is where that rule lives: there is no field for them. */

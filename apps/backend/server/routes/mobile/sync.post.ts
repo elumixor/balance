@@ -1,9 +1,7 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { mutationSchema, sinceSchema } from "@elumixor/synced/server";
 import { z } from "zod";
-import { handleApiError } from "../../lib/api-error";
-import { getDbUserForRequest } from "../../lib/current-user";
-import { syncServer } from "../../lib/sync";
+import { authed } from "~/lib/http/authed";
+import { syncServer } from "~/lib/sync";
 
 /**
  * One round trip for every model at once: the writes the client has made since it last heard from
@@ -13,19 +11,12 @@ import { syncServer } from "../../lib/sync";
  * together, so they can't disagree about what the server holds, and a burst of edits across three
  * screens costs a single request.
  */
-export default handler(
+export default authed(
   {
     body: {
       since: sinceSchema,
       mutations: z.array(mutationSchema),
     },
   },
-  async ({ body, event }) => {
-    const user = await getDbUserForRequest(event);
-    try {
-      return await syncServer.handle(user.id, body);
-    } catch (e) {
-      return handleApiError(event, e);
-    }
-  },
+  async ({ body, user }) => syncServer.handle(user.id, body),
 );

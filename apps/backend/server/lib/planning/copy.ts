@@ -1,10 +1,8 @@
-import { createGateway } from "@ai-sdk/gateway";
-import { generateObject } from "ai";
 import { and, eq, gte, lt } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../../db";
-import { sessionCopy } from "../../db/schema";
-import { env } from "../env";
+import { db } from "~/db";
+import { sessionCopy } from "~/db/schema";
+import { ask } from "~/lib/ai/gateway";
 import { type Angle, type CopyInput, fallback, pickAngle, type SessionCopy } from "./copy-fallback";
 import { addDays, type Day } from "./days";
 
@@ -27,8 +25,8 @@ export type { CopyInput, CopyPoint, SessionCopy } from "./copy-fallback";
 const TITLE_MAX = 60;
 const BODY_MAX = 160;
 const POINT_MAX = 110;
-
-const MODEL = "anthropic/claude-sonnet-5";
+/** The last few days' words, newest first — what today's have to differ from. */
+const RECENT_DAYS = 3;
 
 const copySchema = z.object({
   title: z.string().max(TITLE_MAX),
@@ -72,7 +70,6 @@ export async function sessionCopyFor(userId: string, day: Day, input: CopyInput,
   return copy;
 }
 
-/** The last few days' words, newest first — what today's have to differ from. */
 async function recent(userId: string, day: Day): Promise<{ angle: Angle | null; title: string }[]> {
   const rows = await db.query.sessionCopy.findMany({
     where: and(
@@ -88,27 +85,13 @@ async function recent(userId: string, day: Day): Promise<{ angle: Angle | null; 
     return { angle: data.angle ?? null, title: data.title ?? "" };
   });
 }
-const RECENT_DAYS = 3;
-
-/** Forgets a day's words, so the next ask writes them again. */
-export async function clearSessionCopy(userId: string, day: Day) {
-  await db.delete(sessionCopy).where(and(eq(sessionCopy.userId, userId), eq(sessionCopy.day, day)));
-}
 
 async function generate(input: CopyInput, previousTitles: string[]): Promise<SessionCopy | null> {
   const angle = pickAngle(input);
-  try {
-    const { object } = await generateObject({
-      model: createGateway({ apiKey: env.AI_GATEWAY_API_KEY })(MODEL),
-      schema: copySchema,
-      system: SYSTEM,
-      prompt: promptFor(input, angle, previousTitles),
-    });
-    return { ...object, generated: true, angle };
-  } catch {
-    // A model that is down, rate-limited or slow must not cost the user their reminder.
-    return null;
-  }
+  // A model that is down, rate-limited or slow must not cost the user their reminder: `ask`
+  // reports the failure and answers null, and the fallback stands in.
+  const object = await ask({ schema: copySchema, system: SYSTEM, prompt: promptFor(input, angle, previousTitles) });
+  return object ? { ...object, generated: true, angle } : null;
 }
 
 const SYSTEM = `You write the two lines of a notification and a few short points for a daily

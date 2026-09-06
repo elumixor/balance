@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "../../db";
-import { gateEvents, practices, projects, stages } from "../../db/schema";
-import type { ResolvedEvent } from "../calendar/events-service";
-import { CalendarEventsService } from "../calendar/events-service";
-import { addDays, type Day, dayIn, daysBetween, startOf } from "../planning/days";
+import { db } from "~/db";
+import { gateEvents, practices, projects, stages } from "~/db/schema";
+import type { ResolvedEvent } from "~/lib/calendar/events-service";
+import { CalendarEventsService } from "~/lib/calendar/events-service";
+import { addDays, type Day, dayIn, daysBetween, startOf } from "~/lib/planning/days";
 import { type GateProgress, gateProgress, type Observation } from "./gates";
 
 /** How far back a card's bars go, and how far a budget is judged over. */

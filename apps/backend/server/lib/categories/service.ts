@@ -1,7 +1,8 @@
-import { and, eq } from "drizzle-orm";
-import { db } from "../db";
-import { activities, activityCategoryWeights, categories } from "../db/schema";
-import { bufferCategoryService } from "./buffer-category";
+import { and, asc, eq } from "drizzle-orm";
+import { db } from "~/db";
+import { activities, activityCategoryWeights, categories } from "~/db/schema";
+import { ApiError, NotFoundError } from "~/lib/http/api-error";
+import { bufferCategoryService } from "./buffer";
 
 export type CategoryInput = {
   name: string;
@@ -20,11 +21,32 @@ export type ActivityInput = {
   weights: ActivityWeightInput[];
 };
 
+type CategoryRow = typeof categories.$inferSelect;
+type ActivityRow = typeof activities.$inferSelect;
+export type ActivityWithWeights = ActivityRow & { weights: (typeof activityCategoryWeights.$inferSelect)[] };
+
+/** Nobody edits the buffer by hand: it is the remainder of the ring, kept right by `sync`. */
+const BUFFER_IS_MANAGED = "The Buffer category is system-managed and can't be edited directly";
+const BUFFER_IS_MANAGED_STATUS = 403;
+
 /** CRUD for a single user's categories, keeping the system-managed buffer category in sync. */
 export class CategoryService {
   constructor(private readonly userId: string) {}
 
-  async create(input: CategoryInput) {
+  /**
+   * The buffer's target is derived from every other category's, so it has to be right before
+   * anyone reads it — and a first read is the only chance to make one for a new account. So a
+   * read syncs, which is a write; it changes nothing when nothing has moved.
+   */
+  async list(): Promise<CategoryRow[]> {
+    await bufferCategoryService.sync(this.userId);
+    return db.query.categories.findMany({
+      where: and(eq(categories.userId, this.userId), eq(categories.archived, false)),
+      orderBy: asc(categories.createdAt),
+    });
+  }
+
+  async create(input: CategoryInput): Promise<CategoryRow> {
     const [created] = await db
       .insert(categories)
       .values({
@@ -39,8 +61,8 @@ export class CategoryService {
     return created;
   }
 
-  async update(id: string, input: CategoryInput) {
-    await this.assertNotBuffer(id);
+  async update(id: string, input: CategoryInput): Promise<CategoryRow> {
+    await this.#assertEditable(id);
     const [updated] = await db
       .update(categories)
       .set({
@@ -56,35 +78,42 @@ export class CategoryService {
   }
 
   async archive(id: string): Promise<void> {
-    await this.assertNotBuffer(id);
-    await db
-      .update(categories)
-      .set({ archived: true })
-      .where(and(eq(categories.id, id), eq(categories.userId, this.userId)));
-    await bufferCategoryService.sync(this.userId);
+    await this.#setArchived(id, true);
   }
 
   async restore(id: string): Promise<void> {
-    await this.assertNotBuffer(id);
+    await this.#setArchived(id, false);
+  }
+
+  async #setArchived(id: string, archived: boolean): Promise<void> {
+    await this.#assertEditable(id);
     await db
       .update(categories)
-      .set({ archived: false })
+      .set({ archived })
       .where(and(eq(categories.id, id), eq(categories.userId, this.userId)));
     await bufferCategoryService.sync(this.userId);
   }
 
-  private async assertNotBuffer(id: string): Promise<void> {
+  async #assertEditable(id: string): Promise<void> {
     const existing = await db.query.categories.findFirst({
       where: and(eq(categories.id, id), eq(categories.userId, this.userId)),
     });
-    if (!existing) throw new Error("Category not found");
-    if (existing.isBuffer) throw new Error("The Buffer category is system-managed and can't be edited directly");
+    if (!existing) throw new NotFoundError("Category not found");
+    if (existing.isBuffer) throw new ApiError(BUFFER_IS_MANAGED, BUFFER_IS_MANAGED_STATUS);
   }
 }
 
 /** CRUD for a single user's activities, including their weighted category distribution. */
 export class ActivityService {
   constructor(private readonly userId: string) {}
+
+  async list(): Promise<ActivityWithWeights[]> {
+    return db.query.activities.findMany({
+      where: and(eq(activities.userId, this.userId), eq(activities.archived, false)),
+      orderBy: asc(activities.createdAt),
+      with: { weights: true },
+    });
+  }
 
   /**
    * Explicit weights may leave time unassigned — that remainder implicitly belongs to the
@@ -93,9 +122,7 @@ export class ActivityService {
    */
   async resolveWeightsWithBufferRemainder(weights: ActivityWeightInput[]): Promise<ActivityWeightInput[]> {
     const explicitTotal = weights.reduce((sum, w) => sum + w.weightPercent, 0);
-    if (explicitTotal > 100) {
-      throw new Error("Category weights can't add up to more than 100%");
-    }
+    if (explicitTotal > 100) throw new ApiError("Category weights can't add up to more than 100%");
 
     const remainder = 100 - explicitTotal;
     if (remainder <= 0) return weights;
@@ -113,54 +140,48 @@ export class ActivityService {
     return [...weights, { categoryId: buffer.id, weightPercent: remainder }];
   }
 
-  async create(input: ActivityInput) {
+  async create(input: ActivityInput): Promise<ActivityWithWeights> {
     const weights = await this.resolveWeightsWithBufferRemainder(input.weights);
-
     const [activity] = await db.insert(activities).values({ userId: this.userId, name: input.name }).returning();
-
-    await db.insert(activityCategoryWeights).values(
-      weights.map((w) => ({
-        activityId: activity.id,
-        categoryId: w.categoryId,
-        weightPercent: w.weightPercent,
-      })),
-    );
-
-    return activity;
+    const written = await db
+      .insert(activityCategoryWeights)
+      .values(
+        weights.map((w) => ({ activityId: activity.id, categoryId: w.categoryId, weightPercent: w.weightPercent })),
+      )
+      .returning();
+    return { ...activity, weights: written };
   }
 
-  async update(id: string, input: ActivityInput) {
+  async update(id: string, input: ActivityInput): Promise<ActivityWithWeights> {
     const weights = await this.resolveWeightsWithBufferRemainder(input.weights);
 
-    const existing = await db.query.activities.findFirst({
-      where: and(eq(activities.id, id), eq(activities.userId, this.userId)),
-    });
-    if (!existing) throw new Error("Activity not found");
+    const [updated] = await db
+      .update(activities)
+      .set({ name: input.name })
+      .where(and(eq(activities.id, id), eq(activities.userId, this.userId)))
+      .returning();
+    if (!updated) throw new NotFoundError("Activity not found");
 
-    await db.update(activities).set({ name: input.name }).where(eq(activities.id, id));
     await db.delete(activityCategoryWeights).where(eq(activityCategoryWeights.activityId, id));
-    await db.insert(activityCategoryWeights).values(
-      weights.map((w) => ({
-        activityId: id,
-        categoryId: w.categoryId,
-        weightPercent: w.weightPercent,
-      })),
-    );
-
-    return { ...existing, name: input.name };
+    const written = await db
+      .insert(activityCategoryWeights)
+      .values(weights.map((w) => ({ activityId: id, categoryId: w.categoryId, weightPercent: w.weightPercent })))
+      .returning();
+    return { ...updated, weights: written };
   }
 
   async archive(id: string): Promise<void> {
-    await db
-      .update(activities)
-      .set({ archived: true })
-      .where(and(eq(activities.id, id), eq(activities.userId, this.userId)));
+    await this.#setArchived(id, true);
   }
 
   async restore(id: string): Promise<void> {
+    await this.#setArchived(id, false);
+  }
+
+  async #setArchived(id: string, archived: boolean): Promise<void> {
     await db
       .update(activities)
-      .set({ archived: false })
+      .set({ archived })
       .where(and(eq(activities.id, id), eq(activities.userId, this.userId)));
   }
 }

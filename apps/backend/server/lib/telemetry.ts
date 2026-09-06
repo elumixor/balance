@@ -1,29 +1,24 @@
 import * as Sentry from "@sentry/node";
 import { PostHog } from "posthog-node";
-import { env } from "./env";
+import { env, isProduction } from "./env";
 
 /**
  * What the API says about itself when nobody is watching it.
  *
  * The frontend has `diagnostics` and a banner; this side has a log line in a Vercel function that
  * is thrown away in a day. Sentry keeps the failures with their stacks, PostHog keeps what the
- * account was doing when they happened, and both are optional — with no keys configured the API
- * behaves exactly as it did, which is the same rule the maps key already follows.
+ * account was doing when they happened.
  *
  * Everything here is written for a function that can be frozen the instant it answers: nothing is
- * buffered for later, and every send is awaited before the response goes out.
+ * buffered for later, and every send is awaited before the response goes out. A local `nitro dev`
+ * says nothing to anyone — a stack from a half-written route would land in the same project as
+ * production's.
  */
 
 /** Vercel stamps the commit; a stack trace without one is a stack trace against unknown source. */
-const RELEASE = `balance-api@${process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev"}`;
-const ENVIRONMENT = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
-
-/**
- * A local `nitro dev` says nothing to anyone: a stack from a half-written route would land in the
- * same project as production's. The same test `current-user.ts` uses to decide whether the dev
- * account is allowed, read the other way round.
- */
-const ENABLED = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+const SHORT_SHA_LENGTH = 7;
+const RELEASE = `balance-api@${env.VERCEL_GIT_COMMIT_SHA?.slice(0, SHORT_SHA_LENGTH) ?? "dev"}`;
+const ENVIRONMENT = env.VERCEL_ENV ?? env.NODE_ENV ?? "development";
 
 /** How long a send is given before the answer goes out without it. A report is never worth a hang. */
 const FLUSH_MS = 2_000;
@@ -66,7 +61,7 @@ export interface ErrorContext {
  * frozen the moment it answers — an unflushed report is no report at all.
  */
 export async function captureError(error: unknown, context: ErrorContext = {}) {
-  if (!ENABLED) return;
+  if (!isProduction) return;
   startSentry();
   Sentry.captureException(error, {
     tags: { path: context.path, method: context.method, status: context.status },
@@ -86,14 +81,4 @@ export async function captureError(error: unknown, context: ErrorContext = {}) {
 
   // One failure is not worth a second: a reporter that throws must not replace what it reports.
   await Promise.allSettled([Sentry.flush(FLUSH_MS), client.flush()]);
-}
-
-/** Something the API did on purpose and wants counted — a commit, a connection, a first sync. */
-export async function track(userId: string, event: string, properties?: Record<string, unknown>) {
-  if (!ENABLED) return;
-  const client = startPostHog();
-  client.capture({ distinctId: userId, event, properties: { ...properties, environment: ENVIRONMENT } });
-  await client.flush().catch(() => {
-    // A count nobody kept is not a reason to fail the request that earned it.
-  });
 }

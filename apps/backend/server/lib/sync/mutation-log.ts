@@ -1,7 +1,7 @@
 import type { MutationLog } from "@elumixor/synced/server";
 import { and, eq, inArray } from "drizzle-orm";
-import { db } from "../../db";
-import { syncMutations } from "../../db/schema";
+import { db } from "~/db";
+import { syncMutations } from "~/db/schema";
 
 /**
  * Which writes this server has already carried out, kept in the database rather than in memory:

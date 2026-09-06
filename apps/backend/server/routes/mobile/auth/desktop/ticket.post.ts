@@ -1,6 +1,5 @@
-import { handler } from "@elumixor/nitro-client/server";
-import { handleApiError } from "../../../../lib/api-error";
-import { clerkClient, getDbUserForRequest } from "../../../../lib/current-user";
+import { clerkClient } from "~/lib/auth/service";
+import { authed } from "~/lib/http/authed";
 
 /**
  * Hands a browser session over to the macOS app.
@@ -14,15 +13,12 @@ import { clerkClient, getDbUserForRequest } from "../../../../lib/current-user";
  * A minute is plenty for a deep link to travel between two apps on the same machine, and short
  * enough that a ticket left in a URL bar is worthless by the time anyone reads it.
  */
-export default handler(async ({ event }) => {
-  const user = await getDbUserForRequest(event);
-  try {
-    const signInToken = await clerkClient.signInTokens.createSignInToken({
-      userId: user.clerkId,
-      expiresInSeconds: 60,
-    });
-    return { ticket: signInToken.token };
-  } catch (e) {
-    return handleApiError(event, e);
-  }
+const TICKET_LIFETIME_SECONDS = 60;
+
+export default authed(async ({ user }) => {
+  const signInToken = await clerkClient.signInTokens.createSignInToken({
+    userId: user.clerkId,
+    expiresInSeconds: TICKET_LIFETIME_SECONDS,
+  });
+  return { ticket: signInToken.token };
 });

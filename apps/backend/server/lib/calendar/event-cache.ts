@@ -1,3 +1,4 @@
+import { TtlCache } from "~/lib/ttl-cache";
 import type { ExternalEvent } from "./types";
 
 const TTL_MS = 30_000;
@@ -10,8 +11,7 @@ const MAX_ENTRIES = 200;
  * what makes two simultaneous asks share one Google call.
  */
 class EventCache {
-  readonly #entries = new Map<string, { readonly at: number; readonly events: Promise<ExternalEvent[]> }>();
-  readonly #generations = new Map<string, number>();
+  readonly #entries = new TtlCache<Promise<ExternalEvent[]>>(TTL_MS, MAX_ENTRIES);
 
   fetch(
     userId: string,
@@ -20,33 +20,22 @@ class EventCache {
     to: Date,
     load: () => Promise<ExternalEvent[]>,
   ): Promise<ExternalEvent[]> {
-    const generation = this.#generations.get(userId) ?? 0;
-    const key = `${userId}|${generation}|${calendarId}|${from.toISOString()}|${to.toISOString()}`;
-
+    const key = `${userId}|${calendarId}|${from.toISOString()}|${to.toISOString()}`;
     const hit = this.#entries.get(key);
-    if (hit && Date.now() - hit.at < TTL_MS) return hit.events;
+    if (hit) return hit;
 
     // A failed request must not be remembered, or the next try is served the same failure.
     const events = load().catch((e) => {
       this.#entries.delete(key);
       throw e;
     });
-    this.#entries.set(key, { at: Date.now(), events });
-    this.#evictOldest();
+    this.#entries.set(key, events);
     return events;
   }
 
   /** Called by every write, so a created, moved or deleted event is never served from a memo. */
   invalidate(userId: string): void {
-    this.#generations.set(userId, (this.#generations.get(userId) ?? 0) + 1);
-  }
-
-  #evictOldest(): void {
-    while (this.#entries.size > MAX_ENTRIES) {
-      const oldest = this.#entries.keys().next().value;
-      if (oldest === undefined) return;
-      this.#entries.delete(oldest);
-    }
+    this.#entries.invalidate(`${userId}|`);
   }
 }
 

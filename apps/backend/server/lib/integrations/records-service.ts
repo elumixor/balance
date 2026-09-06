@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
-import { db } from "../../db";
-import { integrationRecords } from "../../db/schema";
+import { db } from "~/db";
+import { integrationRecords } from "~/db/schema";
 
 const PROVIDER = "google";
 

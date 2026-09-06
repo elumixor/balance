@@ -5,7 +5,7 @@ import type { CategoryInput, CategoryTrend, EventInput, Period, PeriodKind, Tren
 const DEFAULT_PERIODS_BACK = 6;
 
 /** Computes rolling per-category actual-vs-target trends for the Statistics screen's sparklines. */
-export class CategoryTrendsCalculator {
+class CategoryTrendsCalculator {
   /**
    * Rolling per-category trend across the last `periodsBack + 1` periods (including the
    * current one), so the UI can render a lightweight bar/sparkline of actual vs target.

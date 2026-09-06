@@ -1,9 +1,7 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { setResponseHeader } from "h3";
 import { z } from "zod";
-import { handleApiError } from "../../../lib/api-error";
-import { getDbUserForRequest } from "../../../lib/current-user";
-import { lookupPlace } from "../../../lib/travel/places";
+import { authed } from "~/lib/http/authed";
+import { lookupPlace } from "~/lib/travel/places";
 
 /**
  * One place, pinned down: its coordinates and the address as Google spells it. Asked once a
@@ -11,7 +9,7 @@ import { lookupPlace } from "../../../lib/travel/places";
  * `{ place: null }` when Google knows no such place, which is what "Room 4" gets. The map around
  * it is `/mobile/travel/map`, asked with the coordinates this answers.
  */
-export default handler(
+export default authed(
   {
     body: {
       placeId: z.string().max(200).optional(),
@@ -21,13 +19,8 @@ export default handler(
     },
   },
   async ({ body, event }) => {
-    await getDbUserForRequest(event);
-    try {
-      const place = await lookupPlace(body);
-      setResponseHeader(event, "cache-control", "private, max-age=86400");
-      return { place };
-    } catch (e) {
-      return handleApiError(event, e);
-    }
+    const place = await lookupPlace(body);
+    setResponseHeader(event, "cache-control", "private, max-age=86400");
+    return { place };
   },
 );

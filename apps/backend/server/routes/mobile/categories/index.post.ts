@@ -1,12 +1,10 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { setResponseStatus } from "h3";
 import { z } from "zod";
-import { handleApiError } from "../../../lib/api-error";
-import { CategoryService } from "../../../lib/categories-service";
-import { getDbUserForRequest } from "../../../lib/current-user";
-import { CategoryDTO } from "../../../lib/dto";
+import { CategoryDTO } from "~/lib/categories/dto";
+import { CategoryService } from "~/lib/categories/service";
+import { authed } from "~/lib/http/authed";
 
-export default handler(
+export default authed(
   {
     body: {
       name: z.string().trim().min(1),
@@ -15,14 +13,9 @@ export default handler(
       targetHoursPerWeek: z.number(),
     },
   },
-  async ({ body, event }) => {
-    const user = await getDbUserForRequest(event);
-    try {
-      const created = await new CategoryService(user.id).create(body);
-      setResponseStatus(event, 201);
-      return { category: new CategoryDTO(created) };
-    } catch (e) {
-      return handleApiError(event, e);
-    }
+  async ({ body, event, user }) => {
+    const created = await new CategoryService(user.id).create(body);
+    setResponseStatus(event, 201);
+    return { category: new CategoryDTO(created) };
   },
 );

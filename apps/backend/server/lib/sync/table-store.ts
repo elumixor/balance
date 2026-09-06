@@ -1,7 +1,7 @@
 import { type Envelope, type Identified, RejectedError, type SyncedStore } from "@elumixor/synced/server";
 import { and, eq, gte } from "drizzle-orm";
 import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
-import { db } from "../../db";
+import { db } from "~/db";
 
 /** What a table has to have for its rows to travel as synced records. */
 export interface SyncedTable extends PgTable {

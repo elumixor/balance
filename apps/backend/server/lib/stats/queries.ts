@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "../../db";
-import { categories } from "../../db/schema";
-import { bufferCategoryService } from "../buffer-category";
-import { CalendarEventsService } from "../calendar/events-service";
+import { db } from "~/db";
+import { categories } from "~/db/schema";
+import { CalendarEventsService } from "~/lib/calendar/events-service";
+import { bufferCategoryService } from "~/lib/categories/buffer";
 import type { CategoryInput, EventInput } from "./types";
 
 export interface StatsData {

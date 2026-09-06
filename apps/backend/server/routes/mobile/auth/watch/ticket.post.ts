@@ -1,6 +1,5 @@
-import { handler } from "@elumixor/nitro-client/server";
-import { handleApiError } from "../../../../lib/api-error";
-import { clerkClient, getDbUserForRequest } from "../../../../lib/current-user";
+import { clerkClient } from "~/lib/auth/service";
+import { authed } from "~/lib/http/authed";
 
 /**
  * Hands the phone's session over to the watch.
@@ -15,15 +14,12 @@ import { clerkClient, getDbUserForRequest } from "../../../../lib/current-user";
  * may be on a charger in another room, and it travels between two apps on the same paired devices
  * rather than through a URL anybody could read.
  */
-export default handler(async ({ event }) => {
-  const user = await getDbUserForRequest(event);
-  try {
-    const signInToken = await clerkClient.signInTokens.createSignInToken({
-      userId: user.clerkId,
-      expiresInSeconds: 60 * 60,
-    });
-    return { ticket: signInToken.token };
-  } catch (e) {
-    return handleApiError(event, e);
-  }
+const TICKET_LIFETIME_SECONDS = 60 * 60;
+
+export default authed(async ({ user }) => {
+  const signInToken = await clerkClient.signInTokens.createSignInToken({
+    userId: user.clerkId,
+    expiresInSeconds: TICKET_LIFETIME_SECONDS,
+  });
+  return { ticket: signInToken.token };
 });

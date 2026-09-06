@@ -1,6 +1,6 @@
 import { syncedModel } from "@elumixor/synced/server";
 import { z } from "zod";
-import { tasks } from "../../db/schema";
+import { tasks } from "~/db/schema";
 import { asNumeric, defined, numericOrNull, TableStore } from "./table-store";
 
 export const taskSchema = z.object({

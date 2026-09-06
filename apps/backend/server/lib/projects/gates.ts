@@ -1,4 +1,4 @@
-import { addDays, type Day, daysBetween } from "../planning/days";
+import { addDays, type Day, daysBetween } from "~/lib/planning/days";
 
 /** What a gate counts. The template offers a subset; the counting never changes. */
 export type GateMetric = "days" | "people" | "throughput" | "event" | "hours";

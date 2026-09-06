@@ -27,6 +27,7 @@
 
     // Libs & paths
     "lib": ["ESNext", "DOM"],
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": { "~/*": ["./server/*"] }
   }
 }

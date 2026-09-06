@@ -1,18 +1,17 @@
-import { and, eq, gte } from "drizzle-orm";
-import { db } from "../../db";
-import { categories, type PlannedBlock, plannedDays, plannedWeeks, starLedger } from "../../db/schema";
-import { ApiError } from "../api-error";
-import { bufferCategoryService } from "../buffer-category";
-import { CalendarEventsService, type ResolvedEvent } from "../calendar/events-service";
-import { PreferencesService } from "../preferences-service";
+import { db } from "~/db";
+import { plannedDays, plannedWeeks } from "~/db/schema";
+import { ApiError } from "~/lib/http/api-error";
+import { PreferencesService } from "~/lib/preferences/service";
+import { blocksOf, categoryHours, claimedHours, toBlock, toPlannedBlock } from "./blocks";
 import { type SessionCopy, sessionCopyFor } from "./copy";
-import { type Block, balanceMatch, budgetFor, COVERAGE_THRESHOLD, coverage, scheduleMatch } from "./coverage";
+import { budgetFor, COVERAGE_THRESHOLD, scheduleMatch } from "./coverage";
 import { addDays, type Day, dayIn, daysBetween, daysFrom, minutesIntoDay, rangeOf, weekStartOf } from "./days";
+import { StarLedger } from "./ledger";
+import { PlannedDays } from "./planned-days";
 import { computeProgress, type Progress } from "./progress";
 import { isFresh, type ScheduledSlot, upcomingSlots } from "./schedule";
 import {
   type Award,
-  applyDelta,
   balanceBonus,
   dailyAward,
   PLAN_UNTIL_MINUTES,
@@ -21,6 +20,7 @@ import {
   scheduleBonus,
   WEEKLY_STARS,
 } from "./stars";
+import type { Slot } from "./types";
 
 /**
  * The planning ritual: what a session says, what committing one pays, and what a missed day costs.
@@ -35,43 +35,16 @@ import {
 const MISSED_LOOKBACK_DAYS = 14;
 /** The biggest thing that happened, for the review's pills. */
 const TOP_BLOCKS = 4;
-
-export type Slot = "evening" | "morning" | "weekly";
-
-export interface SessionBlock {
-  id: string;
-  title: string;
-  start: string;
-  end: string;
-  categoryId: string | null;
-  categoryName: string | null;
-  color: string | null;
-  icon: string | null;
-  hours: number;
-}
-
-export interface DayView {
-  day: Day;
-  planned: boolean;
-  rest: boolean;
-  /** 0..1 — how much of the day's budget has been given a meaning. */
-  coverage: number;
-  mappedHours: number;
-  budgetHours: number;
-  blocks: SessionBlock[];
-}
-
-export interface CategoryHours {
-  categoryId: string;
-  name: string;
-  color: string;
-  icon: string;
-  hours: number;
-  targetHours: number;
-}
+const DAYS_PER_WEEK = 7;
 
 export class PlanningService {
-  constructor(private readonly userId: string) {}
+  readonly #ledger: StarLedger;
+  readonly #days: PlannedDays;
+
+  constructor(private readonly userId: string) {
+    this.#ledger = new StarLedger(userId);
+    this.#days = new PlannedDays(userId);
+  }
 
   /**
    * Everything a session screen and its notification need, in one answer.
@@ -98,25 +71,26 @@ export class PlanningService {
     const target = slot === "morning" ? today : addDays(today, 1);
     const reviewed = slot === "morning" ? addDays(today, -1) : today;
 
-    if (options.settle !== false) await this.settle({ timeZone, today, threshold: COVERAGE_THRESHOLD });
+    if (options.settle !== false) await this.settle({ timeZone, today });
 
     const week = weekStartOf(reviewed);
     const from = week < reviewed ? week : reviewed;
-    const { events, categories: plan, connected, needsReconnect } = await this.load(from, target, timeZone);
+    const { events, categories: plan, connected, needsReconnect } = await this.#days.load(from, target, timeZone);
 
     const [stars, streak, planned, weekPlanned] = await Promise.all([
-      this.stars(),
-      this.streak(today),
-      this.plannedDay(target),
-      this.plannedWeek(weekStartOf(addDays(today, 7))),
+      this.#ledger.stars(),
+      this.#ledger.streak(today),
+      this.#days.day(target),
+      this.#days.week(weekStartOf(addDays(today, DAYS_PER_WEEK))),
     ]);
 
     const budgetHours = budgetFor({ weeklyClaimedHours: claimedHours(plan) });
-    const targetView = this.viewOf(target, timeZone, events, plan, budgetHours, planned);
-    const reviewView = this.viewOf(reviewed, timeZone, events, plan, budgetHours, null);
+    const targetView = this.#days.viewOf(target, timeZone, events, plan, budgetHours, planned);
+    const reviewView = this.#days.viewOf(reviewed, timeZone, events, plan, budgetHours, null);
     const reviewCategories = categoryHours(events, plan, rangeOf(reviewed, timeZone));
     const reviewHours = reviewCategories.reduce((sum, category) => sum + category.hours, 0);
     const top = [...reviewView.blocks].sort((a, b) => b.hours - a.hours).slice(0, TOP_BLOCKS);
+    const award = planned ? [] : this.#awardFor({ today, day: target, timeZone, now, streak });
 
     return {
       slot,
@@ -129,11 +103,11 @@ export class PlanningService {
       rates: STAR_RATES,
       coverageThreshold: COVERAGE_THRESHOLD,
       /** What committing the target day would pay right now, if it isn't already committed. */
-      award: planned ? [] : this.awardFor({ today, day: target, timeZone, now, streak }),
+      award,
       weeklyAward: weekPlanned ? 0 : WEEKLY_STARS,
       review: { ...reviewView, hours: reviewHours, categories: reviewCategories, top },
       target: targetView,
-      week: slot === "weekly" ? this.weekView(reviewed, timeZone, events, plan) : null,
+      week: slot === "weekly" ? this.#days.weekView(reviewed, timeZone, events, plan) : null,
       copy: await sessionCopyFor(
         this.userId,
         reviewed,
@@ -149,9 +123,7 @@ export class PlanningService {
           targetPlanned: !!planned,
           streak,
           stars,
-          awardStars: planned
-            ? 0
-            : this.awardFor({ today, day: target, timeZone, now, streak }).reduce((sum, a) => sum + a.delta, 0),
+          awardStars: award.reduce((sum, a) => sum + a.delta, 0),
         },
         options.persistCopy !== false,
       ),
@@ -169,16 +141,12 @@ export class PlanningService {
     const preferences = await new PreferencesService(this.userId).get();
     // Once, at the real current time: the loop below reads each slot as if it were already firing,
     // and a settle run at tomorrow evening would charge for a day that has not finished yet.
-    await this.settle({
-      timeZone: options.timeZone,
-      today: dayIn(options.timeZone, now),
-      threshold: COVERAGE_THRESHOLD,
-    });
+    await this.settle({ timeZone: options.timeZone, today: dayIn(options.timeZone, now) });
     const slots = upcomingSlots({ preferences: preferences.sessions, timeZone: options.timeZone, now });
 
     const written: (ScheduledSlot & { title: string; body: string })[] = [];
     for (const slot of slots) {
-      const copy = await this.copyFor(slot, options.timeZone, now);
+      const copy = await this.#copyFor(slot, options.timeZone, now);
       written.push({ ...slot, title: copy.title, body: copy.body });
     }
 
@@ -192,7 +160,7 @@ export class PlanningService {
    * describe a day that has not happened. Until then the arithmetic version is scheduled, and the
    * next foreground inside the window replaces it.
    */
-  private async copyFor(slot: ScheduledSlot, timeZone: string, now: Date): Promise<SessionCopy> {
+  async #copyFor(slot: ScheduledSlot, timeZone: string, now: Date): Promise<SessionCopy> {
     const summary = await this.summary({
       timeZone,
       slot: slot.slot,
@@ -210,17 +178,8 @@ export class PlanningService {
    */
   async progress(options: { timeZone: string; now?: Date }): Promise<Progress> {
     const today = dayIn(options.timeZone, options.now ?? new Date());
-    await this.settle({ timeZone: options.timeZone, today, threshold: COVERAGE_THRESHOLD });
-    const [ledger, days] = await Promise.all([
-      db.query.starLedger.findMany({
-        where: eq(starLedger.userId, this.userId),
-        columns: { day: true, delta: true, reason: true },
-      }),
-      db.query.plannedDays.findMany({
-        where: eq(plannedDays.userId, this.userId),
-        columns: { day: true, ahead: true, rest: true, coveragePercent: true },
-      }),
-    ]);
+    await this.settle({ timeZone: options.timeZone, today });
+    const [ledger, days] = await Promise.all([this.#ledger.all(), this.#days.all()]);
     return computeProgress({ today, ledger, days });
   }
 
@@ -230,6 +189,10 @@ export class PlanningService {
    * The coverage rule is enforced here and not only in the panel: the button being disabled is a
    * courtesy, and the star is the thing that has to be earned. What the day looked like is written
    * down alongside it, because "did it go as planned" has no answer once the calendar moves on.
+   *
+   * The row's unique key is what decides whether the day was already committed: two devices
+   * pressing the button in the same second both get this far, and only the insert that lands
+   * pays. The other is told the same thing a later press would be.
    */
   async commitDay(options: { day: Day; timeZone: string; rest?: boolean; now?: Date }) {
     const { day, timeZone } = options;
@@ -237,12 +200,9 @@ export class PlanningService {
     const today = dayIn(timeZone, now);
     if (daysBetween(today, day) < 0) throw new ApiError("That day is already behind you");
 
-    const existing = await this.plannedDay(day);
-    if (existing) return { alreadyPlanned: true, awarded: [] as Award[], stars: await this.stars() };
-
-    const { events, categories: plan } = await this.load(day, day, timeZone);
+    const { events, categories: plan } = await this.#days.load(day, day, timeZone);
     const budgetHours = budgetFor({ weeklyClaimedHours: claimedHours(plan) });
-    const view = this.viewOf(day, timeZone, events, plan, budgetHours, null);
+    const view = this.#days.viewOf(day, timeZone, events, plan, budgetHours, null);
 
     const rest = options.rest ?? false;
     if (!rest && view.coverage < COVERAGE_THRESHOLD) {
@@ -251,25 +211,30 @@ export class PlanningService {
       );
     }
 
-    const streak = await this.streak(today);
-    const awarded = this.awardFor({ today, day, timeZone, now, streak });
+    const streak = await this.#ledger.streak(today);
+    const awarded = this.#awardFor({ today, day, timeZone, now, streak });
 
-    await db.insert(plannedDays).values({
-      userId: this.userId,
-      day,
-      timeZone,
-      ahead: daysBetween(today, day) > 0,
-      rest,
-      coveragePercent: Math.round(view.coverage * 100),
-      blocks: rest ? [] : view.blocks.map(toPlannedBlock),
-    });
+    const [inserted] = await db
+      .insert(plannedDays)
+      .values({
+        userId: this.userId,
+        day,
+        timeZone,
+        ahead: daysBetween(today, day) > 0,
+        rest,
+        coveragePercent: Math.round(view.coverage * 100),
+        blocks: rest ? [] : view.blocks.map(toPlannedBlock),
+      })
+      .onConflictDoNothing({ target: [plannedDays.userId, plannedDays.day] })
+      .returning({ id: plannedDays.id });
+    if (!inserted) return { alreadyPlanned: true, awarded: [] as Award[], stars: await this.#ledger.stars() };
 
-    await this.award(day, awarded);
-    return { alreadyPlanned: false, awarded, stars: await this.stars() };
+    await this.#ledger.award(day, awarded);
+    return { alreadyPlanned: false, awarded, stars: await this.#ledger.stars() };
   }
 
   /** What committing `day` pays at `now`: more the evening before, nothing once its morning is gone. */
-  private awardFor(options: { today: Day; day: Day; timeZone: string; now: Date; streak: number }) {
+  #awardFor(options: { today: Day; day: Day; timeZone: string; now: Date; streak: number }) {
     const ahead = daysBetween(options.today, options.day) > 0;
     const late = !ahead && minutesIntoDay(options.timeZone, options.now) >= PLAN_UNTIL_MINUTES;
     return dailyAward({ ahead, streak: options.streak, late });
@@ -278,13 +243,16 @@ export class PlanningService {
   /** The longer sitting. Pays flat — the week it plans is what earns the rest. */
   async commitWeek(options: { weekStart: Day; timeZone: string }) {
     const weekStart = weekStartOf(options.weekStart);
-    const existing = await this.plannedWeek(weekStart);
-    if (existing) return { alreadyPlanned: true, awarded: [] as Award[], stars: await this.stars() };
+    const [inserted] = await db
+      .insert(plannedWeeks)
+      .values({ userId: this.userId, weekStart, timeZone: options.timeZone })
+      .onConflictDoNothing({ target: [plannedWeeks.userId, plannedWeeks.weekStart] })
+      .returning({ id: plannedWeeks.id });
+    if (!inserted) return { alreadyPlanned: true, awarded: [] as Award[], stars: await this.#ledger.stars() };
 
-    await db.insert(plannedWeeks).values({ userId: this.userId, weekStart, timeZone: options.timeZone });
     const awarded: Award[] = [{ reason: "weekly", delta: WEEKLY_STARS }];
-    await this.award(weekStart, awarded);
-    return { alreadyPlanned: false, awarded, stars: await this.stars() };
+    await this.#ledger.award(weekStart, awarded);
+    return { alreadyPlanned: false, awarded, stars: await this.#ledger.stars() };
   }
 
   /**
@@ -295,29 +263,18 @@ export class PlanningService {
    * Idempotent by construction — every row it writes is unique per day and reason, so running it
    * twice in the same minute writes nothing the second time.
    */
-  async settle(options: { timeZone: string; today: Day; threshold: number }) {
+  async settle(options: { timeZone: string; today: Day }) {
     const { timeZone, today } = options;
     const yesterday = addDays(today, -1);
 
-    const first = await db.query.plannedDays.findFirst({
-      where: eq(plannedDays.userId, this.userId),
-      orderBy: (row, { asc }) => [asc(row.day)],
-    });
-    // Nothing to be behind on until the ritual has been started once.
+    const first = await this.#days.first();
     if (!first) return;
 
     const earliest = addDays(today, -MISSED_LOOKBACK_DAYS);
     const from = daysBetween(first.day, earliest) > 0 ? earliest : first.day;
     if (daysBetween(from, yesterday) < 0) return;
 
-    const [rows, ledger] = await Promise.all([
-      db.query.plannedDays.findMany({
-        where: and(eq(plannedDays.userId, this.userId), gte(plannedDays.day, from)),
-      }),
-      db.query.starLedger.findMany({
-        where: and(eq(starLedger.userId, this.userId), gte(starLedger.day, from)),
-      }),
-    ]);
+    const [rows, ledger] = await Promise.all([this.#days.since(from), this.#ledger.since(from)]);
 
     const byDay = new Map(rows.map((row) => [row.day, row]));
     const paid = new Set(ledger.map((row) => `${row.day}:${row.reason}`));
@@ -336,8 +293,8 @@ export class PlanningService {
         .reduce((sum, entry) => sum + entry.delta, 0);
       if (earned <= 0) continue;
 
-      const { events } = await this.load(day, day, timeZone);
-      const actual = this.blocksOf(day, timeZone, events).map(toBlock);
+      const { events } = await this.#days.load(day, day, timeZone);
+      const actual = blocksOf(events, rangeOf(day, timeZone)).map(toBlock);
       const bonus = scheduleBonus({ earned, match: scheduleMatch(row.blocks, actual) });
       if (bonus) pending.push({ day, awards: [bonus] });
     }
@@ -345,223 +302,23 @@ export class PlanningService {
     // The week that ended, measured against the ring — but only for a week that was planned.
     const lastWeek = weekStartOf(addDays(weekStartOf(today), -1));
     if (!paid.has(`${lastWeek}:balance`) && daysBetween(from, lastWeek) <= 0) {
-      const week = await this.plannedWeek(lastWeek);
+      const week = await this.#days.week(lastWeek);
       if (week) {
+        const weekEnd = addDays(lastWeek, DAYS_PER_WEEK - 1);
         const earned = ledger
           .filter(
-            (entry) =>
-              entry.delta > 0 &&
-              daysBetween(lastWeek, entry.day) >= 0 &&
-              daysBetween(entry.day, addDays(lastWeek, 6)) >= 0,
+            (entry) => entry.delta > 0 && daysBetween(lastWeek, entry.day) >= 0 && daysBetween(entry.day, weekEnd) >= 0,
           )
           .reduce((sum, entry) => sum + entry.delta, 0);
         if (earned > 0) {
-          const { events, categories: plan } = await this.load(lastWeek, addDays(lastWeek, 6), timeZone);
-          const view = this.weekView(lastWeek, timeZone, events, plan);
+          const { events, categories: plan } = await this.#days.load(lastWeek, weekEnd, timeZone);
+          const view = this.#days.weekView(lastWeek, timeZone, events, plan);
           const bonus = balanceBonus({ earned, match: view.match });
           if (bonus) pending.push({ day: lastWeek, awards: [bonus] });
         }
       }
     }
 
-    for (const { day, awards } of pending) await this.award(day, awards);
+    for (const { day, awards } of pending) await this.#ledger.award(day, awards);
   }
-
-  /** The running total, floors and all — see `applyDelta`. */
-  async stars() {
-    const rows = await db
-      .select({ day: starLedger.day, delta: starLedger.delta })
-      .from(starLedger)
-      .where(eq(starLedger.userId, this.userId))
-      .orderBy(starLedger.createdAt);
-
-    let total = 0;
-    for (const row of rows) total = applyDelta(total, row.delta);
-    return total;
-  }
-
-  /** Planned days ending yesterday, counting back until one is missing. */
-  async streak(today: Day) {
-    const from = addDays(today, -60);
-    const rows = await db.query.plannedDays.findMany({
-      where: and(eq(plannedDays.userId, this.userId), gte(plannedDays.day, from)),
-      columns: { day: true },
-    });
-    const days = new Set(rows.map((row) => row.day));
-
-    let streak = 0;
-    for (let day = addDays(today, -1); days.has(day); day = addDays(day, -1)) streak++;
-    return streak;
-  }
-
-  private async plannedDay(day: Day) {
-    return db.query.plannedDays.findFirst({
-      where: and(eq(plannedDays.userId, this.userId), eq(plannedDays.day, day)),
-    });
-  }
-
-  private async plannedWeek(weekStart: Day) {
-    return db.query.plannedWeeks.findFirst({
-      where: and(eq(plannedWeeks.userId, this.userId), eq(plannedWeeks.weekStart, weekStart)),
-    });
-  }
-
-  /** Writes what a rule paid, or leaves the row that is already there — see the ledger's index. */
-  private async award(day: Day, awards: Award[]) {
-    if (awards.length === 0) return;
-    await db
-      .insert(starLedger)
-      .values(awards.map((award) => ({ userId: this.userId, day, delta: award.delta, reason: award.reason })))
-      .onConflictDoNothing();
-  }
-
-  /** The calendar and the ring over a span of days, which is all any of the views are made of. */
-  private async load(from: Day, to: Day, timeZone: string) {
-    await bufferCategoryService.sync(this.userId);
-    const start = rangeOf(from, timeZone).start;
-    const end = rangeOf(to, timeZone).end;
-
-    const [rows, range] = await Promise.all([
-      db.query.categories.findMany({
-        where: and(eq(categories.userId, this.userId), eq(categories.archived, false)),
-      }),
-      new CalendarEventsService(this.userId).resolve(start, end),
-    ]);
-
-    return {
-      connected: range.connected,
-      needsReconnect: range.needsReconnect,
-      events: range.events,
-      categories: rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        color: row.color,
-        icon: row.icon,
-        targetHoursPerWeek: Number(row.targetHoursPerWeek),
-        isBuffer: row.isBuffer,
-      })),
-    };
-  }
-
-  private viewOf(
-    day: Day,
-    timeZone: string,
-    events: readonly ResolvedEvent[],
-    plan: readonly PlanCategory[],
-    budgetHours: number,
-    planned: { rest: boolean } | null | undefined,
-  ): DayView {
-    const blocks = this.blocksOf(day, timeZone, events, plan);
-    const mappedHours = blocks.reduce((sum, block) => (block.categoryId ? sum + block.hours : sum), 0);
-    return {
-      day,
-      planned: !!planned,
-      rest: planned?.rest ?? false,
-      coverage: coverage({ mappedHours, budgetHours }),
-      mappedHours,
-      budgetHours,
-      blocks,
-    };
-  }
-
-  /** The day's events, clipped to it, each carrying the category it mostly counts as. */
-  private blocksOf(
-    day: Day,
-    timeZone: string,
-    events: readonly ResolvedEvent[],
-    plan: readonly PlanCategory[] = [],
-  ): SessionBlock[] {
-    const { start, end } = rangeOf(day, timeZone);
-    const byId = new Map(plan.map((category) => [category.id, category]));
-
-    return events
-      .filter((event) => event.countsTowardHours && event.end > start && event.start < end)
-      .map((event) => {
-        const from = Math.max(event.start.getTime(), start.getTime());
-        const to = Math.min(event.end.getTime(), end.getTime());
-        // The category an event mostly is. A split block still belongs somewhere on a day view,
-        // and "mostly" is the only honest single answer.
-        const main = [...event.weights].sort((a, b) => b.weightPercent - a.weightPercent)[0];
-        const category = main ? byId.get(main.categoryId) : undefined;
-        return {
-          id: event.id,
-          title: event.title,
-          start: new Date(from).toISOString(),
-          end: new Date(to).toISOString(),
-          categoryId: main?.categoryId ?? null,
-          categoryName: category?.name ?? null,
-          color: category?.color ?? null,
-          icon: category?.icon ?? null,
-          hours: (to - from) / 3_600_000,
-        };
-      })
-      .sort((a, b) => a.start.localeCompare(b.start));
-  }
-
-  /** The week a review is about: where its hours went, and how closely it followed the ring. */
-  private weekView(day: Day, timeZone: string, events: readonly ResolvedEvent[], plan: readonly PlanCategory[]) {
-    const weekStart = weekStartOf(day);
-    const range = { start: rangeOf(weekStart, timeZone).start, end: rangeOf(addDays(weekStart, 6), timeZone).end };
-    const hours = categoryHours(events, plan, range);
-    return {
-      weekStart,
-      categories: hours,
-      match: balanceMatch(hours.map((c) => ({ ...c, actualHours: c.hours, isBuffer: false }))),
-      hours: hours.reduce((sum, category) => sum + category.hours, 0),
-    };
-  }
-}
-
-interface PlanCategory {
-  id: string;
-  name: string;
-  color: string;
-  icon: string;
-  targetHoursPerWeek: number;
-  isBuffer: boolean;
-}
-
-/** What the ring claims in a week, buffer excluded — the hours the user means to direct. */
-function claimedHours(plan: readonly PlanCategory[]) {
-  return plan.reduce((sum, category) => (category.isBuffer ? sum : sum + category.targetHoursPerWeek), 0);
-}
-
-/** Hours per category over a range, split the way each event is mapped. */
-function categoryHours(
-  events: readonly ResolvedEvent[],
-  plan: readonly PlanCategory[],
-  range: { start: Date; end: Date },
-): CategoryHours[] {
-  const hours = new Map<string, number>();
-
-  for (const event of events) {
-    if (!event.countsTowardHours) continue;
-    const from = Math.max(event.start.getTime(), range.start.getTime());
-    const to = Math.min(event.end.getTime(), range.end.getTime());
-    if (to <= from) continue;
-    const span = (to - from) / 3_600_000;
-    for (const weight of event.weights) {
-      hours.set(weight.categoryId, (hours.get(weight.categoryId) ?? 0) + span * (weight.weightPercent / 100));
-    }
-  }
-
-  return plan
-    .filter((category) => !category.isBuffer)
-    .map((category) => ({
-      categoryId: category.id,
-      name: category.name,
-      color: category.color,
-      icon: category.icon,
-      hours: hours.get(category.id) ?? 0,
-      targetHours: category.targetHoursPerWeek,
-    }))
-    .sort((a, b) => b.hours - a.hours);
-}
-
-function toBlock(block: SessionBlock): Block {
-  return { start: Date.parse(block.start), end: Date.parse(block.end), categoryId: block.categoryId };
-}
-
-function toPlannedBlock(block: SessionBlock): PlannedBlock {
-  return { id: block.id, start: Date.parse(block.start), end: Date.parse(block.end), categoryId: block.categoryId };
 }

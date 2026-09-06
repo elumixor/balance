@@ -1,12 +1,11 @@
-import { handler } from "@elumixor/nitro-client/server";
 import { setResponseStatus } from "h3";
 import { z } from "zod";
-import { ApiError, handleApiError } from "../../../../lib/api-error";
-import { CalendarEventsService } from "../../../../lib/calendar/events-service";
-import { getDbUserForRequest } from "../../../../lib/current-user";
-import { CalendarEventDTO } from "../../../../lib/dto";
+import { CalendarEventDTO } from "~/lib/calendar/dto";
+import { CalendarEventsService } from "~/lib/calendar/events-service";
+import { authed } from "~/lib/http/authed";
+import { parseInstantRange } from "~/lib/http/schemas";
 
-export default handler(
+export default authed(
   {
     body: {
       activityId: z.string().min(1).optional(),
@@ -35,21 +34,10 @@ export default handler(
       allDay: z.boolean().optional(),
     },
   },
-  async ({ body, event }) => {
-    const user = await getDbUserForRequest(event);
-    try {
-      const start = new Date(body.start);
-      const end = new Date(body.end);
-      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-        throw new ApiError("start and end must be valid ISO 8601 instants");
-      }
-      if (end <= start) throw new ApiError("An event has to end after it starts");
-
-      const created = await new CalendarEventsService(user.id).create({ ...body, start, end });
-      setResponseStatus(event, 201);
-      return { event: new CalendarEventDTO(created) };
-    } catch (e) {
-      return handleApiError(event, e);
-    }
+  async ({ body, event, user }) => {
+    const { start, end } = parseInstantRange(body.start, body.end, ["start", "end"]);
+    const created = await new CalendarEventsService(user.id).create({ ...body, start, end });
+    setResponseStatus(event, 201);
+    return { event: new CalendarEventDTO(created) };
   },
 );

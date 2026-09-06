@@ -1,12 +1,23 @@
 import { action, type Envelope, RejectedError, syncedModel } from "@elumixor/synced/server";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../../db";
-import { projects, stages } from "../../db/schema";
-import { decideOnFor, extendedDecideOn } from "../projects/decisions";
+import { db } from "~/db";
+import { projects, stages } from "~/db/schema";
+import { dayField as daySchema } from "~/lib/http/schemas";
+import { extendedDecideOn } from "~/lib/projects/decisions";
+import {
+  checkRestart,
+  type Decision,
+  dateFor,
+  kill,
+  park,
+  type Restart,
+  restart,
+  ship,
+  undecidedStage,
+} from "./stage-outcomes";
 import { asNumeric, defined, numeric, TableStore } from "./table-store";
 
-const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const gateMetricSchema = z.enum(["days", "people", "throughput", "event", "hours"]);
 export const stageOutcomeSchema = z.enum(["ship", "park", "kill", "restart"]);
 
@@ -66,17 +77,6 @@ function toRecord(row: Row): SyncedStage {
   };
 }
 
-/** The date for a stage starting today, from the project's rate — the only way one is ever set. */
-function dateFor(stage: Pick<SyncedStage, "budgetHours" | "windowDays">, project: ProjectRow, startedOn: string) {
-  return decideOnFor({
-    startedOn,
-    budgetHours: stage.budgetHours,
-    hoursPerWeek: Number(project.hoursPerWeek),
-    windowDays: stage.windowDays,
-    deadline: project.template === "delivery" ? project.deadline : null,
-  });
-}
-
 class StageStore extends TableStore<SyncedStage, typeof stages> {
   constructor() {
     super(stages, {
@@ -131,9 +131,7 @@ class StageStore extends TableStore<SyncedStage, typeof stages> {
 
   /** Two open stages at once would be two decision dates for one project, so the second waits. */
   async #startable(project: ProjectRow) {
-    const open = await db.query.stages.findFirst({
-      where: and(eq(stages.projectId, project.id), eq(stages.archived, false), eq(stages.outcome, null as never)),
-    });
+    const open = await undecidedStage(project.id);
     if (open?.startedOn)
       throw new RejectedError(`"${open.name}" is still open — decide it before starting another stage.`);
     return today();
@@ -187,82 +185,20 @@ const decidePayload = z.object({
 
 /**
  * The one moment a human presses the button. Nothing here is ever done on its own: the gate
- * passing only makes the button available, and the outcome chosen is written as chosen.
+ * passing only makes the button available, and the outcome chosen is written as chosen — first
+ * on the stage, then whatever the outcome means for the project, one function each.
  */
 const decide = action(decidePayload, async (userId: string, id: string, payload) => {
   const stage = await openStage(userId, id);
   const project = await projectOf(userId, stage.projectId);
-  const stamp = { outcome: payload.outcome, decidedOn: payload.day, decisionNote: payload.note, updatedAt: new Date() };
+  const decision: Decision = { userId, stage, project, day: payload.day, note: payload.note };
+  const next = payload.outcome === "restart" ? checkRestart(decision, payload.restart) : undefined;
 
-  switch (payload.outcome) {
-    case "ship": {
-      await db.update(stages).set(stamp).where(eq(stages.id, id));
-      const next = await db.query.stages.findFirst({
-        where: and(eq(stages.projectId, project.id), eq(stages.archived, false), eq(stages.outcome, null as never)),
-        orderBy: asc(stages.ordinal),
-      });
-      if (next) {
-        const decideOn = dateFor(
-          { budgetHours: Number(next.budgetHours), windowDays: next.windowDays },
-          project,
-          payload.day,
-        );
-        await db
-          .update(stages)
-          .set({ startedOn: payload.day, decideOn, updatedAt: new Date() })
-          .where(eq(stages.id, next.id));
-      } else {
-        await db.update(projects).set({ status: "shipped", updatedAt: new Date() }).where(eq(projects.id, project.id));
-      }
-      break;
-    }
-    case "park":
-      await db.update(stages).set(stamp).where(eq(stages.id, id));
-      await db
-        .update(projects)
-        .set({ status: "parked", hoursPerWeek: "0", unparkTrigger: payload.note || null, updatedAt: new Date() })
-        .where(eq(projects.id, project.id));
-      break;
-    case "kill":
-      await db.update(stages).set(stamp).where(eq(stages.id, id));
-      await db.update(projects).set({ status: "killed", updatedAt: new Date() }).where(eq(projects.id, project.id));
-      break;
-    case "restart": {
-      const restart = payload.restart;
-      if (!restart) throw new RejectedError("A restart needs its new gate.");
-      if (restart.sentence.toLowerCase() === stage.sentence.trim().toLowerCase()) {
-        throw new RejectedError("A restart is a different bet. The same sentence means it isn't ready.");
-      }
-      await db.update(stages).set(stamp).where(eq(stages.id, id));
-      const hoursPerWeek = restart.hoursPerWeek ?? Number(project.hoursPerWeek);
-      await db
-        .update(projects)
-        .set({ status: "active", hoursPerWeek: asNumeric(hoursPerWeek), unparkTrigger: null, updatedAt: new Date() })
-        .where(eq(projects.id, project.id));
-      const siblings = await db.query.stages.findMany({ where: eq(stages.projectId, project.id) });
-      const ordinal = Math.max(...siblings.map((s) => s.ordinal)) + 1;
-      await db.insert(stages).values({
-        userId,
-        projectId: project.id,
-        ordinal,
-        name: restart.name,
-        sentence: restart.sentence,
-        metric: restart.metric,
-        threshold: restart.threshold,
-        windowDays: restart.windowDays,
-        budgetHours: asNumeric(restart.budgetHours),
-        startedOn: payload.day,
-        decideOn: decideOnFor({
-          startedOn: payload.day,
-          budgetHours: restart.budgetHours,
-          hoursPerWeek,
-          windowDays: restart.windowDays,
-          deadline: project.template === "delivery" ? project.deadline : null,
-        }),
-      });
-      break;
-    }
-  }
+  await db
+    .update(stages)
+    .set({ outcome: payload.outcome, decidedOn: payload.day, decisionNote: payload.note, updatedAt: new Date() })
+    .where(eq(stages.id, id));
+  await apply(payload.outcome, decision, next);
   return envelope(userId, id);
 });
 
@@ -284,6 +220,20 @@ const extend = action(
     return envelope(userId, id);
   },
 );
+
+/** What each outcome means for the project, once the stage itself is stamped. */
+function apply(outcome: z.infer<typeof stageOutcomeSchema>, decision: Decision, next: Restart | undefined) {
+  switch (outcome) {
+    case "ship":
+      return ship(decision);
+    case "park":
+      return park(decision);
+    case "kill":
+      return kill(decision);
+    case "restart":
+      return restart(decision, checkRestart(decision, next));
+  }
+}
 
 export const stagesModel = syncedModel({
   name: "stages",

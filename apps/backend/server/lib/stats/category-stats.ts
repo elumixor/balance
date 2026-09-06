@@ -7,7 +7,7 @@ const ON_TARGET_EPSILON = 0.02; // within 2% of target counts as "on target"
 type CategoryHours = { hours: number; breakdown: Map<string, CategoryBreakdownItem> };
 
 /** Computes per-category target-vs-actual hours for a period, from the mapped calendar events. */
-export class CategoryStatsCalculator {
+class CategoryStatsCalculator {
   compute(categories: CategoryInput[], events: EventInput[], period: Period): CategoryStat[] {
     const categoryHours = this.accumulate(events, period);
 

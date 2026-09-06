@@ -1,16 +1,7 @@
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db";
-import { userPreferences } from "../db/schema";
-import { TRAVEL_MODES } from "./travel";
+import { TRAVEL_MODES } from "~/lib/travel";
 
-/**
- * The app's own preferences, kept per account rather than per device.
- *
- * Only the macOS app can act on most of these — a browser tab has nowhere to put a reminder card
- * — but the settings panel shows them everywhere, so setting them on a phone has to reach the Mac
- * that will use them. That is the whole reason they aren't in `localStorage`.
- */
+/** The shapes of the app's own preferences — what a row holds and what a patch may name. */
 
 export const remindersSchema = z.object({
   enabled: z.boolean(),
@@ -33,7 +24,7 @@ export const remindersSchema = z.object({
  * pocket, and an address is a sentence. The id is made by the client so a location can be added
  * from the picker that is about to use it.
  */
-export const locationSchema = z.object({
+const locationSchema = z.object({
   id: z.string().min(1).max(64),
   /** What the user calls it: "Home", "Office". */
   label: z.string().min(1).max(60),
@@ -84,7 +75,7 @@ export const sessionsSchema = z.object({
  * A zone worth naming — "Kyiv", "Prague" — so an event can be put in it by the name the person
  * uses rather than the one the database does. The id is made by the client, like a place's.
  */
-export const zoneSchema = z.object({
+const zoneSchema = z.object({
   id: z.string().min(1).max(64),
   label: z.string().min(1).max(60),
   /** The IANA name, which is what the calendar is actually told. */
@@ -111,7 +102,7 @@ export const integrationsSchema = z.object({
   synced: z.record(z.string().max(80), z.string().datetime()),
 });
 
-export const preferencesSchema = z.object({
+const preferencesSchema = z.object({
   reminders: remindersSchema,
   travel: travelSchema,
   sessions: sessionsSchema,
@@ -121,111 +112,13 @@ export const preferencesSchema = z.object({
 });
 export type Preferences = z.infer<typeof preferencesSchema>;
 
-const DEFAULTS: Preferences = {
-  reminders: { enabled: true, leadMinutes: 5, useCalendarReminders: true, leaveInTime: true, sound: true },
-  travel: { locations: [], defaultLocationId: null, modes: ["transit", "drive"], bufferMinutes: 5 },
-  sessions: {
-    enabled: true,
-    eveningTime: "18:00",
-    morningTime: "08:00",
-    weeklyWeekday: 7,
-    weeklyTime: "18:00",
-    planWhen: "evening",
-    timeZone: "UTC",
-  },
-  zones: { saved: [], columns: [] },
-  card: { hidden: [] },
-  integrations: { synced: {} },
-};
-
-export class PreferencesService {
-  constructor(private readonly userId: string) {}
-
-  /**
-   * Always a whole answer. A row written by an older build is missing whatever was added since,
-   * and a screen that has to cope with half a preference is a screen with two ideas of the
-   * default in it.
-   */
-  async get(): Promise<Preferences> {
-    const row = await db.query.userPreferences.findFirst({ where: eq(userPreferences.userId, this.userId) });
-    return merge(row?.data);
-  }
-
-  /** A patch of a patch: one section at a time, one setting at a time, both partial. */
-  async update(patch: {
-    reminders?: Partial<Preferences["reminders"]>;
-    travel?: Partial<Preferences["travel"]>;
-    sessions?: Partial<Preferences["sessions"]>;
-    zones?: Partial<Preferences["zones"]>;
-    card?: Partial<Preferences["card"]>;
-    integrations?: Partial<Preferences["integrations"]>;
-  }) {
-    const current = await this.get();
-    const next: Preferences = {
-      reminders: { ...current.reminders, ...patch.reminders },
-      travel: { ...current.travel, ...patch.travel },
-      sessions: { ...current.sessions, ...patch.sessions },
-      zones: { ...current.zones, ...patch.zones },
-      card: { ...current.card, ...patch.card },
-      // One feed's stamp at a time: a phone writing sleep must not forget another device's feed.
-      integrations: { synced: { ...current.integrations.synced, ...patch.integrations?.synced } },
-    };
-
-    await db
-      .insert(userPreferences)
-      .values({ userId: this.userId, data: next })
-      .onConflictDoUpdate({
-        target: userPreferences.userId,
-        set: { data: next, updatedAt: new Date() },
-      });
-
-    return next;
-  }
-}
-
-/**
- * What a row can hold: anything the current shape recognises, and the one thing it used to.
- *
- * `origin` was a single address before there were named places. A row written by that build still
- * holds one, and it is the address the person actually leaves from — so it is read back as their
- * first location rather than dropped.
- */
-const storedSchema = z.object({
+/** One section at a time, one setting at a time, both partial — what `PATCH /preferences` takes. */
+export const preferencesPatchFields = {
   reminders: remindersSchema.partial().optional(),
-  travel: travelSchema
-    .partial()
-    .extend({ origin: z.string().max(240).optional() })
-    .optional(),
+  travel: travelSchema.partial().optional(),
   sessions: sessionsSchema.partial().optional(),
   zones: zonesSchema.partial().optional(),
   card: cardSchema.partial().optional(),
   integrations: integrationsSchema.partial().optional(),
-});
-
-const HOME_ID = "home";
-
-/** Whatever is stored, read through the current shape — anything unreadable falls back. */
-function merge(stored: unknown): Preferences {
-  const parsed = storedSchema.safeParse(stored ?? {});
-  const value = parsed.success ? parsed.data : {};
-  const travel = { ...DEFAULTS.travel, ...value.travel };
-
-  const legacy = value.travel?.origin?.trim();
-  if (legacy && travel.locations.length === 0) {
-    travel.locations = [{ id: HOME_ID, label: "Home", address: legacy }];
-    travel.defaultLocationId = HOME_ID;
-  }
-  // A default pointing at a place that has since been deleted is the same as no default.
-  if (travel.defaultLocationId && !travel.locations.some((one) => one.id === travel.defaultLocationId)) {
-    travel.defaultLocationId = null;
-  }
-
-  return {
-    reminders: { ...DEFAULTS.reminders, ...value.reminders },
-    travel,
-    sessions: { ...DEFAULTS.sessions, ...value.sessions },
-    zones: { ...DEFAULTS.zones, ...value.zones },
-    card: { ...DEFAULTS.card, ...value.card },
-    integrations: { ...DEFAULTS.integrations, ...value.integrations },
-  };
-}
+};
+export type PreferencesPatch = z.infer<z.ZodObject<typeof preferencesPatchFields>>;

@@ -1,5 +1,5 @@
 import { addDays, type Day, dayIn, timeOn, weekdayOf } from "./days";
-import type { Slot } from "./service";
+import type { Slot } from "./types";
 
 /**
  * When the next reminders are due.

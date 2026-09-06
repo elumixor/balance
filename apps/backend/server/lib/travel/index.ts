@@ -1,5 +1,11 @@
-import { ApiError } from "../api-error";
-import { env } from "../env";
+import { ApiError } from "~/lib/http/api-error";
+import { TtlCache } from "~/lib/ttl-cache";
+import { directionsUrl } from "./maps-link";
+import { computeRoute } from "./routes-api";
+import type { Arrival, TravelAnswer, TravelLeg, TravelMode } from "./types";
+
+export type { Arrival, TravelAnswer, TravelLeg, TravelMode } from "./types";
+export { TRAVEL_MODES } from "./types";
 
 /**
  * How long it takes to get somewhere, per way of going.
@@ -9,60 +15,20 @@ import { env } from "../env";
  * is stored: a journey is a question about right now, and the answer is stale within the hour.
  */
 
-export const TRAVEL_MODES = ["transit", "drive", "bicycle", "walk"] as const;
-export type TravelMode = (typeof TRAVEL_MODES)[number];
-
-export interface TravelLeg {
-  readonly mode: TravelMode;
-  /** How long the journey takes, door to door. */
-  readonly seconds: number;
-  readonly meters: number;
-  /** Google Maps, opened on this route in whatever the machine treats as a maps link. */
-  readonly url: string;
-}
-
-export interface TravelAnswer {
-  /** False when there was nowhere to leave from — the app then simply doesn't offer travel times. */
-  readonly available: boolean;
-  readonly legs: TravelLeg[];
-}
-
-const ENDPOINT = "https://routes.googleapis.com/directions/v2:computeRoutes";
-
-/** Google's own names for the four ways of going. */
-const ROUTES_MODE: Record<TravelMode, string> = {
-  transit: "TRANSIT",
-  drive: "DRIVE",
-  bicycle: "BICYCLE",
-  walk: "WALK",
-};
-
-/** What `travelmode=` wants in a maps link, which is a different spelling of the same four. */
-const LINK_MODE: Record<TravelMode, string> = {
-  transit: "transit",
-  drive: "driving",
-  bicycle: "bicycling",
-  walk: "walking",
-};
-
-/**
- * Traffic is only worth asking about for a journey that starts soon — past this, "now" is not a
- * useful stand-in for when you'd actually set off, and the free-flow estimate is the honest one.
- */
-const TRAFFIC_HORIZON_MS = 60 * 60_000;
+const MS_PER_MINUTE = 60_000;
 
 /** Journeys don't change by the minute, and the same event is asked about on every reminder. */
-const CACHE_MS = 10 * 60_000;
+const CACHE_MS = 10 * MS_PER_MINUTE;
 const CACHE_MAX = 500;
 
-const cache = new Map<string, { at: number; leg: TravelLeg | null }>();
+/** Two reminders about the same 9am meeting are the same question. */
+const ARRIVAL_BUCKET_MS = 15 * MS_PER_MINUTE;
 
-/** When a journey has to arrive, and the offset of the clock on the wall where it does. */
-export interface Arrival {
-  readonly at: Date;
-  /** Minutes east of UTC — what the maps link needs, since Maps reads "arrive by" as local time. */
-  readonly offsetMinutes: number;
-}
+/**
+ * Keyed by account as well as by journey: an origin is often "where this phone is", and one
+ * person's coordinates must never answer another's question.
+ */
+const legs = new TtlCache<TravelLeg | null>(CACHE_MS, CACHE_MAX);
 
 /**
  * "2026-09-06T18:00:00+02:00" as the client writes it, keeping the offset it carries: the instant
@@ -79,6 +45,7 @@ export function parseArrival(value: string | undefined): Arrival | undefined {
 }
 
 export async function travelTimes(input: {
+  userId: string;
   origin: string;
   destination: string;
   modes: readonly TravelMode[];
@@ -87,154 +54,27 @@ export async function travelTimes(input: {
 }): Promise<TravelAnswer> {
   if (!input.origin.trim() || !input.destination.trim()) throw new ApiError("Both ends of the journey are needed");
 
-  const legs = await Promise.all(input.modes.map((mode) => leg(mode, input.origin, input.destination, input.arriveBy)));
-  return { available: true, legs: legs.filter((one): one is TravelLeg => one !== null) };
-}
-
-/** The mode as the `data=` form of a maps link spells it — the only form that takes a time. */
-const DATA_MODE: Record<TravelMode, number> = { drive: 0, bicycle: 1, walk: 2, transit: 3 };
-
-/**
- * A maps link for a journey, whether or not Google would tell us how long it takes.
- *
- * Opened on "arrive by" when the journey has an arrival to make: the documented `?api=1` form
- * can't say when, so Maps would plan from the moment the link is tapped and get the timetable
- * wrong for anything later today. The `data=` form (`!6e1` arrive by, `!8j` when, `!3e` the
- * mode) is undocumented but has held for a decade, and reads its time as local rather than UTC;
- * an arrival already gone is left out, because Maps has nothing to say about a bus that has left.
- */
-export function directionsUrl(origin: string, destination: string, mode: TravelMode, arriveBy?: Arrival) {
-  if (arriveBy && arriveBy.at.getTime() > Date.now()) {
-    // Maps reads the number as the wall clock, so the instant is shifted onto the local one.
-    const at = Math.round(arriveBy.at.getTime() / 1000) + arriveBy.offsetMinutes * 60;
-    const path = [origin, destination].map((place) => encodeURIComponent(place).replace(/%20/g, "+")).join("/");
-    return `https://www.google.com/maps/dir/${path}/data=!4m6!4m5!2m3!6e1!7e2!8j${at}!3e${DATA_MODE[mode]}`;
-  }
-  const params = new URLSearchParams({
-    api: "1",
-    origin,
-    destination,
-    travelmode: LINK_MODE[mode],
-  });
-  return `https://www.google.com/maps/dir/?${params}`;
+  const answers = await Promise.all(
+    input.modes.map((mode) => leg(input.userId, mode, input.origin, input.destination, input.arriveBy)),
+  );
+  return { available: true, legs: answers.filter((one): one is TravelLeg => one !== null) };
 }
 
 async function leg(
+  userId: string,
   mode: TravelMode,
   origin: string,
   destination: string,
   arriveBy: Arrival | undefined,
 ): Promise<TravelLeg | null> {
-  // Rounded to the quarter hour: two reminders about the same 9am meeting are the same question.
-  const bucket = arriveBy ? Math.round(arriveBy.at.getTime() / (15 * 60_000)) : 0;
-  const key = `${mode}|${origin}|${destination}|${bucket}`;
+  const bucket = arriveBy ? Math.round(arriveBy.at.getTime() / ARRIVAL_BUCKET_MS) : 0;
+  const key = `${userId}|${mode}|${origin}|${destination}|${bucket}`;
 
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.leg;
+  const hit = legs.get(key);
+  if (hit !== undefined) return hit;
 
-  const timed = await compute(mode, origin, destination, arriveBy);
+  const timed = await computeRoute(mode, origin, destination, arriveBy);
   const answer = timed ? { ...timed, url: directionsUrl(origin, destination, mode, arriveBy) } : null;
-  if (cache.size >= CACHE_MAX) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
-  }
-  cache.set(key, { at: Date.now(), leg: answer });
+  legs.set(key, answer);
   return answer;
-}
-
-/**
- * Driving is asked twice when the meeting is later than the traffic horizon: once without
- * traffic, to learn roughly how long the road takes, and again with traffic predicted for the
- * moment you'd actually set off — which is the arrival less that first answer. Google can only be
- * asked about a departure, and "now" is the wrong departure for a six o'clock meeting.
- */
-async function compute(
-  mode: TravelMode,
-  origin: string,
-  destination: string,
-  arriveBy: Arrival | undefined,
-): Promise<Omit<TravelLeg, "url"> | null> {
-  const first = await ask(mode, origin, destination, timing(mode, arriveBy?.at));
-  if (!first || mode !== "drive" || !arriveBy) return first;
-  const departAt = new Date(arriveBy.at.getTime() - first.seconds * 1000);
-  if (departAt.getTime() - Date.now() < TRAFFIC_HORIZON_MS) return first;
-  const predicted = await ask(mode, origin, destination, {
-    routingPreference: "TRAFFIC_AWARE",
-    departureTime: departAt.toISOString(),
-  });
-  return predicted ?? first;
-}
-
-async function ask(
-  mode: TravelMode,
-  origin: string,
-  destination: string,
-  when: Record<string, string>,
-): Promise<Omit<TravelLeg, "url"> | null> {
-  const response = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-goog-api-key": env.GOOGLE_MAPS_API_KEY,
-      // Routes refuses a request that doesn't say what it wants back, and charges by how much
-      // it is. Two numbers is the whole answer here.
-      "x-goog-fieldmask": "routes.duration,routes.distanceMeters",
-    },
-    body: JSON.stringify({
-      origin: waypoint(origin),
-      destination: waypoint(destination),
-      travelMode: ROUTES_MODE[mode],
-      ...when,
-    }),
-  });
-
-  if (!response.ok) {
-    // An address Google can't place, or a journey it won't route, is a normal answer for a
-    // calendar event whose location is "Room 4" — the app shows nothing rather than an error.
-    if (response.status === 400 || response.status === 404) return null;
-    // A key that isn't allowed to ask — no billing on the project, the wrong restriction — is a
-    // configuration problem, not something the person looking at a calendar can act on. It is
-    // the same outcome for them as having no key at all, so it reads as one.
-    if (response.status === 401 || response.status === 403) return null;
-    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new ApiError(`Google Maps said: ${body.error?.message ?? response.statusText}`, 502);
-  }
-
-  const body = (await response.json()) as { routes?: { duration?: string; distanceMeters?: number }[] };
-  const route = body.routes?.[0];
-  if (!route?.duration) return null;
-
-  return {
-    mode,
-    // Routes answers a duration as protobuf does — "1543s".
-    seconds: Number.parseInt(route.duration, 10),
-    meters: route.distanceMeters ?? 0,
-  };
-}
-
-/** Somewhere Google can be asked about: a pair of coordinates when the phone gave us one, and
- * otherwise an address in words. "Where I am now" has no street name, so it travels as
- * "50.0755,14.4378" and is recognised here rather than being sent as a nonsense address. */
-function waypoint(value: string) {
-  const point = COORDINATES.exec(value.trim());
-  if (!point) return { address: value };
-  return { location: { latLng: { latitude: Number(point[1]), longitude: Number(point[2]) } } };
-}
-
-const COORDINATES = /^(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)$/;
-
-/**
- * When the journey happens. Only transit can be asked to arrive by a time — every other mode
- * takes a departure, and a departure in the past is refused outright — so driving is asked about
- * with today's traffic when the meeting is soon, and without any traffic at all when it isn't.
- */
-function timing(mode: TravelMode, arriveBy: Date | undefined): Record<string, string> {
-  if (!arriveBy) return mode === "drive" ? { routingPreference: "TRAFFIC_AWARE" } : {};
-  // A bus that has already left can't be asked about; a meeting that has started is planned from now.
-  if (mode === "transit") return arriveBy.getTime() > Date.now() ? { arrivalTime: arriveBy.toISOString() } : {};
-  if (mode !== "drive") return {};
-  const soon = arriveBy.getTime() - Date.now() < TRAFFIC_HORIZON_MS;
-  // A departure in the past is refused outright, and the request itself takes a moment, so "now"
-  // is asked for as half a minute from now.
-  return soon ? { routingPreference: "TRAFFIC_AWARE", departureTime: new Date(Date.now() + 30_000).toISOString() } : {};
 }

@@ -10,7 +10,7 @@ export interface CalendarConnection {
   readonly accounts: ProviderAccountService;
 }
 
-const GOOGLE = "google";
+export const GOOGLE = "google";
 
 /**
  * Google is the only provider today; a second one becomes another branch here rather than a

@@ -1,6 +1,6 @@
 import { syncedModel } from "@elumixor/synced/server";
 import { z } from "zod";
-import { projects } from "../../db/schema";
+import { projects } from "~/db/schema";
 import { asNumeric, defined, numeric, TableStore } from "./table-store";
 
 export const projectStatusSchema = z.enum(["active", "held", "parked", "shipped", "killed"]);
