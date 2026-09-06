@@ -172,7 +172,10 @@ function pointsFor(input: CopyInput, ahead: string, Ahead: string): CopyPoint[] 
   if (biggest) points.push({ text: `${biggest.title} took ${round(biggest.hours)}h of it.`, eventId: biggest.id });
   if (input.streak > 1) points.push({ text: `${input.streak} days planned in a row.`, eventId: null });
   if (first && !input.targetPlanned) {
-    points.push({ text: `${Ahead} opens with ${first.title} at ${clock(first.start, input.timeZone)}.`, eventId: first.id });
+    points.push({
+      text: `${Ahead} opens with ${first.title} at ${clock(first.start, input.timeZone)}.`,
+      eventId: first.id,
+    });
   }
   points.push({
     text: input.targetPlanned

@@ -46,7 +46,12 @@ export function timeOn(day: Day, timeZone: string, hhmm: string): Date {
 
 /** How far into its local day an instant is, in minutes — `13:30` in Kyiv is 810 wherever the server sits. */
 export function minutesIntoDay(timeZone: string, at: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hour12: false, hour: "2-digit", minute: "2-digit" }).formatToParts(at);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(at);
   const read = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
   // `24` is how en-US names midnight with hour12 off.
   return (read("hour") % 24) * 60 + read("minute");

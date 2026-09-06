@@ -16,7 +16,7 @@ export interface Problem {
   /** The technical half: a stack, a URL, a status. Behind the copy button, never in the sentence. */
   readonly detail?: string;
   /** What would fix it, if anything can — the card grows a button and clears itself when it works. */
-  retry?: () => void | Promise<unknown>;
+  retry?: () => unknown;
 }
 
 /** What a caller knows about a failure beyond the error itself. */
@@ -24,7 +24,7 @@ export interface ReportOptions {
   /** What to put on the card — a sentence for a person. Without one the card says nothing useful. */
   title?: string;
   detail?: string;
-  retry?: () => void | Promise<unknown>;
+  retry?: () => unknown;
 }
 
 /** More than this and the oldest goes: what matters is the last thing that failed, not the log. */

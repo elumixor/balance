@@ -34,7 +34,9 @@ describe("eligibleAngles", () => {
   });
 
   it("has only a bright line for a day with nothing on it", () => {
-    expect(eligibleAngles({ ...base, hours: 0, top: [], targetBlocks: [], streak: 0, awardStars: 0 })).toEqual(["quiet"]);
+    expect(eligibleAngles({ ...base, hours: 0, top: [], targetBlocks: [], streak: 0, awardStars: 0 })).toEqual([
+      "quiet",
+    ]);
   });
 
   it("does not ask for a plan that already exists", () => {
@@ -67,7 +69,9 @@ describe("pickAngle", () => {
   });
 
   it("falls back to the only angle even when told to avoid it", () => {
-    expect(pickAngle({ ...base, hours: 0, top: [], targetBlocks: [], streak: 0, awardStars: 0, avoid: "quiet" })).toBe("quiet");
+    expect(pickAngle({ ...base, hours: 0, top: [], targetBlocks: [], streak: 0, awardStars: 0, avoid: "quiet" })).toBe(
+      "quiet",
+    );
   });
 });
 

@@ -5,8 +5,8 @@ import { z } from "zod";
 import { db } from "../../db";
 import { sessionCopy } from "../../db/schema";
 import { env } from "../env";
+import { type Angle, type CopyInput, fallback, pickAngle, type SessionCopy } from "./copy-fallback";
 import { addDays, type Day } from "./days";
-import { type Angle, type CopyInput, type SessionCopy, fallback, pickAngle } from "./copy-fallback";
 
 export type { CopyInput, CopyPoint, SessionCopy } from "./copy-fallback";
 
@@ -59,7 +59,11 @@ export async function sessionCopyFor(userId: string, day: Day, input: CopyInput,
   // Too early to say anything true about a day that is still happening — see `isFresh`.
   if (!persist) return fallback(shaped);
 
-  const copy = (await generate(shaped, previous.map((row) => row.title))) ?? fallback(shaped);
+  const copy =
+    (await generate(
+      shaped,
+      previous.map((row) => row.title),
+    )) ?? fallback(shaped);
   await db
     .insert(sessionCopy)
     .values({ userId, day, slot: input.slot, data: copy as unknown as Record<string, unknown> })
@@ -71,7 +75,11 @@ export async function sessionCopyFor(userId: string, day: Day, input: CopyInput,
 /** The last few days' words, newest first — what today's have to differ from. */
 async function recent(userId: string, day: Day): Promise<{ angle: Angle | null; title: string }[]> {
   const rows = await db.query.sessionCopy.findMany({
-    where: and(eq(sessionCopy.userId, userId), gte(sessionCopy.day, addDays(day, -RECENT_DAYS)), lt(sessionCopy.day, day)),
+    where: and(
+      eq(sessionCopy.userId, userId),
+      gte(sessionCopy.day, addDays(day, -RECENT_DAYS)),
+      lt(sessionCopy.day, day),
+    ),
     orderBy: (row, { desc }) => [desc(row.day)],
     limit: RECENT_DAYS,
   });
@@ -151,7 +159,11 @@ function promptFor(input: CopyInput, angle: Angle, previousTitles: string[]) {
   lines.push(`\nThe day being planned (${input.target}) currently holds:`);
   if (input.targetBlocks.length === 0) lines.push("- nothing yet");
   for (const block of input.targetBlocks.slice(0, 8)) {
-    const at = new Date(block.start).toLocaleTimeString("en-GB", { timeZone: input.timeZone, hour: "2-digit", minute: "2-digit" });
+    const at = new Date(block.start).toLocaleTimeString("en-GB", {
+      timeZone: input.timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     lines.push(`- [${block.id}] ${at} ${block.title}${block.categoryName ? ` (${block.categoryName})` : ""}`);
   }
 

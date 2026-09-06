@@ -1,9 +1,4 @@
-import {
-  addDays,
-  MINUTES_PER_DAY,
-  minutesIntoDay,
-  startOfDay,
-} from "$lib/dates";
+import { addDays, MINUTES_PER_DAY, minutesIntoDay, startOfDay } from "$lib/dates";
 import type { CalendarEvent } from "$lib/types";
 
 /** An hour's height at rest. Pinching scales it — see `time-scale.svelte.ts`. */
@@ -82,19 +77,11 @@ export interface TimeTick {
  */
 export function gutterTicks(hourPx: number, shiftMinutes = 0): TimeTick[] {
   const step =
-    hourPx < CROWDED_HOUR_PX
-      ? 120
-      : hourPx < HALF_HOUR_LINE_PX
-      ? 60
-      : hourPx < QUARTER_HOUR_LINE_PX
-      ? 30
-      : 15;
+    hourPx < CROWDED_HOUR_PX ? 120 : hourPx < HALF_HOUR_LINE_PX ? 60 : hourPx < QUARTER_HOUR_LINE_PX ? 30 : 15;
   const ticks: TimeTick[] = [];
   for (let minutes = step; minutes < MINUTES_PER_DAY; minutes += step) {
     const minute = minutes % 60;
-    const shown =
-      (((minutes + shiftMinutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) %
-      MINUTES_PER_DAY;
+    const shown = (((minutes + shiftMinutes) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
     ticks.push({
       minutes,
       label: `${pad(Math.floor(shown / 60))}:${pad(shown % 60)}`,
@@ -139,11 +126,7 @@ export interface AllDaySpan {
  * One segment per day an event touches. Splitting here is what makes a midnight-crossing event
  * draw on both days and a three-day event draw on three, without any special case downstream.
  */
-export function segmentsForRange(
-  events: readonly CalendarEvent[],
-  rangeStart: Date,
-  dayCount: number
-): Segment[] {
+export function segmentsForRange(events: readonly CalendarEvent[], rangeStart: Date, dayCount: number): Segment[] {
   const rangeEnd = addDays(rangeStart, dayCount);
   const segments: Segment[] = [];
 
@@ -154,10 +137,7 @@ export function segmentsForRange(
     if (end <= rangeStart || start >= rangeEnd) continue;
 
     const firstDay = Math.max(0, dayIndexOf(start, rangeStart));
-    const lastDay = Math.min(
-      dayCount - 1,
-      dayIndexOf(new Date(end.getTime() - 1), rangeStart)
-    );
+    const lastDay = Math.min(dayCount - 1, dayIndexOf(new Date(end.getTime() - 1), rangeStart));
 
     for (let dayIndex = firstDay; dayIndex <= lastDay; dayIndex++) {
       const startsHere = dayIndex === firstDay && start >= rangeStart;
@@ -166,9 +146,7 @@ export function segmentsForRange(
         event,
         dayIndex,
         startMinutes: startsHere ? minutesIntoDay(start) : 0,
-        endMinutes: endsHere
-          ? minutesIntoDay(end) || MINUTES_PER_DAY
-          : MINUTES_PER_DAY,
+        endMinutes: endsHere ? minutesIntoDay(end) || MINUTES_PER_DAY : MINUTES_PER_DAY,
         continuesBefore: !startsHere,
         continuesAfter: !endsHere,
       });
@@ -182,7 +160,7 @@ export function segmentsForRange(
 export function allDaySpansForRange(
   events: readonly CalendarEvent[],
   rangeStart: Date,
-  dayCount: number
+  dayCount: number,
 ): AllDaySpan[] {
   const rangeEnd = addDays(rangeStart, dayCount);
 
@@ -195,10 +173,7 @@ export function allDaySpansForRange(
 
       const firstDay = Math.max(0, dayIndexOf(start, rangeStart));
       // Google's all-day end date is exclusive, so the last drawn day is the one before it.
-      const lastDay = Math.min(
-        dayCount - 1,
-        dayIndexOf(new Date(end.getTime() - 1), rangeStart)
-      );
+      const lastDay = Math.min(dayCount - 1, dayIndexOf(new Date(end.getTime() - 1), rangeStart));
       return [{ event, dayIndex: firstDay, days: lastDay - firstDay + 1 }];
     })
     .sort((a, b) => a.dayIndex - b.dayIndex || b.days - a.days);
@@ -247,21 +222,16 @@ export const STAGGER_FRACTION = 0.5;
 export function placeDay(
   segments: readonly Segment[],
   hourPx: number = HOUR_PX,
-  columnPx: number = DEFAULT_COLUMN_PX
+  columnPx: number = DEFAULT_COLUMN_PX,
 ): PlacedSegment[] {
   const minBlockPx = (SNAP_MINUTES / 60) * hourPx;
   // Earliest first, and the longest of a simultaneous pair goes underneath.
-  const ordered = [...segments].sort(
-    (a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes
-  );
+  const ordered = [...segments].sort((a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes);
 
   const placed: PlacedSegment[] = [];
   for (const segment of ordered) {
     const top = (segment.startMinutes / 60) * hourPx;
-    const height = Math.max(
-      minBlockPx,
-      ((segment.endMinutes - segment.startMinutes) / 60) * hourPx
-    );
+    const height = Math.max(minBlockPx, ((segment.endMinutes - segment.startMinutes) / 60) * hourPx);
     const bottom = top + height;
 
     // The block this one lands on: the latest placed that is still open at this top. Everything
@@ -270,8 +240,7 @@ export function placeDay(
     let parent: PlacedSegment | null = null;
     // Half a pixel of slack: `9h + 1h` and `10h` are not always the same float, and a block
     // ending where the next starts must not be read as running into it.
-    for (const other of placed)
-      if (other.top + other.height > top + COLLISION_SLACK_PX) parent = other;
+    for (const other of placed) if (other.top + other.height > top + COLLISION_SLACK_PX) parent = other;
 
     if (!parent) {
       placed.push({
@@ -285,10 +254,8 @@ export function placeDay(
       continue;
     }
 
-    const nested =
-      top - parent.top >= NEST_HEAD_PX && bottom <= parent.top + parent.height;
-    const left =
-      parent.left + (nested ? NEST_INSET_PX : parent.width * STAGGER_FRACTION);
+    const nested = top - parent.top >= NEST_HEAD_PX && bottom <= parent.top + parent.height;
+    const left = parent.left + (nested ? NEST_INSET_PX : parent.width * STAGGER_FRACTION);
     const right = parent.left + parent.width;
     placed.push({
       ...segment,
@@ -332,10 +299,7 @@ export function resizeBands(height: number, selected: boolean): ResizeBands {
   const band = Math.min(RESIZE_BAND_MAX_PX, third);
   if (band >= RESIZE_BAND_MIN_PX) return { band, overhang: 0 };
   if (!selected) return { band: 0, overhang: 0 };
-  const grown = Math.min(
-    RESIZE_BAND_MAX_PX,
-    Math.max(RESIZE_BAND_SELECTED_PX, third)
-  );
+  const grown = Math.min(RESIZE_BAND_MAX_PX, Math.max(RESIZE_BAND_SELECTED_PX, third));
   return { band: grown, overhang: grown - third };
 }
 
@@ -383,8 +347,5 @@ export function snapMinutes(minutes: number): number {
  * Rounding a whole number of local midnights apart is right in both directions.
  */
 function dayIndexOf(date: Date, rangeStart: Date): number {
-  return Math.round(
-    (startOfDay(date).getTime() - startOfDay(rangeStart).getTime()) /
-      (24 * 60 * 60 * 1000)
-  );
+  return Math.round((startOfDay(date).getTime() - startOfDay(rangeStart).getTime()) / (24 * 60 * 60 * 1000));
 }

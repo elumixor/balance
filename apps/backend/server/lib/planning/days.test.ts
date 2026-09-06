@@ -1,5 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { addDays, dayIn, daysBetween, daysFrom, rangeOf, startOf, timeOn, weekdayOf, weekStartOf, minutesIntoDay } from "./days";
+import {
+  addDays,
+  dayIn,
+  daysBetween,
+  daysFrom,
+  minutesIntoDay,
+  rangeOf,
+  startOf,
+  timeOn,
+  weekdayOf,
+  weekStartOf,
+} from "./days";
 
 const PRAGUE = "Europe/Prague";
 const HOUR = 3_600_000;

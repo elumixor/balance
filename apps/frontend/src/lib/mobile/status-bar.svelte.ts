@@ -1,5 +1,5 @@
-import { theme } from "$lib/theme.svelte";
 import { StatusBar, Style } from "@capacitor/status-bar";
+import { theme } from "$lib/theme.svelte";
 import { isIOSApp } from "./platform";
 
 /**

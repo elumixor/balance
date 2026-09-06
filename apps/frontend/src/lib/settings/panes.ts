@@ -13,11 +13,31 @@ export interface PaneInfo {
 }
 
 export const PANES: PaneInfo[] = [
-  { value: "general", label: "Profile", icon: UserRound, keywords: "account email sign out stars recap plan theme appearance dark light mac update login build version" },
-  { value: "notifications", label: "Notifications", icon: Bell, keywords: "planning sessions evening morning week reminders remind events leave sound minutes before" },
-  { value: "places", label: "Places & travel", icon: MapPin, keywords: "home office address journey route transit driving walking cycling" },
+  {
+    value: "general",
+    label: "Profile",
+    icon: UserRound,
+    keywords: "account email sign out stars recap plan theme appearance dark light mac update login build version",
+  },
+  {
+    value: "notifications",
+    label: "Notifications",
+    icon: Bell,
+    keywords: "planning sessions evening morning week reminders remind events leave sound minutes before",
+  },
+  {
+    value: "places",
+    label: "Places & travel",
+    icon: MapPin,
+    keywords: "home office address journey route transit driving walking cycling",
+  },
   { value: "zones", label: "Time zones", icon: Globe, keywords: "city gmt offset zone" },
-  { value: "calendars", label: "Calendars", icon: CalendarDays, keywords: "google account connect drawn default new events land" },
+  {
+    value: "calendars",
+    label: "Calendars",
+    icon: CalendarDays,
+    keywords: "google account connect drawn default new events land",
+  },
   { value: "integrations", label: "Integrations", icon: Plug, keywords: "apple health sleep sync feed" },
 ];
 

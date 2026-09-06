@@ -115,7 +115,12 @@ class DesktopReminders {
         this.#travel.set(event.id, []);
         return;
       }
-      const answer = await getTravelTimes({ origin, destination: meeting.location, modes, arriveBy: arrivalFor(event.start) });
+      const answer = await getTravelTimes({
+        origin,
+        destination: meeting.location,
+        modes,
+        arriveBy: arrivalFor(event.start),
+      });
       this.#travel.set(event.id, answer.legs);
     } catch (e) {
       // A route that can't be worked out costs the leave-in-time card, not the reminder itself.

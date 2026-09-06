@@ -1,13 +1,13 @@
 export { default as DesktopDownload } from "./DesktopDownload.svelte";
 export { default as DesktopUpdate } from "./DesktopUpdate.svelte";
 export { default as IntegrationsPane } from "./IntegrationsPane.svelte";
+export { default as NotificationsPane } from "./NotificationsPane.svelte";
 export { default as PlacesPane } from "./PlacesPane.svelte";
 export { default as ProfilePane } from "./ProfilePane.svelte";
-export { default as NotificationsPane } from "./NotificationsPane.svelte";
 export { default as SettingsGroup } from "./SettingsGroup.svelte";
 export { default as SettingsNav } from "./SettingsNav.svelte";
 export { default as StarRecord } from "./StarRecord.svelte";
-export { default as TimeInput } from "./TimeInput.svelte";
 export { default as ThemeSwitch } from "./ThemeSwitch.svelte";
+export { default as TimeInput } from "./TimeInput.svelte";
 export { default as TimeZonesPane } from "./TimeZonesPane.svelte";
 export { default as ToggleRow } from "./ToggleRow.svelte";

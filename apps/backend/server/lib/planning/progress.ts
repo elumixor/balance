@@ -78,7 +78,13 @@ export function computeProgress(input: { today: Day; ledger: LedgerRow[]; days: 
   const recent = Array.from({ length: RECENT_DAYS }, (_, i) => {
     const day = addDays(today, i - (RECENT_DAYS - 1));
     const row = planned.get(day);
-    return { day, stars: starsByDay.get(day) ?? 0, planned: !!row, ahead: row?.ahead ?? false, rest: row?.rest ?? false };
+    return {
+      day,
+      stars: starsByDay.get(day) ?? 0,
+      planned: !!row,
+      ahead: row?.ahead ?? false,
+      rest: row?.rest ?? false,
+    };
   });
 
   const aheadDays = input.days.filter((row) => row.ahead).length;
