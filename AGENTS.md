@@ -26,9 +26,18 @@ Every such folder has an `index.ts`, and a screen imports from the folder, not t
 (`import { WeekGrid } from "./components"`, `import { Button } from "$lib/components"`); siblings in
 one folder import each other directly. Logic stays under `$lib/<domain>/` beside its tests.
 
+`$lib` is grouped by what a module is about, not by what kind of file it is. `core/` is the
+plumbing every screen stands on — the API client, the caches and the store, the write queue, the
+persisted copy, `env.ts`; `platform/` is what the device does around the app — the clock, the
+viewport, hotkeys, diagnostics, telemetry, the watchdog; `ui/` is colour, icons, theme and
+formatting; `account/` is the session and the account's preferences; `calendar/`, `planning/`,
+`projects/`, `travel/`, `integrations/` are the domains, each with its own `types.ts` and its own
+`queries.ts` — the only files that name an endpoint. A new module goes into the folder its
+subject already lives in; a new folder is a new subject, not a new kind of file.
+
 ## Screens don't fetch, the store does
 
-`src/lib/store.svelte.ts` holds every screen's data for the session, one `Cached` per thing. A
+`src/lib/core/store.svelte.ts` holds every screen's data for the session, one `Cached` per thing. A
 screen calls `ensure()` on mount, which fetches only what's missing or stale, so switching tabs
 costs no requests and shows no skeleton. A write calls the matching `invalidate.*()` and refreshes
 its own cache; the screens it touched refetch behind their existing rows the next time they're
@@ -51,7 +60,7 @@ there is nowhere to leave from, so every screen has to cope with having no journ
 same key (`GOOGLE_MAPS_API_KEY`) suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the
 spelling Maps itself gave back rather than one somebody typed from memory. Where a journey _starts_
 is the event's own answer — a place named in settings, or the device's position, resolved by
-`$lib/travel-origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
+`$lib/travel/origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
 because "where I am now" only means anything on the machine holding the person.
 
 Two consequences worth knowing before changing anything here. "Not connected" and "the grant
@@ -75,7 +84,7 @@ landing mid-keystroke can't overwrite the keystroke, and a write the server refu
 rollback — it just stops being replayed.
 
 Screens never fetch or post here either: they call `categories.create/update/delete` (or assign to
-a field of `categories.get(id)`) from `src/lib/synced.svelte.ts`, and one loop batches every
+a field of `categories.get(id)`) from `src/lib/core/synced.svelte.ts`, and one loop batches every
 model's writes and reads into a single `POST /mobile/sync`. Writes carry a client-made id, so a
 retry after a dropped reply is free; `sync_mutations` is what makes that true on the server.
 
@@ -84,7 +93,7 @@ write, worked out when the original was made. Group a drag or a burst of keystro
 `synced.beginStep()` / `commitStep()`, or `synced.transaction()` in one go.
 
 Adding a model is a `syncedModel` on the server (`server/lib/sync/`) plus a line in
-`src/lib/synced.svelte.ts`. Its store is an interface, not a table: `pull`, `read`, `create`,
+`src/lib/core/synced.svelte.ts`. Its store is an interface, not a table: `pull`, `read`, `create`,
 `update`, `remove`, backed by Drizzle or by somebody else's API. A write whose meaning belongs to
 the server — an RSVP, an archive in Gmail — is an `action` instead, with the client saying only
 what to draw meanwhile. Calendar events are deliberately not a synced model: Google owns them,
@@ -97,7 +106,7 @@ and `CalendarEventsService.resolve` is still the one read path.
 - `apps/frontend/src-tauri/` is the macOS shell. It renders the menu bar item, the Dock icon and
   the reminder card, and decides the content of none of them: `src/lib/desktop/` computes each
   state and pushes it down (`update_tray`, `set_dock_icon`, `show_reminder`), with
-  `$lib/agenda.svelte.ts` as the one answer to "what is next" that the menu bar and the reminders
+  `$lib/calendar/agenda.svelte.ts` as the one answer to "what is next" that the menu bar and the reminders
   both read. Don't fetch or reason about events in Rust — the session lives in the webview. A new
   command has to be named in `build.rs` and in `capabilities/default.json`, or the built app never
   receives it. The shell registers itself as a login item on its first launch and is then started
@@ -114,7 +123,7 @@ and `CalendarEventsService.resolve` is still the one read path.
   reads `/mobile/watch/summary` and writes through `/mobile/tracking/*`; `SessionController` is the
   one place that knows what is running, and the only writer of the App Group snapshot. A calendar file shared into the
   phone app arrives the same native-to-webview way: `IcsImportPlugin.swift` only carries it,
-  `$lib/ics.ts` parses it, and the events are written through the ordinary calendar API. A file
+  `$lib/calendar/ics.ts` parses it, and the events are written through the ordinary calendar API. A file
   dropped on the Mac app or a browser tab goes to the same sheet through `IcsDropZone.svelte`.
 
 ## The ritual is the product
@@ -160,6 +169,24 @@ never cost someone their reminder.
 The voice is a rule, not a preference: write from the far side of the thing, how it will feel to
 have already done it, and never name a failure, a miss or a broken streak. Reviews are payouts.
 
+## The week grid is a shell around parts that each own one thing
+
+`calendar/components/WeekGrid.svelte` derives the strip and composes; it draws nothing itself.
+`week-scroll.svelte.ts` is the only writer of `scrollLeft` — the jump, settle and land state
+machine, with a `destroy()` the shell calls so no frame outlives the grid. `ZoneGutter`, `AllDayRow`,
+`DayColumn`, `TravelBand`, `DragGhost`, `NowLine` and `TodayButton` each take what they draw as
+props. The arithmetic behind them — placing segments, the marquee box, the travel band's geometry —
+is in `$lib/calendar/week-grid.ts`, pure and at 100% coverage, because a DST-day column shift was
+found there once and nothing in a component can be tested for that.
+
+The data behind the grid is the same split. `$lib/calendar/calendar-data.svelte.ts` is the façade
+every component talks to: the window and navigation, the derived lists, and a delegating member for
+each operation. Behind it `writes.svelte.ts` is the draw-ahead queue (what a screen shows is the
+server's week with the writes it hasn't acknowledged yet replayed on top), `edits.svelte.ts` is
+every operation a person does recorded as a history step with its inverse, `drag.svelte.ts` is
+the pointer state machine, `selection.svelte.ts` and `series.svelte.ts` are what their names say,
+and `purpose.ts` and `geometry.ts` are pure and tested.
+
 ## Planning is the calendar, not a screen
 
 `?plan=YYYY-MM-DD` on `/calendar` lights one day, dims the rest, and puts `PlanningBar` as a strip above the grid. Everything
@@ -171,7 +198,11 @@ because that is where the star is actually earned.
 ## The event card is sections, and the calendar keeps most of them
 
 `calendar/components/EventEditor.svelte` is one card: sphere and name, what it is for, when, how you'll be
-told, where and with whom, what it says. Everything the meeting carries — a place, its time zone,
+told, where and with whom, what it says — each a section component beside it (`EditorHeader`,
+`TimeSection`, `RemindersSection`, `MeetingSection`, `DescriptionSection`, `EditorFooter`), with
+the typed-and-saved state in `$lib/calendar/event-draft.svelte.ts`, which is what makes the
+debounce and the carried-over-id rule testable. Every write a section makes goes through
+`draft.write(title, promise)`, so a refused one reaches the screen. Everything the meeting carries — a place, its time zone,
 how it repeats, its reminders, its guests, its call — is written straight back to Google through
 one `PATCH /calendar/events/:id` and `calendarData.patchEvent`, which draws the answer ahead and
 takes an inverse patch for undo. A rule always lands on the series' master, the only event that
@@ -187,7 +218,7 @@ yet.
 
 ## Reminders are worked out once and shown three ways
 
-`$lib/reminders.ts` answers when a reminder is due — the event's own calendar reminder or the
+`$lib/calendar/reminders.ts` answers when a reminder is due — the event's own calendar reminder or the
 account's lead time, a second one when it is time to set off, and a fixed one right before a call
 starts. Everything else is delivery. The Mac ticks once a minute and asks "is this due now"
 (`desktop/reminders.svelte.ts`), because it is running; iOS is asleep by then, so
@@ -203,7 +234,7 @@ companion app installed — and holds nothing pending otherwise, or the same eve
 
 Three things kept a broken app looking like a loading one, and all three are now closed.
 
-`$lib/diagnostics.svelte.ts` holds every failure the app knows about, and `ProblemToasts` is the
+`$lib/platform/diagnostics.svelte.ts` holds every failure the app knows about, and `ProblemToasts` is the
 only thing that draws one: a pile in the top-right corner, one card per failure, wherever it came
 from. Screens used to say it themselves — a card here, a red line there — which is how a card meant
 for a sentence ended up holding a database query and covering the week it was about. So a card is
@@ -219,7 +250,7 @@ A screen that throws while rendering is caught by the `<svelte:boundary>` in the
 shell around it — the tabs, the rail — stays alive and answers. Before that, one screen's error
 took every effect in the app with it, which reads as a tab bar that has stopped working.
 
-A screen is not the only place a failure has to reach. `$lib/telemetry.ts` hangs off
+A screen is not the only place a failure has to reach. `$lib/platform/telemetry.ts` hangs off
 `diagnostics.report`, so every failure the app already knows how to say is also sent to Sentry, with
 what the person was doing before it sent to PostHog — one call, because a second thing to remember
 is a thing that gets forgotten. The API reports the same way (`server/lib/telemetry.ts`, wired into
@@ -237,9 +268,12 @@ required, parsed once at start-up by `server/plugins/env.ts`, so a deployment mi
 refuses to boot and names what it lacks rather than answering wrongly hours later. The frontend
 does the same at build time: `vite.config.ts` refuses to build without the public keys it bakes
 in. Read `env.X`, never `process.env.X`; add a key to the schema, never a `?? fallback`. The one
-optional key is `DEV_AUTH_EMAIL`, which is a switch, not a setting.
+optional key is `DEV_AUTH_EMAIL`, which is a switch, not a setting. The frontend's half is
+`$lib/core/env.ts`: the only file that reads `import.meta.env`, so a key the bundle carries is
+named once and every public identifier — Clerk, Sentry, PostHog, the OAuth clients — is read from
+there.
 
-Last of all, `$lib/watchdog.svelte.ts` watches the thing none of that can watch: Svelte flushes
+Last of all, `$lib/platform/watchdog.svelte.ts` watches the thing none of that can watch: Svelte flushes
 every effect in one pass, so one effect that re-triggers itself doesn't fail alone — the scheduler
 gives up and takes the whole tree with it, leaving a calendar that still scrolls and a tab bar that
 has stopped answering. A timer outside the reactive system bumps a counter, an `$effect` stamps the
@@ -250,7 +284,7 @@ unable.
 And an API address that isn't the API is now said out loud. A native shell serves its bundle from
 `https://localhost`, so a relative base points every request at the app itself, which answers with
 `index.html` and a 200 — data-shaped nothing that used to be parsed as a week. `vite.config.ts`
-gives a native build the deployed address when nothing else says otherwise, and `lib/env.ts`
+gives a native build the deployed address when nothing else says otherwise, and `core/env.ts`
 refuses to make requests at all when the address it has can't be one.
 
 ## Projects are the layer between a sphere's hours and Tuesday 9:00
@@ -294,7 +328,7 @@ hours, projects taking turns in rank order, shown as a diff of blocks to accept 
 The model's six moments are `server/lib/projects/assist.ts` and the `projects/assist/*` routes,
 and all of them are proposals: gate sentences for a vague idea (including "this is a recurring
 event"), a note over the week's fill about what to drop, subtasks out of a stuck checkpoint's note,
-a recommendation on decision day, and a calendar block worked out into a project, a task, steps and a length (`calendar/EventAssist.svelte`). None of them writes a record, moves a date, marks a gate or
+a recommendation on decision day, and a calendar block worked out into a project, a task, steps and a length (the route exists; the card's assistant button does not call it yet). None of them writes a record, moves a date, marks a gate or
 sets an outcome — the routes can only return text — and a model that answers nothing leaves every
 screen as it was.
 

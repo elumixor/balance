@@ -147,7 +147,7 @@ The ring's geometry is `DialLayout` in BalanceKit, not a shape in either target:
 the widget's dial are the same week drawn at two sizes, and they used to disagree about it.
 
 Reminders on the phone are the same reminders the Mac shows — when each is due is answered once, in
-`src/lib/reminders.ts` — but they cannot be delivered the same way. iOS suspends the webview seconds
+`src/lib/calendar/reminders.ts` — but they cannot be delivered the same way. iOS suspends the webview seconds
 after the screen goes off, so nothing can be decided at the moment a reminder is due: the next two
 days are worked out ahead and handed to iOS as local notifications, and the list is replaced
 whenever the calendar or the preferences move. A reminder on a locked iPhone is mirrored to the
@@ -162,7 +162,7 @@ a term's timetable written one event after another takes as long as the round tr
 and not to a share extension: the Clerk session lives in the webview, and an extension would need a
 second copy of it to do the same work. `Info.plist` declares the calendar file types,
 `IcsImportPlugin.swift` reads the URL iOS hands over and holds it if the file is what launched the
-app, and `src/lib/ics.ts` — parser, no side effects, tested — decides what the file actually says.
+app, and `src/lib/calendar/ics.ts` — parser, no side effects, tested — decides what the file actually says.
 The sheet asks two things of the whole file rather than of each event: which calendar the events
 go to — every writable calendar of every connected account — and what they count as, which starts
 at the buffer, since an hour nobody has planned already counts as that. A drop is the same thing without the native half: `IcsDropZone.svelte` reads the file the window
