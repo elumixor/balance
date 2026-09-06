@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { CalendarHistory } from "./history.svelte";
+
+vi.mock("$lib/platform/diagnostics.svelte", () => ({ diagnostics: { report: vi.fn() } }));
 
 /** A step that says whether its write landed, and remembers being run. */
 function step(moved = true) {
@@ -90,6 +93,20 @@ describe("CalendarHistory", () => {
     history.redo();
     await settled();
     expect(redo).toHaveBeenCalled();
+    expect(history.canUndo).toBe(false);
+    expect(history.canRedo).toBe(false);
+  });
+
+  it("says so and gives up when a step throws instead of answering", async () => {
+    const history = new CalendarHistory();
+    const failure = new Error("network");
+    history.push(step());
+    history.push({ undo: async () => true, redo: () => Promise.reject(failure) });
+    history.undo();
+    await settled();
+    history.redo();
+    await settled();
+    expect(diagnostics.report).toHaveBeenCalledWith("Calendar", failure, { title: "Couldn’t undo that" });
     expect(history.canUndo).toBe(false);
     expect(history.canRedo).toBe(false);
   });

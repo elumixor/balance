@@ -1,3 +1,5 @@
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
+
 /**
  * What the last few calendar writes were, so ⌘Z can take them back.
  *
@@ -60,9 +62,16 @@ export class CalendarHistory {
     }
 
     // A write that failed leaves the calendar somewhere neither stack describes any more, and the
-    // refetch it ends with is what the week really holds. Nothing left to undo from here.
-    void (undoing ? step.undo() : step.redo()).then((moved) => {
-      if (!moved) this.clear();
-    });
+    // refetch it ends with is what the week really holds. Nothing left to undo from here. A step
+    // that threw is the same failure without the refetch, and the only one that has to be said.
+    void (undoing ? step.undo() : step.redo()).then(
+      (moved) => {
+        if (!moved) this.clear();
+      },
+      (error: unknown) => {
+        diagnostics.report("Calendar", error, { title: "Couldn’t undo that" });
+        this.clear();
+      },
+    );
   }
 }
