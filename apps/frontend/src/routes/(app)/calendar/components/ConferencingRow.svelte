@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { CardRow, Popover, PopoverItem } from "$lib/components";
+  import { CardRow, CopyButton, Popover, PopoverItem } from "$lib/components";
   import type { Meeting } from "$lib/calendar/meeting";
-  import { Check, Copy, Video, X } from "lucide-svelte";
+  import { Video, X } from "lucide-svelte";
 
   /**
    * How you get into the call. With one on the event: its name, a copy, a Join. Without: the
@@ -14,8 +14,6 @@
     joinUrl,
     editable,
     onjoin,
-    oncopy,
-    copied,
     oncreate,
     onremove,
     onpaste,
@@ -25,8 +23,6 @@
     joinUrl: string | null;
     editable: boolean;
     onjoin: (url: string) => void;
-    oncopy: (url: string) => void;
-    copied: string | null;
     oncreate: () => void;
     onremove: () => void;
     onpaste: (url: string) => void;
@@ -49,18 +45,9 @@
 
 {#if meeting.join}
   {@const join = meeting.join}
-  {@const done = copied === join.url}
   <CardRow icon={Video} set>
     <span class="t-label min-w-0 flex-1 truncate">{conferenceName ?? join.label}</span>
-    <button
-      type="button"
-      class="press-sm hoverable shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
-      aria-label={done ? "Link copied" : "Copy link"}
-      title={done ? "Copied" : "Copy link"}
-      onclick={() => oncopy(join.url)}
-    >
-      {#if done}<Check size={14} />{:else}<Copy size={14} />{/if}
-    </button>
+    <CopyButton text={() => join.url} label="Copy link" size={14} />
     <button
       type="button"
       class="press t-label shrink-0 rounded-md bg-ink px-2.5 py-1 text-ink-fg"

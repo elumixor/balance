@@ -1,3 +1,4 @@
+import { clamp } from "$lib/core/math";
 import type { SleepSummary } from "./sleep-summary";
 
 /**
@@ -59,8 +60,6 @@ function shortfallPoints(asleepMinutes: number) {
   }
   return 50;
 }
-
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 export function sleepScore(summary: SleepSummary, plannedStart: Date): SleepScore {
   let duration = 50 - shortfallPoints(summary.asleepMinutes);

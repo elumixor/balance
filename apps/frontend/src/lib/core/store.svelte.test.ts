@@ -22,7 +22,12 @@ const progress = vi.fn(async (_timeZone: string, _today: string) => ({
   projects: {},
   practices: {},
 }));
-const syncedMock = { ensure: vi.fn(async () => undefined), clear: vi.fn(async () => undefined), syncing: false };
+const syncedMock = {
+  ensure: vi.fn(async () => undefined),
+  clear: vi.fn(async () => undefined),
+  sync: vi.fn(async () => undefined),
+  syncing: false,
+};
 vi.mock("./synced.svelte", () => ({ synced: syncedMock }));
 
 const {
@@ -32,6 +37,7 @@ const {
   clearStore,
   dropCalendarEvent,
   invalidate,
+  refreshStore,
   store,
   syncing,
   warmStore,
@@ -318,5 +324,25 @@ describe("the session's rows", () => {
     // `clearStore` is fired without being awaited — it's a sign-in path, not a render path.
     await vi.waitFor(() => expect(persist.read("week:2026-08-10")).toBeUndefined());
     expect(calendarWeek("2026-08-10").hasValue).toBe(false);
+  });
+
+  it("a refresh asks the server for every row again, weeks on screen included", async () => {
+    await warmStore();
+    await loadWeek("2026-08-10", []);
+    week.mockClear();
+    progress.mockClear();
+    await refreshStore();
+    expect(syncedMock.sync).toHaveBeenCalled();
+    expect(progress).toHaveBeenCalledTimes(1);
+    expect(week).toHaveBeenCalled();
+  });
+
+  it("a calendar refresh now refetches only the weeks that are already on screen", async () => {
+    await loadWeek("2026-08-10", []);
+    calendarWeek("2026-08-17");
+    week.mockClear();
+    await invalidate.calendarNow();
+    expect(week).toHaveBeenCalledTimes(1);
+    expect(week.mock.calls[0][0]).toBe(new Date(2026, 7, 10).toISOString());
   });
 });

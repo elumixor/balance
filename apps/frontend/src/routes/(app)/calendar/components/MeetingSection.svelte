@@ -3,7 +3,6 @@
   import type { EventDraft } from "$lib/calendar/event-draft.svelte";
   import { asGoogleAccount, hasAddress, type Meeting } from "$lib/calendar/meeting";
   import type { CalendarEvent } from "$lib/calendar/types";
-  import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import ConferencingRow from "./ConferencingRow.svelte";
   import LocationRow from "./LocationRow.svelte";
   import ParticipantsRow from "./ParticipantsRow.svelte";
@@ -33,8 +32,6 @@
   } = $props();
 
   const data = calendarData;
-  /** How long the copy button says "Copied" before offering to copy again. */
-  const COPIED_FOR_MS = 1500;
 
   const editable = $derived(draft.editable);
   /** The link the Join button actually opens, pointed at the account that was invited. */
@@ -70,25 +67,6 @@
     void draft.write("The call wasn’t removed", data.patchEvent(event, { conference: "remove" }, { conference: "create" }));
   }
 
-  /** The link whose copy button has just been pressed, so the row can say so for a moment. */
-  let copied = $state<string | null>(null);
-  let copiedTimer: ReturnType<typeof setTimeout> | null = null;
-
-  /** Copies the link as it was written, not the account-tagged one a Join opens. */
-  async function copy(url: string) {
-    try {
-      await navigator.clipboard.writeText(url);
-      copied = url;
-      if (copiedTimer) clearTimeout(copiedTimer);
-      copiedTimer = setTimeout(() => (copied = null), COPIED_FOR_MS);
-    } catch {
-      diagnostics.report("Link", "That link wouldn’t copy.", { title: "That link wouldn’t copy" });
-    }
-  }
-
-  $effect(() => () => {
-    if (copiedTimer) clearTimeout(copiedTimer);
-  });
 </script>
 
 <div class="border-t border-line px-2 py-1.5">
@@ -99,8 +77,6 @@
       {joinUrl}
       {editable}
       onjoin={onopen}
-      oncopy={(url) => void copy(url)}
-      {copied}
       oncreate={addCall}
       onremove={removeCall}
       onpaste={(url) => draft.append(url)}

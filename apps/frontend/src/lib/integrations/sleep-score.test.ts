@@ -50,6 +50,9 @@ describe("sleepScore", () => {
     expect(sleepScore(night({ stages: { deep: 10, rem: 20, core: 440 } }), planned).duration).toBe(40);
     expect(sleepScore(night({ stages: { deep: 10, rem: 90, core: 370 } }), planned).duration).toBe(45);
     expect(sleepScore(night({ staged: false, stages: { inBed: 480 } }), planned).duration).toBe(50);
+    expect(sleepScore(night({ stages: { deep: 100, rem: 100, core: 280 } }), planned).duration).toBe(50);
+    // A watch that recorded stages but no deep or REM at all: both shares are zero, both cost.
+    expect(sleepScore(night({ stages: { core: 470 } }), planned).duration).toBe(40);
     expect(sleepScore(night({ asleepMinutes: 0, stages: {} }), planned).duration).toBe(0);
   });
 
