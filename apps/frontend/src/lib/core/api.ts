@@ -5,7 +5,21 @@ import { API_BASE_URL, apiBaseUrlProblem } from "./env";
 
 export { API_BASE_URL };
 
-export class ApiClientError extends Error {}
+/** A request that failed. `status` is set when the server answered; unset when it never did. */
+export class ApiClientError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "ApiClientError";
+  }
+
+  /** The server understood and said no, rather than being unreachable or broken. */
+  get rejected() {
+    return this.status !== undefined && this.status >= 400 && this.status < 500;
+  }
+}
 
 /**
  * How long a request — or the token minted for it — is allowed to take before it counts as lost.
@@ -76,17 +90,18 @@ export async function callApi<T>(promise: Promise<T>): Promise<T> {
         const status = Number(match[1]);
         const parsed = safeJsonParse(match[2]);
         if (parsed && typeof parsed === "object" && "error" in parsed) {
-          throw new ApiClientError(String((parsed as { error: unknown }).error));
+          throw new ApiClientError(String((parsed as { error: unknown }).error), status);
         }
         // Non-JSON body (gateway HTML, empty 500, or — on a native build with the wrong base URL —
         // the app's own index.html) — the raw text is noise, its shape is not.
-        throw new ApiClientError(serverProblem(status, match[2]));
+        throw new ApiClientError(serverProblem(status, match[2]), status);
       }
     }
     throw e;
   }
 }
 
+/** A body that isn't JSON is `null` here; every caller treats that as "not the API's answer". */
 function safeJsonParse(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -129,12 +144,39 @@ export async function apiGet<T>(path: string, query: Record<string, string | num
       json && typeof json === "object" && "error" in json
         ? String((json as { error: unknown }).error)
         : serverProblem(res.status, body);
-    throw new ApiClientError(message);
+    throw new ApiClientError(message, res.status);
   }
   // An OK response that isn't JSON is not data — and used to be handed on as `null`, which every
   // screen then read fields off as though the request had worked. The commonest cause is a base
   // URL pointing at something that isn't the API, which the shape of the body gives away.
   if (json === null || typeof json !== "object") throw new ApiClientError(notTheApi(url, body));
+  return json as T;
+}
+
+/**
+ * A request that carries no session — signing in is exactly what has no token yet, and a device
+ * grant needs none. Everything else goes through the typed client.
+ */
+export async function postPublic<T>(path: string, body: unknown, sessionToken?: string): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
+  const url = `${API_BASE_URL}/mobile${path}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  const text = await response.text().catch(() => "");
+  const json = safeJsonParse(text);
+  if (!response.ok) {
+    const message =
+      json && typeof json === "object" && "error" in json
+        ? String((json as { error: unknown }).error)
+        : serverProblem(response.status, text);
+    throw new ApiClientError(message, response.status);
+  }
+  if (json === null || typeof json !== "object") throw new ApiClientError(notTheApi(url, text));
   return json as T;
 }
 

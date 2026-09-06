@@ -1,3 +1,5 @@
+import { BUILD_COMMIT, BUILD_VERSION } from "./env";
+
 /**
  * The app's data, kept on the device between launches.
  *
@@ -27,7 +29,7 @@ const BUILD_KEY = `${PREFIX}:build`;
  * fix each time was remembering to bump the prefix above, which is the kind of remembering that
  * fails. Whatever the version says, a new commit is a new shape until proven otherwise.
  */
-const BUILD = `${import.meta.env.VITE_APP_VERSION ?? "dev"}@${import.meta.env.VITE_BUILD_COMMIT ?? "unknown"}`;
+const BUILD = `${BUILD_VERSION}@${BUILD_COMMIT}`;
 
 /** Older than this and the round trip is worth waiting for after all. */
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;

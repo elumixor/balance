@@ -1,7 +1,6 @@
 import { App } from "@capacitor/app";
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { auth } from "$lib/account/auth.svelte";
-import { API_BASE_URL } from "$lib/core/api";
+import { api, callApi, unwrapOk } from "$lib/core/api";
 
 /**
  * Giving the watch app a session of its own.
@@ -28,15 +27,8 @@ const plugin = registerPlugin<WatchHandoffPlugin>("WatchHandoff");
 const isIOS = Capacitor.getPlatform() === "ios" && Capacitor.isNativePlatform();
 
 async function mintTicket() {
-  const token = await auth.token();
-  if (!token) return null;
-
-  const response = await fetch(`${API_BASE_URL}/mobile/auth/watch/ticket`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const body = (await response.json()) as { ticket?: string; error?: string };
-  return response.ok ? (body.ticket ?? null) : null;
+  const { ticket } = await callApi(api.auth.watch.ticket.$post()).then(unwrapOk);
+  return ticket;
 }
 
 /**
@@ -49,9 +41,7 @@ async function push() {
   try {
     const { available } = await plugin.isAvailable();
     if (!available) return;
-    const ticket = await mintTicket();
-    if (!ticket) return console.warn("[watch] signed in, but the API wouldn't mint a ticket");
-    await plugin.setTicket({ ticket });
+    await plugin.setTicket({ ticket: await mintTicket() });
   } catch (e) {
     console.warn("[watch] couldn't hand a session over", e);
   }

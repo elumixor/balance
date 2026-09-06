@@ -22,12 +22,12 @@ export const pad2 = (n: number) => n.toString().padStart(2, "0");
 
 /** "14:05" — the format the inline entry editor reads and writes. */
 export function formatClock(date: Date) {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
 /** "2026-08-01" */
 export function formatDateInput(date: Date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
 /** "Fri Aug 14" — a date as the calendar's popups say it, weekday first and no punctuation. */

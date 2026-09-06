@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { isDesktop, isNativeShell } from "$lib/desktop/platform";
+import { BUILD_COMMIT, BUILD_TIME, BUILD_VERSION } from "./env";
 
 /**
  * Which build of the app is on screen.
@@ -10,9 +11,9 @@ import { isDesktop, isNativeShell } from "$lib/desktop/platform";
  * question the app answers itself.
  */
 export const buildInfo = {
-  version: import.meta.env.VITE_APP_VERSION ?? "dev",
-  commit: import.meta.env.VITE_BUILD_COMMIT ?? "unknown",
-  builtAt: import.meta.env.VITE_BUILD_TIME ?? "",
+  version: BUILD_VERSION,
+  commit: BUILD_COMMIT,
+  builtAt: BUILD_TIME,
   get platform() {
     if (isDesktop) return "macOS";
     if (!isNativeShell) return "Web";

@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/svelte";
 import posthog from "posthog-js";
 import { buildInfo } from "$lib/core/build-info";
-import { API_BASE_URL } from "$lib/core/env";
+import { API_BASE_URL, IS_DEV, POSTHOG_HOST, POSTHOG_KEY, SENTRY_DSN } from "$lib/core/env";
 
 /**
  * Where a failure goes once the app has said it out loud.
@@ -16,11 +16,6 @@ import { API_BASE_URL } from "$lib/core/env";
  * `vite.config.ts`, which refuses to build without them.
  */
 
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
-const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
-/** PostHog's EU and US clouds are different hosts, and a self-hosted one is a third. */
-const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST;
-
 /**
  * Which build this is, in the form Sentry groups releases by. The commit is what makes a stack
  * trace mean something a week later, and it is already on the settings screen for the same reason.
@@ -32,7 +27,7 @@ const RELEASE = `balance@${buildInfo.version}+${buildInfo.commit}`;
  * would otherwise land in the same project as production's, and the dev server counts as a
  * session in every funnel. `DEV` is Vite's own flag, so a preview build still reports.
  */
-const ENABLED = !import.meta.env.DEV;
+const ENABLED = !IS_DEV;
 
 class Telemetry {
   #started = false;

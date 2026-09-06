@@ -1,6 +1,7 @@
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { auth } from "$lib/account/auth.svelte";
+import { WEB_APP_ORIGIN } from "$lib/core/env";
 import { isDesktop } from "./platform";
 
 /**
@@ -11,13 +12,10 @@ import { isDesktop } from "./platform";
  * embedded webview in the first place. So the consent screen goes where it works, the real
  * browser, and the session comes back as a ticket over a `balance-desktop://` link.
  *
- * Where the browser goes is the deployed web app rather than this bundle: a hosted page is the
- * only side of this that has an https origin to be redirected to.
+ * Where the browser goes is the deployed web app rather than this bundle — see `WEB_APP_ORIGIN`.
  */
-const HANDOFF_ORIGIN = import.meta.env.DEV ? "http://localhost:8081" : "https://balance-app-mauve.vercel.app";
-
 export function startDesktopSSO(strategy: "oauth_google" | "oauth_apple") {
-  return openUrl(`${HANDOFF_ORIGIN}/desktop-link?strategy=${strategy}`);
+  return openUrl(`${WEB_APP_ORIGIN}/desktop-link?strategy=${strategy}`);
 }
 
 /**
