@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MINUTES_PER_DAY, normalizeClock, spanBetween, toClock, toMinutes } from "$lib/calendar/clock-text";
   import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "$lib/components/float";
   import { formatHoursAndMinutes } from "$lib/ui/format";
 
@@ -34,7 +35,7 @@
 
   const STEP_MINUTES = 15;
   /** A full day of quarter hours, so a block can be given any length without leaving the list. */
-  const SLOTS = 96;
+  const SLOTS = MINUTES_PER_DAY / STEP_MINUTES;
   const MENU_WIDTH = 190;
 
   let input = $state<HTMLInputElement>();
@@ -46,36 +47,6 @@
   let candidate = $state<string | null>(null);
   /** What the field said when it was last agreed on, and what anything unreadable goes back to. */
   let fallback = "";
-
-  const pad = (n: number) => n.toString().padStart(2, "0");
-
-  /** "9", "930", "9:30", "9.30" — every way a time gets typed, as "09:30". Null when it isn't one. */
-  function normalize(text: string) {
-    const match = /^(\d{1,2})[:.]?(\d{2})?$/.exec(text.replace(/\s+/g, ""));
-    if (!match) return null;
-    const hours = Number(match[1]);
-    const minutes = match[2] ? Number(match[2]) : 0;
-    if (hours > 23 || minutes > 59) return null;
-    return `${pad(hours)}:${pad(minutes)}`;
-  }
-
-  /** Minutes since midnight, or null when the text isn't a time. */
-  function toMinutes(text: string) {
-    const clock = normalize(text);
-    if (!clock) return null;
-    return Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3));
-  }
-
-  function toClock(minutes: number) {
-    const wrapped = ((minutes % 1440) + 1440) % 1440;
-    return `${pad(Math.floor(wrapped / 60))}:${pad(wrapped % 60)}`;
-  }
-
-  /** A span in minutes, counting an event that runs past midnight as landing the next day. */
-  function spanBetween(startMinutes: number, endMinutes: number) {
-    const diff = endMinutes - startMinutes;
-    return diff > 0 ? diff : diff + 1440;
-  }
 
   const other = $derived(toMinutes(counterpart));
 
@@ -102,7 +73,7 @@
   function matchIndex() {
     const mine = toMinutes(value);
     if (other === null || mine === null) return end ? 0 : options.length - 1;
-    const clock = normalize(value);
+    const clock = normalizeClock(value);
     const exact = options.findIndex((o) => o.clock === clock);
     if (exact >= 0) return exact;
     const slots = Math.ceil(spanBetween(end ? other : mine, end ? mine : other) / STEP_MINUTES);
@@ -114,7 +85,7 @@
   }
 
   function show() {
-    fallback = normalize(value) ?? fallback;
+    fallback = normalizeClock(value) ?? fallback;
     candidate = fallback;
     highlighted = matchIndex();
     place();
@@ -145,7 +116,7 @@
 
   /** What's typed either reads as a time, in which case it's tidied up, or it goes back. */
   function settle() {
-    const clock = normalize(value);
+    const clock = normalizeClock(value);
     if (clock !== value) set(clock ?? fallback);
     oncommit?.();
   }
@@ -216,7 +187,7 @@
     oninput={(e) => {
       // Half-typed text is nobody's business but this field's — only a real time is passed on,
       // and the grid keeps drawing the last readable one until another arrives.
-      const clock = normalize(e.currentTarget.value);
+      const clock = normalizeClock(e.currentTarget.value);
       candidate = clock ?? fallback;
       if (clock) oninput?.(clock);
     }}
