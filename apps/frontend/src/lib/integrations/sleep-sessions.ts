@@ -21,7 +21,7 @@ export interface SleepSample {
   readonly stage: SleepStage;
 }
 
-export interface SleepSession {
+interface SleepSession {
   readonly start: Date;
   readonly end: Date;
 }

@@ -6,7 +6,7 @@ import type { SleepStage } from "./sleep-sessions";
  * holding it, and only by native code, so this is the one road in: ask for permission, then ask
  * for samples. Nothing is decided here — what a night is belongs to `sleep-sessions.ts`.
  */
-export interface HealthKitPlugin {
+interface HealthKitPlugin {
   /** Whether this device has a Health store at all — an iPad has none. */
   available(): Promise<{ available: boolean }>;
   /**
@@ -17,7 +17,7 @@ export interface HealthKitPlugin {
   sleepSamples(options: { from: string; to: string }): Promise<{ samples: RawSleepSample[] }>;
 }
 
-export interface RawSleepSample {
+interface RawSleepSample {
   readonly start: string;
   readonly end: string;
   readonly stage: SleepStage;

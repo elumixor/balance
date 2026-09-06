@@ -45,7 +45,7 @@ export interface ProjectCard {
   readonly archived: boolean;
 }
 
-export interface SphereGroup {
+interface SphereGroup {
   readonly category: Category;
   readonly cards: readonly ProjectCard[];
   readonly practices: readonly Practice[];

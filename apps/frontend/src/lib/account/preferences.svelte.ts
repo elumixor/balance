@@ -1,3 +1,4 @@
+import { newId } from "$lib/core/ids";
 import { updatePreferences } from "$lib/core/queries";
 import { store } from "$lib/core/store.svelte";
 import { deviceTimeZone } from "$lib/planning/zone";
@@ -100,7 +101,7 @@ class Preferences {
 
   /** Adds a named zone and hands back its id, so the picker that added it can select it. */
   addZone(input: { label: string; zone: string }): string {
-    const id = crypto.randomUUID();
+    const id = newId();
     this.#apply({ zones: { saved: [...this.zones, { id, label: input.label.trim(), zone: input.zone }] } });
     return id;
   }
@@ -148,7 +149,7 @@ class Preferences {
    * address meant that one.
    */
   addLocation(input: Omit<SavedLocation, "id">): string {
-    const id = crypto.randomUUID();
+    const id = newId();
     const locations = [
       ...this.travel.locations,
       { ...input, id, label: input.label.trim(), address: input.address.trim() },

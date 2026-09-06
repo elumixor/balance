@@ -32,7 +32,7 @@ export function withAlpha(hex: string, alpha: number) {
   return `${hex}${value}`;
 }
 
-export interface Hsl {
+interface Hsl {
   h: number;
   s: number;
   l: number;

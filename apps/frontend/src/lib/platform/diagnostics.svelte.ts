@@ -20,7 +20,7 @@ export interface Problem {
 }
 
 /** What a caller knows about a failure beyond the error itself. */
-export interface ReportOptions {
+interface ReportOptions {
   /** What to put on the card — a sentence for a person. Without one the card says nothing useful. */
   title?: string;
   detail?: string;

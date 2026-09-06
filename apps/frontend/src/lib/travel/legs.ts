@@ -11,7 +11,7 @@ export interface TravelLeg {
   url: string;
 }
 
-export interface TravelAnswer {
+interface TravelAnswer {
   /** False when the server has no maps key, in which case the app offers no travel times at all. */
   available: boolean;
   legs: TravelLeg[];

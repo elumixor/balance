@@ -4,7 +4,7 @@ import { Bell, CalendarDays, Globe, MapPin, Plug, UserRound } from "lucide-svelt
 /** The sections of the settings panel, in the order they are laid out and the rail lists them. */
 export type Pane = "general" | "notifications" | "places" | "zones" | "calendars" | "integrations";
 
-export interface PaneInfo {
+interface PaneInfo {
   value: Pane;
   label: string;
   icon: typeof IconType;

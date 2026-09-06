@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { newId } from "$lib/core/ids";
   import { type PlaceSuggestion, suggestPlaces } from "$lib/travel/places";
   import ComboField, { type ComboOption } from "./ComboField.svelte";
   import { MapPin } from "lucide-svelte";
@@ -38,7 +39,7 @@
   let suggestions = $state<PlaceSuggestion[]>([]);
   let timer: ReturnType<typeof setTimeout> | null = null;
   /** One session per field, which is how Google bills a search-then-choose. */
-  let session = crypto.randomUUID();
+  let session = newId();
   /** What the list on screen is about, so an answer overtaken by later typing is dropped. */
   let asked = "";
 
@@ -73,7 +74,7 @@
     value = suggestion.address;
     suggestions = [];
     // A chosen place closes the billing session; the next word starts a new one.
-    session = crypto.randomUUID();
+    session = newId();
     onpick?.(suggestion);
   }
 </script>

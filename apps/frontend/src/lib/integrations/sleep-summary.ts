@@ -78,7 +78,7 @@ export function sleepSummary(samples: readonly SleepSample[], block: { start: Da
  * record on the first sync and carried forward by every later one, since the calendar has by then
  * forgotten; what "as planned" and "to bed on time" are measured against.
  */
-export interface SleepPlan {
+interface SleepPlan {
   readonly plannedStart: string;
   readonly plannedEnd: string;
 }

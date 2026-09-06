@@ -10,7 +10,7 @@ import type { SleepSummary } from "./sleep-summary";
  * one on the wrist give or take a point. "When you meant to" is the block itself: the time the
  * series was planned for, kept from before the block was moved to the night that happened.
  */
-export interface SleepScore {
+interface SleepScore {
   readonly total: number;
   readonly duration: number;
   readonly bedtime: number;
@@ -18,7 +18,7 @@ export interface SleepScore {
   readonly band: SleepBand;
 }
 
-export type SleepBand = "Very low" | "Low" | "OK" | "High" | "Very high";
+type SleepBand = "Very low" | "Low" | "OK" | "High" | "Very high";
 
 /** What a full night is; anything longer is not held against you. */
 const FULL_NIGHT_MINUTES = 7 * 60 + 50;

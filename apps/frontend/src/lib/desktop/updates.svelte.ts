@@ -16,7 +16,7 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const FIRST_CHECK_MS = 10_000;
 
 /** Where an update is in its one-way trip from "there is one" to "restart to use it". */
-export type UpdateStage = "idle" | "checking" | "downloading" | "ready";
+type UpdateStage = "idle" | "checking" | "downloading" | "ready";
 
 /**
  * The macOS app, keeping itself current.

@@ -3,7 +3,7 @@ export interface Claim {
   readonly claimed: number;
 }
 
-export interface Allocation {
+interface Allocation {
   readonly id: string;
   readonly claimed: number;
   readonly hours: number;

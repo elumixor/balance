@@ -40,7 +40,7 @@ function nextColor(used: string[]) {
   return swatchPalette.find((c) => !used.includes(c)) ?? swatchPalette[used.length % swatchPalette.length];
 }
 
-export type PlanUnit = "h" | "%";
+type PlanUnit = "h" | "%";
 
 /** Hours are what's stored; a percentage is the same number read against the 168 in a week. */
 export const toUnit = (hours: number, unit: PlanUnit) =>
