@@ -1,6 +1,6 @@
 import { App } from "@capacitor/app";
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import { api, callApi, unwrapOk } from "$lib/core/api";
+import { api, callApi } from "$lib/core/api";
 
 /**
  * Giving the watch app a session of its own.
@@ -27,7 +27,7 @@ const plugin = registerPlugin<WatchHandoffPlugin>("WatchHandoff");
 const isIOS = Capacitor.getPlatform() === "ios" && Capacitor.isNativePlatform();
 
 async function mintTicket() {
-  const { ticket } = await callApi(api.auth.watch.ticket.$post()).then(unwrapOk);
+  const { ticket } = await callApi(api.auth.watch.ticket.$post());
   return ticket;
 }
 

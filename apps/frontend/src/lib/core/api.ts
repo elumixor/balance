@@ -110,17 +110,6 @@ function safeJsonParse(text: string): unknown {
 }
 
 /**
- * Narrows a response typed as `T | { error: string }` down to `T`. The `{ error }` branch only
- * exists because the generated client's response type is inferred from the route handler's
- * return type, which includes its error path — at runtime that path always comes back as a
- * non-OK HTTP response, so `callApi` throws before this ever sees `{ error }`.
- */
-export function unwrapOk<T extends object>(response: T | { error: string }): T {
-  if ("error" in response) throw new ApiClientError(response.error);
-  return response;
-}
-
-/**
  * The generated client (`@elumixor/nitro-client@4.0.6`) doesn't wire query-string params into
  * `$get()` calls — only path segments and request bodies. This raw-fetch helper covers the two
  * endpoints that need query params (`/entries?limit=`, `/stats?period=&date=`) until that's fixed

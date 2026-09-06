@@ -1,4 +1,4 @@
-import { api, apiGet, callApi, unwrapOk } from "$lib/core/api";
+import { api, apiGet, callApi } from "$lib/core/api";
 import type { Assisted, CheckpointHelp, CreateSuggestion, DecisionAdvice, WeekNote } from "$lib/projects/assist";
 import type { Progress } from "$lib/projects/types";
 
@@ -7,7 +7,7 @@ export const getProjectProgress = (timeZone: string, today: string) =>
   apiGet<Progress>("/projects/progress", { timeZone, today });
 
 export const assistCreate = (input: { idea: string; sphere: string; existingProjects: string[] }) =>
-  callApi(api.projects.assist.create.$post(input)).then((r) => unwrapOk(r) as Assisted<CreateSuggestion>);
+  callApi(api.projects.assist.create.$post(input)).then((r) => r as Assisted<CreateSuggestion>);
 
 export const assistWeek = (input: {
   freeHours: number;
@@ -19,7 +19,7 @@ export const assistWeek = (input: {
     priority: number;
   }[];
   fixed: string[];
-}) => callApi(api.projects.assist.week.$post(input)).then((r) => unwrapOk(r) as Assisted<WeekNote>);
+}) => callApi(api.projects.assist.week.$post(input)).then((r) => r as Assisted<WeekNote>);
 
 export const assistCheckpoint = (input: {
   project: string;
@@ -28,7 +28,7 @@ export const assistCheckpoint = (input: {
   count: number;
   threshold: number;
   note: string;
-}) => callApi(api.projects.assist.checkpoint.$post(input)).then((r) => unwrapOk(r) as Assisted<CheckpointHelp>);
+}) => callApi(api.projects.assist.checkpoint.$post(input)).then((r) => r as Assisted<CheckpointHelp>);
 
 export const assistDecision = (input: {
   project: string;
@@ -42,4 +42,4 @@ export const assistDecision = (input: {
   extended: boolean;
   isLast: boolean;
   checkpoints: { day: string; count: number; moved: boolean; note: string }[];
-}) => callApi(api.projects.assist.decision.$post(input)).then((r) => unwrapOk(r) as Assisted<DecisionAdvice>);
+}) => callApi(api.projects.assist.decision.$post(input)).then((r) => r as Assisted<DecisionAdvice>);

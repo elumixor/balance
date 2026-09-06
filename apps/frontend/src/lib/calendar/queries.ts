@@ -6,13 +6,13 @@ import type {
   EventTimer,
   MappingScope,
 } from "$lib/calendar/types";
-import { api, apiGet, callApi, unwrapOk } from "$lib/core/api";
+import { api, apiGet, callApi } from "$lib/core/api";
 import type { ActivityWeight } from "$lib/core/records";
 
-export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => unwrapOk(r) as CalendarPrefs);
+export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => r as CalendarPrefs);
 
 export const updateCalendarPrefs = (input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) =>
-  callApi(api.calendar.prefs.$patch(input)).then(unwrapOk);
+  callApi(api.calendar.prefs.$patch(input));
 
 /** Query params, so the raw helper — the generated client still doesn't wire them. */
 export const getCalendarWeek = (from: string, to: string) => apiGet<CalendarWeek>("/calendar/events", { from, to });
@@ -34,7 +34,7 @@ export const createCalendarEvent = (input: {
   location?: string;
   /** A date rather than a moment: both instants are midnight UTC, and `end` is the day after. */
   allDay?: boolean;
-}) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
+}) => callApi(api.calendar.events.$post(input)).then((r) => r.event as CalendarEvent);
 
 export interface EventPatch {
   title?: string;
@@ -64,18 +64,17 @@ export const updateCalendarEvent = (
     previousStart?: string;
     previousEnd?: string;
   },
-) => callApi(api.calendar.events(id).$patch(input)).then((r) => unwrapOk(r).event as CalendarEvent);
+) => callApi(api.calendar.events(id).$patch(input)).then((r) => r.event as CalendarEvent);
 
 export const deleteCalendarEvent = (id: string, calendarId: string) =>
-  callApi(api.calendar.events(id).$delete({ calendarId })).then(unwrapOk);
+  callApi(api.calendar.events(id).$delete({ calendarId }));
 
 /** Yes, no or maybe to an invitation — written to the calendar the other guests are reading. */
 export const respondToCalendarEvent = (
   id: string,
   calendarId: string,
   response: "accepted" | "declined" | "tentative",
-) =>
-  callApi(api.calendar.events(id).rsvp.$post({ calendarId, response })).then((r) => unwrapOk(r).event as CalendarEvent);
+) => callApi(api.calendar.events(id).rsvp.$post({ calendarId, response })).then((r) => r.event as CalendarEvent);
 
 export const saveEventMapping = (input: {
   calendarId: string;
@@ -93,7 +92,7 @@ export const saveEventMapping = (input: {
   source?: string | null;
   /** The card sections folded away on it. Absent leaves it alone; null means the default. */
   hidden?: string[] | null;
-}) => callApi(api.calendar.mappings.$post(input)).then(unwrapOk);
+}) => callApi(api.calendar.mappings.$post(input));
 
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
-  callApi(api.calendar.mappings.$delete(input)).then(unwrapOk);
+  callApi(api.calendar.mappings.$delete(input));

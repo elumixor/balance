@@ -1,4 +1,4 @@
-import { api, callApi, unwrapOk } from "$lib/core/api";
+import { api, callApi } from "$lib/core/api";
 
 /** One address Google recognises, as it is offered while somebody types. */
 export interface PlaceSuggestion {
@@ -18,7 +18,7 @@ export interface PlaceSuggestion {
  * means the field keeps working, silently unhelpful, on a server with no key at all.
  */
 export const suggestPlaces = (input: { query: string; sessionToken?: string }) =>
-  callApi(api.travel.places.$post(input)).then((r) => (unwrapOk(r) as { suggestions: PlaceSuggestion[] }).suggestions);
+  callApi(api.travel.places.$post(input)).then((r) => (r as { suggestions: PlaceSuggestion[] }).suggestions);
 
 /** A place pinned down: where it is, how Google spells it, and a small map with a pin on it. */
 export interface PlaceDetails {
@@ -45,7 +45,7 @@ export function lookupPlace(input: { placeId?: string | null; address?: string; 
       ...(input.sessionToken ? { sessionToken: input.sessionToken } : {}),
     }),
   )
-    .then((r) => (unwrapOk(r) as { place: PlaceDetails | null }).place)
+    .then((r) => (r as { place: PlaceDetails | null }).place)
     .catch((e) => {
       lookups.delete(key);
       throw e;
@@ -75,7 +75,7 @@ export function mapAround(input: { latitude: number; longitude: number; dark: bo
   const hit = maps.get(key);
   if (hit) return hit;
   const asked = callApi(api.travel.map.$post({ ...input, ...MAP_PREVIEW }))
-    .then((r) => (unwrapOk(r) as { image: string | null }).image)
+    .then((r) => (r as { image: string | null }).image)
     .catch((e) => {
       maps.delete(key);
       throw e;
