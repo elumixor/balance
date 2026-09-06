@@ -1,9 +1,9 @@
 import { registerPlugin } from "@capacitor/core";
-import { createCalendarEvent, saveEventMapping } from "$lib/core/queries";
 import { invalidate } from "$lib/core/store.svelte";
 import { isIOSApp } from "$lib/mobile/platform";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { type IcsEvent, parseIcs } from "./ics";
+import { createCalendarEvent, saveEventMapping } from "./queries";
 
 /**
  * Importing an `.ics` file the app was given — an invitation from Mail, a timetable downloaded in

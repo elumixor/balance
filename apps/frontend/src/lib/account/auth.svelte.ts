@@ -3,8 +3,8 @@ import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Clerk } from "@clerk/clerk-js";
 import { postPublic } from "$lib/core/api";
 import { APPLE_CLIENT_ID, CLERK_PUBLISHABLE_KEY, DEV_AUTH, DEV_AUTH_EMAIL, GOOGLE_IOS_CLIENT_ID } from "$lib/core/env";
-import { getProfile } from "$lib/core/queries";
 import { ensureDeviceGrant, redeemClerkTicket, restoreNativeSession, revokeDeviceGrant } from "./device-grant";
+import { getProfile } from "./queries";
 import { readSignedIn, writeSignedIn } from "./signed-in";
 
 const isNativeApp = Capacitor.isNativePlatform();

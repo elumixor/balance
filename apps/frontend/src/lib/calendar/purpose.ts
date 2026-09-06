@@ -1,5 +1,5 @@
-import type { EventPatch } from "$lib/core/queries";
 import type { ActivityWeight } from "$lib/core/records";
+import type { EventPatch } from "./queries";
 import type { CalendarEvent, EventResponse, EventTimer, MappingScope } from "./types";
 
 /**

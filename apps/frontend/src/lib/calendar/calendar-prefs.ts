@@ -1,6 +1,6 @@
-import { updateCalendarPrefs } from "$lib/core/queries";
 import { store } from "$lib/core/store.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
+import { updateCalendarPrefs } from "./queries";
 
 /** What the rail and the settings pane can change about the calendars: which show, which is written to. */
 export type CalendarPrefsPatch = { visibleCalendarIds?: string[]; writeCalendarId?: string };

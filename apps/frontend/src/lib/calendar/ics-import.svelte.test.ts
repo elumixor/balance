@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createCalendarEvent, saveEventMapping } from "$lib/core/queries";
 import { IcsImport } from "./ics-import.svelte";
+import { createCalendarEvent, saveEventMapping } from "./queries";
 
 // Only the two writes an import makes: the rest of the module is what the store is built out of,
 // and mocking it away would take the store with it.
-vi.mock("$lib/core/queries", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("$lib/core/queries")>()),
+vi.mock("$lib/calendar/queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("$lib/calendar/queries")>()),
   createCalendarEvent: vi.fn(),
   saveEventMapping: vi.fn(),
 }));

@@ -1,5 +1,4 @@
 import { newId } from "$lib/core/ids";
-import { updatePreferences } from "$lib/core/queries";
 import { store } from "$lib/core/store.svelte";
 import { deviceTimeZone } from "$lib/planning/zone";
 import {
@@ -16,6 +15,7 @@ import {
   type TravelPrefs,
   type ZonesPrefs,
 } from "./preferences-types";
+import { updatePreferences } from "./queries";
 
 /**
  * How you want to be reminded, and how you get around.

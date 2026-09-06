@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * error the effect had read, the effect ran again, and Svelte gave up on every effect there was.
  */
 const summary = vi.fn(async (slot: string) => ({ slot, target: { planned: false } }));
-vi.mock("$lib/core/queries", () => ({ getSessionSummary: (slot: string) => summary(slot) }));
+vi.mock("$lib/planning/queries", () => ({ getSessionSummary: (slot: string) => summary(slot) }));
 
 const { sessionData } = await import("./session-data.svelte");
 

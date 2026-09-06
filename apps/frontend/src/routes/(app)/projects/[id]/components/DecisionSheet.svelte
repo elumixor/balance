@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button, Dialog, Field, NumberField, Select, Textarea } from "$lib/components";
 import type { GateMetric, GateProgress, Project, Stage, StageOutcome } from "$lib/projects/types";
-  import { assistDecision } from "$lib/core/queries";
+  import { assistDecision } from "$lib/projects/queries";
   import type { DecisionAdvice } from "$lib/projects/assist";
   import { formatHoursDecimal } from "$lib/ui/format";
   import { formatDayKey } from "$lib/projects/decide-on";

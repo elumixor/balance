@@ -1,5 +1,4 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
-import { createCalendarEvent, type EventPatch, respondToCalendarEvent, updateCalendarEvent } from "$lib/core/queries";
 import type { ActivityWeight } from "$lib/core/records";
 import { applyCalendarEvent, invalidate } from "$lib/core/store.svelte";
 import { activities, categories, practices, projects } from "$lib/core/synced.svelte";
@@ -18,6 +17,7 @@ import {
   purposeOf,
   sameFields,
 } from "./purpose";
+import { createCalendarEvent, type EventPatch, respondToCalendarEvent, updateCalendarEvent } from "./queries";
 import type { CalendarSelection } from "./selection.svelte";
 import type { CalendarSeries } from "./series.svelte";
 import { type CalendarEvent, type CalendarWeek, type MappingScope, NOT_A_MEETING } from "./types";

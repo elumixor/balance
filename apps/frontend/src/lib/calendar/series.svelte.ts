@@ -1,6 +1,6 @@
-import { type EventPatch, updateCalendarEvent } from "$lib/core/queries";
 import { invalidate } from "$lib/core/store.svelte";
 import type { EventFields } from "./purpose";
+import { type EventPatch, updateCalendarEvent } from "./queries";
 import type { CalendarWrites, EventRef } from "./writes.svelte";
 
 /**

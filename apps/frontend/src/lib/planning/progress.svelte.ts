@@ -1,5 +1,5 @@
-import { getProgress } from "$lib/core/queries";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
+import { getProgress } from "./queries";
 import type { StarProgress } from "./types";
 import { deviceTimeZone } from "./zone";
 

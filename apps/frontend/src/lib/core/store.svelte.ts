@@ -1,11 +1,14 @@
 import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
+import { getPreferences } from "$lib/account/queries";
 import { weekKey, weekRange } from "$lib/calendar/dates";
+import { getCalendarPrefs, getCalendarWeek } from "$lib/calendar/queries";
 import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
+import { getIntegrations } from "$lib/integrations/queries";
 import { deviceTimeZone, localDay } from "$lib/planning/zone";
+import { getProjectProgress } from "$lib/projects/queries";
 import { Cached } from "./cache.svelte";
 import * as persist from "./persist";
-import { getCalendarPrefs, getCalendarWeek, getIntegrations, getPreferences, getProjectProgress } from "./queries";
 import { synced } from "./synced.svelte";
 
 /**

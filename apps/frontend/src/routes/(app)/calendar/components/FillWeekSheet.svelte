@@ -4,7 +4,7 @@ import type { WeekNote } from "$lib/projects/assist";
   import { restColor } from "$lib/ui/colors";
   import { formatClock, formatDayDate, formatHoursDecimal } from "$lib/ui/format";
   import { projectsData } from "$lib/projects/projects-data.svelte";
-  import { assistWeek } from "$lib/core/queries";
+  import { assistWeek } from "$lib/projects/queries";
   import { comparisons, projects } from "$lib/core/synced.svelte";
   import type { Category } from "$lib/core/records";
   import { rankOrder } from "$lib/projects/ranking";

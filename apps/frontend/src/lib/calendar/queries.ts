@@ -1,0 +1,99 @@
+import type {
+  CalendarEvent,
+  CalendarPrefs,
+  CalendarWeek,
+  EventReminder,
+  EventTimer,
+  MappingScope,
+} from "$lib/calendar/types";
+import { api, apiGet, callApi, unwrapOk } from "$lib/core/api";
+import type { ActivityWeight } from "$lib/core/records";
+
+export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => unwrapOk(r) as CalendarPrefs);
+
+export const updateCalendarPrefs = (input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) =>
+  callApi(api.calendar.prefs.$patch(input)).then(unwrapOk);
+
+/** Query params, so the raw helper — the generated client still doesn't wire them. */
+export const getCalendarWeek = (from: string, to: string) => apiGet<CalendarWeek>("/calendar/events", { from, to });
+
+export const createCalendarEvent = (input: {
+  /** Absent for an event that counts as nothing — putting back a deleted one, say. */
+  activityId?: string;
+  /** For a block that counts straight toward categories — a project's sphere, say. */
+  weights?: ActivityWeight[];
+  projectId?: string;
+  practiceId?: string;
+  taskId?: string;
+  timer?: EventTimer;
+  start: string;
+  end: string;
+  calendarId?: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  /** A date rather than a moment: both instants are midnight UTC, and `end` is the day after. */
+  allDay?: boolean;
+}) => callApi(api.calendar.events.$post(input)).then((r) => unwrapOk(r).event as CalendarEvent);
+
+export interface EventPatch {
+  title?: string;
+  description?: string;
+  start?: string;
+  end?: string;
+  /** An empty string clears it, the way an empty description does. */
+  location?: string;
+  /** The zone the times are meant in; only means something sent with them. */
+  timeZone?: string;
+  /** The whole rule; an empty list makes a one-off of a series. Lands on the master. */
+  recurrence?: string[];
+  /** The whole list; empty is none. */
+  reminders?: EventReminder[];
+  /** The whole guest list; whoever is left off is uninvited. */
+  attendees?: { email: string; optional?: boolean }[];
+  /** Add the calendar's own call, or take the call off. */
+  conference?: "create" | "remove";
+}
+
+export const updateCalendarEvent = (
+  id: string,
+  input: EventPatch & {
+    calendarId: string;
+    /** Present only for a write meant to land on the whole series, not just this occurrence. */
+    seriesId?: string;
+    previousStart?: string;
+    previousEnd?: string;
+  },
+) => callApi(api.calendar.events(id).$patch(input)).then((r) => unwrapOk(r).event as CalendarEvent);
+
+export const deleteCalendarEvent = (id: string, calendarId: string) =>
+  callApi(api.calendar.events(id).$delete({ calendarId })).then(unwrapOk);
+
+/** Yes, no or maybe to an invitation — written to the calendar the other guests are reading. */
+export const respondToCalendarEvent = (
+  id: string,
+  calendarId: string,
+  response: "accepted" | "declined" | "tentative",
+) =>
+  callApi(api.calendar.events(id).rsvp.$post({ calendarId, response })).then((r) => unwrapOk(r).event as CalendarEvent);
+
+export const saveEventMapping = (input: {
+  calendarId: string;
+  externalEventId: string;
+  scope: MappingScope;
+  activityId?: string | null;
+  weights?: ActivityWeight[];
+  /** What the hour was for. Absent leaves it alone; null clears it. */
+  projectId?: string | null;
+  practiceId?: string | null;
+  taskId?: string | null;
+  /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
+  timer?: EventTimer | null;
+  /** The integration feed it is linked to. Absent leaves it alone; null unlinks. */
+  source?: string | null;
+  /** The card sections folded away on it. Absent leaves it alone; null means the default. */
+  hidden?: string[] | null;
+}) => callApi(api.calendar.mappings.$post(input)).then(unwrapOk);
+
+export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
+  callApi(api.calendar.mappings.$delete(input)).then(unwrapOk);

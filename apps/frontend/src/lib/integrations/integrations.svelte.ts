@@ -1,11 +1,12 @@
 import { App } from "@capacitor/app";
 import { preferences } from "$lib/account/preferences.svelte";
+import { getCalendarWeek, updateCalendarEvent } from "$lib/calendar/queries";
 import type { CalendarEvent } from "$lib/calendar/types";
 import { readSetting, writeSetting } from "$lib/core/persist";
-import { getCalendarWeek, saveIntegrationRecords, updateCalendarEvent } from "$lib/core/queries";
 import { invalidate } from "$lib/core/store.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { appleHealth } from "./apple-health";
+import { saveIntegrationRecords } from "./queries";
 import type { Feed, FeedStatus, Integration, RecordWindow } from "./types";
 
 /**

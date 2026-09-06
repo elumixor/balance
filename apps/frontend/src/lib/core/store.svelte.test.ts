@@ -8,11 +8,13 @@ import { NOT_A_MEETING } from "$lib/calendar/types";
  * its own package's problem, not this one's.
  */
 const week = vi.fn(async (from: string, to: string): Promise<CalendarWeek> => emptyWeek(from, to));
-vi.mock("./queries", () => ({
+vi.mock("$lib/calendar/queries", () => ({
   getCalendarWeek: (from: string, to: string) => week(from, to),
-  getIntegrations: async () => [],
   getCalendarPrefs: async () => ({ accounts: [], visibleCalendarIds: [] }),
-  getPreferences: async () => ({}),
+}));
+vi.mock("$lib/integrations/queries", () => ({ getIntegrations: async () => [] }));
+vi.mock("$lib/account/queries", () => ({ getPreferences: async () => ({}) }));
+vi.mock("$lib/projects/queries", () => ({
   getProjectProgress: (timeZone: string, today: string) => progress(timeZone, today),
 }));
 const progress = vi.fn(async (_timeZone: string, _today: string) => ({

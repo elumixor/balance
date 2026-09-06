@@ -2,11 +2,11 @@ import { goto } from "$app/navigation";
 import { weekKey } from "$lib/calendar/dates";
 import type { CalendarWeek } from "$lib/calendar/types";
 import type { Cached } from "$lib/core/cache.svelte";
-import { commitPlannedDay, commitPlannedWeek } from "$lib/core/queries";
 import { calendarWeek } from "$lib/core/store.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { telemetry } from "$lib/platform/telemetry";
 import { progressData } from "./progress.svelte";
+import { commitPlannedDay, commitPlannedWeek } from "./queries";
 import { sessionData } from "./session-data.svelte";
 
 /** The bar for everyone — the same number the server checks on commit (`planning/coverage.ts`). */

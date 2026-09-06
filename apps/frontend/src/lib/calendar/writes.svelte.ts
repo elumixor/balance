@@ -1,15 +1,15 @@
 import { SvelteMap } from "svelte/reactivity";
+import { applyCalendarEvent, dropCalendarEvent, invalidate } from "$lib/core/store.svelte";
+import { activities } from "$lib/core/synced.svelte";
+import { diagnostics } from "$lib/platform/diagnostics.svelte";
+import { type EventFields, type Mapping, mappingFieldsOf, NO_PURPOSE, type Purpose, purposeOf } from "./purpose";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
   removeEventMapping,
   saveEventMapping,
   updateCalendarEvent,
-} from "$lib/core/queries";
-import { applyCalendarEvent, dropCalendarEvent, invalidate } from "$lib/core/store.svelte";
-import { activities } from "$lib/core/synced.svelte";
-import { diagnostics } from "$lib/platform/diagnostics.svelte";
-import { type EventFields, type Mapping, mappingFieldsOf, NO_PURPOSE, type Purpose, purposeOf } from "./purpose";
+} from "./queries";
 import type { CalendarEvent, CalendarWeek, MappingScope } from "./types";
 
 /** How many events keep a handle before the lot is dropped — see `ref`. */

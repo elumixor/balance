@@ -1,7 +1,7 @@
 import { untrack } from "svelte";
-import { getSessionSummary } from "$lib/core/queries";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { telemetry } from "$lib/platform/telemetry";
+import { getSessionSummary } from "./queries";
 import type { SessionSummary, Slot } from "./types";
 import { deviceTimeZone } from "./zone";
 
