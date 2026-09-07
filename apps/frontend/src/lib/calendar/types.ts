@@ -43,6 +43,11 @@ export interface CalendarEvent {
   source: string | null;
   /** The card sections folded away on this event, or null for the default. */
   hidden: string[] | null;
+  /**
+   * Where you are once it is over — a flight's destination, where a move ends — and so where the
+   * next journey starts, see `$lib/travel/whereabouts.ts`. Null when it leaves you where you were.
+   */
+  endLocation: string | null;
   /** What that feed observed for this occurrence, in the feed's own shape; null until a device syncs. */
   record: Record<string, unknown> | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
@@ -80,6 +85,7 @@ export const NOT_A_MEETING = {
   timer: null,
   source: null,
   hidden: null,
+  endLocation: null,
   record: null,
   location: null,
   conferenceUrl: null,
@@ -99,6 +105,7 @@ export const NOT_A_MEETING = {
   | "timer"
   | "source"
   | "hidden"
+  | "endLocation"
   | "record"
   | "location"
   | "conferenceUrl"

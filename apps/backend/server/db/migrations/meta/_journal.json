@@ -85,6 +85,13 @@
       "when": 1788787625688,
       "tag": "0011_drop_place_change",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788804848069,
+      "tag": "0012_mapping_end_location",
+      "breakpoints": true
     }
   ]
 }

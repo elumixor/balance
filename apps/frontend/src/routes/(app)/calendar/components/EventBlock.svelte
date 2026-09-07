@@ -11,6 +11,7 @@ import type { Category } from "$lib/core/records";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { eventCategory } from "$lib/calendar/event-category";
   import { practices, projects, tasks } from "$lib/core/synced.svelte";
+  import { MapPinCheck } from "lucide-svelte";
 
   /**
    * A block is coloured by the Google calendar it lives on, so a week reads as bands of which
@@ -221,6 +222,20 @@ import type { Category } from "$lib/core/records";
     </span>
   {/if}
 </div>
+
+{#if !ghost && event.endLocation}
+  <!-- A move: the event leaves you somewhere else, and the journeys after it start there. A pin
+       in a ring on the corner, outside the block's clip, so it reads at any height. -->
+  <span
+    class="pointer-events-none absolute -bottom-1 -left-1 z-20 flex size-3.5 items-center justify-center rounded-full border bg-bg text-fg-muted {isPast
+      ? 'opacity-60'
+      : ''}"
+    style="border-color:{fillColor}"
+    title="Ends at {event.endLocation}"
+  >
+    <MapPinCheck size={9} />
+  </span>
+{/if}
 
 {#if expanded && caption}
   <!-- A line under the block in the sphere's own colour, haloed in the page's own colour so it

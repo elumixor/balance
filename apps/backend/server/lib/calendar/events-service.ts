@@ -129,7 +129,15 @@ export class CalendarEventsService {
       new IntegrationRecordService(this.userId).all(),
     ]);
 
-    const tagged = perAccount.flat();
+    // A calendar shared into more than one connected account surfaces the same event under
+    // each — same id, same time — so the id alone is not unique across accounts; the pair is.
+    const seen = new Set<string>();
+    const tagged = perAccount.flat().filter((t) => {
+      const key = `${t.event.calendarId}|${t.event.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     const prefs = projectPrefs(connections);
     return {
       connected: true,
@@ -382,6 +390,7 @@ function attachMappings(
             timer: mapping.timer,
             source: mapping.source,
             hidden: mapping.hidden,
+            endLocation: mapping.endLocation,
           }
         : null,
       weights: mapping?.weights ?? [],

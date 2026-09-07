@@ -87,6 +87,12 @@ export const eventMappings = pgTable(
      * default; a series mapping folds them on every occurrence.
      */
     hidden: jsonb("hidden").$type<string[]>(),
+    /**
+     * Where the person is once this event is over — a flight's destination, the address a move
+     * ends at — and so where the next journey starts. Null for the many events that leave you
+     * where you were. The app's own record, so it works on an invitation you can't edit.
+     */
+    endLocation: text("end_location"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

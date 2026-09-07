@@ -4,6 +4,7 @@
   import { asGoogleAccount, hasAddress, type Meeting } from "$lib/calendar/meeting";
   import type { CalendarEvent } from "$lib/calendar/types";
   import ConferencingRow from "./ConferencingRow.svelte";
+  import EndPlaceRow from "./EndPlaceRow.svelte";
   import LocationRow from "./LocationRow.svelte";
   import ParticipantsRow from "./ParticipantsRow.svelte";
   import RsvpControl from "./RsvpControl.svelte";
@@ -54,6 +55,11 @@
     void draft.write("The location wasn’t saved", data.patchEvent(event, { location }, { location: event.location ?? "" }));
   }
 
+  /** Where it leaves you: the app's own record, so it is written like a project tag. */
+  function chooseEndPlace(endLocation: string | null) {
+    void draft.write("The end place wasn’t saved", data.tagEvent(event, { endLocation }));
+  }
+
   function chooseGuests(attendees: { email: string; optional?: boolean }[]) {
     const before = event.attendees.flatMap((a) => (a.email ? [{ email: a.email, optional: a.optional }] : []));
     void draft.write("The guest list wasn’t saved", data.patchEvent(event, { attendees }, { attendees: before }));
@@ -100,5 +106,6 @@
       onchange={chooseLocation}
       {onopen}
     />
+    <EndPlaceRow endLocation={event.endLocation} onchange={chooseEndPlace} />
   {/if}
 </div>

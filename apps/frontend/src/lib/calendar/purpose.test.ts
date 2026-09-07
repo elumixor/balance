@@ -122,7 +122,9 @@ describe("purposeOf and mappingFieldsOf", () => {
       timer,
       source: "s",
       hidden: [],
+      endLocation: undefined,
     });
+    expect(mappingFieldsOf(event({ endLocation: "Kyiv" })).endLocation).toBe("Kyiv");
   });
 });
 

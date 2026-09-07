@@ -102,6 +102,8 @@ export const saveEventMapping = (input: {
   source?: string | null;
   /** The card sections folded away on it. Absent leaves it alone; null means the default. */
   hidden?: string[] | null;
+  /** Where you are once it is over. Absent leaves it alone; null clears it. */
+  endLocation?: string | null;
 }) => callApi(api.calendar.mappings.$post(input));
 
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>

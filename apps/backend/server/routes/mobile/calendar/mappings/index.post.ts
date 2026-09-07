@@ -6,6 +6,8 @@ import { integrationSourceField } from "~/lib/http/schemas";
 
 const MAX_HIDDEN_SECTIONS = 20;
 const MAX_SECTION_ID_LENGTH = 40;
+/** Room for a full postal address as Maps spells it. */
+const MAX_END_LOCATION_LENGTH = 500;
 
 export default authed(
   {
@@ -25,6 +27,8 @@ export default authed(
       source: integrationSourceField.nullable().optional(),
       /** The card sections folded away on it. Absent leaves it alone; null means the default. */
       hidden: z.array(z.string().max(MAX_SECTION_ID_LENGTH)).max(MAX_HIDDEN_SECTIONS).nullable().optional(),
+      /** Where the person is once it is over. Absent leaves it alone; null clears it. */
+      endLocation: z.string().trim().min(1).max(MAX_END_LOCATION_LENGTH).nullable().optional(),
       /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
       timer: z
         .union([

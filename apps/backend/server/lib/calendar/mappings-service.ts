@@ -23,6 +23,8 @@ export interface MappingPurpose {
   readonly source: string | null;
   /** The card sections folded away on the event; null means the default. */
   readonly hidden: string[] | null;
+  /** Where the person is once the event is over — see the schema. */
+  readonly endLocation: string | null;
 }
 
 export interface MappingInput extends MappingKey, Partial<MappingPurpose> {
@@ -71,6 +73,7 @@ export class EventMappingService {
       timer: input.timer ?? null,
       source: input.source ?? null,
       hidden: input.hidden ?? null,
+      endLocation: input.endLocation ?? null,
     };
     const [mapping] = await db
       .insert(eventMappings)
@@ -93,6 +96,7 @@ export class EventMappingService {
           ...(input.timer === undefined ? {} : { timer: values.timer }),
           ...(input.source === undefined ? {} : { source: values.source }),
           ...(input.hidden === undefined ? {} : { hidden: values.hidden }),
+          ...(input.endLocation === undefined ? {} : { endLocation: values.endLocation }),
         },
       })
       .returning();
@@ -154,6 +158,7 @@ export class EventMappingService {
       timer: source.timer as EventTimer | null,
       source: source.source,
       hidden: source.hidden,
+      endLocation: source.endLocation,
     });
   }
 
@@ -201,6 +206,7 @@ export class EventMappingService {
     timer: EventTimer | null;
     source: string | null;
     hidden: string[] | null;
+    endLocation: string | null;
     activity: { name: string; weights: { categoryId: string; weightPercent: number }[] } | null;
     weights: { categoryId: string; weightPercent: number }[];
   }): ResolvedMapping {
@@ -217,6 +223,7 @@ export class EventMappingService {
       timer: row.timer,
       source: row.source,
       hidden: row.hidden,
+      endLocation: row.endLocation,
       weights: weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
     };
   }
