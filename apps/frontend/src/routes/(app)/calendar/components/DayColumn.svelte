@@ -71,7 +71,7 @@
 </script>
 
 <div
-  class="relative snap-start border-line border-l transition-opacity duration-300 {weekend ? 'bg-fg/[0.02]' : ''} {dimmed
+  class="relative border-line border-l transition-opacity duration-300 {weekend ? 'bg-fg/[0.02]' : ''} {dimmed
     ? 'opacity-45'
     : ''}"
 >

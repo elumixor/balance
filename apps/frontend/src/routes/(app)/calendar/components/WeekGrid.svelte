@@ -153,11 +153,9 @@
 <div class="relative h-full">
   <TodayButton jumping={scroll.jumping} />
 
-  <!-- Snapping is off for the length of a jump. The slide below moves the columns with a transform,
-       and a snap container measures its snap points off the transformed boxes: left on, it would
-       take the days' displaced positions for the real ones and re-snap the scroll a whole week away
-       from the one that was asked for. It comes back on once the slide is over, on the column the
-       jump landed on. -->
+  <!-- No CSS snapping: a snap container turns a fling into the browser's own animation to a fixed
+       offset, which overwrites the strip's recentre underneath it and runs the week away (see
+       `WeekScroll`). The grid's own settle eases onto a column instead. -->
   <div
     bind:this={data.scrollerEl}
     bind:clientWidth={scroll.viewWidth}
@@ -165,10 +163,7 @@
     use:freeScroll
     use:pinch={pinchTarget}
     onscroll={scroll.onscroll}
-    style="scroll-padding-left:{GUTTER_PX}px"
     class="no-scrollbar h-full overflow-auto overscroll-none bg-surface"
-    class:snap-x={!scroll.jumping}
-    class:snap-proximity={!scroll.jumping}
   >
     <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
       <!-- The hours stay put while the days slide past them — a column of them per zone. -->

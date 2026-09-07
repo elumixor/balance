@@ -54,7 +54,7 @@ export class WeekScroll {
    */
   #liveDayOffset = $state(data.dayOffset);
   /** True for the whole today-button jump, so the button stays hidden through the intermediate
-   *  scroll states (strip recentre snap, then the eased animation) instead of flickering back in. */
+   *  scroll states (strip recentre, then the eased animation) instead of flickering back in. */
   #jumping = $state(false);
   /** True while the grid is easing itself onto a column after a gesture. Deliberately not `$state`:
    *  it's a courtesy nudge of a few pixels, not a jump, and nothing on screen should react to it —
@@ -63,6 +63,17 @@ export class WeekScroll {
   /** Set when the window is only catching up to where the scroll already is, so the placing effect
    *  leaves the scroll alone instead of writing the position it's already at. */
   #followingScroll = false;
+  /**
+   * Set by a recentre the scroll's edge forced, and cleared by the first scroll tick that reports a
+   * position away from the edge — proof the walk back that came with it actually took. A browser
+   * driving a fling of its own (a momentum scroll on iOS, a snap animation in Chromium) keeps
+   * writing the position it was heading for over the one walked back to, so the scroll reports
+   * the edge again on the very next tick. Landing on that tick moved the window another week,
+   * the walk back was overwritten again, and the week ran away seven days a frame — fetching every
+   * week it passed — until the fling died. While this is set the edge lands nothing: the scroll
+   * meets the strip's physical end instead, and the settle takes it from there.
+   */
+  #edgeLanded = false;
   /**
    * A Monday-to-Monday jump (today, a month arrow, a tapped date) recentres the strip on the same
    * scroll offset it was already at — nothing about the scroll position itself changes, so easing
@@ -86,6 +97,8 @@ export class WeekScroll {
   #windowAt: number | null = null;
   #opened = false;
 
+  /** The last position the settle's easing wrote, to tell its own ticks from a gesture's. */
+  #wrote = 0;
   #settle: ReturnType<typeof setTimeout> | null = null;
   #held: ReturnType<typeof setTimeout> | null = null;
   #jumpFrame: number | null = null;
@@ -145,6 +158,9 @@ export class WeekScroll {
     // edge changes rather than on every frame of the scroll that gets there.
     const column = Math.round(offset);
     if (column !== this.#liveDayOffset) this.#liveDayOffset = column;
+    // A settle's own writes come back as ticks; a tick reporting somewhere else is a hand back on
+    // the week, and the hand wins — outside the desktop shell no gesture says when it starts.
+    if (this.#snapping && Math.abs(scroller.scrollLeft - this.#wrote) >= 1) this.#cancelAnimation();
     // A jump or a settle drives the scroll itself and ends on its own column; letting these ticks
     // schedule another settle would have it cut the animation short from underneath.
     if (this.#jumping || this.#snapping) return;
@@ -152,7 +168,9 @@ export class WeekScroll {
     this.#settle = setTimeout(() => this.#rest(), SETTLE_MS);
     if (data.drag) return;
     const maxOffset = STRIP_DAYS - data.visibleDays;
-    if (offset < EDGE_DAYS || offset > maxOffset - EDGE_DAYS) this.#land();
+    const atEdge = offset < EDGE_DAYS || offset > maxOffset - EDGE_DAYS;
+    if (!atEdge) this.#edgeLanded = false;
+    else if (!this.#edgeLanded) this.#edgeLanded = this.#land();
   };
 
   // Opens on the working day, with the window's first day against the hours. Re-runs on a resize
@@ -229,9 +247,8 @@ export class WeekScroll {
       this.#easing = false;
     });
     // The jump owns the grid until the slide is over, not just for the frame that starts it: the
-    // scroll it wrote is still being reported — a snap container re-snaps after every programmatic
-    // write — and a settle taking one of those late ticks for a gesture would move the window off
-    // the week that was asked for.
+    // scroll it wrote is still being reported, and a settle taking one of those late ticks for a
+    // gesture would move the window off the week that was asked for.
     this.#held = setTimeout(() => {
       this.#held = null;
       this.#jumping = false;
@@ -270,7 +287,7 @@ export class WeekScroll {
     const tick = (now: number) => {
       const t = Math.min(1, (now - t0) / duration);
       const eased = 1 - (1 - t) ** 3;
-      scroller.scrollLeft = from + delta * eased;
+      scroller.scrollLeft = this.#wrote = from + delta * eased;
       this.#jumpFrame = t < 1 ? requestAnimationFrame(tick) : null;
       if (t >= 1) done();
     };
@@ -297,21 +314,27 @@ export class WeekScroll {
    *  the momentum still queued behind it. The gesture's own end takes over in that case. */
   #rest() {
     this.#settle = null;
+    // Whatever was driving the scroll over the walk back has finished with it.
+    this.#edgeLanded = false;
     if (isDesktop && wheelGestureActive()) return;
     this.#settleOnColumn();
   }
 
-  /** Eases the last few pixels onto the nearest column, then moves the window to it. Only the
-   *  desktop shell needs the easing — a browser has CSS snapping to land it (see `freeScroll`). */
+  /**
+   * Eases the last few pixels onto the nearest column, then moves the window to it. This is the
+   * only thing that lands the week on a column: CSS snapping used to do it in a browser, and a
+   * snap container is what turned a fling into a browser-driven animation to a fixed offset —
+   * one the strip's recentre couldn't move, see `#edgeLanded`.
+   */
   #settleOnColumn() {
     const scroller = data.scrollerEl;
     const width = this.dayWidth;
     // A jump is already driving the scroll to a column of its own. Landing here would read the
     // position it is on its way from and move the window back to it, undoing the jump.
     if (this.#jumping) return;
-    if (!scroller || width === 0 || data.drag) return this.#land();
+    if (!scroller || width === 0 || data.drag) return void this.#land();
     const target = Math.round(scroller.scrollLeft / width) * width;
-    if (isDesktop && Math.abs(scroller.scrollLeft - target) >= 1) {
+    if (Math.abs(scroller.scrollLeft - target) >= 1) {
       this.#snapping = true;
       this.#animateScrollLeft(scroller, target, SNAP_ANIMATE_MS, () => {
         this.#snapping = false;
@@ -324,16 +347,18 @@ export class WeekScroll {
 
   /** The column the scroll came to rest on becomes the first day on screen. Recentring keeps the
    *  scroll position visually put (see `#walkBack`), so calling this early near an edge doesn't
-   *  jump anything — it just makes more columns appear to scroll into. */
+   *  jump anything — it just makes more columns appear to scroll into. Answers whether the window
+   *  moved at all. */
   #land() {
     const scroller = data.scrollerEl;
     const width = this.dayWidth;
-    if (!scroller || width === 0 || data.drag || this.#jumping) return;
+    if (!scroller || width === 0 || data.drag || this.#jumping) return false;
     const shift = Math.round(scroller.scrollLeft / width) - data.dayOffset;
-    if (shift === 0) return;
+    if (shift === 0) return false;
     // The window is following the scroll, not leading it: `#place` must leave the position alone,
     // or a mid-fling recentre would write the scroll back and stop the week dead.
     this.#followingScroll = true;
     data.goToDay(shift);
+    return true;
   }
 }

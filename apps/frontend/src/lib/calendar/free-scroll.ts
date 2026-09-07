@@ -51,20 +51,12 @@ function keepAlive() {
  * scrolls diagonally in a browser and only ever one way in the macOS app. It isn't reachable from
  * CSS, so the gesture is applied by hand instead: both deltas, every event.
  *
- * CSS snapping has to go with it. The grid snaps to day columns, and a snap container re-snaps
- * after *every* programmatic scroll — so a run of small `scrollLeft` writes gets dragged back to
- * the column it started on and the week never moves sideways at all. Turning it off leaves the
- * grid's own settle to land the week on a column, which it was already doing, and which can ease
- * into place rather than arriving there between two frames.
- *
  * Only in the desktop shell. A browser is either Chromium, where this is already the behaviour, or
  * Safari, where replacing native scrolling would cost more than the diagonal is worth; touch
  * scrolling never emits wheel events at all.
  */
 export function freeScroll(node: HTMLElement) {
   if (!isDesktop) return;
-
-  node.style.scrollSnapType = "none";
 
   function onwheel(event: WheelEvent) {
     // A trackpad pinch arrives as a ctrl-held wheel, and it isn't a scroll.
@@ -88,7 +80,6 @@ export function freeScroll(node: HTMLElement) {
   return {
     destroy() {
       node.removeEventListener("wheel", onwheel);
-      node.style.removeProperty("scroll-snap-type");
     },
   };
 }
