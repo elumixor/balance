@@ -15,8 +15,16 @@
    *
    * Its own component because it is asked for from two places that share nothing else: the rail,
    * beside the week it filters, and settings, where connecting an account belongs. One copy means
-   * the two can't drift into disagreeing about what "visible" means.
+   * the two can't drift into disagreeing about what "visible" means. The rail draws it small, to
+   * sit under the month; the settings page draws it at the size of every other row there.
    */
+  let { variant = "rail" }: { variant?: "rail" | "page" } = $props();
+
+  const page = $derived(variant === "page");
+  const rowText = $derived(page ? "t-label" : "t-micro");
+  const rowPad = $derived(page ? "min-h-9 gap-3 px-1.5 py-1" : "gap-2 px-2 py-1.5");
+  const glyphSize = $derived(page ? 16 : 12);
+
   const data = calendarData;
   const prefs = store.calendars;
 
@@ -80,14 +88,14 @@
   <div class="space-y-3">
     {#each accounts as account (account.accountId)}
       <div>
-        <div class="t-micro truncate px-2 pb-1 text-fg-faint">
+        <div class="t-micro truncate pb-1 text-fg-faint {page ? 'px-1.5' : 'px-2'}">
           {account.email ?? "Unknown account"}{account.needsReconnect ? " — reconnect" : ""}
         </div>
         <div class="flex flex-col gap-0.5">
           {#each account.calendars as calendar (calendar.id)}
             {@const shown = isVisible(calendar)}
             {@const isWrite = isWriteTarget(calendar)}
-            <div class="hoverable flex items-center gap-1 rounded-md pr-1">
+            <div class="hoverable flex items-center rounded-md {rowPad}">
               <!-- The colour swatch doubles as the write-target picker: click it to make new events land here. -->
               <button
                 type="button"
@@ -95,13 +103,15 @@
                 aria-pressed={isWrite}
                 disabled={calendar.readOnly}
                 onclick={() => selectWrite(calendar)}
-                class="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left disabled:cursor-default"
+                class="flex min-w-0 flex-1 items-center text-left disabled:cursor-default {page ? 'gap-3' : 'gap-2'}"
               >
-                <span
-                  class="size-1.5 shrink-0 rounded-full {isWrite ? 'ring-1 ring-fg ring-offset-2 ring-offset-surface' : ''}"
-                  style="background:{calendar.color ?? restColor}"
-                ></span>
-                <span class="t-micro min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
+                <span class="flex shrink-0 items-center justify-center {page ? 'size-7' : ''}">
+                  <span
+                    class="size-1.5 rounded-full {isWrite ? 'ring-1 ring-fg ring-offset-2 ring-offset-surface' : ''}"
+                    style="background:{calendar.color ?? restColor}"
+                  ></span>
+                </span>
+                <span class="{rowText} min-w-0 flex-1 truncate {shown ? 'text-fg' : 'text-fg-faint'}">
                   {calendar.name}
                 </span>
               </button>
@@ -110,9 +120,9 @@
                 aria-label={shown ? "Hide {calendar.name}" : "Show {calendar.name}"}
                 aria-pressed={shown}
                 onclick={() => toggle(calendar)}
-                class="press-sm flex size-5 shrink-0 items-center justify-center rounded text-fg-faint hover:text-fg"
+                class="bare-button {page ? 'size-7' : 'size-5'}"
               >
-                {#if shown}<Eye size={12} />{:else}<EyeOff size={12} />{/if}
+                {#if shown}<Eye size={glyphSize} />{:else}<EyeOff size={glyphSize} />{/if}
               </button>
             </div>
           {/each}
@@ -124,9 +134,11 @@
       type="button"
       disabled={connecting}
       onclick={() => void addAccount()}
-      class="t-micro hoverable press-sm flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-fg-faint disabled:opacity-60"
+      class="{rowText} hoverable press-sm flex w-full items-center rounded-md text-left disabled:opacity-60 {rowPad} {page
+        ? 'text-fg'
+        : 'text-fg-faint'}"
     >
-      <Plus size={13} />
+      <span class="flex shrink-0 items-center justify-center {page ? 'size-7 text-fg-muted' : ''}"><Plus size={page ? 16 : 13} /></span>
       <span>Add calendar account</span>
     </button>
   </div>

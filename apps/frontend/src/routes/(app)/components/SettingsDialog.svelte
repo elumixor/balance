@@ -114,8 +114,8 @@
           {:else if pane.value === "integrations"}
             <IntegrationsPane />
           {:else}
-            <SettingsGroup title="Calendars" note="Which calendars are drawn, and where new events land." divided={false}>
-              <CalendarsSection />
+            <SettingsGroup title="Calendars">
+              <CalendarsSection variant="page" />
             </SettingsGroup>
           {/if}
         </section>

@@ -3,7 +3,8 @@
   import { clock } from "$lib/platform/clock.svelte";
   import { preferences } from "$lib/account/preferences.svelte";
   import { offsetLabel, searchZones } from "$lib/calendar/time-zones";
-  import { Plus, Trash2 } from "lucide-svelte";
+  import { Globe, Plus, Trash2 } from "lucide-svelte";
+  import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   /**
@@ -41,15 +42,12 @@
   }
 </script>
 
-<SettingsGroup
-  title="Time zones"
-  note="Zones by the names you use for them. An event's card offers these first."
-  divided={false}
->
-  <div class="overflow-hidden rounded-md border border-line">
-    {#each zones as saved, index (saved.id)}
-      <div class="flex items-center gap-2 px-2 py-2 {index > 0 ? 'border-t border-line' : ''}">
-        <div class="min-w-0 flex-1">
+<SettingsGroup title="Time zones">
+  <div class="space-y-1">
+    {#each zones as saved (saved.id)}
+      <div class="flex min-h-9 items-center gap-3 rounded-md px-1.5 py-1">
+        <span class="flex size-7 shrink-0 items-center justify-center text-fg-muted"><Globe size={16} /></span>
+        <div class="-mx-2 min-w-0 flex-1">
           <Field
             value={saved.label}
             oninput={(next) => preferences.updateZone(saved.id, { label: next })}
@@ -64,7 +62,7 @@
             type="button"
             aria-label="Remove {saved.label}"
             onclick={() => preferences.removeZone(saved.id)}
-            class="press-sm flex size-7 shrink-0 items-center justify-center rounded-md text-fg-faint hover:text-danger"
+            class="bare-button size-7 hover:text-danger"
           >
             <Trash2 size={14} />
           </button>
@@ -73,7 +71,7 @@
     {/each}
 
     {#if adding}
-      <div class="space-y-2 border-t border-line p-2 {zones.length === 0 ? 'border-t-0' : ''}">
+      <div class="space-y-2 rounded-md border border-line p-2">
         <ComboField
           bind:value={query}
           {options}
@@ -93,6 +91,9 @@
             ariaLabel="Name of this zone"
             autocapitalize="sentences"
           />
+          <button type="button" onclick={() => (adding = false)} class="press t-label h-10 px-2 text-fg-muted">
+            Cancel
+          </button>
           <button
             type="button"
             onclick={save}
@@ -102,22 +103,10 @@
           >
             Save
           </button>
-          <button type="button" onclick={() => (adding = false)} class="press t-label h-10 px-2 text-fg-muted">
-            Cancel
-          </button>
         </div>
       </div>
     {:else}
-      <button
-        type="button"
-        onclick={open}
-        class="hoverable flex w-full items-center gap-2 px-2 py-2.5 {zones.length > 0 ? 'border-t border-line' : ''}"
-      >
-        <span class="flex size-5 items-center justify-center">
-          <Plus size={15} class="text-fg-muted" />
-        </span>
-        <span class="t-label text-fg-muted">{zones.length === 0 ? "Name your first zone" : "Name a zone"}</span>
-      </button>
+      <SettingRow icon={Plus} label={zones.length === 0 ? "Name your first zone" : "Name a zone"} onclick={open} />
     {/if}
   </div>
 </SettingsGroup>

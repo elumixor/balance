@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { NumberField, Select } from "$lib/components";
+  import { Divider, NumberField, Select } from "$lib/components";
   import { isNativeShell } from "$lib/desktop/platform";
   import { preferences } from "$lib/account/preferences.svelte";
-  import TimeInput from "./TimeInput.svelte";
+  import { Bell, BellRing, CalendarRange, Navigation, Sunrise, Sunset, Timer, Volume2 } from "lucide-svelte";
+  import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
+  import TimeInput from "./TimeInput.svelte";
   import ToggleRow from "./ToggleRow.svelte";
 
   /**
    * Everything the app says on its own: the two sittings it asks for, and the reminders before
-   * events. Each is a switch and, under it, the few numbers it needs, on one line where they fit.
+   * events. Each is a switch, and under it the rows it governs — dimmed while it is off.
    *
    * These belong to the account, not the device, and a browser tab can act on none of them — so
    * setting them from whichever screen is open reaches the ones that deliver: the Mac app, the
@@ -32,73 +34,72 @@
   const reminders = $derived(preferences.reminders);
 </script>
 
-{#snippet field(label: string, control: import("svelte").Snippet)}
-  <label class="flex items-center gap-2">
-    <span class="t-label text-fg-muted">{label}</span>
-    {@render control()}
-  </label>
-{/snippet}
-
-<SettingsGroup title="Notifications" divided={false}>
-  <section class="space-y-4">
+<SettingsGroup title="Notifications">
+  <div class="space-y-1">
     <ToggleRow
+      icon={Bell}
       label="Ask me to plan"
       checked={sessions.enabled}
       note={isNativeShell ? undefined : "On iPhone and Apple Watch."}
       onchange={(enabled) => preferences.setSessions({ enabled })}
     />
-    <div class="flex flex-wrap items-center gap-x-6 gap-y-3 pl-[52px] {sessions.enabled ? '' : 'pointer-events-none opacity-40'}">
-      {#snippet evening()}
-        <TimeInput value={sessions.eveningTime} label="Evening session time" onchange={(eveningTime) => preferences.setSessions({ eveningTime })} />
-      {/snippet}
-      {#snippet morning()}
-        <TimeInput value={sessions.morningTime} label="Morning session time" onchange={(morningTime) => preferences.setSessions({ morningTime })} />
-      {/snippet}
-      {#snippet weekly()}
-        <Select
-          options={WEEKDAYS}
-          value={sessions.weeklyWeekday}
-          label="Day of the weekly session"
-          width={140}
-          onchange={(weeklyWeekday) => preferences.setSessions({ weeklyWeekday })}
-        />
-        <TimeInput value={sessions.weeklyTime} label="Weekly session time" onchange={(weeklyTime) => preferences.setSessions({ weeklyTime })} />
-      {/snippet}
-      {@render field("Evening", evening)}
-      {@render field("Morning", morning)}
-      {@render field("Week", weekly)}
-    </div>
-  </section>
+    <SettingRow icon={Sunset} label="Evening" disabled={!sessions.enabled}>
+      <TimeInput value={sessions.eveningTime} label="Evening session time" onchange={(eveningTime) => preferences.setSessions({ eveningTime })} />
+    </SettingRow>
+    <SettingRow icon={Sunrise} label="Morning" disabled={!sessions.enabled}>
+      <TimeInput value={sessions.morningTime} label="Morning session time" onchange={(morningTime) => preferences.setSessions({ morningTime })} />
+    </SettingRow>
+    <SettingRow icon={CalendarRange} label="Week" disabled={!sessions.enabled}>
+      <Select
+        options={WEEKDAYS}
+        value={sessions.weeklyWeekday}
+        label="Day of the weekly session"
+        variant="bare"
+        onchange={(weeklyWeekday) => preferences.setSessions({ weeklyWeekday })}
+      />
+      <TimeInput value={sessions.weeklyTime} label="Weekly session time" onchange={(weeklyTime) => preferences.setSessions({ weeklyTime })} />
+    </SettingRow>
+  </div>
 
-  <section class="space-y-4 border-t border-line pt-6">
+  <Divider />
+
+  <div class="space-y-1">
     <ToggleRow
+      icon={BellRing}
       label="Remind me about events"
       checked={reminders.enabled}
       note={isNativeShell ? undefined : "On Mac and iPhone."}
       onchange={(enabled) => preferences.setReminders({ enabled })}
     />
-    <div class="space-y-3 pl-[52px] {reminders.enabled ? '' : 'pointer-events-none opacity-40'}">
-      <div class="flex items-center gap-2">
-        <NumberField
-          value={reminders.leadMinutes}
-          unit="min"
-          ariaLabel="Minutes before an event"
-          inputmode="numeric"
-          onchange={(leadMinutes) => preferences.setReminders({ leadMinutes: Math.max(0, Math.round(leadMinutes)) })}
-        />
-        <span class="t-label text-fg-muted">before, unless the event says otherwise</span>
-      </div>
-      <ToggleRow
-        label="Use the event's own reminders too"
-        checked={reminders.useCalendarReminders}
-        onchange={(useCalendarReminders) => preferences.setReminders({ useCalendarReminders })}
+    <SettingRow icon={Timer} label="Before an event" note="Unless the event says otherwise." disabled={!reminders.enabled}>
+      <NumberField
+        value={reminders.leadMinutes}
+        unit="min"
+        ariaLabel="Minutes before an event"
+        inputmode="numeric"
+        onchange={(leadMinutes) => preferences.setReminders({ leadMinutes: Math.max(0, Math.round(leadMinutes)) })}
       />
-      <ToggleRow
-        label="Tell me when to leave"
-        checked={reminders.leaveInTime}
-        onchange={(leaveInTime) => preferences.setReminders({ leaveInTime })}
-      />
-      <ToggleRow label="Sound" checked={reminders.sound} onchange={(sound) => preferences.setReminders({ sound })} />
-    </div>
-  </section>
+    </SettingRow>
+    <ToggleRow
+      icon={Bell}
+      label="The event's own reminders too"
+      checked={reminders.useCalendarReminders}
+      disabled={!reminders.enabled}
+      onchange={(useCalendarReminders) => preferences.setReminders({ useCalendarReminders })}
+    />
+    <ToggleRow
+      icon={Navigation}
+      label="Tell me when to leave"
+      checked={reminders.leaveInTime}
+      disabled={!reminders.enabled}
+      onchange={(leaveInTime) => preferences.setReminders({ leaveInTime })}
+    />
+    <ToggleRow
+      icon={Volume2}
+      label="Sound"
+      checked={reminders.sound}
+      disabled={!reminders.enabled}
+      onchange={(sound) => preferences.setReminders({ sound })}
+    />
+  </div>
 </SettingsGroup>

@@ -5,7 +5,9 @@
   import type { PlaceDetails, PlaceSuggestion } from "$lib/travel/places";
   import { preferences } from "$lib/account/preferences.svelte";
   import type { SavedLocation, TravelMode } from "$lib/account/preferences-types";
-  import { Bike, Bus, Car, Footprints, Pencil, Plus, Trash2 } from "lucide-svelte";
+  import { Bike, Bus, Car, Footprints, Pencil, Plus, Route, Timer, Trash2 } from "lucide-svelte";
+  import { Divider } from "$lib/components";
+  import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   /**
@@ -18,7 +20,8 @@
    *
    * A row is a glyph, a name and its address, and nothing on it is a field: everything about a
    * place is changed in one form, opened by the pencil, which is also the form a new place is
-   * typed into. The default is said in words on the row and set by a switch in the form, because
+   * typed into and the one boxed thing on the page, so the row being edited stands out from the
+   * list. The default is said in words on the row and set by a switch in the form, because
    * a tick with no word beside it was read as "done" rather than "from here".
    */
   const locations = $derived(preferences.travel.locations);
@@ -135,87 +138,67 @@
   </form>
 {/snippet}
 
-<SettingsGroup title="Places and travel" divided={false}>
-  <div class="overflow-hidden rounded-md border border-line">
-    {#each locations as location, index (location.id)}
-      {@const Glyph = iconFor(location.icon ?? PLACE_ICON)}
-      <div class={index > 0 ? "border-t border-line" : ""}>
-        {#if editing === location.id}
-          {@render form()}
-        {:else}
-          <div class="group flex items-center gap-3 px-3 py-2">
-            <Glyph size={16} class="shrink-0 text-fg-muted" />
-            <div class="min-w-0 flex-1">
-              <p class="t-label flex items-center gap-2 text-fg">
-                <span class="truncate">{location.label}</span>
-                {#if location.id === defaultId}
-                  <span class="t-micro shrink-0 rounded-full bg-surface-alt px-1.5 py-px text-fg-muted">default</span>
-                {/if}
-              </p>
-              <p class="t-micro truncate text-fg-faint">{location.address}</p>
-            </div>
-            <Tooltip label="Edit">
-              <button
-                type="button"
-                aria-label="Edit {location.label}"
-                onclick={() => open(location)}
-                class="bare-button size-7"
-              >
-                <Pencil size={14} />
-              </button>
-            </Tooltip>
-            <Tooltip label="Remove">
-              <button
-                type="button"
-                aria-label="Remove {location.label}"
-                onclick={() => preferences.removeLocation(location.id)}
-                class="bare-button size-7 hover:text-danger"
-              >
-                <Trash2 size={14} />
-              </button>
-            </Tooltip>
-          </div>
-        {/if}
-      </div>
+<SettingsGroup title="Places and travel">
+  <div class="space-y-1">
+    {#each locations as location (location.id)}
+      {#if editing === location.id}
+        <div class="rounded-md border border-line">{@render form()}</div>
+      {:else}
+        <SettingRow
+          icon={iconFor(location.icon ?? PLACE_ICON)}
+          label={location.id === defaultId ? `${location.label} · default` : location.label}
+          note={location.address}
+        >
+          <Tooltip label="Edit">
+            <button type="button" aria-label="Edit {location.label}" onclick={() => open(location)} class="bare-button size-7">
+              <Pencil size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Remove">
+            <button
+              type="button"
+              aria-label="Remove {location.label}"
+              onclick={() => preferences.removeLocation(location.id)}
+              class="bare-button size-7 hover:text-danger"
+            >
+              <Trash2 size={14} />
+            </button>
+          </Tooltip>
+        </SettingRow>
+      {/if}
     {/each}
 
     {#if editing === "new"}
-      <div class="border-t border-line {locations.length === 0 ? 'border-t-0' : ''}">
-        {@render form()}
-      </div>
+      <div class="rounded-md border border-line">{@render form()}</div>
     {:else}
-      <button
-        type="button"
-        onclick={() => open()}
-        class="hoverable flex w-full items-center gap-3 px-3 py-2 {locations.length > 0 ? 'border-t border-line' : ''}"
-      >
-        <Plus size={16} class="shrink-0 text-fg-muted" />
-        <span class="t-label text-fg-muted">{locations.length === 0 ? "Add your first place" : "Add a place"}</span>
-      </button>
+      <SettingRow icon={Plus} label={locations.length === 0 ? "Add your first place" : "Add a place"} onclick={() => open()} />
     {/if}
   </div>
 
-  <!-- One line: the ways of going, in the order they're offered, and how early to be there. -->
-  <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-    <div class="flex items-center gap-1" role="group" aria-label="Ways of getting there">
-      {#each MODES as mode (mode.value)}
-        {@const selected = preferences.travel.modes.includes(mode.value)}
-        <Tooltip label={mode.label}>
-          <button
-            type="button"
-            aria-label={mode.label}
-            aria-pressed={selected}
-            onclick={() => preferences.toggleMode(mode.value)}
-            class="press-sm flex size-8 items-center justify-center rounded-md border transition-colors
-              {selected ? 'border-ink bg-ink text-ink-fg' : 'border-line bg-surface text-fg-muted'}"
-          >
-            <mode.icon size={15} />
-          </button>
-        </Tooltip>
-      {/each}
-    </div>
-    <label class="flex items-center gap-1 text-fg-muted">
-      <span class="t-label">Arrive</span>
+  <Divider />
+
+  <!-- The ways of going, in the order they're offered, and how early to be there. -->
+  <div class="space-y-1">
+    <SettingRow icon={Route} label="Get there by">
+      <div class="flex items-center gap-1" role="group" aria-label="Ways of getting there">
+        {#each MODES as mode (mode.value)}
+          {@const selected = preferences.travel.modes.includes(mode.value)}
+          <Tooltip label={mode.label}>
+            <button
+              type="button"
+              aria-label={mode.label}
+              aria-pressed={selected}
+              onclick={() => preferences.toggleMode(mode.value)}
+              class="press-sm flex size-7 items-center justify-center rounded-md transition-colors
+                {selected ? 'bg-ink text-ink-fg' : 'hoverable text-fg-faint'}"
+            >
+              <mode.icon size={15} />
+            </button>
+          </Tooltip>
+        {/each}
+      </div>
+    </SettingRow>
+    <SettingRow icon={Timer} label="Arrive early">
       <NumberField
         value={preferences.travel.bufferMinutes}
         unit="min"
@@ -224,7 +207,6 @@
         width="w-8"
         onchange={(bufferMinutes) => preferences.setTravel({ bufferMinutes: Math.max(0, Math.round(bufferMinutes)) })}
       />
-      <span class="t-label">early</span>
-    </label>
+    </SettingRow>
   </div>
 </SettingsGroup>

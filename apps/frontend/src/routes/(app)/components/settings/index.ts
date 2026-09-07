@@ -4,6 +4,7 @@ export { default as NotificationsPane } from "./NotificationsPane.svelte";
 export { default as PlaceIconPicker } from "./PlaceIconPicker.svelte";
 export { default as PlacesPane } from "./PlacesPane.svelte";
 export { default as ProfilePane } from "./ProfilePane.svelte";
+export { default as SettingRow } from "./SettingRow.svelte";
 export { default as SettingsGroup } from "./SettingsGroup.svelte";
 export { default as SettingsNav } from "./SettingsNav.svelte";
 export { default as StarRecord } from "./StarRecord.svelte";

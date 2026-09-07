@@ -17,6 +17,8 @@
     /** Faint trailing words that belong to the value: "4 hours *before meeting*". */
     suffix,
     width = 200,
+    /** "bare" sits in a row and shows its ground only when pointed at, like a bare field. */
+    variant = "boxed",
     onchange,
   }: {
     options: { value: T; label: string }[];
@@ -24,6 +26,7 @@
     label: string;
     suffix?: string;
     width?: number;
+    variant?: "boxed" | "bare";
     onchange: (value: T) => void;
   } = $props();
 
@@ -36,8 +39,8 @@
       type="button"
       onclick={open}
       aria-label={label}
-      style="min-width:{width}px"
-      class="field-boxed press-sm flex items-center gap-2 text-left"
+      style={variant === "boxed" ? `min-width:${width}px` : undefined}
+      class="{variant === 'boxed' ? 'field-boxed' : 'field-bare'} press-sm flex items-center gap-2 text-left"
     >
       <span class="flex-1 truncate">
         {shown}{#if suffix}<span class="text-fg-faint"> {suffix}</span>{/if}

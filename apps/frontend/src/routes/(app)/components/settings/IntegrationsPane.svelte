@@ -4,6 +4,7 @@
   import type { Integration } from "$lib/integrations/types";
   import { preferences } from "$lib/account/preferences.svelte";
   import { invalidate } from "$lib/core/store.svelte";
+  import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   /**
@@ -38,63 +39,44 @@
   }
 </script>
 
-<SettingsGroup
-  title="Integrations"
-  divided={false}
->
-  <ul class="divide-y divide-line">
+<SettingsGroup title="Integrations">
+  <div class="space-y-1">
     {#each INTEGRATIONS as integration (integration.id)}
       {@const on = connected(integration)}
-      <li class="space-y-3 py-4 first:pt-0 last:pb-0">
-        <div class="flex items-center gap-3">
-          <span
-            class="flex size-9 shrink-0 items-center justify-center rounded-md border border-line bg-surface-alt text-fg-muted"
-          >
-            <integration.icon size={18} />
-          </span>
-          <div class="min-w-0 flex-1">
-            <p class="t-body text-fg">{integration.name}</p>
-            <p class="t-micro text-fg-faint">{integration.note}</p>
-          </div>
-          {#if !integration.available}
-            {@const elsewhere = readElsewhere(integration)}
-            {#if elsewhere !== null}
-              <Button label="Refresh" variant="outline" size="sm" onclick={() => void invalidate.calendarNow()} />
-            {:else}
-              <Tooltip label={integration.unavailableNote}>
-                <Button label="Connect" variant="outline" size="sm" disabled onclick={() => undefined} />
-              </Tooltip>
-            {/if}
-          {:else if on}
-            <Button label="Disconnect" variant="outline" size="sm" onclick={() => integrations.disconnect(integration)} />
+      {@const elsewhere = readElsewhere(integration)}
+      <SettingRow icon={integration.icon} label={integration.name} note={integration.note}>
+        {#if !integration.available}
+          {#if elsewhere !== null}
+            <Button label="Refresh" variant="outline" size="sm" onclick={() => void invalidate.calendarNow()} />
           {:else}
-            <Button label="Connect" size="sm" onclick={() => void connect(integration)} />
+            <Tooltip label={integration.unavailableNote}>
+              <Button label="Connect" variant="outline" size="sm" disabled onclick={() => undefined} />
+            </Tooltip>
           {/if}
-        </div>
+        {:else if on}
+          <Button label="Disconnect" variant="outline" size="sm" onclick={() => integrations.disconnect(integration)} />
+        {:else}
+          <Button label="Connect" size="sm" onclick={() => void connect(integration)} />
+        {/if}
+      </SettingRow>
 
-        {#if !integration.available && readElsewhere(integration) !== null}
-          <p class="t-micro pl-12 text-fg-faint">
-            Read on your iPhone · {when(readElsewhere(integration))}
-          </p>
-        {/if}
-        {#if integration.available && on}
-          {#each integration.feeds as feed (feed.id)}
-            {@const status = integrations.status(integration.id, feed.id)}
-            <div class="flex items-center justify-between gap-3 pl-12">
-              <p class="t-micro min-w-0 text-fg-faint">
-                {feed.label} · {status.error ?? when(status.syncedAt)}
-              </p>
-              <Button
-                label="Sync now"
-                variant="outline"
-                size="sm"
-                loading={status.syncing}
-                onclick={() => void integrations.sync(integration, feed)}
-              />
-            </div>
-          {/each}
-        {/if}
-      </li>
+      {#if !integration.available && elsewhere !== null}
+        <SettingRow label="Read on your iPhone" note={when(elsewhere)} />
+      {/if}
+      {#if integration.available && on}
+        {#each integration.feeds as feed (feed.id)}
+          {@const status = integrations.status(integration.id, feed.id)}
+          <SettingRow label={feed.label} note={status.error ?? when(status.syncedAt)}>
+            <Button
+              label="Sync now"
+              variant="outline"
+              size="sm"
+              loading={status.syncing}
+              onclick={() => void integrations.sync(integration, feed)}
+            />
+          </SettingRow>
+        {/each}
+      {/if}
     {/each}
-  </ul>
+  </div>
 </SettingsGroup>

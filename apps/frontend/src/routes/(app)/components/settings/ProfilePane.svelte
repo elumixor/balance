@@ -9,7 +9,8 @@
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";
-  import { Flame, LogOut } from "lucide-svelte";
+  import { Flame, LogOut, Power, SunMoon } from "lucide-svelte";
+  import SettingRow from "./SettingRow.svelte";
   import StarRecord from "./StarRecord.svelte";
   import ThemeSwitch from "./ThemeSwitch.svelte";
   import ToggleRow from "./ToggleRow.svelte";
@@ -136,13 +137,13 @@
   </div>
 
   <!-- How it looks, and the shell it runs in. -->
-  <div class="mt-8 space-y-4 border-t border-line pt-5">
-    <div class="flex items-center justify-between gap-3">
-      <span class="t-label text-fg">Appearance</span>
+  <div class="mt-8 space-y-1 border-t border-line pt-5">
+    <SettingRow icon={SunMoon} label="Appearance">
       <ThemeSwitch />
-    </div>
+    </SettingRow>
     {#if isDesktop}
       <ToggleRow
+        icon={Power}
         label="Open at login"
         checked={desktopAutostart.enabled === true}
         disabled={desktopAutostart.enabled === null}
