@@ -1,6 +1,7 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import type { CalendarEvent } from "$lib/calendar/types";
+  import { isFirstOccurrence } from "$lib/calendar/occurrence";
   import { followAnchor, layer } from "$lib/components/float";
   import type { Category } from "$lib/core/records";
   import { viewport } from "$lib/platform/viewport.svelte";
@@ -8,7 +9,7 @@
   import { tick } from "svelte";
   import { cubicOut } from "svelte/easing";
   import { prefersReducedMotion } from "svelte/motion";
-  import { fade, fly } from "svelte/transition";
+  import { fly } from "svelte/transition";
   import EventBlock from "./EventBlock.svelte";
 
   /**
@@ -18,7 +19,8 @@
    * "from here on" is a picture before it is a decision.
    *
    * Arrows move between the answers, Enter takes the one under the cursor, 1–3 take a scope
-   * outright, Escape (or a press on the week) is the way out.
+   * outright, Escape (or a press on the week) is the way out. The series' first occurrence is
+   * not offered "future only": from there on is all of it.
    */
   type Scope = "instance" | "following" | "all";
 
@@ -36,7 +38,7 @@
     oncancel,
   }: {
     heading: string;
-    event: Pick<CalendarEvent, "id" | "seriesId" | "start">;
+    event: Pick<CalendarEvent, "id" | "seriesId" | "seriesStart" | "start">;
     categories: Map<string, Category>;
     icon: typeof Icon;
     hints: [string, string, string, string];
@@ -49,15 +51,21 @@
 
   const data = calendarData;
 
-  // Read once on purpose: the glyph for "this one" is fixed for the life of a card.
+  // Read once on purpose: the glyph for "this one", like the event, is fixed for the life of a card.
   // svelte-ignore state_referenced_locally
   const answers = [
-    { scope: "instance" as const, label: "This one", icon, key: "1" },
-    { scope: "following" as const, label: "From here on", icon: ArrowRightFromLine, key: "2" },
-    { scope: "all" as const, label: "All", icon: Repeat, key: "3" },
-    { scope: null, label: "Cancel", icon: X, key: null },
+    { scope: "instance" as const, label: "This one", icon, hint: hints[0], key: "1" },
+    ...(isFirstOccurrence(event)
+      ? []
+      : [{ scope: "following" as const, label: "Future only", icon: ArrowRightFromLine, hint: hints[1], key: "2" }]),
+    { scope: "all" as const, label: "All", icon: Repeat, hint: hints[2], key: "3" },
+    { scope: null, label: "Cancel", icon: X, hint: hints[3], key: null },
   ];
   let active = $state(0);
+
+  // The question replaces the card it was asked from: the two would be about the same block,
+  // and the week behind them is dimmed for one thing at a time.
+  $effect(() => data.deselect());
 
   function answer(index: number) {
     const scope = answers[index]?.scope;
@@ -196,7 +204,16 @@
     e.stopPropagation();
   }
 
-  const duration = $derived(prefersReducedMotion.current ? 0 : 160);
+  const duration = $derived(prefersReducedMotion.current ? 0 : 220);
+
+  /** The week dims and blurs together, rather than the blur landing before the dim has begun. */
+  function veil(_node: Element, { duration }: { duration: number }) {
+    return {
+      duration,
+      easing: cubicOut,
+      css: (t: number) => `opacity:${t};backdrop-filter:blur(${4 * t}px);-webkit-backdrop-filter:blur(${4 * t}px)`,
+    };
+  }
 </script>
 
 <svelte:window onkeydowncapture={onkeydown} />
@@ -210,7 +227,7 @@
   {@attach layer}
   data-popup-layer
   class="fixed inset-0 z-40 overflow-hidden bg-overlay backdrop-blur-sm"
-  transition:fade={{ duration }}
+  transition:veil={{ duration }}
   onclick={oncancel}
 >
   <!-- The occurrences the answer would touch, drawn back over the blur where they stand. -->
@@ -218,7 +235,7 @@
     <div
       class="pointer-events-none fixed"
       style="left:{item.rect.left}px;top:{item.rect.top}px;width:{item.rect.width}px;height:{item.rect.height}px"
-      transition:fade={{ duration }}
+      transition:fly={{ y: 4, duration, easing: cubicOut }}
     >
       <EventBlock event={item.event} {categories} />
     </div>
@@ -235,7 +252,7 @@
     style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{position || !viewport.sm
       ? 'visible'
       : 'hidden'}"
-    transition:fly={{ y: viewport.sm ? 6 : 400, duration: viewport.sm ? duration : duration * 1.6, easing: cubicOut }}
+    transition:fly={{ y: viewport.sm ? 10 : 400, duration: viewport.sm ? duration : duration * 1.4, easing: cubicOut }}
     onclick={(e) => e.stopPropagation()}
     onpointerdown={(e) => e.stopPropagation()}
   >
@@ -248,7 +265,7 @@
           type="button"
           class="press-sm t-label flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 whitespace-nowrap
             {i === active ? 'bg-surface-alt text-fg' : 'text-fg-faint hover:text-fg'} {i === answers.length - 1 ? 'ml-auto' : ''}"
-          title={hints[i]}
+          title={item.hint}
           aria-keyshortcuts={item.key ?? "Escape"}
           onpointerenter={() => (active = i)}
           onfocus={() => (active = i)}

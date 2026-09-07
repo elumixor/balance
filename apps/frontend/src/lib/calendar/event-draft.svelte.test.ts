@@ -7,6 +7,7 @@ function event(extra: Partial<CalendarEvent> = {}): CalendarEvent {
     id: "one",
     calendarId: "acc::cal",
     seriesId: null,
+    seriesStart: null,
     title: "Standup",
     description: "Notes",
     start: new Date(2026, 7, 10, 9).toISOString(),

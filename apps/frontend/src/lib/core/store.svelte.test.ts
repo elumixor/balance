@@ -55,6 +55,7 @@ function event(id: string, start: Date, end: Date): CalendarEvent {
     id,
     calendarId: "acc::cal",
     seriesId: null,
+    seriesStart: null,
     title: id,
     description: null,
     start: start.toISOString(),

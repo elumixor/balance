@@ -52,6 +52,8 @@ export class CalendarEventDTO {
   readonly id: string;
   readonly calendarId: string;
   readonly seriesId: string | null;
+  /** The series' own start, so the first occurrence can be told from the rest. */
+  readonly seriesStart: string | null;
   readonly title: string;
   readonly description: string | null;
   readonly start: string;
@@ -100,6 +102,7 @@ export class CalendarEventDTO {
     this.id = e.id;
     this.calendarId = qualifyCalendarId(e.accountId, e.calendarId);
     this.seriesId = e.seriesId;
+    this.seriesStart = e.seriesStart?.toISOString() ?? null;
     this.title = e.title;
     this.description = e.description;
     this.start = e.start.toISOString();

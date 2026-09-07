@@ -71,6 +71,8 @@ export function toExternalEvent(event: GoogleEvent, calendar: CalendarContext): 
     id: event.id,
     calendarId: calendar.id,
     seriesId: event.recurringEventId ?? null,
+    // Known only from the master, which a listing looks up beside the occurrences.
+    seriesStart: null,
     title: event.summary ?? "Untitled",
     description: event.description ?? null,
     start: instant(event.start),

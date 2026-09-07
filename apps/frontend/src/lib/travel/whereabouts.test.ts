@@ -14,6 +14,7 @@ function event(overrides: Partial<CalendarEvent> & { id: string }): CalendarEven
   return {
     calendarId: "cal",
     seriesId: null,
+    seriesStart: null,
     title: overrides.id,
     description: null,
     start: at(10),

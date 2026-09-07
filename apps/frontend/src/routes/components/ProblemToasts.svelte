@@ -58,3 +58,11 @@
     toastOptions={{ unstyled: true, classes: { toast: "w-full" } }}
   />
 </div>
+
+<style>
+  /* Sonner hardcodes a z-index above everything, so the pile sat over the settings dialog
+     (z-50). Settings is the one thing in the app that should win. */
+  :global([data-problem-toasts] [data-sonner-toaster]) {
+    z-index: 40 !important;
+  }
+</style>

@@ -10,6 +10,7 @@ function event(partial: Partial<CalendarEvent> & { start: string; end: string })
     id: "e",
     calendarId: "c",
     seriesId: null,
+    seriesStart: null,
     title: "",
     description: null,
     allDay: false,

@@ -32,6 +32,8 @@ export interface ExternalEvent {
   readonly calendarId: string;
   /** The series this occurrence repeats from, or null for a one-off. */
   readonly seriesId: string | null;
+  /** When the series began — its master's start — so a card can tell the first occurrence. */
+  readonly seriesStart: Date | null;
   readonly title: string;
   /** The event's own notes, as the provider stores them. Empty is indistinguishable from absent. */
   readonly description: string | null;
@@ -143,6 +145,8 @@ export interface CalendarProvider {
   createEvent(input: CreateEventInput): Promise<ExternalEvent>;
   updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent>;
   deleteEvent(calendarId: string, eventId: string): Promise<void>;
+  /** How many occurrences a series still has, counted only as far as `upTo`. */
+  countInstances(calendarId: string, seriesId: string, upTo: number): Promise<number>;
   /** Answers an invitation as the signed-in user. */
   respondToEvent(calendarId: string, eventId: string, response: SelfResponse): Promise<ExternalEvent>;
 }

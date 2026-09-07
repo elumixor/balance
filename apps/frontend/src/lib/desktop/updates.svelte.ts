@@ -42,9 +42,7 @@ class DesktopUpdates {
   /** 0–1 while downloading, for the settings row. Null when the server sends no length. */
   progress = $state<number | null>(null);
   /** When the manifest last answered, whatever it said. Null until it has, ever, on this device. */
-  checkedAt = $state<number | null>(
-    persist.readSetting<number>(CHECKED_AT_KEY) ?? null
-  );
+  checkedAt = $state<number | null>(persist.readSetting<number>(CHECKED_AT_KEY) ?? null);
 
   #timer: ReturnType<typeof setInterval> | null = null;
   #first: ReturnType<typeof setTimeout> | null = null;

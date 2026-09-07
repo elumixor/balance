@@ -28,7 +28,12 @@
   {#if prompt}
     <SeriesPrompt
       heading="Changed “{prompt.title || 'Untitled'}” — a repeating event"
-      event={{ id: prompt.ref.id, seriesId: prompt.seriesId, start: prompt.fields.start.toISOString() }}
+      event={{
+        id: prompt.ref.id,
+        seriesId: prompt.seriesId,
+        seriesStart: prompt.seriesStart,
+        start: prompt.fields.start.toISOString(),
+      }}
       {categories}
       icon={Calendar}
       hints={[

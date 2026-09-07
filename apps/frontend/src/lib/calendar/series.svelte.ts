@@ -14,6 +14,7 @@ export interface SeriesPrompt {
   readonly id: number;
   readonly ref: EventRef;
   readonly seriesId: string;
+  readonly seriesStart: string | null;
   readonly title: string;
   readonly fields: EventFields;
   readonly previousStart: Date;

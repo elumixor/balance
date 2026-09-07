@@ -17,6 +17,7 @@ function event(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     id: "e1",
     calendarId: "cal",
     seriesId: null,
+    seriesStart: null,
     title: "Deep work",
     description: null,
     start: "2026-09-07T08:00:00.000Z",

@@ -251,7 +251,8 @@ export class CalendarEventsService {
           attendees: patch.attendees ?? guestsOf(master),
         });
         await this.#mappings.copy({ calendarId, scope: "series", externalEventId: series.seriesId }, created.id);
-        await this.#settleSplit(calendarId, series.seriesId, split);
+        await this.#collapse(connection.provider, calendarId, series.seriesId);
+        await this.#collapse(connection.provider, calendarId, created.id);
         eventCache.invalidate(this.userId);
         const mappings = await this.#mappings.all();
         return { ...attachMappings([{ ...created, calendarId }], mappings)[0], accountId: connection.accountId };
@@ -312,7 +313,13 @@ export class CalendarEventsService {
    * One occurrence, the whole series, or this occurrence and every one after it — the last being
    * the master's rule told to end just before this one, which is all "following" means here.
    */
-  async delete(qualifiedCalendarId: string, eventId: string, series?: SeriesDelete): Promise<void> {
+  async delete(
+    qualifiedCalendarId: string,
+    eventId: string,
+    series?: SeriesDelete,
+    /** The series a lone occurrence is taken out of, so what is left can be checked. */
+    occurrenceOf?: string,
+  ): Promise<void> {
     const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
     const following =
       series?.scope === "following"
@@ -324,21 +331,18 @@ export class CalendarEventsService {
     } else if (!series) {
       await connection.provider.deleteEvent(calendarId, eventId);
     }
-    if (series && following) await this.#settleSplit(calendarId, series.seriesId, following);
     // The mapping's removal forgets the cached week — see `EventMappingService`.
     await this.#mappings.remove({ calendarId, scope: "instance", externalEventId: eventId });
+    const shrunk = following ? series?.seriesId : !series ? occurrenceOf : undefined;
+    if (shrunk) await this.#collapse(connection.provider, calendarId, shrunk);
     eventCache.invalidate(this.userId);
   }
 
   /**
    * Ends the series just before this occurrence, and answers with the rule the rest of it would
    * repeat by. Null when the occurrence is the series' first: nothing would be left before it,
-   * so the change is the whole series' and the caller treats it that way.
-   *
-   * A series cut at its second occurrence would keep one: a rule that repeats once is a one-off
-   * wearing a rule, and every card would keep asking "how much of the series?" about it. So the
-   * master is made a plain event instead — `single` — and the caller settles its mapping once
-   * it has taken the copy it needs.
+   * so the change is the whole series' and the caller treats it that way. What stays behind is
+   * then checked for still being a series at all — see `collapse`.
    */
   async #split(
     provider: CalendarProvider,
@@ -346,26 +350,31 @@ export class CalendarEventsService {
     occurrenceId: string,
     seriesId: string,
     seen: Date,
-  ): Promise<{ master: ExternalEvent; recurrence: string[]; single: boolean } | null> {
+  ): Promise<{ master: ExternalEvent; recurrence: string[] } | null> {
     const master = await provider.getEvent(calendarId, seriesId);
     const point = splitPointOf(occurrenceId, seen);
     if (!master.recurrence || isSeriesStart(point, master.start)) return null;
     const cut = point.kind === "instant" ? point.at : seen;
-    // How many have already happened: what a counted rule has spent, and whether what stays
-    // behind is a series at all. The occurrence itself may have moved, so it is left out by id.
-    const elapsed = (await provider.listEvents([calendarId], master.start, cut)).filter(
-      (event) => event.seriesId === seriesId && event.id !== occurrenceId && event.start.getTime() < cut.getTime(),
-    ).length;
-    const single = elapsed <= 1;
-    await provider.updateEvent(calendarId, seriesId, {
-      recurrence: single ? [] : truncateRule(master.recurrence, point),
-    });
-    return { master, recurrence: remainingRule(master.recurrence, elapsed), single };
+    // Only a rule that counts its occurrences needs to know how many have already happened.
+    const counted = master.recurrence.some((line) => line.startsWith("RRULE:") && line.includes("COUNT="));
+    const elapsed = counted
+      ? (await provider.listEvents([calendarId], master.start, cut)).filter(
+          (event) => event.seriesId === seriesId && event.start.getTime() < cut.getTime(),
+        ).length
+      : 0;
+    await provider.updateEvent(calendarId, seriesId, { recurrence: truncateRule(master.recurrence, point) });
+    return { master, recurrence: remainingRule(master.recurrence, elapsed) };
   }
 
-  /** The mapping of a series that is now one event follows it — after any copy it was needed for. */
-  async #settleSplit(calendarId: string, seriesId: string, split: { single: boolean }) {
-    if (!split.single) return;
+  /**
+   * A series with one occurrence left is a one-off wearing a rule: every card would keep asking
+   * "how much of the series?" about it. Whenever a series shrinks — cut in two, one occurrence
+   * deleted — whatever is left is checked, and a lone occurrence is made a plain event, its
+   * mapping following it down to the instance.
+   */
+  async #collapse(provider: CalendarProvider, calendarId: string, seriesId: string): Promise<void> {
+    if ((await provider.countInstances(calendarId, seriesId, 2)) >= 2) return;
+    await provider.updateEvent(calendarId, seriesId, { recurrence: [] });
     await this.#mappings.rescope({ calendarId, scope: "series", externalEventId: seriesId }, "instance");
   }
 }

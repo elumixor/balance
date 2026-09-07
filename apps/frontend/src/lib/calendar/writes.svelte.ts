@@ -229,9 +229,9 @@ export class CalendarWrites {
     return done !== null;
   }
 
-  async remove(ref: EventRef): Promise<boolean> {
+  async remove(ref: EventRef, occurrenceOf?: string): Promise<boolean> {
     const done = await this.run(
-      () => deleteCalendarEvent(ref.id, ref.calendarId),
+      () => deleteCalendarEvent(ref.id, ref.calendarId, undefined, occurrenceOf),
       { id: ref.id, event: null },
       () => dropCalendarEvent(ref.id),
     );

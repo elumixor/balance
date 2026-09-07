@@ -10,6 +10,8 @@ export interface CalendarEvent {
   id: string;
   calendarId: string;
   seriesId: string | null;
+  /** When the series began — its master's start — so the first occurrence can be told. */
+  seriesStart: string | null;
   title: string;
   /** The event's notes in the calendar. null when it has none. */
   description: string | null;

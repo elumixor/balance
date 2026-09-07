@@ -210,8 +210,10 @@ export class GoogleCalendarProvider implements CalendarProvider {
       return (page.items ?? [])
         .filter((item) => !(item.eventType && IGNORED_EVENT_TYPES.has(item.eventType)))
         .map((item) => {
-          const recurrence = item.recurringEventId ? rules.get(item.recurringEventId) : undefined;
-          return toExternalEvent(recurrence ? { ...item, recurrence } : item, calendar);
+          const master = item.recurringEventId ? rules.get(item.recurringEventId) : undefined;
+          if (!master) return toExternalEvent(item, calendar);
+          const event = toExternalEvent({ ...item, recurrence: master.recurrence }, calendar);
+          return { ...event, seriesStart: toExternalEvent(master, calendar).start };
         });
     });
   }
@@ -240,19 +242,27 @@ export class GoogleCalendarProvider implements CalendarProvider {
     });
   }
 
-  /** The rule of every series with an occurrence in the window, by the series' id. */
-  async #rules(calendarId: string, from: Date, to: Date): Promise<Map<string, string[]>> {
+  /** The master of every series with an occurrence in the window — its rule and its start — by id. */
+  async #rules(calendarId: string, from: Date, to: Date): Promise<Map<string, GoogleEvent>> {
     const pages = await this.#pages(calendarId, {
       timeMin: from.toISOString(),
       timeMax: to.toISOString(),
       singleEvents: "false",
       showDeleted: "false",
       maxResults: String(PAGE_SIZE),
-      fields: "nextPageToken,items(id,recurrence)",
+      fields: "nextPageToken,items(id,status,recurrence,start,end)",
     });
-    const rules = new Map<string, string[]>();
-    for (const page of pages)
-      for (const item of page.items ?? []) if (item.recurrence) rules.set(item.id, item.recurrence);
+    const rules = new Map<string, GoogleEvent>();
+    for (const page of pages) for (const item of page.items ?? []) if (item.recurrence) rules.set(item.id, item);
     return rules;
+  }
+
+  /** Google expands the series itself; asking for two is enough to know whether it is still one. */
+  async countInstances(calendarId: string, seriesId: string, upTo: number): Promise<number> {
+    const query = new URLSearchParams({ maxResults: String(upTo), showDeleted: "false", fields: "items(id)" });
+    const page = await this.#request.send<GoogleEventsResponse>(
+      `/calendars/${encode(calendarId)}/events/${encode(seriesId)}/instances?${query}`,
+    );
+    return (page.items ?? []).length;
   }
 }

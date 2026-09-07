@@ -193,6 +193,7 @@ export class CalendarEdits {
         ? this.#series.offer({
             ref,
             seriesId: event.seriesId,
+            seriesStart: event.seriesStart,
             title: after.title,
             fields: after,
             previousStart: before.start,
@@ -262,6 +263,7 @@ export class CalendarEdits {
         ? this.#series.offer({
             ref,
             seriesId: event.seriesId,
+            seriesStart: event.seriesStart,
             title: event.title,
             fields: fieldsOf(event),
             previousStart: new Date(event.start),
@@ -331,11 +333,12 @@ export class CalendarEdits {
       });
       return;
     }
-    if (!(await this.#writes.remove(ref))) return;
+    const occurrenceOf = event.seriesId ?? undefined;
+    if (!(await this.#writes.remove(ref, occurrenceOf))) return;
 
     this.history.push({
       undo: () => this.#writes.restore(ref, event),
-      redo: () => this.#writes.remove(ref),
+      redo: () => this.#writes.remove(ref, occurrenceOf),
     });
   }
 
@@ -355,6 +358,7 @@ export class CalendarEdits {
       id: this.#writes.draftId(),
       calendarId: this.#host.week.value?.writeCalendarId ?? "",
       seriesId: null,
+      seriesStart: null,
       title,
       description: null,
       start: start.toISOString(),
@@ -433,6 +437,7 @@ export class CalendarEdits {
       ...was,
       id: this.#writes.draftId(),
       seriesId: null,
+      seriesStart: null,
       start: start.toISOString(),
       end: end.toISOString(),
     };

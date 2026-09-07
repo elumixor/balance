@@ -21,6 +21,7 @@ function event(
     id: start.toISOString(),
     calendarId: "acc::cal",
     seriesId: null,
+    seriesStart: null,
     title: "",
     description: null,
     start: start.toISOString(),

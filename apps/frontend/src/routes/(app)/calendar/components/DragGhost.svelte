@@ -78,6 +78,7 @@
       id: "__ghost__",
       calendarId: "",
       seriesId: null,
+      seriesStart: null,
       title: drag.title,
       description: null,
       start: start.toISOString(),

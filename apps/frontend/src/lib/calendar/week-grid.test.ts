@@ -43,6 +43,7 @@ function event(start: Date, end: Date, extra: Partial<CalendarEvent> = {}): Cale
     id: `${start.toISOString()}-${end.toISOString()}`,
     calendarId: "acc::cal",
     seriesId: null,
+    seriesStart: null,
     title: "",
     description: null,
     start: start.toISOString(),
