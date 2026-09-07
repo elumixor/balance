@@ -1,12 +1,12 @@
 <script lang="ts">
   import { StarCount, Tooltip } from "$lib/components";
   import type { StarProgress } from "$lib/planning/types";
-  import { Check, ChevronRight } from "lucide-svelte";
+  import { ChevronRight } from "lucide-svelte";
 
   /**
-   * The record behind the count, folded away: four weeks of days, the totals and the
-   * achievements. The count and the two buttons above are what the page is opened for; this is
-   * for the days somebody wants to look.
+   * The record behind the count, folded away: four weeks of days and the totals. The count and
+   * the two buttons above are what the page is opened for; this is for the days somebody wants
+   * to look.
    */
   let { progress }: { progress: StarProgress } = $props();
 
@@ -21,8 +21,6 @@
     { label: "This week", value: progress.weekStars },
   ]);
 
-  const earned = $derived(progress.achievements.filter((achievement) => achievement.earned).length);
-
   function dayLabel(day: string) {
     const [year, month, date] = day.split("-").map(Number);
     return new Date(year, month - 1, date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
@@ -36,7 +34,7 @@
   class="press-sm t-micro mt-4 flex items-center gap-1 text-fg-faint hoverable rounded-md py-0.5 pr-1.5"
 >
   <ChevronRight size={13} class="transition-transform duration-150 {open ? 'rotate-90' : ''}" />
-  Record · {earned} of {progress.achievements.length} achievements
+  Record
 </button>
 
 {#if open}
@@ -65,27 +63,4 @@
       </div>
     {/each}
   </dl>
-
-  <ul class="mt-5 space-y-2.5">
-    {#each progress.achievements as achievement (achievement.id)}
-      <li class="flex items-center gap-3">
-        <span
-          class="flex size-6 shrink-0 items-center justify-center rounded-full {achievement.earned
-            ? 'bg-ink text-ink-fg'
-            : 'border border-line-strong text-fg-faint'}"
-        >
-          {#if achievement.earned}<Check size={12} strokeWidth={3} />{/if}
-        </span>
-        <div class="min-w-0 flex-1">
-          <p class="t-label {achievement.earned ? 'text-fg' : 'text-fg-muted'}">{achievement.label}</p>
-          <p class="t-micro text-fg-faint">{achievement.detail}</p>
-          {#if !achievement.earned && achievement.progress > 0}
-            <div class="mt-1.5 h-1 w-full max-w-40 overflow-hidden rounded-full bg-surface-alt">
-              <div class="h-full bg-line-strong" style="width:{Math.round(achievement.progress * 100)}%"></div>
-            </div>
-          {/if}
-        </div>
-      </li>
-    {/each}
-  </ul>
 {/if}
