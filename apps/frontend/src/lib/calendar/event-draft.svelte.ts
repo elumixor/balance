@@ -143,6 +143,18 @@ export class EventDraft {
     this.#commit();
   }
 
+  /** Whatever has been typed since the last write is dropped: the fields go back to what was saved. */
+  revert() {
+    if (this.#timer) clearTimeout(this.#timer);
+    this.#timer = null;
+    const saved = this.#saved;
+    this.title = saved.title;
+    this.notes = saved.notes;
+    this.date = formatDateInput(new Date(saved.start));
+    this.from = formatClock(new Date(saved.start));
+    this.to = formatClock(new Date(saved.end));
+  }
+
   /** The event is going: whatever was queued for it must not be written back. */
   discard() {
     this.#deleted = true;

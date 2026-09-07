@@ -270,7 +270,7 @@
       </button>
     </div>
 
-    <EditorHeader {event} {draft} {categories} {category} withProject={shown("project")} bind:pickers bind:titleEl />
+    <EditorHeader {event} {draft} {categories} {category} withProject={shown("project")} bind:pickers bind:titleEl onclose={close} />
   </div>
 
   <TimeSection {event} {draft} {rule} {heldBy} bind:pickers />

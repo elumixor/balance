@@ -10,6 +10,8 @@
     element = $bindable<HTMLInputElement | null>(null),
     /** For fields whose value is derived elsewhere and can't simply be bound. */
     oninput,
+    /** For a field whose keys mean something to the row it sits in — Enter to commit, Escape to back out. */
+    onkeydown,
     placeholder,
     type = "text",
     inputmode,
@@ -23,6 +25,7 @@
     value: string;
     element?: HTMLInputElement | null;
     oninput?: (value: string) => void;
+    onkeydown?: (e: KeyboardEvent) => void;
     placeholder?: string;
     type?: "text" | "password";
     inputmode?: "numeric" | "decimal" | "email";
@@ -39,6 +42,7 @@
   bind:this={element}
   bind:value
   oninput={(e) => oninput?.(e.currentTarget.value)}
+  {onkeydown}
   {placeholder}
   {type}
   {inputmode}

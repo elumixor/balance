@@ -28,6 +28,8 @@
     pickers = $bindable(),
     /** The name field, for the card to put the cursor in. */
     titleEl = $bindable(null),
+    /** Called when the name is done with — Enter keeps it, Escape drops it — so the card can go. */
+    onclose,
   }: {
     event: CalendarEvent;
     draft: EventDraft;
@@ -36,7 +38,18 @@
     withProject: boolean;
     pickers: Pickers;
     titleEl: HTMLInputElement | null;
+    onclose: () => void;
   } = $props();
+
+  /** Enter saves the name and closes the card; Escape puts back what was there and closes it. */
+  function onTitleKey(e: KeyboardEvent) {
+    if (e.key === "Enter") draft.flush();
+    else if (e.key === "Escape") draft.revert();
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+    onclose();
+  }
 
   const data = calendarData;
   /** Icon sizes: the sphere badge, and the cross on the purpose pill. */
@@ -152,6 +165,7 @@
       bind:value={draft.title}
       bind:element={titleEl}
       oninput={() => draft.queue()}
+      onkeydown={onTitleKey}
       placeholder="Untitled"
       variant="bare"
       ariaLabel="Event title"
