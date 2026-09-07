@@ -59,11 +59,11 @@
 {/snippet}
 
 <div>
-  <!-- Who: the face, the total, the door out. -->
-  <div class="flex flex-col items-center">
-    <div class="relative">
+  <!-- Who: the face sitting on the card that names it, and the door out on its edge. -->
+  <div class="flex flex-col items-center pr-5">
+    <div class="relative -mb-7 z-10">
       <span
-        class="t-heading flex size-20 items-center justify-center overflow-hidden rounded-full
+        class="t-heading flex size-24 items-center justify-center overflow-hidden rounded-full
           border border-line-strong bg-surface-alt text-fg-muted"
       >
         {#if auth.avatarUrl}
@@ -73,48 +73,44 @@
         {/if}
       </span>
       {#if progress}
-        <span class="absolute -right-2 -bottom-1 ring-3 ring-surface rounded-full">
+        <span class="absolute -right-4 bottom-4 z-30 ring-3 ring-surface rounded-full">
           {@render starCount(progress.rank.stars)}
         </span>
       {/if}
     </div>
 
-    <div class="mt-5 flex w-full items-center gap-3 rounded-md border border-line-strong py-2.5 pr-2 pl-4">
-      <div class="min-w-0 flex-1">
-        <p class="t-body-strong truncate text-fg">{auth.name || auth.email || "Signed in"}</p>
-        {#if auth.name && auth.email}
-          <p class="t-micro truncate text-fg-faint">{auth.email}</p>
-        {/if}
-      </div>
-      <Tooltip label="Sign out">
-        <Button
-          variant="bare"
-          title="Sign out"
-          onclick={onsignout}
-          class="rounded-full border border-line-strong text-fg-muted"
-        >
-          {#snippet icon()}<ArrowRight size={16} />{/snippet}
-        </Button>
-      </Tooltip>
+    <div class="relative z-20 w-full rounded-lg border border-line-strong bg-surface pt-9 pr-12 pb-3.5 pl-4">
+      <p class="t-body-strong truncate text-fg">{auth.name || auth.email || "Signed in"}</p>
+      {#if auth.name && auth.email}
+        <p class="t-micro truncate text-fg-faint">{auth.email}</p>
+      {/if}
+      <span class="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2">
+        <Tooltip label="Sign out">
+          <Button
+            variant="bare"
+            title="Sign out"
+            onclick={onsignout}
+            class="flex size-10 items-center justify-center rounded-full border border-line-strong bg-surface text-fg-muted"
+          >
+            {#snippet icon()}<ArrowRight size={16} />{/snippet}
+          </Button>
+        </Tooltip>
+      </span>
     </div>
   </div>
 
-  <!-- The sitting, on demand. -->
-  <div class="mt-4 divide-y divide-line rounded-md border border-line-strong">
+  <!-- The sitting, on demand. The dot is owed to the card, not to a row inside it. -->
+  <div class="relative mt-4 mr-5 divide-y divide-line rounded-lg border border-line-strong">
+    {#if sessionNudge.owed}
+      <span class="absolute -top-1.5 -right-1.5 size-3 rounded-full border-2 border-surface bg-danger"></span>
+    {/if}
     {#if summary}
       <SettingRow
         icon={CalendarCheck}
         label={summary.target.planned ? `Look over ${subject}` : `Plan ${subject}`}
         onclick={plan}
       >
-        {#if sessionNudge.owed}
-          <span class="relative flex items-center">
-            {#if !summary.target.planned && sessionNudge.stars > 0}{@render starCount(sessionNudge.stars)}{/if}
-            <span class="absolute -top-1 -right-1 size-2 rounded-full border border-surface bg-danger"></span>
-          </span>
-        {:else if !summary.target.planned && sessionNudge.stars > 0}
-          {@render starCount(sessionNudge.stars)}
-        {/if}
+        {#if !summary.target.planned && sessionNudge.stars > 0}{@render starCount(sessionNudge.stars)}{/if}
       </SettingRow>
     {/if}
     <SettingRow icon={History} label="Last recap" onclick={summary ? openRecap : undefined} disabled={!summary}>
