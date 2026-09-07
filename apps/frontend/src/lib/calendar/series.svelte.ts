@@ -2,7 +2,7 @@ import { invalidate } from "$lib/core/store.svelte";
 import type { EventFields } from "./purpose";
 import { type EventPatch, updateCalendarEvent } from "./queries";
 import type { CalendarEvent, SeriesScope } from "./types";
-import type { CalendarWrites, EventRef } from "./writes.svelte";
+import type { CalendarWrites, Drawn, EventRef } from "./writes.svelte";
 
 /**
  * A recurring event was just edited on this occurrence alone — offered up in case the change was
@@ -32,6 +32,8 @@ export interface DeletePrompt {
 }
 
 export interface SeriesHost {
+  /** The events as shown, so a series-wide write can be drawn on every occurrence it reaches. */
+  readonly events: readonly CalendarEvent[];
   refreshWeeks(): Promise<unknown>;
 }
 
@@ -90,15 +92,17 @@ export class CalendarSeries {
       start: prompt.fields.start.toISOString(),
       end: prompt.fields.end.toISOString(),
     };
-    await this.#writes.run(() =>
-      updateCalendarEvent(prompt.ref.id, {
-        calendarId: prompt.ref.calendarId,
-        ...fields,
-        seriesId: prompt.seriesId,
-        seriesScope: scope,
-        previousStart: prompt.previousStart.toISOString(),
-        previousEnd: prompt.previousEnd.toISOString(),
-      }),
+    await this.#writes.run(
+      () =>
+        updateCalendarEvent(prompt.ref.id, {
+          calendarId: prompt.ref.calendarId,
+          ...fields,
+          seriesId: prompt.seriesId,
+          seriesScope: scope,
+          previousStart: prompt.previousStart.toISOString(),
+          previousEnd: prompt.previousEnd.toISOString(),
+        }),
+      this.#reach(prompt, scope, fields),
     );
     // A rule reshapes the whole series, and a cut makes a new one: the weeks are asked again
     // rather than patched by hand.
@@ -106,5 +110,35 @@ export class CalendarSeries {
       invalidate.calendar();
       await this.#host.refreshWeeks();
     }
+  }
+
+  /**
+   * The same change drawn on every occurrence the answer reaches, before the server has moved a
+   * single one: a new time moves each by as much as the edited one moved, and a new name, notes
+   * or place lands on all of them as it was typed. What the strip doesn't hold — a rule, the
+   * guest list, occurrences on weeks not loaded — waits for the refetch.
+   */
+  #reach(prompt: SeriesPrompt, scope: SeriesScope, fields: EventPatch): Drawn[] {
+    const from = prompt.previousStart.getTime();
+    const shiftStart = fields.start ? new Date(fields.start).getTime() - from : 0;
+    const shiftEnd = fields.end ? new Date(fields.end).getTime() - prompt.previousEnd.getTime() : 0;
+    return this.#host.events
+      .filter(
+        (event) =>
+          event.id !== prompt.ref.id &&
+          event.seriesId === prompt.seriesId &&
+          (scope === "all" || new Date(event.start).getTime() >= from),
+      )
+      .map((event) => ({
+        id: event.id,
+        event: {
+          ...event,
+          ...(fields.title !== undefined ? { title: fields.title } : {}),
+          ...(fields.description !== undefined ? { description: fields.description || null } : {}),
+          ...(fields.location !== undefined ? { location: fields.location || null } : {}),
+          start: new Date(new Date(event.start).getTime() + shiftStart).toISOString(),
+          end: new Date(new Date(event.end).getTime() + shiftEnd).toISOString(),
+        },
+      }));
   }
 }
