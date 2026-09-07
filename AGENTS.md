@@ -63,9 +63,10 @@ is the event's own answer — a place named in settings, or the device's positio
 `$lib/travel/origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
 because "where I am now" only means anything on the machine holding the person. Until a person
 chooses, the calendar answers: `$lib/travel/whereabouts.ts` (pure, tested) puts you wherever the last
-event that moved you left you. An event moves you when it says where it ends — `endLocation` on its
-mapping, the "Ends at" row of the card, a pin in a ring on the block's bottom-left corner — and
-every other event, wherever it is, leaves you where you were. It is read against whatever events
+event with a place left you: its end place when it names one (`endLocation` on its mapping, the
+"Ends at" row of the card, a pin in a ring on the block's bottom-left corner), and its location
+otherwise — from its end, or from the start of its day when it is all-day. An event with neither
+changes nothing. It is read against whatever events
 the caller has, the screen's weeks or the agenda's this-week-and-next, and the usual place stands
 in before any move. Journeys are asked about for events that have already happened too, with the
 server asking for a typical one rather than a bus that has left.
