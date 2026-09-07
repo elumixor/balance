@@ -24,8 +24,14 @@
     placeId?: string | null;
     /** The autocomplete session the suggestion came from, so Google bills it as one. */
     sessionToken?: string;
-    /** The place as Google pinned it, once known — a picker saves its coordinates with it. */
-    onplace?: (place: PlaceDetails) => void;
+    /**
+     * The place as Google pinned it, once known, with the text it was looked up for — a picker
+     * saves its coordinates with it, and keeps the text so it can tell a stale pin from a live
+     * one. It is never an answer to what the field should say: the words in the field are the
+     * ones being typed, and replacing them under the caret is how typing an address became
+     * impossible.
+     */
+    onplace?: (place: PlaceDetails, query: string) => void;
     onopen?: (url: string) => void;
   } = $props();
 
@@ -48,7 +54,7 @@
       .then((answer) => {
         if (!live) return null;
         place = answer;
-        if (answer) onplace?.(answer);
+        if (answer) onplace?.(answer, query);
         return answer ? mapAround({ latitude: answer.latitude, longitude: answer.longitude, dark }) : null;
       })
       .then((picture) => {

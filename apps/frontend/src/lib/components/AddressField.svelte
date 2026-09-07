@@ -35,6 +35,8 @@
 
   /** Long enough that a word is one request rather than six. */
   const ASK_DELAY_MS = 250;
+  /** One or two letters match half the planet; asking about them is a request spent on noise. */
+  const ASK_FROM = 3;
 
   let suggestions = $state<PlaceSuggestion[]>([]);
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -54,6 +56,12 @@
   function type(next: string) {
     value = next;
     if (timer) clearTimeout(timer);
+    // Rows about what was there a moment ago are worse than no rows: clear them as the words go.
+    if (next.trim().length < ASK_FROM) {
+      asked = next;
+      suggestions = [];
+      return;
+    }
     timer = setTimeout(() => void ask(next), ASK_DELAY_MS);
   }
 
@@ -93,7 +101,7 @@
     {autofocus}
     {variant}
     autocapitalize="sentences"
-    width={300}
+    width="anchor"
     class={variant === "boxed" ? "pl-9" : ""}
     onpick={(option) => pick(option.value)}
     onfree={(text) => oncommit?.(text)}

@@ -34,6 +34,8 @@
   let name = $state("");
   /** Google's own pin for the address, once the map has looked it up. */
   let pinned = $state<PlaceDetails | null>(null);
+  /** The text that pin was looked up for, so a since-retyped address is saved without it. */
+  let pinnedFor = $state("");
 
   function select(next: OriginChoice, close: () => void) {
     travelOrigin.choose(eventId, next);
@@ -45,12 +47,13 @@
     address = "";
     name = "";
     pinned = null;
+    pinnedFor = "";
   }
 
   /** Added and chosen in one gesture: the place was named in order to leave from it. */
   function saveAdded(close: () => void) {
     if (!name.trim() || !address.trim()) return;
-    const pin = pinned && pinned.address === address.trim() ? pinned : null;
+    const pin = pinnedFor === address.trim() ? pinned : null;
     const id = preferences.addLocation({
       label: name,
       address,
@@ -98,9 +101,9 @@
         />
         <MapPreview
           {address}
-          onplace={(place) => {
-            if (place.address) address = place.address;
+          onplace={(place, query) => {
             pinned = place;
+            pinnedFor = query;
           }}
         />
         <Field bind:value={name} placeholder="Home, Office" ariaLabel="Name of this place" autocapitalize="sentences" />

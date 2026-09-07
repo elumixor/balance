@@ -34,6 +34,8 @@
   let isDefault = $state(false);
   /** Google's own pin for what was typed, once a suggestion was chosen or the map looked it up. */
   let pinned = $state<PlaceDetails | null>(null);
+  /** The text that pin was looked up for, so a since-retyped address is saved without it. */
+  let pinnedFor = $state("");
 
   function open(location?: SavedLocation) {
     editing = location?.id ?? "new";
@@ -51,18 +53,20 @@
             longitude: location.longitude,
           }
         : null;
+    pinnedFor = pinned ? address : "";
   }
 
   function picked(suggestion: PlaceSuggestion) {
     // Google's own name for the place is a better first guess than an empty box.
     if (!label.trim()) label = suggestion.name;
     pinned = null;
+    pinnedFor = "";
   }
 
   function save() {
     if (!canSave) return;
     // The pin only describes the address it was looked up for; a retyped one is saved bare.
-    const pin = pinned && pinned.address === address.trim() ? pinned : null;
+    const pin = pinnedFor === address.trim() ? pinned : null;
     const patch = {
       label,
       address: address.trim(),
@@ -110,10 +114,10 @@
     />
     <MapPreview
       {address}
-      placeId={pinned?.address === address.trim() ? pinned.placeId : null}
-      onplace={(place) => {
-        if (place.address) address = place.address;
+      placeId={pinnedFor === address.trim() ? (pinned?.placeId ?? null) : null}
+      onplace={(place, query) => {
         pinned = place;
+        pinnedFor = query;
       }}
     />
     <div class="flex items-center gap-3">

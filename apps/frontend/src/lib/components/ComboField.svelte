@@ -28,6 +28,7 @@
     ariaLabel,
     autofocus = false,
     autocapitalize = "off",
+    /** A number of pixels, or "anchor" for a list exactly as wide as the field it hangs off. */
     width = 240,
     onpick,
     /** Enter on text that isn't in the list. Left out, such text is simply not an answer. */
@@ -44,7 +45,7 @@
     ariaLabel: string;
     autofocus?: boolean;
     autocapitalize?: "off" | "sentences";
-    width?: number;
+    width?: number | "anchor";
     onpick: (option: ComboOption<T>) => void;
     onfree?: (text: string) => void;
     row?: Snippet<[ComboOption<T>, boolean]>;
@@ -57,6 +58,8 @@
   let open = $state(false);
   let highlighted = $state(0);
   let position = $state<FloatPosition | null>(null);
+  /** What the list is actually drawn at, which "anchor" only knows once the field is on screen. */
+  let drawnWidth = $state(0);
 
   const shown = $derived(open && options.length > 0);
 
@@ -76,8 +79,13 @@
     return focusWhenReady(input).cancel;
   });
 
+  /** Never narrower than this: a list of addresses in a 90px field is unreadable. */
+  const MIN_WIDTH = 220;
+
   function place() {
-    if (input) position = placeMenu(input, width);
+    if (!input) return;
+    drawnWidth = width === "anchor" ? Math.max(MIN_WIDTH, Math.round(input.getBoundingClientRect().width)) : width;
+    position = placeMenu(input, drawnWidth);
   }
 
   function show() {
@@ -145,7 +153,7 @@
     data-popup-layer
     onpointerdown={(e) => e.preventDefault()}
     class="menu float-in fixed z-50"
-    style="left:{position.left}px;top:{position.top}px;width:{width}px;max-height:{MENU_MAX_HEIGHT}px"
+    style="left:{position.left}px;top:{position.top}px;width:{drawnWidth}px;max-height:{MENU_MAX_HEIGHT}px"
   >
     {#each options as option, i (option.key)}
       <li>
