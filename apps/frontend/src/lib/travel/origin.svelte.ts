@@ -76,8 +76,8 @@ class TravelOrigin {
   }
 
   /**
-   * What following the calendar comes to for this event: the event that put you somewhere, or
-   * the usual place, or the device. The picker names it, and `originKeyFor` tells it apart.
+   * What following the calendar comes to for this event: the last event with a place, or the
+   * usual place, or the device. The picker names it, and `originKeyFor` tells it apart.
    */
   followed(
     event: CalendarEvent,

@@ -40,11 +40,6 @@ export interface CalendarEvent {
   source: string | null;
   /** The card sections folded away on this event, or null for the default. */
   hidden: string[] | null;
-  /**
-   * Whether this event moves you: after it, or during it when it is all-day, you are at its
-   * location, and the next journey starts from there — see `$lib/travel/whereabouts.ts`.
-   */
-  placeChange: boolean;
   /** What that feed observed for this occurrence, in the feed's own shape; null until a device syncs. */
   record: Record<string, unknown> | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
@@ -82,7 +77,6 @@ export const NOT_A_MEETING = {
   timer: null,
   source: null,
   hidden: null,
-  placeChange: false,
   record: null,
   location: null,
   conferenceUrl: null,
@@ -102,7 +96,6 @@ export const NOT_A_MEETING = {
   | "timer"
   | "source"
   | "hidden"
-  | "placeChange"
   | "record"
   | "location"
   | "conferenceUrl"

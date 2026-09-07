@@ -25,8 +25,6 @@ export default authed(
       source: integrationSourceField.nullable().optional(),
       /** The card sections folded away on it. Absent leaves it alone; null means the default. */
       hidden: z.array(z.string().max(MAX_SECTION_ID_LENGTH)).max(MAX_HIDDEN_SECTIONS).nullable().optional(),
-      /** Whether the person is at its location once it has happened. Absent leaves it alone. */
-      placeChange: z.boolean().optional(),
       /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
       timer: z
         .union([

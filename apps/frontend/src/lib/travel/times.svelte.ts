@@ -13,8 +13,8 @@ import { type OriginContext, travelOrigin } from "./origin.svelte";
  * question about a start, an origin and the ways of going: change any of them and it is a new
  * question, and the old answer is left where it was rather than shown for the wrong one.
  *
- * Nothing is asked about an event that has already started: the road it took is not worth a
- * request, and a bus that has left can't be asked about at all.
+ * An event that has already happened is asked about too — the band above it is how the day is
+ * read back — with the server asking for a typical journey rather than one arriving in the past.
  */
 class TravelTimes {
   #answers = $state<Record<string, TravelLeg[]>>({});
@@ -24,7 +24,6 @@ class TravelTimes {
   #keyFor(event: CalendarEvent, events: OriginContext): string | null {
     const modes = preferences.travel.modes;
     if (modes.length === 0 || !hasAddress(event)) return null;
-    if (new Date(event.start).getTime() <= Date.now()) return null;
     const from = travelOrigin.originKeyFor(event, events);
     return `${event.id}|${arrivalFor(event.start)}|${meetingOf(event).location}|${from}|${modes.join(",")}`;
   }

@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { boolean, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { EventTimer } from "~/lib/calendar/types";
 import { activities, categories } from "./categories";
 import { practices, projects, tasks } from "./projects";
@@ -87,13 +87,6 @@ export const eventMappings = pgTable(
      * default; a series mapping folds them on every occurrence.
      */
     hidden: jsonb("hidden").$type<string[]>(),
-    /**
-     * Whether this event moves the person: after it (a timed event) or during it (an all-day
-     * one) they are at its location, and that is where the next journey starts. The address
-     * itself is the event's own, read when a journey is worked out, so an edited location is
-     * never a stale copy here.
-     */
-    placeChange: boolean("place_change").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

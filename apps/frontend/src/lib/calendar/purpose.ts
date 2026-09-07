@@ -20,8 +20,6 @@ export interface Purpose {
   readonly source: string | null;
   /** The card sections folded away on it; null means the default. */
   readonly hidden: string[] | null;
-  /** Whether you are at its location once it has happened, which is also on the mapping. */
-  readonly placeChange: boolean;
 }
 
 export const NO_PURPOSE: Purpose = {
@@ -31,7 +29,6 @@ export const NO_PURPOSE: Purpose = {
   timer: null,
   source: null,
   hidden: null,
-  placeChange: false,
 };
 
 /** What an event counts as, in the shape the mapping endpoints take. */
@@ -85,7 +82,6 @@ export function purposeOf(event: CalendarEvent): Purpose {
     timer: event.timer,
     source: event.source,
     hidden: event.hidden,
-    placeChange: event.placeChange,
   };
 }
 
@@ -100,7 +96,6 @@ export function mappingFieldsOf(was: CalendarEvent) {
     timer: was.timer ?? undefined,
     source: was.source ?? undefined,
     hidden: was.hidden ?? undefined,
-    placeChange: was.placeChange || undefined,
   };
 }
 

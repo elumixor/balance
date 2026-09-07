@@ -1,0 +1,1 @@
+ALTER TABLE "event_mappings" DROP COLUMN "place_change";

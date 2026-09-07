@@ -122,9 +122,7 @@ describe("purposeOf and mappingFieldsOf", () => {
       timer,
       source: "s",
       hidden: [],
-      placeChange: undefined,
     });
-    expect(mappingFieldsOf(event({ placeChange: true })).placeChange).toBe(true);
   });
 });
 
