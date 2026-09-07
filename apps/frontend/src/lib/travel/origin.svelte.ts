@@ -97,7 +97,9 @@ class TravelOrigin {
   labelFor(choice: OriginChoice, event: CalendarEvent, events: OriginContext): string {
     if (choice.kind === "calendar") {
       const followed = this.followed(event, events);
-      return "where" in followed ? followed.where.address : this.labelFor(followed.choice, event, events);
+      if (!("where" in followed)) return this.labelFor(followed.choice, event, events);
+      const { address } = followed.where;
+      return preferences.travel.locations.find((one) => one.address === address)?.label ?? address;
     }
     return choice.kind === "here" ? "Where I am" : (preferences.location(choice.id)?.label ?? "Where I am");
   }

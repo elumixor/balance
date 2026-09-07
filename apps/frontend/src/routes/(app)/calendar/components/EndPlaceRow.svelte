@@ -1,11 +1,20 @@
 <script lang="ts">
-  import { AddressField, CardRow } from "$lib/components";
-  import { MapPinCheck, X } from "lucide-svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
+  import { AddressField, CardRow, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
+  import type { PlaceDetails } from "$lib/travel/places";
+  import { iconFor, PLACE_ICON } from "$lib/ui/icons";
+  import { MapPinCheck, MapPinOff, Pencil, Plus } from "lucide-svelte";
 
   /**
    * Where it leaves you. Most events leave you where you were, so the row recedes until it is
    * set; a flight, a move, the drive to the cabin say where they end, and every journey after
    * starts from there until the next one that says so (`$lib/travel/whereabouts.ts`).
+   *
+   * The places on offer are the ones you have named — Home, the office — with any address typed
+   * with Maps' help as the other answer, and a place can be named from here, since the moment the
+   * list is missing one is the moment you are looking at the event that ends there. What is
+   * saved is always the address: a place renamed or removed later still leaves the event ending
+   * where it did.
    *
    * It is a mapping of the app's own rather than a field of the invitation, so it works on an
    * event you can't otherwise change, and the row is never disabled.
@@ -18,51 +27,129 @@
     onchange: (endLocation: string | null) => void;
   } = $props();
 
-  let editing = $state(false);
-  let draft = $state("");
+  const locations = $derived(preferences.travel.locations);
+  /** The named place this address belongs to, when it is one of them. */
+  const named = $derived(locations.find((one) => one.address === endLocation) ?? null);
+  const label = $derived(named?.label ?? endLocation);
 
-  function begin() {
-    draft = endLocation ?? "";
-    editing = true;
+  let mode = $state<"list" | "typing" | "adding">("list");
+  let address = $state("");
+  let name = $state("");
+  /** Google's own pin for the address, once the map has looked it up. */
+  let pinned = $state<PlaceDetails | null>(null);
+
+  function pick(next: string | null, close: () => void) {
+    if (next !== endLocation) onchange(next);
+    mode = "list";
+    close();
   }
 
-  function commit(value: string) {
-    editing = false;
-    const next = value.trim() || null;
-    if (next !== endLocation) onchange(next);
+  function start(next: "typing" | "adding") {
+    mode = next;
+    address = next === "typing" ? (named ? "" : (endLocation ?? "")) : "";
+    name = "";
+    pinned = null;
+  }
+
+  /** Named and chosen in one gesture: the place was named in order to end up there. */
+  function saveAdded(close: () => void) {
+    if (!name.trim() || !address.trim()) return;
+    const pin = pinned && pinned.address === address.trim() ? pinned : null;
+    preferences.addLocation({
+      label: name,
+      address: address.trim(),
+      placeId: pin?.placeId ?? null,
+      latitude: pin?.latitude,
+      longitude: pin?.longitude,
+    });
+    pick(address.trim(), close);
   }
 </script>
 
-{#if editing}
-  <CardRow icon={MapPinCheck}>
-    <div class="min-w-0 flex-1">
-      <AddressField
-        bind:value={draft}
-        ariaLabel="Where it leaves you"
-        placeholder="Where it leaves you"
-        autofocus
-        variant="bare"
-        onpick={(suggestion) => commit(suggestion.address)}
-        oncommit={commit}
-      />
-    </div>
-  </CardRow>
-{:else if endLocation}
-  <CardRow icon={MapPinCheck} set align="start">
-    <div class="flex min-w-0 flex-1 items-start gap-1 py-1">
-      <button type="button" onclick={begin} class="t-label min-w-0 flex-1 break-words text-left hover:text-fg">
-        <span class="text-fg-muted">Ends at</span> {endLocation}
-      </button>
-      <button
-        type="button"
-        aria-label="Remove end place"
-        onclick={() => onchange(null)}
-        class="press-sm hoverable shrink-0 rounded-md p-1 text-fg-faint hover:text-fg"
+<Popover width={260} align="start">
+  {#snippet trigger(open)}
+    {#if label}
+      <CardRow icon={MapPinCheck} set onclick={open}>
+        <span class="t-label min-w-0 flex-1 break-words text-fg"><span class="text-fg-muted">Ends at</span> {label}</span>
+      </CardRow>
+    {:else}
+      <CardRow icon={MapPinCheck} label="Ends elsewhere" onclick={open} />
+    {/if}
+  {/snippet}
+
+  {#snippet content(close)}
+    {#if mode === "list"}
+      <PopoverItem label="Stays where it was" selected={endLocation === null} onclick={() => pick(null, close)}>
+        {#snippet icon()}<MapPinOff size={15} class="text-fg-muted" />{/snippet}
+      </PopoverItem>
+      {#each locations as location (location.id)}
+        {@const Glyph = iconFor(location.icon ?? PLACE_ICON)}
+        <PopoverItem
+          label={location.label}
+          selected={named?.id === location.id}
+          onclick={() => pick(location.address, close)}
+        >
+          {#snippet icon()}<Glyph size={15} class="text-fg-muted" />{/snippet}
+        </PopoverItem>
+      {/each}
+      <PopoverItem
+        label={endLocation && !named ? endLocation : "Somewhere else"}
+        selected={Boolean(endLocation && !named)}
+        onclick={() => start("typing")}
       >
-        <X size={14} />
-      </button>
-    </div>
-  </CardRow>
-{:else}
-  <CardRow icon={MapPinCheck} label="Ends elsewhere" onclick={begin} />
-{/if}
+        {#snippet icon()}<Pencil size={15} class="text-fg-muted" />{/snippet}
+      </PopoverItem>
+      <PopoverItem label="Add a place" onclick={() => start("adding")}>
+        {#snippet icon()}<Plus size={15} class="text-fg-muted" />{/snippet}
+      </PopoverItem>
+    {:else if mode === "typing"}
+      <div class="space-y-2 p-2">
+        <AddressField
+          bind:value={address}
+          ariaLabel="Where it leaves you"
+          placeholder="Where it leaves you"
+          autofocus
+          onpick={(suggestion) => pick(suggestion.address, close)}
+          oncommit={(value) => pick(value.trim() || null, close)}
+        />
+        <button type="button" onclick={() => (mode = "list")} class="press t-label h-9 px-2 text-fg-muted">
+          Back
+        </button>
+      </div>
+    {:else}
+      <div class="space-y-2 p-2">
+        <AddressField
+          bind:value={address}
+          ariaLabel="Address of this place"
+          autofocus
+          onpick={(suggestion) => {
+            if (!name.trim()) name = suggestion.name;
+          }}
+          oncommit={() => saveAdded(close)}
+        />
+        <MapPreview
+          {address}
+          onplace={(place) => {
+            if (place.address) address = place.address;
+            pinned = place;
+          }}
+        />
+        <Field bind:value={name} placeholder="Home, Office" ariaLabel="Name of this place" autocapitalize="sentences" />
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            onclick={() => saveAdded(close)}
+            disabled={!name.trim() || !address.trim()}
+            class="press t-label h-9 flex-1 rounded-md border border-ink bg-ink text-ink-fg
+              disabled:border-line disabled:bg-surface-alt disabled:text-fg-faint"
+          >
+            Save and end here
+          </button>
+          <button type="button" onclick={() => (mode = "list")} class="press t-label h-9 px-2 text-fg-muted">
+            Cancel
+          </button>
+        </div>
+      </div>
+    {/if}
+  {/snippet}
+</Popover>
