@@ -15,6 +15,11 @@
 
   let { children }: { children: Snippet } = $props();
 
+  // The reminder card is its own window with no session and no corner to pile toasts in: what it
+  // shows arrived in the URL, so signing in has nothing to give it, and a sign-in that fails
+  // would land as a red card on top of somebody's meeting notes.
+  const reminderWindow = page.url.pathname.startsWith("/reminder");
+
   // Before anything else can fail — including `diagnostics` itself, which reports into it: a
   // rejection thrown while the app is still starting is exactly the one nobody sees otherwise.
   telemetry.start();
@@ -25,7 +30,9 @@
   viewport.start();
   // Failures also surface through `auth.startupError`, which the splash reads; this keeps the
   // rejection handled and puts it where a screen that isn't the splash can show it too.
-  auth.load().catch((e) => diagnostics.report("Sign-in", e, { title: "Couldn’t sign you in", retry: () => auth.load() }));
+  if (!reminderWindow) {
+    auth.load().catch((e) => diagnostics.report("Sign-in", e, { title: "Couldn’t sign you in", retry: () => auth.load() }));
+  }
   // Above the routes, because a `balance-desktop://` ticket can land on any of them — including the
   // sign-in screen the app happens to be showing when the browser finishes.
   $effect(watchDesktopSignIn);
@@ -48,4 +55,6 @@
 
 <!-- Above every screen, and outside the app shell, so a failure on the way to a session is shown
      in the same corner as one on the calendar. -->
-<ProblemToasts />
+{#if !reminderWindow}
+  <ProblemToasts />
+{/if}
