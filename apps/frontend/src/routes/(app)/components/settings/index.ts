@@ -1,5 +1,4 @@
 export { default as AboutSection } from "./AboutSection.svelte";
-export { default as DesktopDownload } from "./DesktopDownload.svelte";
 export { default as IntegrationsPane } from "./IntegrationsPane.svelte";
 export { default as NotificationsPane } from "./NotificationsPane.svelte";
 export { default as PlaceIconPicker } from "./PlaceIconPicker.svelte";
