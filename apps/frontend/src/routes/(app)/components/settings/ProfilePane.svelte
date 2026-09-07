@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/account/auth.svelte";
-  import { Button, Skeleton, StarCount, StarGlyph, Tooltip } from "$lib/components";
+  import { Button, Skeleton, StarCount, Tooltip } from "$lib/components";
   import { desktopAutostart } from "$lib/desktop/autostart.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { planMode } from "$lib/planning/plan-mode.svelte";
@@ -9,7 +9,7 @@
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";
-  import { Flame, LogOut, Power, SunMoon } from "lucide-svelte";
+  import { ArrowRight, CalendarCheck, Flame, History, Power, SunMoon } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
   import StarRecord from "./StarRecord.svelte";
   import ThemeSwitch from "./ThemeSwitch.svelte";
@@ -55,45 +55,79 @@
 </script>
 
 {#snippet starCount(value: number)}
-  <StarCount {value} size={11} />
+  <StarCount {value} size={13} />
 {/snippet}
 
 <div>
-  <!-- Who. -->
-  <div class="flex items-center gap-3">
-    <span
-      class="t-body flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full
-        border border-line-strong bg-surface-alt text-fg-muted"
-    >
-      {#if auth.avatarUrl}
-        <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
-      {:else}
-        {initial}
-      {/if}
-    </span>
-    <div class="min-w-0 flex-1">
-      <p class="t-body-strong truncate text-fg">{auth.name || auth.email || "Signed in"}</p>
-      {#if auth.name && auth.email}
-        <p class="t-micro truncate text-fg-faint">{auth.email}</p>
+  <!-- Who: the face, the total, the door out. -->
+  <div class="flex flex-col items-center">
+    <div class="relative">
+      <span
+        class="t-heading flex size-20 items-center justify-center overflow-hidden rounded-full
+          border border-line-strong bg-surface-alt text-fg-muted"
+      >
+        {#if auth.avatarUrl}
+          <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
+        {:else}
+          {initial}
+        {/if}
+      </span>
+      {#if progress}
+        <span class="absolute -right-2 -bottom-1 ring-3 ring-surface rounded-full">
+          {@render starCount(progress.rank.stars)}
+        </span>
       {/if}
     </div>
-    <Tooltip label="Sign out">
-      <Button variant="bare" title="Sign out" onclick={onsignout} class="text-fg-muted">
-        {#snippet icon()}<LogOut size={16} />{/snippet}
-      </Button>
-    </Tooltip>
+
+    <div class="mt-5 flex w-full items-center gap-3 rounded-md border border-line-strong py-2.5 pr-2 pl-4">
+      <div class="min-w-0 flex-1">
+        <p class="t-body-strong truncate text-fg">{auth.name || auth.email || "Signed in"}</p>
+        {#if auth.name && auth.email}
+          <p class="t-micro truncate text-fg-faint">{auth.email}</p>
+        {/if}
+      </div>
+      <Tooltip label="Sign out">
+        <Button
+          variant="bare"
+          title="Sign out"
+          onclick={onsignout}
+          class="rounded-full border border-line-strong text-fg-muted"
+        >
+          {#snippet icon()}<ArrowRight size={16} />{/snippet}
+        </Button>
+      </Tooltip>
+    </div>
+  </div>
+
+  <!-- The sitting, on demand. -->
+  <div class="mt-4 divide-y divide-line rounded-md border border-line-strong">
+    {#if summary}
+      <SettingRow
+        icon={CalendarCheck}
+        label={summary.target.planned ? `Look over ${subject}` : `Plan ${subject}`}
+        onclick={plan}
+      >
+        {#if sessionNudge.owed}
+          <span class="relative flex items-center">
+            {#if !summary.target.planned && sessionNudge.stars > 0}{@render starCount(sessionNudge.stars)}{/if}
+            <span class="absolute -top-1 -right-1 size-2 rounded-full border border-surface bg-danger"></span>
+          </span>
+        {:else if !summary.target.planned && sessionNudge.stars > 0}
+          {@render starCount(sessionNudge.stars)}
+        {/if}
+      </SettingRow>
+    {/if}
+    <SettingRow icon={History} label="Last recap" onclick={summary ? openRecap : undefined} disabled={!summary}>
+      {#if recapStars > 0}{@render starCount(recapStars)}{/if}
+    </SettingRow>
   </div>
 
   <!-- Where you stand. -->
-  <div class="mt-8">
+  <div class="mt-4">
     {#if !progress}
-      <Skeleton width="40%" height={28} />
+      <Skeleton width="40%" height={16} />
     {:else}
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span class="flex items-center gap-1.5">
-          <StarGlyph size={20} />
-          <span class="t-data-strong leading-none! text-fg">{progress.rank.stars}</span>
-        </span>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1.5">
         <span
           class="flex items-center gap-1"
           aria-label="Tier {progress.rank.tier + 1}, {progress.rank.subtier + 1} of {SUBTIERS}"
@@ -111,25 +145,6 @@
         {/if}
       </div>
     {/if}
-
-    <!-- The sitting, on demand. -->
-    <div class="mt-4 flex flex-wrap gap-2">
-      <Button label="Last recap" variant="outline" size="sm" onclick={openRecap} disabled={!summary}>
-        {#snippet icon()}{#if recapStars > 0}{@render starCount(recapStars)}{/if}{/snippet}
-      </Button>
-      {#if summary}
-        <Button
-          label={summary.target.planned ? `Look over ${subject}` : `Plan ${subject}`}
-          variant={sessionNudge.owed ? "solid" : "outline"}
-          size="sm"
-          onclick={plan}
-        >
-          {#snippet icon()}
-            {#if !summary.target.planned && sessionNudge.stars > 0}{@render starCount(sessionNudge.stars)}{/if}
-          {/snippet}
-        </Button>
-      {/if}
-    </div>
 
     {#if progress}
       <StarRecord {progress} />
