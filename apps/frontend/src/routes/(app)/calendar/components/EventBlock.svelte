@@ -7,8 +7,13 @@ import type { Category } from "$lib/core/records";
   import { DEFAULT_ICON } from "$lib/ui/icons";
   import { store } from "$lib/core/store.svelte";
   import type { CalendarEvent } from "$lib/calendar/types";
-  import { calendarData } from "$lib/calendar/calendar-data.svelte";
+  import { accountEmailOf, calendarData } from "$lib/calendar/calendar-data.svelte";
   import { eventCategory } from "$lib/calendar/event-category";
+  import { asGoogleAccount, meetingOf } from "$lib/calendar/meeting";
+  import { practices, projects, tasks } from "$lib/core/synced.svelte";
+  import { openExternal } from "$lib/desktop/open";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
+  import { Link, MapPin, Users, Video } from "lucide-svelte";
 
   /**
    * A block is coloured by the Google calendar it lives on, so a week reads as bands of which
@@ -24,6 +29,7 @@ import type { Category } from "$lib/core/records";
     flatTop = false,
     flatBottom = false,
     stacked = false,
+    expanded = false,
   }: {
     event: CalendarEvent;
     categories: Map<string, Category>;
@@ -32,6 +38,12 @@ import type { Category } from "$lib/core/records";
     flatBottom?: boolean;
     /** Drawn over another block, so it casts a shadow to lift it off the one under it. */
     stacked?: boolean;
+    /**
+     * Rested on by a mouse: grown to the column and saying what the card would — the sphere and
+     * the project, the whole time, where it is, the call — sized by its words rather than its
+     * minutes.
+     */
+    expanded?: boolean;
   } = $props();
 
   const data = calendarData;
@@ -46,6 +58,27 @@ import type { Category } from "$lib/core/records";
   const borderColor = $derived(calendars.find((c) => c.id === event.calendarId)?.color ?? restColor);
 
   const plannable = $derived([...categories.values()]);
+
+  /** What the hour is for, on top of what it counts as. */
+  const purpose = $derived(
+    (event.projectId && projects.all.find((p) => p.id === event.projectId)?.name) ||
+      (event.practiceId && practices.all.find((p) => p.id === event.practiceId)?.name) ||
+      (event.taskId && tasks.all.find((t) => t.id === event.taskId)?.title) ||
+      null,
+  );
+  const meeting = $derived(expanded ? meetingOf(event) : null);
+  const joinUrl = $derived(meeting?.join ? asGoogleAccount(meeting.join.url, accountEmailOf(event.calendarId)) : null);
+  /** Everyone but you, since the block is on your own calendar. */
+  const guests = $derived(event.attendees.filter((a) => !a.self));
+
+  /** A link that refuses to open says so, rather than doing nothing at all. */
+  async function open(url: string) {
+    try {
+      await openExternal(url);
+    } catch (e) {
+      diagnostics.report("Link", e, { title: "That link wouldn’t open" });
+    }
+  }
 
   const selected = $derived(data.selected?.id === event.id);
   /** One of the blocks a box or a ⌘-click gathered, and so one a batch write is about. */
@@ -126,8 +159,12 @@ import type { Category } from "$lib/core/records";
   bind:clientWidth={boxWidth}
   bind:clientHeight={boxHeight}
   aria-label="{label}, {formatClock(new Date(event.start))}"
-  class="absolute inset-0 flex min-w-0 overflow-hidden px-1.5 text-left leading-tight @container/evt
-    {oneLine ? 'flex-row items-center gap-1 py-0' : 'flex-col justify-start py-0.5'}
+  class="flex min-w-0 overflow-hidden px-1.5 text-left leading-tight @container/evt
+    {expanded
+    ? 'relative flex-1 flex-col justify-start gap-1 py-1'
+    : oneLine
+      ? 'absolute inset-0 flex-row items-center gap-1 py-0'
+      : 'absolute inset-0 flex-col justify-start py-0.5'}
     {ghost ? 'pointer-events-none opacity-70' : 'press-fade'}"
 >
   <span
@@ -135,11 +172,69 @@ import type { Category } from "$lib/core/records";
       {flatTop ? '' : 'rounded-t-sm'} {flatBottom ? '' : 'rounded-b-sm'}
       {event.declined ? 'border-dashed opacity-50' : ''}
       {event.tentative ? 'border-dotted' : ''}
-      {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''} {picked ? 'is-picked' : ''} {stacked ? 'is-stacked' : ''}"
+      {selected ? 'is-selected' : ''} {isPast ? 'is-past' : ''} {picked ? 'is-picked' : ''} {stacked ? 'is-stacked' : ''} {expanded
+        ? 'is-expanded'
+        : ''}"
     style="--c:{fillColor};border-color:{borderColor}"
   ></span>
 
-  {#if oneLine}
+  {#if expanded}
+    <span class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}">
+      {@render badge()}{label}</span
+    >
+    <span class="relative z-10 flex w-full flex-col gap-0.5 t-data-nano text-fg-muted/80">
+      <span class="whitespace-nowrap">
+        {formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}
+      </span>
+      {#if category || purpose}
+        <span class="truncate">
+          {#if category}{category.name}{/if}{#if category && purpose} · {/if}{#if purpose}{purpose}{/if}
+        </span>
+      {/if}
+      {#if meeting?.location}
+        <span class="flex items-center gap-1 truncate">
+          <MapPin size={10} class="shrink-0" /><span class="truncate">{meeting.location}</span>
+        </span>
+      {/if}
+      {#if guests.length > 0}
+        <span class="flex items-center gap-1 truncate">
+          <Users size={10} class="shrink-0" /><span class="truncate"
+            >{guests.length === 1 ? (guests[0].name ?? guests[0].email ?? "1 guest") : `${guests.length} guests`}</span
+          >
+        </span>
+      {/if}
+    </span>
+    {#if meeting && (meeting.join || meeting.links.length > 0)}
+      <span class="relative z-10 flex flex-wrap gap-1 pt-0.5">
+        {#if meeting.join && joinUrl}
+          <button
+            type="button"
+            class="press flex items-center gap-1 rounded-sm bg-ink px-1.5 py-0.5 t-data-nano leading-[12px] text-ink-fg"
+            onpointerdown={(e) => e.stopPropagation()}
+            onclick={(e) => {
+              e.stopPropagation();
+              void open(joinUrl);
+            }}
+          >
+            <Video size={10} />Join {meeting.join.label}
+          </button>
+        {/if}
+        {#each meeting.links.slice(0, 2) as link (link.url)}
+          <button
+            type="button"
+            class="press flex max-w-full items-center gap-1 rounded-sm bg-fg/10 px-1.5 py-0.5 t-data-nano leading-[12px] text-fg hover:bg-fg/15"
+            onpointerdown={(e) => e.stopPropagation()}
+            onclick={(e) => {
+              e.stopPropagation();
+              void open(link.url);
+            }}
+          >
+            <Link size={10} class="shrink-0" /><span class="truncate">{link.label}</span>
+          </button>
+        {/each}
+      </span>
+    {/if}
+  {:else if oneLine}
     <span
       bind:this={titleEl}
       class="relative z-10 min-w-0 flex-1 whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}"

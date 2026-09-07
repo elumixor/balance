@@ -1,6 +1,6 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { type PlacedSegment, resizeBands } from "$lib/calendar/week-grid";
+  import { BLOCK_GUTTER_PX, type PlacedSegment, resizeBands } from "$lib/calendar/week-grid";
   import type { Category } from "$lib/core/records";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import type { TransitionConfig } from "svelte/transition";
@@ -42,6 +42,34 @@
    *  day is the one the eye lands on. */
   const dimmed = $derived(planMode.active && !planMode.isDay(day));
 
+  /**
+   * The block a mouse has rested on. It grows to the column's width and shows what the card
+   * would — the project, where it is, the call — so the week can be read without opening
+   * anything. Only a mouse can rest: a finger is either dragging or tapping, and a block that
+   * grew under a finger would move the thing it was about to press.
+   */
+  let hoveredId = $state<string | null>(null);
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Long enough that crossing a block on the way to another doesn't grow it. */
+  const HOVER_DELAY_MS = 220;
+
+  function enter(e: PointerEvent, id: string) {
+    if (e.pointerType !== "mouse") return;
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => {
+      hoverTimer = null;
+      hoveredId = id;
+    }, HOVER_DELAY_MS);
+  }
+
+  function leave() {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = null;
+    hoveredId = null;
+  }
+
+  $effect(() => () => leave());
+
   /** Enter or Space on a focused block does what a tap does. */
   function onkeydown(e: KeyboardEvent & { currentTarget: HTMLElement }, segment: PlacedSegment) {
     if (e.key !== "Enter" && e.key !== " ") return;
@@ -67,6 +95,9 @@
     <!-- Resize bands sized off the drawn height, so the two can never meet and never eat
          the middle, which is what opens the event. -->
     {@const bands = resizeBands(segment.height, isSelected)}
+    <!-- Grown out to the column: the open card already says all of this, and a drag needs the
+         block to stay where the pointer picked it up. -->
+    {@const expanded = hoveredId === segment.event.id && !isSelected && !data.drag}
     {#if !dragging}
       <TravelBand {segment} {categories} {hourPx} {inWindow} />
     {/if}
@@ -75,12 +106,21 @@
       data-event
       role="button"
       tabindex="-1"
-      class="absolute touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
-      style="top:{segment.top}px;height:{segment.height}px;left:{segment.left}px;width:{segment.width}px;z-index:{isSelected
-        ? 30
-        : segment.depth}"
+      class="absolute touch-none select-none {expanded ? 'flex flex-col' : ''} {dragging
+        ? 'opacity-0'
+        : trailing
+          ? 'opacity-40'
+          : ''}"
+      style={expanded
+        ? `top:${segment.top}px;min-height:${segment.height}px;left:0;right:${BLOCK_GUTTER_PX}px;z-index:40`
+        : `top:${segment.top}px;height:${segment.height}px;left:${segment.left}px;width:${segment.width}px;z-index:${isSelected ? 30 : segment.depth}`}
       in:appear={{ id: segment.event.id }}
-      onpointerdown={(e) => data.beginMove(segment.event, e)}
+      onpointerenter={(e) => enter(e, segment.event.id)}
+      onpointerleave={leave}
+      onpointerdown={(e) => {
+        leave();
+        data.beginMove(segment.event, e);
+      }}
       onpointermove={(e) => data.moveDrag(e)}
       onpointerup={(e) => data.endDrag(e)}
       onpointercancel={() => data.endDrag()}
@@ -95,8 +135,9 @@
         event={segment.event}
         {categories}
         stacked={segment.depth > 0}
-        flatTop={segment.continuesBefore}
-        flatBottom={segment.continuesAfter}
+        {expanded}
+        flatTop={!expanded && segment.continuesBefore}
+        flatBottom={!expanded && segment.continuesAfter}
       />
       <!-- The handles are pointer-only: a keyboard has the card's time fields for the same job. -->
       {#if bands.band > 0 && segment.event.movable && !segment.continuesAfter}
