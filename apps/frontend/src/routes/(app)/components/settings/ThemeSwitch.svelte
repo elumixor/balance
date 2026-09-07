@@ -15,21 +15,18 @@
   ];
 </script>
 
-<div class="flex rounded-md border border-line p-0.5" role="radiogroup" aria-label="Appearance">
+<div class="flex items-center gap-1" role="radiogroup" aria-label="Appearance">
   {#each MODES as option (option.mode)}
-    {@const active = theme.mode === option.mode}
     <Tooltip label={option.label}>
       <button
         type="button"
         role="radio"
-        aria-checked={active}
+        aria-checked={theme.mode === option.mode}
         aria-label={option.label}
         onclick={() => theme.setMode(option.mode)}
-        class="press-sm flex size-7 items-center justify-center rounded-[5px] {active
-          ? 'bg-surface-alt text-fg'
-          : 'hoverable text-fg-faint'}"
+        class="icon-toggle"
       >
-        <option.icon size={14} />
+        <option.icon size={15} />
       </button>
     </Tooltip>
   {/each}

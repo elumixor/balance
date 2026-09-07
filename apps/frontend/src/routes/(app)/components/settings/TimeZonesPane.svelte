@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ComboField, Field, Tooltip } from "$lib/components";
+  import { Button, ComboField, Field, Tooltip } from "$lib/components";
   import { clock } from "$lib/platform/clock.svelte";
   import { preferences } from "$lib/account/preferences.svelte";
   import { offsetLabel, searchZones } from "$lib/calendar/time-zones";
@@ -91,18 +91,8 @@
             ariaLabel="Name of this zone"
             autocapitalize="sentences"
           />
-          <button type="button" onclick={() => (adding = false)} class="press t-label h-10 px-2 text-fg-muted">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onclick={save}
-            disabled={!label.trim() || !zone}
-            class="press t-label h-10 shrink-0 rounded-md border border-ink bg-ink px-3 text-ink-fg
-              disabled:border-line disabled:bg-surface-alt disabled:text-fg-faint"
-          >
-            Save
-          </button>
+          <Button label="Cancel" variant="bare" onclick={() => (adding = false)} />
+          <Button label="Save" size="sm" disabled={!label.trim() || !zone} onclick={save} />
         </div>
       </div>
     {:else}

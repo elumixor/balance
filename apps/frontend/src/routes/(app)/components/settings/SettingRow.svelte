@@ -7,8 +7,13 @@
    *
    * The same shape as a row of the event card, so the panel reads as one column of glyphs with
    * one column of words beside it, and a switch, a time, a trash can and a Connect button all sit
-   * on the same vertical line. A row with `onclick` lights up whole under the pointer — the words
-   * are the target — and the control, if any, stays its own.
+   * on the same vertical line.
+   *
+   * One rule for the pointer: the whole row lights up, and the words are the control's own label.
+   * Pressing them does what the row is for — `onclick` when it has one, otherwise the first
+   * control at the far end: a switch flips, a select opens, a field takes the caret. So a row
+   * with a switch and a row with a time answer the same press the same way. A row that leads
+   * nowhere — a version line with three roads beside it — says so with `flat`.
    */
   let {
     icon,
@@ -18,6 +23,8 @@
     note,
     /** Dimmed and inert for a setting that only means something when another one is on. */
     disabled = false,
+    /** The words lead nowhere: no ground under the pointer, no forwarding. */
+    flat = false,
     onclick,
     children,
   }: {
@@ -25,11 +32,31 @@
     label: string;
     note?: string | Snippet;
     disabled?: boolean;
+    flat?: boolean;
     onclick?: () => void;
     children?: Snippet;
   } = $props();
 
+  const CONTROL = "input, button, select, textarea, [tabindex]";
+
+  let controls = $state<HTMLElement | null>(null);
+
   const Icon = $derived(icon);
+  const interactive = $derived(!flat && !disabled);
+
+  /** A press on the words, or on the row's empty ground; a press on the control is its own. */
+  function press(e: MouseEvent) {
+    if (controls?.contains(e.target as Node)) return;
+    if (onclick) return onclick();
+    const control = controls?.querySelector<HTMLElement>(CONTROL);
+    if (!control) return;
+    if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) {
+      control.focus();
+      control.select();
+    } else {
+      control.click();
+    }
+  }
 </script>
 
 {#snippet words()}
@@ -46,15 +73,16 @@
   </span>
 {/snippet}
 
-<div class="flex min-h-9 items-center gap-3 rounded-md px-1.5 py-1 {disabled ? 'pointer-events-none opacity-40' : ''}">
-  {#if onclick}
-    <button type="button" {onclick} class="press-sm -mx-1.5 -my-1 flex min-w-0 flex-1 items-center gap-3 rounded-md px-1.5 py-1 text-left hoverable">
-      {@render words()}
-    </button>
-  {:else}
-    {@render words()}
-  {/if}
+<!-- The row is a label, not a button: the control inside is the focus stop, and a button inside
+     a button is not allowed. -->
+<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+<div
+  onclick={interactive ? press : undefined}
+  class="flex min-h-9 items-center gap-3 rounded-md px-1.5 py-1 {disabled ? 'pointer-events-none opacity-40' : ''}
+    {interactive ? 'hoverable cursor-pointer' : ''}"
+>
+  {@render words()}
   {#if children}
-    <span class="flex shrink-0 items-center gap-2">{@render children()}</span>
+    <span bind:this={controls} class="flex shrink-0 items-center gap-2">{@render children()}</span>
   {/if}
 </div>

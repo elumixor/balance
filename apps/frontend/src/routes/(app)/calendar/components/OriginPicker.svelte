@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AddressField, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
+  import { AddressField, Button, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
   import { iconFor, PLACE_ICON } from "$lib/ui/icons";
   import type { PlaceDetails } from "$lib/travel/places";
   import { preferences } from "$lib/account/preferences.svelte";
@@ -105,18 +105,8 @@
         />
         <Field bind:value={name} placeholder="Home, Office" ariaLabel="Name of this place" autocapitalize="sentences" />
         <div class="flex items-center gap-2">
-          <button
-            type="button"
-            onclick={() => saveAdded(close)}
-            disabled={!name.trim() || !address.trim()}
-            class="press t-label h-9 flex-1 rounded-md border border-ink bg-ink text-ink-fg
-              disabled:border-line disabled:bg-surface-alt disabled:text-fg-faint"
-          >
-            Save and use it
-          </button>
-          <button type="button" onclick={() => (adding = false)} class="press t-label h-9 px-2 text-fg-muted">
-            Cancel
-          </button>
+          <Button label="Save and use it" size="sm" full disabled={!name.trim() || !address.trim()} onclick={() => saveAdded(close)} />
+          <Button label="Cancel" variant="bare" onclick={() => (adding = false)} />
         </div>
       </div>
     {:else}

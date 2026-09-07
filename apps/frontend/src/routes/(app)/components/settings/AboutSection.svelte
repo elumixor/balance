@@ -46,7 +46,7 @@
 </script>
 
 <div class="space-y-1">
-  <SettingRow icon={Info} label="Balance" note={facts}>
+  <SettingRow icon={Info} label="Balance" note={facts} flat>
     {#if isDesktop}
       <Button
         label={ready ? "Restart" : "Check now"}
@@ -62,17 +62,17 @@
       </Button>
     {/if}
     {#if !isNativeShell}
-      <!-- A link, not a button: `download` is what keeps the DMG out of a new tab. Dressed as the
-           outline button beside it. -->
-      <a
+      <!-- A link, not a button: `download` is what keeps the DMG out of a new tab. -->
+      <Button
+        label="Mac"
         href={DESKTOP_DOWNLOAD_URL}
         download
         title={build ? `Balance for Mac · ${build.version} · ${build.arch} · ${desktopDownload.size}` : "Balance for Mac"}
-        class="press flex items-center justify-center gap-2 rounded-md border border-line-strong px-3 py-2 text-fg"
+        variant="outline"
+        size="sm"
       >
-        <Download size={14} />
-        <span class="t-label">Mac</span>
-      </a>
+        {#snippet icon()}<Download size={14} />{/snippet}
+      </Button>
     {/if}
     <Button
       label="App Store"

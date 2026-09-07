@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AnchoredPopup, NumberField, Segmented } from "$lib/components";
+  import { AnchoredPopup, Button, NumberField, Segmented } from "$lib/components";
   import { formatDateInput } from "$lib/ui/format";
   import { describe, type Frequency, NEVER, presets, type Rule, type RuleEnd, toRRule } from "$lib/calendar/recurrence";
 
@@ -189,14 +189,8 @@
       <div class="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
         <span class="t-micro min-w-0 truncate text-fg-faint">{describe(draft, day)}</span>
         <div class="flex shrink-0 gap-2">
-          <button type="button" onclick={() => (custom = false)} class="press t-label px-2 text-fg-muted">Back</button>
-          <button
-            type="button"
-            onclick={() => onchoose(draft)}
-            class="press t-label rounded-md border border-ink bg-ink px-3 py-1.5 text-ink-fg"
-          >
-            Done
-          </button>
+          <Button label="Back" variant="bare" onclick={() => (custom = false)} />
+          <Button label="Done" size="sm" onclick={() => onchoose(draft)} />
         </div>
       </div>
     </div>

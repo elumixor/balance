@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { AddressField, Field, MapPreview, NumberField, Switch, Tooltip } from "$lib/components";
+  import { AddressField, Button, Divider, Field, MapPreview, NumberField, Switch, Tooltip } from "$lib/components";
   import PlaceIconPicker from "./PlaceIconPicker.svelte";
   import { iconFor, PLACE_ICON } from "$lib/ui/icons";
   import type { PlaceDetails, PlaceSuggestion } from "$lib/travel/places";
   import { preferences } from "$lib/account/preferences.svelte";
   import type { SavedLocation, TravelMode } from "$lib/account/preferences-types";
-  import { Bike, Bus, Car, Footprints, Pencil, Plus, Route, Timer, Trash2 } from "lucide-svelte";
-  import { Divider } from "$lib/components";
+  import { Bike, Bus, Car, Footprints, Plus, Route, Timer, Trash2 } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
@@ -19,7 +18,7 @@
    * the phone is standing, which is the answer for a day that doesn't start anywhere planned.
    *
    * A row is a glyph, a name and its address, and nothing on it is a field: everything about a
-   * place is changed in one form, opened by the pencil, which is also the form a new place is
+   * place is changed in one form, opened by pressing the row, which is also the form a new place is
    * typed into and the one boxed thing on the page, so the row being edited stands out from the
    * list. The default is said in words on the row and set by a switch in the form, because
    * a tick with no word beside it was read as "done" rather than "from here".
@@ -123,17 +122,8 @@
         <span class="t-label text-fg">Start journeys here</span>
       </label>
       <span class="flex-1"></span>
-      <button type="button" onclick={() => (editing = null)} class="press t-label h-9 px-2 text-fg-muted">
-        Cancel
-      </button>
-      <button
-        type="submit"
-        disabled={!canSave}
-        class="press t-label h-9 shrink-0 rounded-md border border-ink bg-ink px-3 text-ink-fg
-          disabled:border-line disabled:bg-surface-alt disabled:text-fg-faint"
-      >
-        Save
-      </button>
+      <Button label="Cancel" variant="bare" onclick={() => (editing = null)} />
+      <Button label="Save" size="sm" disabled={!canSave} onclick={save} />
     </div>
   </form>
 {/snippet}
@@ -148,12 +138,8 @@
           icon={iconFor(location.icon ?? PLACE_ICON)}
           label={location.id === defaultId ? `${location.label} · default` : location.label}
           note={location.address}
+          onclick={() => open(location)}
         >
-          <Tooltip label="Edit">
-            <button type="button" aria-label="Edit {location.label}" onclick={() => open(location)} class="bare-button size-7">
-              <Pencil size={14} />
-            </button>
-          </Tooltip>
           <Tooltip label="Remove">
             <button
               type="button"
@@ -189,8 +175,7 @@
               aria-label={mode.label}
               aria-pressed={selected}
               onclick={() => preferences.toggleMode(mode.value)}
-              class="press-sm flex size-7 items-center justify-center rounded-md transition-colors
-                {selected ? 'bg-ink text-ink-fg' : 'hoverable text-fg-faint'}"
+              class="icon-toggle"
             >
               <mode.icon size={15} />
             </button>

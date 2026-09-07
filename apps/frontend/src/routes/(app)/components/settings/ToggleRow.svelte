@@ -3,7 +3,7 @@
   import type { Icon as IconType } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
 
-  /** A setting that is on or off: a row whose control is a switch, and whose words flip it too. */
+  /** A setting that is on or off: a row whose control is a switch. The row hands its press on. */
   let {
     icon,
     label,
@@ -21,6 +21,6 @@
   } = $props();
 </script>
 
-<SettingRow {icon} {label} {note} {disabled} onclick={() => onchange(!checked)}>
+<SettingRow {icon} {label} {note} {disabled}>
   <Switch {checked} {label} {disabled} {onchange} />
 </SettingRow>

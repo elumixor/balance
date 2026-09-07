@@ -2,7 +2,7 @@
   import { preferences } from "$lib/account/preferences.svelte";
   import { assistEndPlace } from "$lib/calendar/queries";
   import type { CalendarEvent } from "$lib/calendar/types";
-  import { AddressField, CardRow, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
+  import { AddressField, Button, CardRow, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import type { PlaceDetails } from "$lib/travel/places";
   import { iconFor, PLACE_ICON } from "$lib/ui/icons";
@@ -150,9 +150,7 @@
           onpick={(suggestion) => pick(suggestion.address, close)}
           oncommit={(value) => pick(value.trim() || null, close)}
         />
-        <button type="button" onclick={() => (mode = "list")} class="press t-label h-9 px-2 text-fg-muted">
-          Back
-        </button>
+        <Button label="Back" variant="bare" onclick={() => (mode = "list")} />
       </div>
     {:else}
       <div class="space-y-2 p-2">
@@ -174,18 +172,8 @@
         />
         <Field bind:value={name} placeholder="Home, Office" ariaLabel="Name of this place" autocapitalize="sentences" />
         <div class="flex items-center gap-2">
-          <button
-            type="button"
-            onclick={() => saveAdded(close)}
-            disabled={!name.trim() || !address.trim()}
-            class="press t-label h-9 flex-1 rounded-md border border-ink bg-ink text-ink-fg
-              disabled:border-line disabled:bg-surface-alt disabled:text-fg-faint"
-          >
-            Save and end here
-          </button>
-          <button type="button" onclick={() => (mode = "list")} class="press t-label h-9 px-2 text-fg-muted">
-            Cancel
-          </button>
+          <Button label="Save and end here" size="sm" full disabled={!name.trim() || !address.trim()} onclick={() => saveAdded(close)} />
+          <Button label="Cancel" variant="bare" onclick={() => (mode = "list")} />
         </div>
       </div>
     {/if}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { auth } from "$lib/account/auth.svelte";
-  import { Button, Skeleton, StarCount, Tooltip } from "$lib/components";
+  import { Button, Skeleton, StarCount } from "$lib/components";
   import { desktopAutostart } from "$lib/desktop/autostart.svelte";
   import { isDesktop } from "$lib/desktop/platform";
   import { planMode } from "$lib/planning/plan-mode.svelte";
@@ -9,7 +9,7 @@
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";
-  import { ArrowRight, CalendarCheck, Flame, History, Power, SunMoon } from "lucide-svelte";
+  import { CalendarCheck, Flame, History, LogOut, Power, SunMoon } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
   import StarRecord from "./StarRecord.svelte";
   import ThemeSwitch from "./ThemeSwitch.svelte";
@@ -17,10 +17,11 @@
 
   /**
    * Who is signed in, where they stand, and the two things the app is for: the last recap and the
-   * next day. No headings — three short rows, each read in one glance.
+   * next day. One identity line — the face, the name, the count — and under it the same rows the
+   * rest of settings is made of, so the page starts the way it goes on.
    *
    * The sitting lives here on purpose rather than only behind a notification: one waved away is
-   * still owed, and this is where the avatar's dot leads. The plan button is inked while it is.
+   * still owed, and this is where the avatar's dot leads.
    */
   let { onsignout }: { onsignout: () => void } = $props();
 
@@ -58,97 +59,78 @@
   <StarCount {value} size={13} />
 {/snippet}
 
-<div>
-  <!-- Who: the face sitting on the card that names it, and the door out on its edge. -->
-  <div class="flex flex-col items-center pr-5">
-    <div class="relative -mb-7 z-10">
-      <span
-        class="t-heading flex size-24 items-center justify-center overflow-hidden rounded-full
-          border border-line-strong bg-surface-alt text-fg-muted"
-      >
-        {#if auth.avatarUrl}
-          <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
-        {:else}
-          {initial}
-        {/if}
-      </span>
-      {#if progress}
-        <span class="absolute -right-4 bottom-4 z-30 ring-3 ring-surface rounded-full">
-          {@render starCount(progress.rank.stars)}
-        </span>
+<div class="space-y-1">
+  <!-- Who, and where they stand. -->
+  <div class="flex items-center gap-4 px-1.5 pb-4">
+    <span
+      class="t-body-strong flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full
+        border border-line bg-surface-alt text-fg-muted"
+    >
+      {#if auth.avatarUrl}
+        <img src={auth.avatarUrl} alt="" class="size-full object-cover" />
+      {:else}
+        {initial}
       {/if}
-    </div>
+    </span>
 
-    <div class="relative z-20 w-full rounded-lg border border-line-strong bg-surface pt-9 pr-12 pb-3.5 pl-4">
+    <div class="min-w-0 flex-1">
       <p class="t-body-strong truncate text-fg">{auth.name || auth.email || "Signed in"}</p>
       {#if auth.name && auth.email}
         <p class="t-micro truncate text-fg-faint">{auth.email}</p>
       {/if}
-      <span class="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2">
-        <Tooltip label="Sign out">
-          <Button
-            variant="bare"
-            title="Sign out"
-            onclick={onsignout}
-            class="flex size-10 items-center justify-center rounded-full border border-line-strong bg-surface text-fg-muted"
+      {#if !progress}
+        <Skeleton width="40%" height={14} />
+      {:else}
+        <div class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span
+            class="flex items-center gap-1"
+            aria-label="Tier {progress.rank.tier + 1}, {progress.rank.subtier + 1} of {SUBTIERS}"
           >
-            {#snippet icon()}<ArrowRight size={16} />{/snippet}
-          </Button>
-        </Tooltip>
-      </span>
-    </div>
-  </div>
-
-  <!-- The sitting, on demand. The dot is owed to the card, not to a row inside it. -->
-  <div class="relative mt-4 mr-5 divide-y divide-line rounded-lg border border-line-strong">
-    {#if sessionNudge.owed}
-      <span class="absolute -top-1.5 -right-1.5 size-3 rounded-full border-2 border-surface bg-danger"></span>
-    {/if}
-    {#if summary}
-      <SettingRow
-        icon={CalendarCheck}
-        label={summary.target.planned ? `Look over ${subject}` : `Plan ${subject}`}
-        onclick={plan}
-      >
-        {#if !summary.target.planned && sessionNudge.stars > 0}{@render starCount(sessionNudge.stars)}{/if}
-      </SettingRow>
-    {/if}
-    <SettingRow icon={History} label="Last recap" onclick={summary ? openRecap : undefined} disabled={!summary}>
-      {#if recapStars > 0}{@render starCount(recapStars)}{/if}
-    </SettingRow>
-  </div>
-
-  <!-- Where you stand. -->
-  <div class="mt-4">
-    {#if !progress}
-      <Skeleton width="40%" height={16} />
-    {:else}
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1.5">
-        <span
-          class="flex items-center gap-1"
-          aria-label="Tier {progress.rank.tier + 1}, {progress.rank.subtier + 1} of {SUBTIERS}"
-        >
-          {#each Array.from({ length: SUBTIERS }) as _, index (index)}
-            <span class="size-1.5 rounded-full {index <= progress.rank.subtier ? 'bg-ink' : 'bg-line-strong'}"></span>
-          {/each}
-        </span>
-        <span class="t-micro text-fg-faint">{progress.rank.toNextSubtier} to go</span>
-        {#if progress.streak > 0}
-          <span class="t-micro flex items-center gap-1 text-fg-muted">
-            <Flame size={13} />
-            {progress.streak} {progress.streak === 1 ? "day" : "days"}
+            {#each Array.from({ length: SUBTIERS }) as _, index (index)}
+              <span class="size-1.5 rounded-full {index <= progress.rank.subtier ? 'bg-ink' : 'bg-line-strong'}"></span>
+            {/each}
           </span>
-        {/if}
-      </div>
-    {/if}
+          <span class="t-micro text-fg-faint">{progress.rank.toNextSubtier} to go</span>
+          {#if progress.streak > 0}
+            <span class="t-micro flex items-center gap-1 text-fg-muted">
+              <Flame size={13} />
+              {progress.streak} {progress.streak === 1 ? "day" : "days"}
+            </span>
+          {/if}
+        </div>
+      {/if}
+    </div>
 
     {#if progress}
-      <StarRecord {progress} />
+      {@render starCount(progress.rank.stars)}
     {/if}
+    <Button variant="bare" title="Sign out" onclick={onsignout}>
+      {#snippet icon()}<LogOut size={16} />{/snippet}
+    </Button>
   </div>
 
+  <!-- The sitting, on demand. -->
+  {#if summary}
+    <SettingRow
+      icon={CalendarCheck}
+      label={summary.target.planned ? `Look over ${subject}` : `Plan ${subject}`}
+      onclick={plan}
+    >
+      {#if sessionNudge.owed}
+        <span class="size-2 rounded-full bg-danger" aria-label="Still to do"></span>
+      {/if}
+      {#if !summary.target.planned && sessionNudge.stars > 0}{@render starCount(sessionNudge.stars)}{/if}
+    </SettingRow>
+  {/if}
+  <SettingRow icon={History} label="Last recap" onclick={summary ? openRecap : undefined} disabled={!summary}>
+    {#if recapStars > 0}{@render starCount(recapStars)}{/if}
+  </SettingRow>
+  {#if progress}
+    <StarRecord {progress} />
+  {/if}
+
   <!-- How it looks, and the shell it runs in. -->
-  <div class="mt-8 space-y-1 border-t border-line pt-5">
+  <div class="mt-4 space-y-1 border-t border-line pt-4">
     <SettingRow icon={SunMoon} label="Appearance">
       <ThemeSwitch />
     </SettingRow>

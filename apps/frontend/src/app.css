@@ -250,6 +250,26 @@ html.dark {
   }
 }
 
+/*
+ * One glyph in a row of choices — a theme, a way of travelling — inked while it is the answer and
+ * lit only under the pointer otherwise. The state is read off `aria-checked` or `aria-pressed`,
+ * so a radio and a toggle wear the same clothes without a second class list.
+ */
+@utility icon-toggle {
+  @apply press-sm flex size-7 shrink-0 items-center justify-center rounded-md text-fg-faint transition-colors duration-150;
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      background-color: var(--surface-alt);
+      color: var(--fg);
+    }
+  }
+  &[aria-checked="true"],
+  &[aria-pressed="true"] {
+    background-color: var(--ink);
+    color: var(--ink-fg);
+  }
+}
+
 @utility hoverable {
   @media (hover: hover) {
     &:hover {
