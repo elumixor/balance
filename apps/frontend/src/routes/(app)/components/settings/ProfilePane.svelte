@@ -3,15 +3,14 @@
   import { auth } from "$lib/account/auth.svelte";
   import { Button, Skeleton, StarCount, StarGlyph, Tooltip } from "$lib/components";
   import { desktopAutostart } from "$lib/desktop/autostart.svelte";
-  import { isDesktop, isNativeShell } from "$lib/desktop/platform";
+  import { isDesktop } from "$lib/desktop/platform";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import { progressData } from "$lib/planning/progress.svelte";
   import { sessionData } from "$lib/planning/session-data.svelte";
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";
   import { Flame, LogOut } from "lucide-svelte";
-  import DesktopDownload from "./DesktopDownload.svelte";
-  import DesktopUpdate from "./DesktopUpdate.svelte";
+  import AboutSection from "./AboutSection.svelte";
   import StarRecord from "./StarRecord.svelte";
   import ThemeSwitch from "./ThemeSwitch.svelte";
   import ToggleRow from "./ToggleRow.svelte";
@@ -143,9 +142,6 @@
       <span class="t-label text-fg">Appearance</span>
       <ThemeSwitch />
     </div>
-    {#if !isNativeShell}
-      <DesktopDownload />
-    {/if}
     {#if isDesktop}
       <ToggleRow
         label="Open at login"
@@ -153,7 +149,11 @@
         disabled={desktopAutostart.enabled === null}
         onchange={(enabled) => void desktopAutostart.set(enabled)}
       />
-      <DesktopUpdate />
     {/if}
+  </div>
+
+  <!-- Which build this is, and how the next one arrives. -->
+  <div class="mt-8 border-t border-line pt-5">
+    <AboutSection />
   </div>
 </div>

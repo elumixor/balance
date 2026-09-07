@@ -2,7 +2,6 @@
   import { goto } from "$app/navigation";
   import { tick } from "svelte";
   import { auth } from "$lib/account/auth.svelte";
-  import { buildInfo } from "$lib/core/build-info";
   import { telemetry } from "$lib/platform/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
   import { IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
@@ -122,14 +121,6 @@
         </section>
       {/each}
 
-      <!-- The native shells carry their own copy of the frontend, and this is the only thing on
-           screen that says how old it is. -->
-      <p class="t-data-micro mt-10 flex select-text flex-wrap justify-end gap-x-2 text-fg-faint">
-        {#each buildInfo.parts as part, index (part)}
-          {#if index > 0}<span class="text-line-strong">·</span>{/if}
-          <span>{part}</span>
-        {/each}
-      </p>
     </div>
   </div>
 </Dialog>

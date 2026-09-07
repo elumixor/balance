@@ -7,8 +7,8 @@ import { BUILD_COMMIT, BUILD_TIME, BUILD_VERSION } from "./env";
  *
  * The same bundle ships three ways and two of those carry their own copy of it, so what is running
  * on a phone or in the macOS window can be several commits behind the checkout — with nothing on
- * screen to say so. The settings dialog prints this, which turns "is this the new one?" into a
- * question the app answers itself.
+ * screen to say so. The About section of settings prints this, which turns "is this the new one?"
+ * into a question the app answers itself.
  */
 export const buildInfo = {
   version: BUILD_VERSION,
@@ -19,16 +19,17 @@ export const buildInfo = {
     if (!isNativeShell) return "Web";
     return Capacitor.getPlatform() === "ios" ? "iOS" : "Android";
   },
-  /** The line at the bottom of settings, as its parts — the dots between them are the dialog's. */
-  get parts() {
+  /** The commit and the moment it was built, for the hover behind the version number. */
+  get provenance() {
     const built = this.builtAt
       ? new Date(this.builtAt).toLocaleString(undefined, {
           day: "numeric",
           month: "short",
+          year: "numeric",
           hour: "2-digit",
           minute: "2-digit",
         })
       : "";
-    return [this.version, this.commit, this.platform, built].filter(Boolean);
+    return [this.commit, built].filter(Boolean).join(" · ");
   },
 };

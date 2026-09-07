@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { check } from "@tauri-apps/plugin-updater";
+import * as persist from "$lib/core/persist";
 import { isDesktop } from "./platform";
 import { report } from "./report";
 
@@ -17,6 +18,9 @@ const FIRST_CHECK_MS = 10_000;
 
 /** Where an update is in its one-way trip from "there is one" to "restart to use it". */
 type UpdateStage = "idle" | "checking" | "downloading" | "ready";
+
+/** The device keeps when it last heard from the manifest, so a fresh launch can say so. */
+const CHECKED_AT_KEY = "updates:checkedAt";
 
 /**
  * The macOS app, keeping itself current.
@@ -37,6 +41,10 @@ class DesktopUpdates {
   installed = $state<string | null>(null);
   /** 0–1 while downloading, for the settings row. Null when the server sends no length. */
   progress = $state<number | null>(null);
+  /** When the manifest last answered, whatever it said. Null until it has, ever, on this device. */
+  checkedAt = $state<number | null>(
+    persist.readSetting<number>(CHECKED_AT_KEY) ?? null
+  );
 
   #timer: ReturnType<typeof setInterval> | null = null;
   #first: ReturnType<typeof setTimeout> | null = null;
@@ -64,6 +72,8 @@ class DesktopUpdates {
     this.stage = "checking";
     try {
       const update = await check();
+      this.checkedAt = Date.now();
+      persist.writeSetting(CHECKED_AT_KEY, this.checkedAt);
       if (!update) {
         this.stage = "idle";
         return;
