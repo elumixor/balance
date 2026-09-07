@@ -78,6 +78,8 @@ export class CalendarEventDTO {
   readonly source: string | null;
   /** The card sections folded away on this event, or null for the default. */
   readonly hidden: string[] | null;
+  /** Whether the person is at this event's location once it has happened. */
+  readonly placeChange: boolean;
   /** What that feed observed for this occurrence, in its own shape; null until the device syncs. */
   readonly record: Record<string, unknown> | null;
   readonly location: string | null;
@@ -119,6 +121,7 @@ export class CalendarEventDTO {
     this.timer = e.mapping?.timer ?? null;
     this.source = e.mapping?.source ?? null;
     this.hidden = e.mapping?.hidden ?? null;
+    this.placeChange = e.mapping?.placeChange ?? false;
     this.record = e.record;
     this.location = e.location;
     this.conferenceUrl = e.conferenceUrl;

@@ -54,6 +54,10 @@
     void draft.write("The location wasn’t saved", data.patchEvent(event, { location }, { location: event.location ?? "" }));
   }
 
+  function stay(placeChange: boolean) {
+    void draft.write("The stay wasn’t saved", data.tagEvent(event, { placeChange }));
+  }
+
   function chooseGuests(attendees: { email: string; optional?: boolean }[]) {
     const before = event.attendees.flatMap((a) => (a.email ? [{ email: a.email, optional: a.optional }] : []));
     void draft.write("The guest list wasn’t saved", data.patchEvent(event, { attendees }, { attendees: before }));
@@ -92,6 +96,15 @@
     </ParticipantsRow>
   {/if}
   {#if location}
-    <LocationRow {event} location={meeting.location ?? event.location} {travelTo} {editable} onchange={chooseLocation} {onopen} />
+    <LocationRow
+      {event}
+      location={meeting.location ?? event.location}
+      {travelTo}
+      {editable}
+      stayable={meeting.location !== null}
+      onchange={chooseLocation}
+      onstay={stay}
+      {onopen}
+    />
   {/if}
 </div>

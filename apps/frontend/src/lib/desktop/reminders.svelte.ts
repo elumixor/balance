@@ -108,9 +108,9 @@ class DesktopReminders {
 
     this.#asking.add(event.id);
     try {
-      // Where this event is left from: the place chosen for it, the usual one, or — failing both
-      // — wherever this device is standing. Nothing to go on means no journey and no card.
-      const origin = await travelOrigin.resolveFor(event.id);
+      // Where this event is left from: the place chosen for it, where the calendar says you are,
+      // the usual one, or wherever this device is standing. Nothing to go on means no card.
+      const origin = await travelOrigin.resolveFor(event, desktopAgenda.known);
       if (!origin) {
         this.#travel.set(event.id, []);
         return;

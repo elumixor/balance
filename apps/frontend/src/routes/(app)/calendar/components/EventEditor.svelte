@@ -15,6 +15,7 @@
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import { FEEDS, integrations } from "$lib/integrations/integrations.svelte";
   import { meetingOf } from "$lib/calendar/meeting";
+  import { purposeOf } from "$lib/calendar/purpose";
   import { preferences } from "$lib/account/preferences.svelte";
   import { accountEmailOf, calendarData } from "$lib/calendar/calendar-data.svelte";
   import { EventDraft, samePreview } from "$lib/calendar/event-draft.svelte";
@@ -194,7 +195,7 @@
       const word = entry.feed.label.toLowerCase();
       const guess = categories.find((c) => c.name.toLowerCase().includes(word)) ?? categories.find((c) => c.isBuffer);
       if (!guess) return;
-      const purpose = { projectId: event.projectId, practiceId: event.practiceId, taskId: event.taskId, timer: event.timer, hidden: event.hidden };
+      const purpose = purposeOf(event);
       await draft.write(
         title,
         data.mapEvent(target, targetScope, { weights: [{ categoryId: guess.id, weightPercent: 100 }] }, { ...purpose, source }),

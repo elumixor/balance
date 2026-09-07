@@ -41,6 +41,7 @@ export default defineConfig({
         "src/lib/integrations/sleep-sessions.ts",
         "src/lib/integrations/sleep-summary.ts",
         "src/lib/calendar/meeting.ts",
+        "src/lib/travel/whereabouts.ts",
         "src/lib/core/persist.ts",
         "src/lib/planning/rating.ts",
         "src/lib/planning/zone.ts",

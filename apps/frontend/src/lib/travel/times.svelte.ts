@@ -2,7 +2,7 @@ import { preferences } from "$lib/account/preferences.svelte";
 import { hasAddress, meetingOf } from "$lib/calendar/meeting";
 import type { CalendarEvent } from "$lib/calendar/types";
 import { arrivalFor, getTravelTimes, type TravelLeg } from "./legs";
-import { travelOrigin } from "./origin.svelte";
+import { type OriginContext, travelOrigin } from "./origin.svelte";
 
 /**
  * How long it takes to get to each event, remembered for the session.
@@ -21,12 +21,11 @@ class TravelTimes {
   #asking = new Set<string>();
 
   /** What makes two journeys the same question. */
-  #keyFor(event: CalendarEvent): string | null {
+  #keyFor(event: CalendarEvent, events: OriginContext): string | null {
     const modes = preferences.travel.modes;
     if (modes.length === 0 || !hasAddress(event)) return null;
     if (new Date(event.start).getTime() <= Date.now()) return null;
-    const choice = travelOrigin.choiceFor(event.id);
-    const from = choice.kind === "here" ? "here" : choice.id;
+    const from = travelOrigin.originKeyFor(event, events);
     return `${event.id}|${arrivalFor(event.start)}|${meetingOf(event).location}|${from}|${modes.join(",")}`;
   }
 
@@ -34,26 +33,29 @@ class TravelTimes {
    * The journeys to an event, in the order the ways of going were chosen, or null while nobody
    * has asked. Reading is free of side effects; `ensure` is what asks.
    */
-  legsFor(event: CalendarEvent): TravelLeg[] | null {
-    const key = this.#keyFor(event);
+  legsFor(event: CalendarEvent, events: OriginContext): TravelLeg[] | null {
+    const key = this.#keyFor(event, events);
     return key ? (this.#answers[key] ?? null) : null;
   }
 
   /** The journey the grid and the reminder plan around: the first way of going that has one. */
-  journeyFor(event: CalendarEvent): TravelLeg | null {
-    return this.legsFor(event)?.[0] ?? null;
+  journeyFor(event: CalendarEvent, events: OriginContext): TravelLeg | null {
+    return this.legsFor(event, events)?.[0] ?? null;
   }
 
-  /** Asks about the event's journey unless it is already known or on its way. */
-  ensure(event: CalendarEvent) {
-    const key = this.#keyFor(event);
+  /**
+   * Asks about the event's journey unless it is already known or on its way. The events are what
+   * "where the calendar puts me" is read against — the screen's loaded weeks.
+   */
+  ensure(event: CalendarEvent, events: OriginContext) {
+    const key = this.#keyFor(event, events);
     if (!key || key in this.#answers || this.#asking.has(key)) return;
     this.#asking.add(key);
     const destination = meetingOf(event).location as string;
     const modes = [...preferences.travel.modes];
     const arriveBy = arrivalFor(event.start);
     void travelOrigin
-      .resolveFor(event.id)
+      .resolveFor(event, events)
       .then((origin) => (origin ? getTravelTimes({ origin, destination, modes, arriveBy }) : null))
       .then((answer) => {
         this.#answers = { ...this.#answers, [key]: answer?.available ? answer.legs : [] };

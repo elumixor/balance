@@ -74,6 +74,17 @@ export class Agenda {
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   }
 
+  /**
+   * Everything in this week and next, whether or not it has happened — what "where am I before
+   * this" is read against, since the meeting that put you across town has already ended.
+   */
+  get known(): CalendarEvent[] {
+    const seen = new Set<string>();
+    return this.#weeks
+      .flatMap((week) => week.value?.events ?? [])
+      .filter((event) => !seen.has(event.id) && seen.add(event.id));
+  }
+
   get categories(): Map<string, Category> {
     return new Map(categories.all.map((category) => [category.id, category]));
   }

@@ -71,6 +71,13 @@
       "when": 1788612597372,
       "tag": "0009_mapping_hidden",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788785606525,
+      "tag": "0010_mapping_place_change",
+      "breakpoints": true
     }
   ]
 }

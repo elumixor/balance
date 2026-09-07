@@ -1,0 +1,1 @@
+ALTER TABLE "event_mappings" ADD COLUMN "place_change" boolean DEFAULT false NOT NULL;

@@ -49,6 +49,10 @@ class DesktopAgenda {
     return agenda.upcoming;
   }
 
+  get known(): CalendarEvent[] {
+    return agenda.known;
+  }
+
   get categories(): Map<string, Category> {
     return agenda.categories;
   }

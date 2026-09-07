@@ -1,5 +1,7 @@
 import { preferences } from "$lib/account/preferences.svelte";
+import type { CalendarEvent } from "$lib/calendar/types";
 import { read, write } from "$lib/core/persist";
+import { placeBefore, type Whereabout } from "./whereabouts";
 
 /**
  * Where a journey starts.
@@ -14,10 +16,18 @@ import { read, write } from "$lib/core/persist";
  * schedules ahead, each from where it is. Nothing here is worth a round trip.
  */
 
-/** A journey's starting point: somewhere named, or the device's own position. */
-export type OriginChoice = { kind: "here" } | { kind: "saved"; id: string };
+/**
+ * A journey's starting point: wherever the calendar says you are (`whereabouts.ts`), somewhere
+ * named, or the device's own position. "Calendar" is what every event gets until somebody
+ * chooses, and it falls through to the usual place, then the device, when nothing moved you.
+ */
+export type OriginChoice = { kind: "calendar" } | { kind: "here" } | { kind: "saved"; id: string };
 
-export const HERE: OriginChoice = { kind: "here" };
+export const HERE = { kind: "here" } as const satisfies OriginChoice;
+export const CALENDAR: OriginChoice = { kind: "calendar" };
+
+/** The events an event's origin is read against — the calendar screen's weeks, or the agenda's. */
+export type OriginContext = readonly CalendarEvent[];
 
 const STORE_KEY = "event-origins";
 
@@ -42,26 +52,62 @@ class TravelOrigin {
   readonly canUseHere = typeof navigator !== "undefined" && "geolocation" in navigator;
 
   /**
-   * What this event's journey starts from. An event nobody has chosen for uses the account's
-   * default place, and falls back to the device when there is no default — which is also the
-   * answer for somebody who has never named anywhere.
+   * What this event's journey starts from. An event nobody has chosen for follows the calendar,
+   * which is also the answer for somebody who has never named anywhere.
    */
   choiceFor(eventId: string): OriginChoice {
     const stored = this.#chosen[eventId];
     if (stored === "here") return HERE;
     if (stored && preferences.location(stored)) return { kind: "saved", id: stored };
-    const fallback = preferences.travel.defaultLocationId;
-    return fallback ? { kind: "saved", id: fallback } : HERE;
+    return CALENDAR;
   }
 
   choose(eventId: string, choice: OriginChoice) {
-    this.#chosen = { ...this.#chosen, [eventId]: choice.kind === "here" ? "here" : choice.id };
+    if (choice.kind === "calendar") {
+      const { [eventId]: _, ...rest } = this.#chosen;
+      this.#chosen = rest;
+    } else {
+      this.#chosen = {
+        ...this.#chosen,
+        [eventId]: choice.kind === "here" ? "here" : choice.id,
+      };
+    }
     write(STORE_KEY, this.#chosen, Date.now());
   }
 
-  /** The label a picker shows: the place's name, or where the device is. */
-  labelFor(choice: OriginChoice) {
+  /**
+   * What following the calendar comes to for this event: the event that put you somewhere, or
+   * the usual place, or the device. The picker names it, and `originKeyFor` tells it apart.
+   */
+  followed(
+    event: CalendarEvent,
+    events: OriginContext,
+  ): { where: Whereabout } | { choice: Exclude<OriginChoice, { kind: "calendar" }> } {
+    const where = placeBefore(event, events);
+    if (where) return { where };
+    const fallback = preferences.travel.defaultLocationId;
+    return { choice: fallback ? { kind: "saved", id: fallback } : HERE };
+  }
+
+  /** The label a picker shows: the event that put you there, the place's name, or where the device is. */
+  labelFor(choice: OriginChoice, event: CalendarEvent, events: OriginContext): string {
+    if (choice.kind === "calendar") {
+      const followed = this.followed(event, events);
+      return "where" in followed ? followed.where.event.title : this.labelFor(followed.choice, event, events);
+    }
     return choice.kind === "here" ? "Where I am" : (preferences.location(choice.id)?.label ?? "Where I am");
+  }
+
+  /**
+   * What makes two journeys from this event the same question: the choice, or — following the
+   * calendar — the event it currently resolves to, so a move dragged earlier re-asks.
+   */
+  originKeyFor(event: CalendarEvent, events: OriginContext): string {
+    const choice = this.choiceFor(event.id);
+    if (choice.kind !== "calendar") return choice.kind === "here" ? "here" : choice.id;
+    const followed = this.followed(event, events);
+    if ("where" in followed) return `after:${followed.where.event.id}:${followed.where.address}`;
+    return followed.choice.kind === "here" ? "here" : followed.choice.id;
   }
 
   /**
@@ -69,14 +115,18 @@ class TravelOrigin {
    * nothing to go on, which is a normal answer: permission refused, no fix, nowhere named. Every
    * caller already draws no journey in that case.
    */
-  async resolve(choice: OriginChoice): Promise<string | null> {
+  async resolve(choice: OriginChoice, event: CalendarEvent, events: OriginContext): Promise<string | null> {
+    if (choice.kind === "calendar") {
+      const followed = this.followed(event, events);
+      return "where" in followed ? followed.where.address : await this.resolve(followed.choice, event, events);
+    }
     if (choice.kind === "saved") return preferences.location(choice.id)?.address ?? null;
     return await this.here();
   }
 
   /** The same, for an event, in one call — what the chips and the reminders actually use. */
-  async resolveFor(eventId: string) {
-    return await this.resolve(this.choiceFor(eventId));
+  async resolveFor(event: CalendarEvent, events: OriginContext) {
+    return await this.resolve(this.choiceFor(event.id), event, events);
   }
 
   /** Where the device is, asked at most once at a time and remembered for a couple of minutes. */
@@ -96,7 +146,11 @@ class TravelOrigin {
         // Refused, unavailable, timed out — all of them mean the same thing here, which is that
         // this journey can't be worked out and nothing about it is drawn.
         () => resolve(null),
-        { enableHighAccuracy: false, timeout: POSITION_TIMEOUT_MS, maximumAge: POSITION_MAX_AGE_MS },
+        {
+          enableHighAccuracy: false,
+          timeout: POSITION_TIMEOUT_MS,
+          maximumAge: POSITION_MAX_AGE_MS,
+        },
       );
     }).finally(() => {
       this.#asking = null;

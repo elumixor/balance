@@ -294,6 +294,7 @@ function attachMappings(
             timer: mapping.timer,
             source: mapping.source,
             hidden: mapping.hidden,
+            placeChange: mapping.placeChange,
           }
         : null,
       weights: mapping?.weights ?? [],

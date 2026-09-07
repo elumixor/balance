@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { formatHoursAndMinutes } from "$lib/ui/format";
   import type { TravelMode } from "$lib/account/preferences-types";
   import { travelTimes } from "$lib/travel/times.svelte";
@@ -25,9 +26,9 @@
   // Asked on the store, which remembers the answer for the band on the grid and the reminder too;
   // the origin picker beside these changes the question, and the store answers the new one.
   $effect(() => {
-    travelTimes.ensure(event);
+    travelTimes.ensure(event, calendarData.events);
   });
-  const legs = $derived(travelTimes.legsFor(event) ?? []);
+  const legs = $derived(travelTimes.legsFor(event, calendarData.events) ?? []);
 </script>
 
 {#if legs.length > 0}

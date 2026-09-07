@@ -3,8 +3,10 @@
   import { iconFor, PLACE_ICON } from "$lib/ui/icons";
   import type { PlaceDetails } from "$lib/travel/places";
   import { preferences } from "$lib/account/preferences.svelte";
-  import { type OriginChoice, HERE, travelOrigin } from "$lib/travel/origin.svelte";
-  import { LocateFixed, Plus } from "lucide-svelte";
+  import { calendarData } from "$lib/calendar/calendar-data.svelte";
+  import type { CalendarEvent } from "$lib/calendar/types";
+  import { CALENDAR, HERE, type OriginChoice, travelOrigin } from "$lib/travel/origin.svelte";
+  import { CalendarCheck, LocateFixed, Plus } from "lucide-svelte";
 
   /**
    * Where this event's journey starts.
@@ -12,16 +14,20 @@
    * One saved address can't answer it: the gym is not left from the office, and on a Saturday you
    * are at neither. So the choice is per event and it sits on the event, next to the journeys it
    * changes — not three screens away in settings, which is where you would have to have guessed
-   * the answer before opening this card.
+   * the answer before opening this card. Until somebody chooses, the calendar answers: the
+   * meeting that just ended across town, the trip you are on, or the usual place.
    *
    * A place can be added from inside the picker, because the moment you notice the list is
    * missing one is the moment you are looking at an event that leaves from it.
    */
-  let { eventId }: { eventId: string } = $props();
+  let { event }: { event: CalendarEvent } = $props();
 
+  const eventId = $derived(event.id);
   const choice = $derived(travelOrigin.choiceFor(eventId));
   const locations = $derived(preferences.travel.locations);
-  const label = $derived(travelOrigin.labelFor(choice));
+  const label = $derived(travelOrigin.labelFor(choice, event, calendarData.events));
+  /** What following the calendar would mean right now, named so the choice is a real one. */
+  const followedLabel = $derived(travelOrigin.labelFor(CALENDAR, event, calendarData.events));
 
   let adding = $state(false);
   let address = $state("");
@@ -68,6 +74,8 @@
     >
       {#if choice.kind === "here"}
         <LocateFixed size={13} class="text-fg-muted" />
+      {:else if choice.kind === "calendar"}
+        <CalendarCheck size={13} class="text-fg-muted" />
       {:else}
         {@const Chosen = iconFor(preferences.location(choice.id)?.icon ?? PLACE_ICON)}
         <Chosen size={13} class="text-fg-muted" />
@@ -112,6 +120,13 @@
         </div>
       </div>
     {:else}
+      <PopoverItem
+        label="Follow the calendar · {followedLabel}"
+        selected={choice.kind === "calendar"}
+        onclick={() => select(CALENDAR, close)}
+      >
+        {#snippet icon()}<CalendarCheck size={15} class="text-fg-muted" />{/snippet}
+      </PopoverItem>
       <PopoverItem
         label="Where I am"
         selected={choice.kind === "here"}

@@ -61,7 +61,14 @@ same key (`GOOGLE_MAPS_API_KEY`) suggests addresses as they are typed (`travel/p
 spelling Maps itself gave back rather than one somebody typed from memory. Where a journey _starts_
 is the event's own answer — a place named in settings, or the device's position, resolved by
 `$lib/travel/origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
-because "where I am now" only means anything on the machine holding the person.
+because "where I am now" only means anything on the machine holding the person. Until a person
+chooses, the calendar answers: `$lib/travel/whereabouts.ts` (pure, tested) reads where you are before
+an event off the events around it — the meeting with an address that ended within two hours, or an
+event marked "Stay here" on its card, which is `placeChange` on the mapping. A timed one puts you at
+its location from when it ends until the next such move; an all-day one is a trip, there for its days
+and back where you were after. Nothing is stored about it beyond the flag, and it is read against
+whatever events the caller has — the screen's weeks, the agenda's this-week-and-next — so a stay meant
+to last is an all-day span.
 
 Two consequences worth knowing before changing anything here. "Not connected" and "the grant
 expired" are states the screens render, returned as 200 with `connected` / `needsReconnect` — never

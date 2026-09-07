@@ -1,6 +1,7 @@
 <script lang="ts">
   import { preferences } from "$lib/account/preferences.svelte";
   import type { TravelMode } from "$lib/account/preferences-types";
+  import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { eventCategory } from "$lib/calendar/event-category";
   import { type PlacedSegment, travelBandBox } from "$lib/calendar/week-grid";
   import type { Category } from "$lib/core/records";
@@ -43,10 +44,12 @@
 
   // Asked once per event: `travelTimes` remembers the answer for the session.
   $effect(() => {
-    if (inWindow && !segment.continuesBefore) travelTimes.ensure(segment.event);
+    if (inWindow && !segment.continuesBefore) travelTimes.ensure(segment.event, calendarData.events);
   });
 
-  const journey = $derived(segment.continuesBefore ? null : travelTimes.journeyFor(segment.event));
+  const journey = $derived(
+    segment.continuesBefore ? null : travelTimes.journeyFor(segment.event, calendarData.events),
+  );
   const band = $derived.by(() => {
     if (!journey) return null;
     const minutes = journey.seconds / 60 + preferences.travel.bufferMinutes;

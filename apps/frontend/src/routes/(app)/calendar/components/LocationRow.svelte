@@ -1,7 +1,7 @@
 <script lang="ts">
   import { AddressField, CardRow, MapPreview } from "$lib/components";
   import type { CalendarEvent } from "$lib/calendar/types";
-  import { MapPin, X } from "lucide-svelte";
+  import { MapPin, MapPinCheckInside, X } from "lucide-svelte";
   import OriginPicker from "./OriginPicker.svelte";
   import TravelChips from "./TravelChips.svelte";
 
@@ -9,13 +9,21 @@
    * Where it is. Set, the address with the journeys to it; unset, a row that turns into the
    * address field on press. Pressing the address turns it back into the field, so a typo is put
    * right in place rather than by clearing and starting again.
+   *
+   * "Stay here" is the one word the travel planning needs from a person: that this event moves
+   * them. A timed one puts them at its address from when it ends; an all-day one is a trip. It sits
+   * beside the journey's own origin picker because it is the other half of the same question,
+   * and it is a mapping of the app's own, so it works on an invitation you can't otherwise touch.
    */
   let {
     event,
     location,
     travelTo,
     editable,
+    /** Whether the location is somewhere a person can be — an address or a city, not a link. */
+    stayable,
     onchange,
+    onstay,
     onopen,
   }: {
     event: CalendarEvent;
@@ -23,7 +31,9 @@
     /** The address journeys are worked out to, or null when the location is a room or a link. */
     travelTo: string | null;
     editable: boolean;
+    stayable: boolean;
     onchange: (location: string) => void;
+    onstay: (placeChange: boolean) => void;
     onopen: (url: string) => void;
   } = $props();
 
@@ -78,9 +88,29 @@
       </div>
       {#if travelTo}
         <MapPreview address={travelTo} {onopen} />
+      {/if}
+      {#if travelTo || stayable}
         <div class="flex flex-wrap items-center gap-2">
-          <OriginPicker {eventId} />
-          <TravelChips {event} {onopen} />
+          {#if travelTo}
+            <OriginPicker {event} />
+            <TravelChips {event} {onopen} />
+          {/if}
+          {#if stayable}
+            <button
+              type="button"
+              aria-pressed={event.placeChange}
+              title={event.allDay
+                ? "Journeys during these days start from here"
+                : "Journeys after this start from here, until the next move"}
+              onclick={() => onstay(!event.placeChange)}
+              class="chip-bare press-sm py-1 {event.placeChange ? '' : 'bg-transparent'}"
+            >
+              <MapPinCheckInside size={13} class={event.placeChange ? "text-fg" : "text-fg-faint"} />
+              <span class="t-micro {event.placeChange ? 'text-fg' : 'text-fg-faint'}">
+                {event.placeChange ? "Staying here" : "Stay here"}
+              </span>
+            </button>
+          {/if}
         </div>
       {/if}
     </div>
