@@ -94,7 +94,7 @@ import type { Category } from "$lib/core/records";
   $effect(() => {
     // Re-measure whenever the block resizes or the title changes; scrollWidth is the untruncated
     // width, so it doesn't move when the time appears next to it and can't oscillate.
-    void [label, boxWidth];
+    void [label, boxWidth, titleLines];
     titleWidth = titleEl?.scrollWidth ?? 0;
   });
   /** px: the block's horizontal padding plus the gap between title and time. */
@@ -105,7 +105,9 @@ import type { Category } from "$lib/core/records";
    * back, so a title the block cuts off can still be read without opening it.
    */
   const PADDING_X_PX = 12;
-  const overflow = $derived(expanded && oneLine ? Math.max(0, titleWidth - (boxWidth - PADDING_X_PX)) : 0);
+  const overflow = $derived(
+    expanded && (oneLine || titleLines === 1) ? Math.max(0, titleWidth - (boxWidth - PADDING_X_PX)) : 0,
+  );
   /** Slow enough to read: about 40px a second, and never a blink. */
   const marqueeSeconds = $derived(Math.max(2, overflow / 40 + 1));
 
@@ -187,10 +189,15 @@ import type { Category } from "$lib/core/records";
     <!-- One line of title: kept on it. Let wrap, a word that doesn't fit beside the badge went to
          a second line the block then clipped, leaving a badge and a time with no name. -->
     <span
-      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''} {titleLines === 1
-        ? 'truncate'
+      bind:this={titleEl}
+      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''} {overflow > 0
+        ? 'marquee whitespace-nowrap'
+        : titleLines === 1
+          ? 'truncate'
+          : ''}"
+      style="max-height:{titleLines}lh;overflow:{overflow > 0 ? 'visible' : 'hidden'};{overflow > 0
+        ? `--shift:-${overflow}px;animation-duration:${marqueeSeconds}s`
         : ''}"
-      style="max-height:{titleLines}lh;overflow:hidden"
     >
       {@render badge()}{label}</span
     >
