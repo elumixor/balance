@@ -34,6 +34,9 @@
     { value: "count", label: "After" },
   ];
   const DEFAULT_COUNT = 10;
+  /** Wide enough for "Every [n] Day Week Month Year" on one line. */
+  const WIDTH = 350;
+  const ROWS = "grid grid-cols-[3rem_1fr] items-center gap-x-2 gap-y-3";
   const MAX_INTERVAL = 99;
 
   const choices = $derived(presets(day));
@@ -78,35 +81,35 @@
   }
 </script>
 
+<!-- Two columns everywhere: the word down the left, the control beside it, so "Every", "Ends" and
+     what they take line up whichever of them is showing. -->
 {#snippet ends(end: RuleEnd, setKind: (kind: RuleEnd["kind"]) => void, set: (end: RuleEnd) => void)}
-  <div class="space-y-2">
-    <div class="flex items-center gap-2">
-      <span class="t-label text-fg-muted">Ends</span>
-      <Segmented options={ENDS} value={end.kind} onchange={setKind} />
-    </div>
-    {#if end.kind === "until"}
-      <input
-        type="date"
-        value={end.day}
-        onchange={(e) => set({ kind: "until", day: e.currentTarget.value })}
-        aria-label="Last day"
-        class="field-bare w-full"
+  <span class="t-label text-fg-muted">Ends</span>
+  <Segmented options={ENDS} value={end.kind} onchange={setKind} />
+  {#if end.kind === "until"}
+    <span></span>
+    <input
+      type="date"
+      value={end.day}
+      onchange={(e) => set({ kind: "until", day: e.currentTarget.value })}
+      aria-label="Last day"
+      class="field-bare w-full"
+    />
+  {:else if end.kind === "count"}
+    <span></span>
+    <div class="flex">
+      <NumberField
+        value={end.count}
+        unit="times"
+        ariaLabel="How many times"
+        inputmode="numeric"
+        onchange={(n) => set({ kind: "count", count: Math.max(1, Math.round(n)) })}
       />
-    {:else if end.kind === "count"}
-      <div class="flex items-center gap-2">
-        <NumberField
-          value={end.count}
-          unit="times"
-          ariaLabel="How many times"
-          inputmode="numeric"
-          onchange={(n) => set({ kind: "count", count: Math.max(1, Math.round(n)) })}
-        />
-      </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
 {/snippet}
 
-<AnchoredPopup {rect} width={280} {onclose}>
+<AnchoredPopup {rect} width={WIDTH} {onclose}>
   {#if !custom}
     <div class="p-1.5">
       <button
@@ -135,52 +138,55 @@
         Custom…
       </button>
       {#if value}
-        <div class="mt-1.5 border-t border-line px-1.5 pt-2.5 pb-1">
+        <div class="{ROWS} mt-1.5 border-t border-line px-1.5 pt-2.5 pb-1">
           {@render ends(value.end, (kind) => chooseEnd(endOf(kind, value.end)), chooseEnd)}
         </div>
       {/if}
     </div>
   {:else}
-    <div class="space-y-3 p-3">
-      <div class="flex items-center gap-2">
+    <div class="p-3">
+      <div class={ROWS}>
         <span class="t-label text-fg-muted">Every</span>
-        <NumberField
-          value={draft.interval}
-          unit=""
-          ariaLabel="Every how many"
-          inputmode="numeric"
-          onchange={(n) => (draft = { ...draft, interval: Math.min(MAX_INTERVAL, Math.max(1, Math.round(n))) })}
-        />
-        <Segmented
-          options={FREQUENCIES}
-          value={draft.frequency}
-          onchange={(frequency) => (draft = { ...draft, frequency })}
-        />
+        <div class="flex items-center gap-3">
+          <NumberField
+            value={draft.interval}
+            unit=""
+            ariaLabel="Every how many"
+            inputmode="numeric"
+            onchange={(n) => (draft = { ...draft, interval: Math.min(MAX_INTERVAL, Math.max(1, Math.round(n))) })}
+          />
+          <Segmented
+            options={FREQUENCIES}
+            value={draft.frequency}
+            onchange={(frequency) => (draft = { ...draft, frequency })}
+          />
+        </div>
+
+        {#if draft.frequency === "weekly"}
+          <span></span>
+          <div class="flex gap-1">
+            {#each WEEKDAYS as letter, weekday (weekday)}
+              <button
+                type="button"
+                aria-label="Repeat on weekday {weekday}"
+                aria-pressed={draft.weekdays.includes(weekday)}
+                onclick={() => toggleWeekday(weekday)}
+                class="press-sm t-label flex size-7 items-center justify-center rounded-full border {draft.weekdays.includes(
+                  weekday,
+                )
+                  ? 'border-ink bg-ink text-ink-fg'
+                  : 'border-line text-fg-muted'}"
+              >
+                {letter}
+              </button>
+            {/each}
+          </div>
+        {/if}
+
+        {@render ends(draft.end, setEnd, (end) => (draft = { ...draft, end }))}
       </div>
 
-      {#if draft.frequency === "weekly"}
-        <div class="flex gap-1">
-          {#each WEEKDAYS as letter, weekday (weekday)}
-            <button
-              type="button"
-              aria-label="Repeat on weekday {weekday}"
-              aria-pressed={draft.weekdays.includes(weekday)}
-              onclick={() => toggleWeekday(weekday)}
-              class="press-sm t-label flex size-7 items-center justify-center rounded-full border {draft.weekdays.includes(
-                weekday,
-              )
-                ? 'border-ink bg-ink text-ink-fg'
-                : 'border-line text-fg-muted'}"
-            >
-              {letter}
-            </button>
-          {/each}
-        </div>
-      {/if}
-
-      {@render ends(draft.end, setEnd, (end) => (draft = { ...draft, end }))}
-
-      <div class="flex items-center justify-between gap-2 border-t border-line pt-3">
+      <div class="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
         <span class="t-micro min-w-0 truncate text-fg-faint">{describe(draft, day)}</span>
         <div class="flex shrink-0 gap-2">
           <button type="button" onclick={() => (custom = false)} class="press t-label px-2 text-fg-muted">Back</button>
