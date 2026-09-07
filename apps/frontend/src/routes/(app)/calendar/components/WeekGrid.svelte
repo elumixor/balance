@@ -219,6 +219,7 @@
               today={day.getTime() === todayStart}
               inWindow={inWindow(index, window)}
               {hourPx}
+              {dayWidth}
               {appear}
               {categories}
             />

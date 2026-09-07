@@ -9,6 +9,7 @@ import type { Category } from "$lib/core/records";
   import type { CalendarEvent } from "$lib/calendar/types";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { eventCategory } from "$lib/calendar/event-category";
+  import { practices, projects, tasks } from "$lib/core/synced.svelte";
 
   /**
    * A block is coloured by the Google calendar it lives on, so a week reads as bands of which
@@ -34,8 +35,8 @@ import type { Category } from "$lib/core/records";
     /** Drawn over another block, so it casts a shadow to lift it off the one under it. */
     stacked?: boolean;
     /**
-     * Under the mouse: slid out to the column, with the whole time and the sphere's name, in the
-     * same height, since the grid is minutes.
+     * Under the mouse: slid out to the column, with a caption under it naming the sphere and what
+     * the hour is for. The block's own height never moves, since the grid is minutes.
      */
     expanded?: boolean;
   } = $props();
@@ -53,8 +54,15 @@ import type { Category } from "$lib/core/records";
 
   const plannable = $derived([...categories.values()]);
 
-  /** The sphere's name, said in full once there is room for it. */
-  const about = $derived(category?.name ?? "");
+  /** What the hour is for, on top of what it counts as. */
+  const purpose = $derived(
+    (event.projectId && projects.all.find((p) => p.id === event.projectId)?.name) ||
+      (event.practiceId && practices.all.find((p) => p.id === event.practiceId)?.name) ||
+      (event.taskId && tasks.all.find((t) => t.id === event.taskId)?.title) ||
+      null,
+  );
+  /** "Work · Balance app": what it counts as, then what it is for. */
+  const caption = $derived([category?.name, purpose].filter((part): part is string => !!part).join(" · "));
 
   const selected = $derived(data.selected?.id === event.id);
   /** One of the blocks a box or a ⌘-click gathered, and so one a batch write is about. */
@@ -92,6 +100,14 @@ import type { Category } from "$lib/core/records";
   /** px: the block's horizontal padding plus the gap between title and time. */
   const CHROME_PX = 16;
   const timeFits = $derived(boxWidth > 0 && titleWidth + timeWidth + CHROME_PX <= boxWidth);
+  /**
+   * px the one-line title runs past the block. Under the mouse it is scrolled by that much and
+   * back, so a title the block cuts off can still be read without opening it.
+   */
+  const PADDING_X_PX = 12;
+  const overflow = $derived(expanded && oneLine ? Math.max(0, titleWidth - (boxWidth - PADDING_X_PX)) : 0);
+  /** Slow enough to read: about 40px a second, and never a blink. */
+  const marqueeSeconds = $derived(Math.max(2, overflow / 40 + 1));
 
   /** Set to the badge's rect while the quick category pick is open, null otherwise. */
   let categoryRect = $state<DOMRect | null>(null);
@@ -150,29 +166,14 @@ import type { Category } from "$lib/core/records";
     style="--c:{fillColor};border-color:{borderColor}"
   ></span>
 
-  {#if expanded && oneLine}
-    <span class="relative z-10 min-w-0 shrink-0 whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}">
-      {@render badge()}{label}</span
-    >
-    <span class="relative z-10 min-w-0 flex-1 truncate t-data-nano text-fg-muted/70">
-      {formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}{#if about}
-        · {about}{/if}
-    </span>
-  {:else if expanded}
-    <span
-      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}"
-      style="max-height:{titleLines}lh;overflow:hidden"
-    >
-      {@render badge()}{label}</span
-    >
-    <span class="relative z-10 flex w-full shrink-0 gap-1 overflow-hidden whitespace-nowrap t-data-nano text-fg-muted/70">
-      <span class="shrink-0">{formatClock(new Date(event.start))}–{formatClock(new Date(event.end))}</span>
-      {#if about}<span class="truncate">· {about}</span>{/if}
-    </span>
-  {:else if oneLine}
+  {#if oneLine}
     <span
       bind:this={titleEl}
-      class="relative z-10 min-w-0 flex-1 whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''}"
+      class="relative z-10 min-w-0 flex-1 whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''} {overflow >
+      0
+        ? 'marquee'
+        : ''}"
+      style={overflow > 0 ? `--shift:-${overflow}px;animation-duration:${marqueeSeconds}s` : ""}
     >
       {@render badge()}{label}</span
     >
@@ -183,8 +184,12 @@ import type { Category } from "$lib/core/records";
         : 'pointer-events-none absolute opacity-0'}">{formatClock(new Date(event.start))}</span
     >
   {:else}
+    <!-- One line of title: kept on it. Let wrap, a word that doesn't fit beside the badge went to
+         a second line the block then clipped, leaving a badge and a time with no name. -->
     <span
-      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}"
+      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''} {titleLines === 1
+        ? 'truncate'
+        : ''}"
       style="max-height:{titleLines}lh;overflow:hidden"
     >
       {@render badge()}{label}</span
@@ -197,6 +202,14 @@ import type { Category } from "$lib/core/records";
     </span>
   {/if}
 </div>
+
+{#if expanded && caption}
+  <span
+    class="caption-in pointer-events-none absolute top-full left-0 z-10 mt-1 max-w-full truncate rounded-md border border-line bg-surface px-1.5 py-0.5 t-micro text-fg-muted shadow-(--shadow-float)"
+  >
+    {caption}
+  </span>
+{/if}
 
 {#if categoryRect}
   <CategoryPicker

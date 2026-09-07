@@ -359,6 +359,24 @@ html.dark {
     left 140ms ease,
     width 140ms ease;
 }
+/* A one-line title longer than its block: read out by scrolling it under the mouse, and back. */
+.marquee {
+  animation: marquee 3s ease-in-out infinite alternate;
+}
+@keyframes marquee {
+  0%,
+  20% {
+    transform: translateX(0);
+  }
+  80%,
+  100% {
+    transform: translateX(var(--shift));
+  }
+}
+/* The caption under a slid-out block. */
+.caption-in {
+  animation: fade-in 140ms ease-out;
+}
 /* Slid out under the mouse: lifted off the whole column, and opaque over whatever it covers. */
 .event-fill.is-expanded,
 .event-fill.is-stacked.is-expanded {

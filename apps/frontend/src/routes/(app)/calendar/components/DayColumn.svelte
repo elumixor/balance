@@ -1,6 +1,6 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { BLOCK_GUTTER_PX, type PlacedSegment, resizeBands } from "$lib/calendar/week-grid";
+  import { BLOCK_GUTTER_PX, NEST_INSET_PX, type PlacedSegment, resizeBands } from "$lib/calendar/week-grid";
   import type { Category } from "$lib/core/records";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import type { TransitionConfig } from "svelte/transition";
@@ -22,6 +22,7 @@
     today,
     inWindow,
     hourPx,
+    dayWidth,
     appear,
     categories,
   }: {
@@ -31,6 +32,8 @@
     /** Whether the window is over this column, as against the runway either side. */
     inWindow: boolean;
     hourPx: number;
+    /** What the blocks were laid out against, so a block slid out lands on the same right edge. */
+    dayWidth: number;
     appear: (node: Element, params: { id: string }) => TransitionConfig;
     categories: Map<string, Category>;
   } = $props();
@@ -49,8 +52,6 @@
    * claim time it doesn't have. Only a mouse hovers: a finger is either dragging or tapping.
    */
   let hoveredId = $state<string | null>(null);
-  /** The column's drawn width, so an expanded block has a number to slide out to. */
-  let columnPx = $state(0);
 
   function enter(e: PointerEvent, id: string) {
     if (e.pointerType === "mouse") hoveredId = id;
@@ -69,7 +70,6 @@
 </script>
 
 <div
-  bind:clientWidth={columnPx}
   class="relative snap-start border-line border-l transition-opacity duration-300 {weekend ? 'bg-fg/[0.02]' : ''} {dimmed
     ? 'opacity-45'
     : ''}"
@@ -89,18 +89,30 @@
     <!-- Slid out to the column: the open card already says all of this, and a drag needs the
          block to stay where the pointer picked it up. -->
     {@const expanded = hoveredId === segment.event.id && !isSelected && !data.drag}
-    {@const left = expanded ? 0 : segment.left}
-    {@const width = expanded ? columnPx - BLOCK_GUTTER_PX : segment.width}
+    <!-- A block that sits on another keeps a sliver of it showing on the left, so it still reads
+         as being on top of something rather than having replaced it. -->
+    {@const left = expanded ? (segment.depth > 0 ? NEST_INSET_PX / 2 : 0) : segment.left}
+    {@const width = expanded ? dayWidth - BLOCK_GUTTER_PX - left : segment.width}
     {@const z = expanded ? 40 : isSelected ? 30 : segment.depth}
     {#if !dragging}
-      <TravelBand {segment} {categories} {hourPx} {inWindow} {left} {width} {z} />
+      <TravelBand
+        {segment}
+        {categories}
+        {hourPx}
+        {inWindow}
+        {left}
+        {width}
+        {z}
+        onenter={(e) => enter(e, segment.event.id)}
+        onleave={leave}
+      />
     {/if}
     <!-- The block inside is the focus stop; this answers the keys and the pointer around it. -->
     <div
       data-event
       role="button"
       tabindex="-1"
-      class="event-slot absolute touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
+      class="event-slot absolute cursor-pointer touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
       style="top:{segment.top}px;height:{segment.height}px;left:{left}px;width:{width}px;z-index:{z}"
       in:appear={{ id: segment.event.id }}
       onpointerenter={(e) => enter(e, segment.event.id)}

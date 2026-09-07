@@ -26,6 +26,8 @@
     left = segment.left,
     width = segment.width,
     z = segment.depth,
+    onenter,
+    onleave,
   }: {
     segment: PlacedSegment;
     categories: Map<string, Category>;
@@ -37,6 +39,9 @@
     left?: number;
     width?: number;
     z?: number;
+    /** The band is part of the block to the mouse: resting on it slides the block out too. */
+    onenter?: (e: PointerEvent) => void;
+    onleave?: () => void;
   } = $props();
 
   /** The glyph of each way of going, the same ones the card's chips wear. */
@@ -73,7 +78,9 @@
     role="link"
     tabindex="-1"
     aria-label="Open the {journey.mode} route in Maps"
-    class="event-slot absolute cursor-pointer overflow-hidden rounded-t-sm border border-b-0 border-dashed"
+    class="event-slot press-fade absolute cursor-pointer overflow-hidden rounded-t-sm border border-b-0 border-dashed"
+    onpointerenter={onenter}
+    onpointerleave={onleave}
     onclick={(e) => {
       e.stopPropagation();
       void openRoute(journey.url);
