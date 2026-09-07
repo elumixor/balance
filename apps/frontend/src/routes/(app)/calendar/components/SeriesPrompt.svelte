@@ -44,7 +44,6 @@
     oncancel: () => void;
   } = $props();
 
-  const WIDTH = 340;
   const MARGIN = 12;
   const GAP = 8;
 
@@ -90,13 +89,23 @@
   /** Where the question is anchored: the occurrence's own block, or where it was tapped. */
   let anchor = $state<DOMRect | null>(null);
 
+  /** Every block of the whole series on the strip — what the card has to stay out of the way of. */
+  let obstacles = $state<DOMRect[]>([]);
+
+  function rectsOf(id: string) {
+    return [...document.querySelectorAll<HTMLElement>(`[data-event-id="${CSS.escape(id)}"]`)].map((node) =>
+      node.getBoundingClientRect(),
+    );
+  }
+
   function measure() {
-    const found: Lifted[] = [];
-    for (const other of affected) {
-      const nodes = document.querySelectorAll<HTMLElement>(`[data-event-id="${CSS.escape(other.id)}"]`);
-      nodes.forEach((node, i) => found.push({ key: `${other.id}:${i}`, event: other, rect: node.getBoundingClientRect() }));
-    }
-    lifted = found;
+    lifted = affected.flatMap((other) =>
+      rectsOf(other.id).map((rect, i) => ({ key: `${other.id}:${i}`, event: other, rect })),
+    );
+    const series = event.seriesId
+      ? data.events.filter((other) => other.seriesId === event.seriesId || other.id === event.id)
+      : data.events.filter((other) => other.id === event.id);
+    obstacles = series.flatMap((other) => rectsOf(other.id));
     const own = document.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(event.id)}"]`);
     anchor = own?.getBoundingClientRect() ?? data.selectedRect;
   }
@@ -119,21 +128,41 @@
   let card = $state<HTMLElement>();
   let position = $state<{ left: number; top: number } | null>(null);
 
-  /** Beside the block if there's room on either side of it, otherwise clamped into the viewport. */
+  /**
+   * Beside the block if there's room — right, then left — and otherwise under or over it: the
+   * first place that clears every occurrence of the series and fits on screen, so the answer's
+   * picture is never under the question. Worked out from the whole series rather than the
+   * highlighted answer, so the card doesn't jump as the cursor moves along the row.
+   */
   function place() {
     if (!card) return;
+    const width = card.offsetWidth;
     const height = card.offsetHeight;
+    const maxLeft = window.innerWidth - width - MARGIN;
+    const maxTop = window.innerHeight - height - MARGIN;
     const rect = anchor ?? new DOMRect(window.innerWidth / 2, window.innerHeight / 2 - height / 2, 0, 0);
-    const right = rect.right + GAP;
-    const left = right + WIDTH <= window.innerWidth - MARGIN ? right : rect.left - GAP - WIDTH;
+    const candidates = [
+      { left: rect.right + GAP, top: rect.top },
+      { left: rect.left - GAP - width, top: rect.top },
+      { left: rect.left, top: rect.bottom + GAP },
+      { left: rect.left, top: rect.top - GAP - height },
+    ];
+    const fits = (c: { left: number; top: number }) =>
+      c.left >= MARGIN && c.left <= maxLeft && c.top >= MARGIN && c.top <= maxTop;
+    const clear = (c: { left: number; top: number }) =>
+      !obstacles.some(
+        (o) => c.left < o.right && c.left + width > o.left && c.top < o.bottom && c.top + height > o.top,
+      );
+    const spot = candidates.find((c) => fits(c) && clear(c)) ?? candidates.find(fits) ?? candidates[2];
     position = {
-      left: Math.min(Math.max(MARGIN, left), window.innerWidth - WIDTH - MARGIN),
-      top: Math.min(Math.max(MARGIN, rect.top), Math.max(MARGIN, window.innerHeight - MARGIN - height)),
+      left: Math.min(Math.max(MARGIN, spot.left), Math.max(MARGIN, maxLeft)),
+      top: Math.min(Math.max(MARGIN, spot.top), Math.max(MARGIN, maxTop)),
     };
   }
 
   $effect(() => {
     void anchor;
+    void obstacles;
     if (!card) return;
     place();
     const observer = new ResizeObserver(place);
@@ -202,8 +231,8 @@
     aria-label={heading}
     tabindex="-1"
     class="touch-auto rounded-t-2xl border border-line bg-surface p-1.5 shadow-(--shadow-float) outline-none
-      max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:safe-bottom sm:absolute sm:w-[var(--popup-w)] sm:rounded-lg"
-    style="--popup-w:{WIDTH}px;left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{position || !viewport.sm
+      max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:safe-bottom sm:absolute sm:w-max sm:max-w-[calc(100vw-24px)] sm:rounded-lg"
+    style="left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{position || !viewport.sm
       ? 'visible'
       : 'hidden'}"
     transition:fly={{ y: viewport.sm ? 6 : 400, duration: viewport.sm ? duration : duration * 1.6, easing: cubicOut }}
