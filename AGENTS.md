@@ -58,7 +58,13 @@ back to the calendar everyone else reads. Travel times are separate and never st
 `server/lib/travel/` asks the Google Routes API on demand, and answers `{ available: false }` when
 there is nowhere to leave from, so every screen has to cope with having no journeys. The
 same key (`GOOGLE_MAPS_API_KEY`) suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the
-spelling Maps itself gave back rather than one somebody typed from memory. Where a journey _starts_
+spelling Maps itself gave back rather than one somebody typed from memory. The suggestions are a
+list under the field and never text written into it: `AddressField` is the one address input in
+the app, and the map under it reports what it pinned without ever touching what is being typed.
+The places somebody has already named in Maps come in as a file, because Google exposes labels and
+saved places nowhere else: `$lib/travel/google-places.ts` reads both vintages of the Takeout
+GeoJSON (pure, tested), and the sheet it opens ticks nothing by default — a starred list is
+hundreds long and four of them are worth naming. Where a journey _starts_
 is the event's own answer — a place named in settings, or the device's position, resolved by
 `$lib/travel/origin.svelte.ts` and chosen per event on the card. That choice lives on the device,
 because "where I am now" only means anything on the machine holding the person. Until a person

@@ -43,6 +43,7 @@ export default defineConfig({
         "src/lib/calendar/meeting.ts",
         "src/lib/calendar/occurrence.ts",
         "src/lib/travel/whereabouts.ts",
+        "src/lib/travel/google-places.ts",
         "src/lib/core/persist.ts",
         "src/lib/planning/rating.ts",
         "src/lib/planning/zone.ts",

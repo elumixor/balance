@@ -2,13 +2,19 @@
   import { CalendarPlus } from "lucide-svelte";
   import { fade } from "svelte/transition";
   import { icsImport } from "$lib/calendar/ics-import.svelte";
+  import { placesImport } from "$lib/travel/places-import.svelte";
   import { isIOSApp } from "$lib/mobile/platform";
 
   /**
-   * A calendar file dropped onto the window, which is how the Mac app and a browser tab are given
-   * one — the phone is handed its files by iOS instead (`ics-import.svelte.ts`). Nothing is
-   * imported by the drop itself: the file opens the same sheet a shared one opens, with every
-   * event in it still to be ticked off.
+   * A file dropped onto the window, which is how the Mac app and a browser tab are given one —
+   * the phone is handed its files by iOS instead (`ics-import.svelte.ts`). Nothing is imported by
+   * the drop itself: the file opens the same sheet a shared one opens, with every event or place
+   * in it still to be ticked off.
+   *
+   * Two kinds land here, and the extension is what tells them apart: a calendar, and a Google
+   * Maps export of the places somebody has already named (`$lib/travel/google-places.ts`). A
+   * calendar is the assumption for anything else, because that is what the drop was built for and
+   * an `.ics` served without an extension is commoner than a mis-named export.
    *
    * The macOS shell has to be told not to catch the drop first — see `disable_drag_drop_handler`
    * in `src-tauri/src/lib.rs`, without which the webview never sees a file at all.
@@ -57,13 +63,18 @@
     e.preventDefault();
     depth = 0;
     const file = e.dataTransfer?.files?.[0];
-    if (file) void icsImport.receiveFile(file);
+    if (file) void receive(file);
+  }
+
+  /** Which sheet the file opens. A Maps export is JSON; everything else is read as a calendar. */
+  function receive(file: File) {
+    return /\.(json|geojson)$/i.test(file.name) ? placesImport.receiveFile(file) : icsImport.receiveFile(file);
   }
 </script>
 
 <svelte:window ondragenter={onenter} ondragover={onover} ondragleave={onleave} {ondrop} ondragend={() => (depth = 0)} />
 
-{#if dragging && !icsImport.open}
+{#if dragging && !icsImport.open && !placesImport.open}
   <div
     class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-overlay-strong p-8
       backdrop-blur-sm"
@@ -74,8 +85,10 @@
         px-10 py-8 shadow-float"
     >
       <CalendarPlus size={28} class="text-fg-muted" />
-      <p class="t-heading">Drop a calendar file</p>
-      <p class="t-micro text-fg-muted">An .ics file opens as a list of events to import.</p>
+      <p class="t-heading">Drop a file</p>
+      <p class="t-micro text-fg-muted">
+        An .ics file opens as a list of events; a Google Maps export as a list of places.
+      </p>
     </div>
   </div>
 {/if}

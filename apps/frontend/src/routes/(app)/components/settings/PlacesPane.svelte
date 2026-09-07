@@ -5,7 +5,8 @@
   import type { PlaceDetails, PlaceSuggestion } from "$lib/travel/places";
   import { preferences } from "$lib/account/preferences.svelte";
   import type { SavedLocation, TravelMode } from "$lib/account/preferences-types";
-  import { Bike, Bus, Car, Footprints, Plus, Route, Timer, Trash2 } from "lucide-svelte";
+  import { placesImport } from "$lib/travel/places-import.svelte";
+  import { Bike, Bus, Car, Download, Footprints, Plus, Route, Timer, Trash2 } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
@@ -25,6 +26,25 @@
    */
   const locations = $derived(preferences.travel.locations);
   const defaultId = $derived(preferences.travel.defaultLocationId);
+
+  /**
+   * The places already named in Google Maps, taken from a Takeout export.
+   *
+   * Home and the office are said once, in Maps, by everybody who uses it, and Google offers no
+   * way to ask for them — saved places and labels are Maps' own account data, not anything the
+   * Places API indexes. So the way in is the file Takeout gives back, and this is the button that
+   * opens it; the sheet that lists what is inside is `ImportPlacesDialog.svelte`, and a file
+   * dropped on the window arrives at the same place.
+   */
+  let picker = $state<HTMLInputElement>();
+
+  function chooseFile(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    // Cleared straight away, or choosing the same file twice in a row fires no event the second time.
+    input.value = "";
+    if (file) void placesImport.receiveFile(file);
+  }
 
   /** The form: a new place, or the id of the one being changed. */
   let editing = $state<"new" | string | null>(null);
@@ -163,6 +183,22 @@
     {:else}
       <SettingRow icon={Plus} label={locations.length === 0 ? "Add your first place" : "Add a place"} onclick={() => open()} />
     {/if}
+
+    <SettingRow
+      icon={Download}
+      label="Import from Google Maps"
+      note="Your labelled and saved places, from a Google Takeout export"
+      onclick={() => picker?.click()}
+    />
+    <input
+      bind:this={picker}
+      type="file"
+      accept=".json,.geojson,application/json,application/geo+json"
+      onchange={chooseFile}
+      class="hidden"
+      aria-hidden="true"
+      tabindex="-1"
+    />
   </div>
 
   <Divider />

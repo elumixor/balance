@@ -2,7 +2,16 @@
   import { goto } from "$app/navigation";
   import { auth } from "$lib/account/auth.svelte";
   import { AppLoading } from "$lib/components";
-  import { IcsDropZone, ImportIcsDialog, NavStrip, SessionNudge, SettingsDialog, SideNav, TabBar } from "./components";
+  import {
+    IcsDropZone,
+    ImportIcsDialog,
+    ImportPlacesDialog,
+    NavStrip,
+    SessionNudge,
+    SettingsDialog,
+    SideNav,
+    TabBar,
+  } from "./components";
   import { isBareKey, isRefreshKey, isSettingsKey } from "$lib/platform/keys";
   import { syncStatus } from "$lib/core/synced.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
@@ -156,6 +165,7 @@
   <!-- A file shared into the app can arrive on any screen, so the sheet that reads it lives here
        with the settings panel rather than on the calendar. -->
   <ImportIcsDialog />
+  <ImportPlacesDialog />
   <!-- The other way a file arrives: dropped onto the Mac app or a browser tab, rather than shared
        into the phone. -->
   <IcsDropZone />
