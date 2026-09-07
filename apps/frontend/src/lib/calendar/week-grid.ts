@@ -483,3 +483,28 @@ export function travelBandBox(
   if (visible < TRAVEL_BAND_MIN_PX) return null;
   return { top, height: visible + segment.height / 2, visible, labelled: visible >= TRAVEL_LABEL_PX };
 }
+
+/** px a slid-out block's caption takes under or over it: one line of text and its gap. */
+export const CAPTION_PX = 22;
+
+export type CaptionSide = "below" | "above";
+
+/**
+ * Where a block's caption goes: under it when nothing is drawn there, over it when the room is
+ * above instead, and under it regardless when both are taken — a halo keeps it readable, and a
+ * caption that moved somewhere unexpected would be the harder thing to find. A journey band
+ * counts as something above; the top of the grid counts as no room at all.
+ */
+export function captionSide(
+  segment: Pick<PlacedSegment, "top" | "height">,
+  others: readonly Pick<PlacedSegment, "top" | "height">[],
+  bandAbove: boolean,
+  captionPx: number = CAPTION_PX,
+): CaptionSide {
+  const bottom = segment.top + segment.height;
+  const taken = (from: number, to: number) => others.some((o) => o.top < to && o.top + o.height > from);
+  if (!taken(bottom, bottom + captionPx)) return "below";
+  const above = segment.top - captionPx;
+  if (above >= 0 && !bandAbove && !taken(above, segment.top)) return "above";
+  return "below";
+}

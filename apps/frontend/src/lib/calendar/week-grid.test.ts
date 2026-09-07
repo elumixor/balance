@@ -7,6 +7,7 @@ import {
   BLOCK_GUTTER_PX,
   blocksFor,
   CROWDED_HOUR_PX,
+  captionSide,
   DRAW_MARGIN_DAYS,
   daySpans,
   drawnBounds,
@@ -433,6 +434,41 @@ describe("resizeBands", () => {
     const { band, overhang } = resizeBands(0, true);
     expect(band).toBe(RESIZE_BAND_SELECTED_PX);
     expect(overhang).toBe(RESIZE_BAND_SELECTED_PX);
+  });
+});
+
+describe("captionSide", () => {
+  const block = { top: 100, height: 60 };
+
+  it("goes under the block when nothing is drawn there", () => {
+    expect(captionSide(block, [], false)).toBe("below");
+    expect(captionSide(block, [{ top: 200, height: 30 }], false)).toBe("below");
+  });
+
+  it("moves over the block when the next one starts right under it", () => {
+    expect(captionSide(block, [{ top: 160, height: 30 }], false)).toBe("above");
+    // Ten pixels of gap is still not a line's worth.
+    expect(captionSide(block, [{ top: 170, height: 30 }], false)).toBe("above");
+  });
+
+  it("stays under it when above is taken too — by a block, a journey band, or the top of the grid", () => {
+    expect(
+      captionSide(
+        block,
+        [
+          { top: 160, height: 30 },
+          { top: 40, height: 70 },
+        ],
+        false,
+      ),
+    ).toBe("below");
+    expect(captionSide(block, [{ top: 160, height: 30 }], true)).toBe("below");
+    expect(captionSide({ top: 10, height: 60 }, [{ top: 70, height: 30 }], false)).toBe("below");
+  });
+
+  it("counts a block that only grazes the caption's line as in the way", () => {
+    expect(captionSide(block, [{ top: 181, height: 30 }], false)).toBe("above");
+    expect(captionSide(block, [{ top: 182, height: 30 }], false)).toBe("below");
   });
 });
 

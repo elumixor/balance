@@ -7,6 +7,7 @@ import type { Category } from "$lib/core/records";
   import { DEFAULT_ICON } from "$lib/ui/icons";
   import { store } from "$lib/core/store.svelte";
   import type { CalendarEvent } from "$lib/calendar/types";
+  import type { CaptionSide } from "$lib/calendar/week-grid";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { eventCategory } from "$lib/calendar/event-category";
   import { practices, projects, tasks } from "$lib/core/synced.svelte";
@@ -26,6 +27,7 @@ import type { Category } from "$lib/core/records";
     flatBottom = false,
     stacked = false,
     expanded = false,
+    caption: captionSide = "below",
   }: {
     event: CalendarEvent;
     categories: Map<string, Category>;
@@ -39,6 +41,8 @@ import type { Category } from "$lib/core/records";
      * the hour is for. The block's own height never moves, since the grid is minutes.
      */
     expanded?: boolean;
+    /** Which side of the block has room for the caption. */
+    caption?: CaptionSide;
   } = $props();
 
   const data = calendarData;
@@ -222,7 +226,10 @@ import type { Category } from "$lib/core/records";
   <!-- A line under the block in the sphere's own colour, haloed in the page's own colour so it
        reads over whatever event sits beneath it. -->
   <span
-    class="caption-in pointer-events-none absolute top-full left-0 z-10 mt-0.5 flex max-w-full items-center gap-1 px-1.5 py-0.5 t-micro leading-[14px] font-semibold"
+    class="caption-in pointer-events-none absolute left-0 z-10 flex max-w-full items-center gap-1 px-1.5 py-0.5 t-micro leading-[14px] font-semibold {captionSide ===
+    'above'
+      ? 'bottom-full mb-0.5'
+      : 'top-full mt-0.5'}"
     style="color:{fillColor};text-shadow:0 0 2px var(--bg),0 0 4px var(--bg),0 0 8px var(--bg),0 1px 2px var(--bg);filter:drop-shadow(0 0 2px var(--bg))"
   >
     <CategoryIcon {icon} color={fillColor} size={12} bg={false} />

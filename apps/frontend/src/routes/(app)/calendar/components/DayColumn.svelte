@@ -1,6 +1,7 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { BLOCK_GUTTER_PX, NEST_INSET_PX, type PlacedSegment, resizeBands } from "$lib/calendar/week-grid";
+  import { BLOCK_GUTTER_PX, captionSide, NEST_INSET_PX, type PlacedSegment, resizeBands } from "$lib/calendar/week-grid";
+  import { travelTimes } from "$lib/travel/times.svelte";
   import type { Category } from "$lib/core/records";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import type { TransitionConfig } from "svelte/transition";
@@ -94,6 +95,13 @@
     {@const left = expanded ? (segment.depth > 0 ? NEST_INSET_PX / 2 : 0) : segment.left}
     {@const width = expanded ? dayWidth - BLOCK_GUTTER_PX - left : segment.width}
     {@const z = expanded ? 40 : isSelected ? 30 : segment.depth}
+    {@const caption = expanded
+      ? captionSide(
+          segment,
+          blocks.filter((other) => other !== segment),
+          !segment.continuesBefore && travelTimes.journeyFor(segment.event, data.events) !== null,
+        )
+      : "below"}
     {#if !dragging}
       <TravelBand
         {segment}
@@ -136,6 +144,7 @@
         {categories}
         stacked={segment.depth > 0}
         {expanded}
+        {caption}
         flatTop={!expanded && segment.continuesBefore}
         flatBottom={!expanded && segment.continuesAfter}
       />
