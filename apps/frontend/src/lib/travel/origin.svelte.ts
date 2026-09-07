@@ -89,11 +89,15 @@ class TravelOrigin {
     return { choice: fallback ? { kind: "saved", id: fallback } : HERE };
   }
 
-  /** The label a picker shows: the event that put you there, the place's name, or where the device is. */
+  /**
+   * The label a picker shows: the place the calendar left you at, the named place, or where the
+   * device is. The place rather than the event that left you there — "Bus to Prague" reads as
+   * the bus's own stop when the journey actually starts where it ended.
+   */
   labelFor(choice: OriginChoice, event: CalendarEvent, events: OriginContext): string {
     if (choice.kind === "calendar") {
       const followed = this.followed(event, events);
-      return "where" in followed ? followed.where.event.title : this.labelFor(followed.choice, event, events);
+      return "where" in followed ? followed.where.address : this.labelFor(followed.choice, event, events);
     }
     return choice.kind === "here" ? "Where I am" : (preferences.location(choice.id)?.label ?? "Where I am");
   }
