@@ -9,7 +9,7 @@
   import { Download, ExternalLink, RefreshCw, RotateCcw } from "lucide-svelte";
 
   /**
-   * Which build this is, and how the next one arrives — one line.
+   * Which build this is, and how the next one arrives — one row at the foot of settings.
    *
    * The facts read left to right: the version (its commit and build time behind a hover), the
    * platform, and on the Mac when the app last asked for a newer one. The buttons are the roads
@@ -41,20 +41,23 @@
     return `Checked ${day} at ${time}`;
   });
 
-  const facts = $derived([buildInfo.platform, ...(isDesktop ? [checked] : [])]);
+  const facts = $derived([`${buildInfo.platform} build`, ...(isDesktop ? [checked] : [])]);
   const build = $derived(desktopDownload.build);
 </script>
 
 <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-  <p class="t-data-micro flex min-w-0 flex-wrap items-center gap-x-2 text-fg-muted">
-    <Tooltip label={buildInfo.provenance}>
-      <span class="cursor-help select-text">{buildInfo.version}</span>
-    </Tooltip>
-    {#each facts as fact (fact)}
-      <span class="text-line-strong">·</span>
-      <span class="text-fg-faint">{fact}</span>
-    {/each}
-  </p>
+  <div class="min-w-0">
+    <p class="t-label text-fg">Balance</p>
+    <p class="t-micro flex flex-wrap items-center gap-x-1.5 text-fg-faint">
+      <Tooltip label={buildInfo.provenance}>
+        <span class="cursor-help select-text">Version {buildInfo.version}</span>
+      </Tooltip>
+      {#each facts as fact (fact)}
+        <span class="text-line-strong">·</span>
+        <span>{fact}</span>
+      {/each}
+    </p>
+  </div>
 
   <div class="flex shrink-0 items-center gap-2">
     {#if isDesktop}
@@ -68,11 +71,11 @@
         {#if ready}<RotateCcw size={14} />Restart{:else}<RefreshCw size={14} class={busy ? "animate-spin" : ""} />Check now{/if}
       </button>
     {/if}
-    {#if !isNativeShell && build}
+    {#if !isNativeShell}
       <a
         href={DESKTOP_DOWNLOAD_URL}
         download
-        title="Balance for Mac · {build.version} · {build.arch} · {desktopDownload.size}"
+        title={build ? `Balance for Mac · ${build.version} · ${build.arch} · ${desktopDownload.size}` : "Balance for Mac"}
         class="press t-label flex items-center gap-1.5 rounded-md border border-line-strong px-3 py-1.5 text-fg"
       >
         <Download size={14} />
