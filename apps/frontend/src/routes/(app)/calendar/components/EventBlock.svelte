@@ -61,8 +61,8 @@ import type { Category } from "$lib/core/records";
       (event.taskId && tasks.all.find((t) => t.id === event.taskId)?.title) ||
       null,
   );
-  /** "Work · Balance app": what it counts as, then what it is for. */
-  const caption = $derived([category?.name, purpose].filter((part): part is string => !!part).join(" · "));
+  /** What it is for when that is known — "Balance app" — and the sphere's name otherwise. */
+  const caption = $derived(purpose ?? category?.name ?? "");
 
   const selected = $derived(data.selected?.id === event.id);
   /** One of the blocks a box or a ⌘-click gathered, and so one a batch write is about. */
@@ -89,14 +89,17 @@ import type { Category } from "$lib/core/records";
    */
   let boxWidth = $state(0);
   let timeWidth = $state(0);
-  let titleEl = $state<HTMLElement | null>(null);
-  let titleWidth = $state(0);
+  let labelEl = $state<HTMLElement | null>(null);
+  let labelWidth = $state(0);
   $effect(() => {
     // Re-measure whenever the block resizes or the title changes; scrollWidth is the untruncated
     // width, so it doesn't move when the time appears next to it and can't oscillate.
     void [label, boxWidth, titleLines];
-    titleWidth = titleEl?.scrollWidth ?? 0;
+    labelWidth = labelEl?.scrollWidth ?? 0;
   });
+  /** px: the badge and the gap after it, which the title carries before its first letter. */
+  const BADGE_PX = 18;
+  const titleWidth = $derived(labelWidth + BADGE_PX);
   /** px: the block's horizontal padding plus the gap between title and time. */
   const CHROME_PX = 16;
   const timeFits = $derived(boxWidth > 0 && titleWidth + timeWidth + CHROME_PX <= boxWidth);
@@ -147,6 +150,19 @@ import type { Category } from "$lib/core/records";
   {/if}
 {/snippet}
 
+<!-- The badge stays put — it is a button — and only the words slide under the mouse, clipped
+     at the badge's edge so they never pass under it. -->
+{#snippet titleRow()}
+  {@render badge()}
+  <span class="min-w-0 flex-1 overflow-hidden whitespace-nowrap {overflow > 0 ? '' : 'text-ellipsis'}">
+    <span
+      bind:this={labelEl}
+      class="inline-block whitespace-nowrap align-top {overflow > 0 ? 'marquee' : ''}"
+      style={overflow > 0 ? `--shift:-${overflow}px;animation-duration:${marqueeSeconds}s` : ""}>{label}</span
+    >
+  </span>
+{/snippet}
+
 <div
   role="button"
   tabindex={ghost ? -1 : 0}
@@ -169,38 +185,30 @@ import type { Category } from "$lib/core/records";
   ></span>
 
   {#if oneLine}
-    <span
-      bind:this={titleEl}
-      class="relative z-10 min-w-0 flex-1 whitespace-nowrap t-micro text-fg {event.declined ? 'line-through' : ''} {overflow >
-      0
-        ? 'marquee'
-        : ''}"
-      style={overflow > 0 ? `--shift:-${overflow}px;animation-duration:${marqueeSeconds}s` : ""}
-    >
-      {@render badge()}{label}</span
-    >
+    <span class="relative z-10 flex min-w-0 flex-1 items-center t-micro text-fg {event.declined ? 'line-through' : ''}">
+      {@render titleRow()}
+    </span>
     <span
       bind:clientWidth={timeWidth}
       class="z-10 shrink-0 t-data-nano text-fg-muted/60 {timeFits
         ? 'relative'
         : 'pointer-events-none absolute opacity-0'}">{formatClock(new Date(event.start))}</span
     >
-  {:else}
+  {:else if titleLines === 1}
     <!-- One line of title: kept on it. Let wrap, a word that doesn't fit beside the badge went to
          a second line the block then clipped, leaving a badge and a time with no name. -->
+    <span class="relative z-10 flex w-full items-center t-micro text-fg {event.declined ? 'line-through' : ''}">
+      {@render titleRow()}
+    </span>
+  {:else}
     <span
-      bind:this={titleEl}
-      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''} {overflow > 0
-        ? 'marquee whitespace-nowrap'
-        : titleLines === 1
-          ? 'truncate'
-          : ''}"
-      style="max-height:{titleLines}lh;overflow:{overflow > 0 ? 'visible' : 'hidden'};{overflow > 0
-        ? `--shift:-${overflow}px;animation-duration:${marqueeSeconds}s`
-        : ''}"
+      class="relative z-10 w-full t-micro text-fg {event.declined ? 'line-through' : ''}"
+      style="max-height:{titleLines}lh;overflow:hidden"
     >
       {@render badge()}{label}</span
     >
+  {/if}
+  {#if !oneLine}
     <span
       class="relative z-10 flex w-full shrink-0 overflow-hidden whitespace-nowrap t-data-nano text-fg-muted/60"
     >
@@ -214,7 +222,7 @@ import type { Category } from "$lib/core/records";
   <!-- A quiet line under the block in the sphere's own colour, with its glyph: a caption, not a card. -->
   <span
     class="caption-in pointer-events-none absolute top-full left-0 z-10 mt-0.5 flex max-w-full items-center gap-1 px-1 t-data-nano leading-[12px]"
-    style="color:{fillColor}"
+    style="color:{fillColor};filter:drop-shadow(0 0 1.5px var(--bg)) drop-shadow(0 0 3px var(--bg))"
   >
     <CategoryIcon {icon} color={fillColor} size={11} bg={false} />
     <span class="truncate">{caption}</span>
