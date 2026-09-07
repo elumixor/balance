@@ -211,10 +211,13 @@ import type { Category } from "$lib/core/records";
 </div>
 
 {#if expanded && caption}
+  <!-- A quiet line under the block in the sphere's own colour, with its glyph: a caption, not a card. -->
   <span
-    class="caption-in pointer-events-none absolute top-full left-0 z-10 mt-1 max-w-full truncate rounded-md border border-line bg-surface px-1.5 py-0.5 t-micro text-fg-muted shadow-(--shadow-float)"
+    class="caption-in pointer-events-none absolute top-full left-0 z-10 mt-0.5 flex max-w-full items-center gap-1 px-1 t-data-nano leading-[12px]"
+    style="color:{fillColor}"
   >
-    {caption}
+    <CategoryIcon {icon} color={fillColor} size={11} bg={false} />
+    <span class="truncate">{caption}</span>
   </span>
 {/if}
 
