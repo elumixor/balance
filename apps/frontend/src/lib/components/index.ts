@@ -35,5 +35,6 @@ export { default as StarGlyph } from "./StarGlyph.svelte";
 export { default as StatusChip } from "./StatusChip.svelte";
 export { default as Switch } from "./Switch.svelte";
 export { default as Textarea } from "./Textarea.svelte";
+export { default as TimeField } from "./TimeField.svelte";
 export { default as Tooltip } from "./Tooltip.svelte";
 export { default as TooltipAnchor } from "./TooltipAnchor.svelte";

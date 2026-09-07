@@ -414,6 +414,11 @@ html.dark {
     overscroll-behavior: none;
   }
 
+  /* Selected text is inked, not the platform's blue: the app has no hue of its own to lend it. */
+  ::selection {
+    background-color: color-mix(in srgb, var(--ink) 16%, transparent);
+  }
+
   body {
     margin: 0;
     min-height: 100dvh;

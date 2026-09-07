@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { Divider, NumberField, Select } from "$lib/components";
+  import { Divider, NumberField, Select, TimeField } from "$lib/components";
   import { isNativeShell } from "$lib/desktop/platform";
   import { preferences } from "$lib/account/preferences.svelte";
   import { Bell, BellRing, CalendarRange, Navigation, Sunrise, Sunset, Timer, Volume2 } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
-  import TimeInput from "./TimeInput.svelte";
   import ToggleRow from "./ToggleRow.svelte";
 
   /**
@@ -44,10 +43,10 @@
       onchange={(enabled) => preferences.setSessions({ enabled })}
     />
     <SettingRow icon={Sunset} label="Evening" disabled={!sessions.enabled}>
-      <TimeInput value={sessions.eveningTime} label="Evening session time" onchange={(eveningTime) => preferences.setSessions({ eveningTime })} />
+      <TimeField value={sessions.eveningTime} ariaLabel="Evening session time" oninput={(eveningTime) => preferences.setSessions({ eveningTime })} />
     </SettingRow>
     <SettingRow icon={Sunrise} label="Morning" disabled={!sessions.enabled}>
-      <TimeInput value={sessions.morningTime} label="Morning session time" onchange={(morningTime) => preferences.setSessions({ morningTime })} />
+      <TimeField value={sessions.morningTime} ariaLabel="Morning session time" oninput={(morningTime) => preferences.setSessions({ morningTime })} />
     </SettingRow>
     <SettingRow icon={CalendarRange} label="Week" disabled={!sessions.enabled}>
       <Select
@@ -57,7 +56,7 @@
         variant="bare"
         onchange={(weeklyWeekday) => preferences.setSessions({ weeklyWeekday })}
       />
-      <TimeInput value={sessions.weeklyTime} label="Weekly session time" onchange={(weeklyTime) => preferences.setSessions({ weeklyTime })} />
+      <TimeField value={sessions.weeklyTime} ariaLabel="Weekly session time" oninput={(weeklyTime) => preferences.setSessions({ weeklyTime })} />
     </SettingRow>
   </div>
 

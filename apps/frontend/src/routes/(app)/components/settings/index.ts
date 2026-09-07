@@ -9,6 +9,5 @@ export { default as SettingsGroup } from "./SettingsGroup.svelte";
 export { default as SettingsNav } from "./SettingsNav.svelte";
 export { default as StarRecord } from "./StarRecord.svelte";
 export { default as ThemeSwitch } from "./ThemeSwitch.svelte";
-export { default as TimeInput } from "./TimeInput.svelte";
 export { default as TimeZonesPane } from "./TimeZonesPane.svelte";
 export { default as ToggleRow } from "./ToggleRow.svelte";

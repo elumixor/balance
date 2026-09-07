@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CardRow } from "$lib/components";
+  import { CardRow, TimeField } from "$lib/components";
   import { preferences } from "$lib/account/preferences.svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import type { EventDraft } from "$lib/calendar/event-draft.svelte";
@@ -11,7 +11,6 @@
   import { ArrowRight, CalendarClock, Clock, Repeat } from "lucide-svelte";
   import type { Pickers } from "./EventEditor.svelte";
   import RepeatPicker from "./RepeatPicker.svelte";
-  import TimeField from "./TimeField.svelte";
   import TimeZonePicker from "./TimeZonePicker.svelte";
 
   /**

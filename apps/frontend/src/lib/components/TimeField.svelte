@@ -1,6 +1,6 @@
 <script lang="ts">
   import { MINUTES_PER_DAY, normalizeClock, spanBetween, toClock, toMinutes } from "$lib/calendar/clock-text";
-  import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "$lib/components/float";
+  import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "./float";
   import { formatHoursAndMinutes } from "$lib/ui/format";
 
   /**
@@ -10,11 +10,14 @@
    *
    * Both ends use this, so a duration can be given from either side: picking in the start field
    * moves the start and leaves the end where it is, and picking in the end field does the reverse.
+   *
+   * Without a counterpart it is a time of day on its own — "when should the evening reminder
+   * arrive" — and offers the whole day's quarter hours, with no span to speak of.
    */
   let {
     value = $bindable(""),
     /** The other end of the same event, as "HH:MM" — every suggestion is measured from it. */
-    counterpart,
+    counterpart = null,
     /** Which end this field is, which is to say which way the suggestions run from the other one. */
     end = false,
     oninput,
@@ -25,7 +28,7 @@
     ariaLabel,
   }: {
     value: string;
-    counterpart: string;
+    counterpart?: string | null;
     end?: boolean;
     oninput?: (value: string) => void;
     oncommit?: () => void;
@@ -48,13 +51,16 @@
   /** What the field said when it was last agreed on, and what anything unreadable goes back to. */
   let fallback = "";
 
-  const other = $derived(toMinutes(counterpart));
+  const other = $derived(counterpart === null ? null : toMinutes(counterpart));
 
   /**
    * Every quarter hour on this side of the other end, in clock order: after it for an end field,
    * before it for a start field. Each row is labelled with the span it would make.
    */
   const options = $derived.by(() => {
+    if (counterpart === null) {
+      return Array.from({ length: SLOTS }, (_, i) => ({ clock: toClock(i * STEP_MINUTES), span: "" }));
+    }
     if (other === null) return [];
     return Array.from({ length: SLOTS }, (_, i) => {
       const minutes = (end ? i + 1 : SLOTS - i) * STEP_MINUTES;
@@ -72,6 +78,7 @@
   /** Whatever's typed points somewhere in the list: its own row, or the nearest one to it. */
   function matchIndex() {
     const mine = toMinutes(value);
+    if (counterpart === null) return mine === null ? 0 : Math.round(mine / STEP_MINUTES) % SLOTS;
     if (other === null || mine === null) return end ? 0 : options.length - 1;
     const clock = normalizeClock(value);
     const exact = options.findIndex((o) => o.clock === clock);
@@ -230,7 +237,7 @@
           class="menu-row {i === highlighted ? 'bg-surface-alt' : ''}"
         >
           <span>{option.clock}</span>
-          <span class="text-fg-faint">{option.span}</span>
+          {#if option.span}<span class="text-fg-faint">{option.span}</span>{/if}
         </button>
       </li>
     {/each}
