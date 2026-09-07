@@ -22,6 +22,9 @@
     categories,
     hourPx,
     inWindow,
+    left = segment.left,
+    width = segment.width,
+    z = segment.depth,
   }: {
     segment: PlacedSegment;
     categories: Map<string, Category>;
@@ -29,6 +32,10 @@
     /** Only a column the window is over asks about its journeys: the runway either side would be
      *  requests for a week nobody is looking at. */
     inWindow: boolean;
+    /** Where the block is drawn right now — it slides out under the mouse, and the band goes with it. */
+    left?: number;
+    width?: number;
+    z?: number;
   } = $props();
 
   /** The glyph of each way of going, the same ones the card's chips wear. */
@@ -63,14 +70,14 @@
     role="link"
     tabindex="-1"
     aria-label="Open the {journey.mode} route in Maps"
-    class="absolute cursor-pointer overflow-hidden rounded-t-sm border border-b-0 border-dashed"
+    class="event-slot absolute cursor-pointer overflow-hidden rounded-t-sm border border-b-0 border-dashed"
     onclick={(e) => {
       e.stopPropagation();
       void openRoute(journey.url);
     }}
     onkeydown={(e) => e.key === "Enter" && void openRoute(journey.url)}
     onpointerdown={(e) => e.stopPropagation()}
-    style="top:{band.top}px;height:{band.height}px;left:{segment.left}px;width:{segment.width}px;z-index:{segment.depth};border-color:{withAlpha(
+    style="top:{band.top}px;height:{band.height}px;left:{left}px;width:{width}px;z-index:{z};border-color:{withAlpha(
       color,
       0.45,
     )};background:repeating-linear-gradient(135deg,{withAlpha(color, 0.16)} 0 3px,transparent 3px 8px)"

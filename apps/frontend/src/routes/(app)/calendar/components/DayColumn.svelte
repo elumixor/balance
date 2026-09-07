@@ -43,32 +43,22 @@
   const dimmed = $derived(planMode.active && !planMode.isDay(day));
 
   /**
-   * The block a mouse has rested on. It grows to the column's width and shows what the card
-   * would — the project, where it is, the call — so the week can be read without opening
-   * anything. Only a mouse can rest: a finger is either dragging or tapping, and a block that
-   * grew under a finger would move the thing it was about to press.
+   * The block the mouse is over. It slides out to the column's width and says what the card
+   * would — the sphere and the project, the whole time — so the week can be read without opening
+   * anything. Its height never moves: the grid is minutes, and a block that grew taller would
+   * claim time it doesn't have. Only a mouse hovers: a finger is either dragging or tapping.
    */
   let hoveredId = $state<string | null>(null);
-  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Long enough that crossing a block on the way to another doesn't grow it. */
-  const HOVER_DELAY_MS = 220;
+  /** The column's drawn width, so an expanded block has a number to slide out to. */
+  let columnPx = $state(0);
 
   function enter(e: PointerEvent, id: string) {
-    if (e.pointerType !== "mouse") return;
-    if (hoverTimer) clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => {
-      hoverTimer = null;
-      hoveredId = id;
-    }, HOVER_DELAY_MS);
+    if (e.pointerType === "mouse") hoveredId = id;
   }
 
   function leave() {
-    if (hoverTimer) clearTimeout(hoverTimer);
-    hoverTimer = null;
     hoveredId = null;
   }
-
-  $effect(() => () => leave());
 
   /** Enter or Space on a focused block does what a tap does. */
   function onkeydown(e: KeyboardEvent & { currentTarget: HTMLElement }, segment: PlacedSegment) {
@@ -79,6 +69,7 @@
 </script>
 
 <div
+  bind:clientWidth={columnPx}
   class="relative snap-start border-line border-l transition-opacity duration-300 {weekend ? 'bg-fg/[0.02]' : ''} {dimmed
     ? 'opacity-45'
     : ''}"
@@ -95,25 +86,22 @@
     <!-- Resize bands sized off the drawn height, so the two can never meet and never eat
          the middle, which is what opens the event. -->
     {@const bands = resizeBands(segment.height, isSelected)}
-    <!-- Grown out to the column: the open card already says all of this, and a drag needs the
+    <!-- Slid out to the column: the open card already says all of this, and a drag needs the
          block to stay where the pointer picked it up. -->
     {@const expanded = hoveredId === segment.event.id && !isSelected && !data.drag}
+    {@const left = expanded ? 0 : segment.left}
+    {@const width = expanded ? columnPx - BLOCK_GUTTER_PX : segment.width}
+    {@const z = expanded ? 40 : isSelected ? 30 : segment.depth}
     {#if !dragging}
-      <TravelBand {segment} {categories} {hourPx} {inWindow} />
+      <TravelBand {segment} {categories} {hourPx} {inWindow} {left} {width} {z} />
     {/if}
     <!-- The block inside is the focus stop; this answers the keys and the pointer around it. -->
     <div
       data-event
       role="button"
       tabindex="-1"
-      class="absolute touch-none select-none {expanded ? 'flex flex-col' : ''} {dragging
-        ? 'opacity-0'
-        : trailing
-          ? 'opacity-40'
-          : ''}"
-      style={expanded
-        ? `top:${segment.top}px;min-height:${segment.height}px;left:0;right:${BLOCK_GUTTER_PX}px;z-index:40`
-        : `top:${segment.top}px;height:${segment.height}px;left:${segment.left}px;width:${segment.width}px;z-index:${isSelected ? 30 : segment.depth}`}
+      class="event-slot absolute touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
+      style="top:{segment.top}px;height:{segment.height}px;left:{left}px;width:{width}px;z-index:{z}"
       in:appear={{ id: segment.event.id }}
       onpointerenter={(e) => enter(e, segment.event.id)}
       onpointerleave={leave}

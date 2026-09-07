@@ -332,7 +332,9 @@ html.dark {
 .event-fill {
   --mix: 30%;
   background: color-mix(in srgb, var(--bg) calc(100% - var(--mix)), var(--c) var(--mix));
-  transition: background-color 110ms ease;
+  transition:
+    background-color 110ms ease,
+    box-shadow 140ms ease;
 }
 @media (hover: hover) {
   .event-fill:hover {
@@ -351,7 +353,13 @@ html.dark {
   --mix: 50%;
   box-shadow: inset 0 0 0 1.5px var(--fg);
 }
-/* Grown out under the mouse: lifted off the whole column, and opaque over whatever it covers. */
+/* A block and its travel band slide out to the column under the mouse, and back when it leaves. */
+.event-slot {
+  transition:
+    left 140ms ease,
+    width 140ms ease;
+}
+/* Slid out under the mouse: lifted off the whole column, and opaque over whatever it covers. */
 .event-fill.is-expanded,
 .event-fill.is-stacked.is-expanded {
   --mix: 40%;
