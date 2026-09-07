@@ -1,9 +1,12 @@
 <script lang="ts">
   import { preferences } from "$lib/account/preferences.svelte";
+  import { assistEndPlace } from "$lib/calendar/queries";
+  import type { CalendarEvent } from "$lib/calendar/types";
   import { AddressField, CardRow, Field, MapPreview, Popover, PopoverItem } from "$lib/components";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import type { PlaceDetails } from "$lib/travel/places";
   import { iconFor, PLACE_ICON } from "$lib/ui/icons";
-  import { MapPinCheck, MapPinOff, Pencil, Plus } from "lucide-svelte";
+  import { MapPinCheck, MapPinOff, Pencil, Plus, Sparkles } from "lucide-svelte";
 
   /**
    * Where it leaves you. Most events leave you where you were, so the row recedes until it is
@@ -16,13 +19,18 @@
    * saved is always the address: a place renamed or removed later still leaves the event ending
    * where it did.
    *
+   * "Guess" asks the model to read the event — "Bus to Prague (Černý Most)" ends in Prague — and
+   * only proposes: the row is written when the guess comes back, and can be changed like any pick.
+   *
    * It is a mapping of the app's own rather than a field of the invitation, so it works on an
    * event you can't otherwise change, and the row is never disabled.
    */
   let {
+    event,
     endLocation,
     onchange,
   }: {
+    event: CalendarEvent;
     endLocation: string | null;
     onchange: (endLocation: string | null) => void;
   } = $props();
@@ -33,6 +41,9 @@
   const label = $derived(named?.label ?? endLocation);
 
   let mode = $state<"list" | "typing" | "adding">("list");
+  let guessing = $state(false);
+  /** The model read the event and found no journey in it — said once, on the item that asked. */
+  let nothingGuessed = $state(false);
   let address = $state("");
   let name = $state("");
   /** Google's own pin for the address, once the map has looked it up. */
@@ -49,6 +60,27 @@
     address = next === "typing" ? (named ? "" : (endLocation ?? "")) : "";
     name = "";
     pinned = null;
+  }
+
+  async function guess(close: () => void) {
+    if (guessing) return;
+    guessing = true;
+    nothingGuessed = false;
+    try {
+      const answer = await assistEndPlace({
+        title: event.title,
+        description: event.description ?? "",
+        location: event.location,
+        places: locations.map((one) => ({ label: one.label, address: one.address })),
+      });
+      const address = answer.available ? answer.suggestion.address?.trim() || null : null;
+      if (address) pick(address, close);
+      else nothingGuessed = true;
+    } catch (e) {
+      diagnostics.report("Travel", e, { title: "The guess didn’t come back" });
+    } finally {
+      guessing = false;
+    }
   }
 
   /** Named and chosen in one gesture: the place was named in order to end up there. */
@@ -101,6 +133,12 @@
       </PopoverItem>
       <PopoverItem label="Add a place" onclick={() => start("adding")}>
         {#snippet icon()}<Plus size={15} class="text-fg-muted" />{/snippet}
+      </PopoverItem>
+      <PopoverItem
+        label={guessing ? "Guessing…" : nothingGuessed ? "Nothing to guess here" : "Guess"}
+        onclick={() => void guess(close)}
+      >
+        {#snippet icon()}<Sparkles size={15} class="text-fg-muted" />{/snippet}
       </PopoverItem>
     {:else if mode === "typing"}
       <div class="space-y-2 p-2">

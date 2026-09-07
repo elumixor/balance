@@ -76,8 +76,9 @@ export interface SeriesTarget {
   occurrenceStart: string;
 }
 
-export const deleteCalendarEvent = (id: string, calendarId: string, series?: SeriesTarget) =>
-  callApi(api.calendar.events(id).$delete({ calendarId, ...series }));
+/** `occurrenceOf` names the series a lone occurrence leaves, so one left alone becomes a one-off. */
+export const deleteCalendarEvent = (id: string, calendarId: string, series?: SeriesTarget, occurrenceOf?: string) =>
+  callApi(api.calendar.events(id).$delete({ calendarId, ...series, ...(occurrenceOf ? { occurrenceOf } : {}) }));
 
 /** Yes, no or maybe to an invitation — written to the calendar the other guests are reading. */
 export const respondToCalendarEvent = (
@@ -108,3 +109,14 @@ export const saveEventMapping = (input: {
 
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
   callApi(api.calendar.mappings.$delete(input));
+
+/**
+ * A guess at where an event leaves you — a proposal, written only when the person accepts it.
+ * `available: false` when the model has nothing, which every caller draws as no guess.
+ */
+export const assistEndPlace = (input: {
+  title: string;
+  description: string;
+  location: string | null;
+  places: { label: string; address: string }[];
+}) => callApi(api.calendar.assist.endPlace.$post(input));

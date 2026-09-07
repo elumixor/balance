@@ -106,6 +106,6 @@
       onchange={chooseLocation}
       {onopen}
     />
-    <EndPlaceRow endLocation={event.endLocation} onchange={chooseEndPlace} />
+    <EndPlaceRow {event} endLocation={event.endLocation} onchange={chooseEndPlace} />
   {/if}
 </div>
