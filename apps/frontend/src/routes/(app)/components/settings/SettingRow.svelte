@@ -13,7 +13,8 @@
   let {
     icon,
     label,
-    /** One faint line where the label alone doesn't say enough. Most rows need none. */
+    /** One faint line where the label alone doesn't say enough. Most rows need none; a snippet
+     *  for the rare line with a hover or a link in it. */
     note,
     /** Dimmed and inert for a setting that only means something when another one is on. */
     disabled = false,
@@ -22,7 +23,7 @@
   }: {
     icon?: typeof IconType;
     label: string;
-    note?: string;
+    note?: string | Snippet;
     disabled?: boolean;
     onclick?: () => void;
     children?: Snippet;
@@ -37,7 +38,11 @@
   </span>
   <span class="min-w-0 flex-1">
     <span class="t-label block truncate text-fg">{label}</span>
-    {#if note}<span class="t-micro block text-fg-faint">{note}</span>{/if}
+    {#if typeof note === "function"}
+      <span class="t-micro block text-fg-faint">{@render note()}</span>
+    {:else if note}
+      <span class="t-micro block text-fg-faint">{note}</span>
+    {/if}
   </span>
 {/snippet}
 
