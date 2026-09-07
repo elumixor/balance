@@ -20,12 +20,14 @@
 {#key prompt?.id}
   {#if prompt}
     <div class="fixed right-3 bottom-3 z-50" transition:fly={{ y: 16, duration: 180 }}>
-      <div
-        class="flex items-center gap-0.5 rounded-xl border border-line-strong bg-surface p-1.5
-          shadow-(--shadow-float)"
-      >
+      <div class="rounded-xl border border-line-strong bg-surface p-1.5 shadow-(--shadow-float)">
+        <p class="t-micro max-w-72 truncate px-2 pt-1 pb-1.5 text-fg-muted">
+          Changed “{prompt.title || "Untitled"}” — a repeating event
+        </p>
+        <div class="flex items-center gap-0.5">
         <Button
-          variant="bare"
+          variant="solid"
+          size="sm"
           label="Change all"
           title="Apply this change to every occurrence"
           onclick={() => data.applyToSeries("all")}
@@ -43,9 +45,10 @@
         <Button variant="bare" title="Undo this change" onclick={() => data.undoSeriesEdit()}>
           {#snippet icon()}<Undo2 size={15} />{/snippet}
         </Button>
-        <Button variant="bare" title="Just this one" onclick={() => data.dismissSeriesPrompt()}>
+        <Button variant="bare" label="Cancel" title="Keep the change on this one only" onclick={() => data.dismissSeriesPrompt()}>
           {#snippet icon()}<X size={15} />{/snippet}
         </Button>
+        </div>
       </div>
     </div>
   {/if}

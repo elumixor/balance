@@ -1,70 +1,49 @@
 <script lang="ts">
   import { Button } from "$lib/components";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { ArrowRightFromLine, Repeat, Trash2 } from "lucide-svelte";
-  import { cubicOut } from "svelte/easing";
-  import { fade, scale } from "svelte/transition";
+  import { ArrowRightFromLine, Repeat, Trash2, X } from "lucide-svelte";
+  import { fly } from "svelte/transition";
 
   /**
-   * A repeating event is about to be deleted, and nothing has gone yet. The edit prompt can sit
-   * in a corner because one occurrence can be put back; a series can't, so this one is an alert:
-   * over everything, the week behind it dimmed and blurred, and no way past it but an answer —
-   * this one, this and the ones after it, the whole series, or keep it. The card itself is the
-   * same strip the edit prompt uses, so the two questions read as one control.
+   * A repeating event is about to be deleted, and nothing has gone yet. The edit prompt can ask
+   * afterwards because one occurrence can be put back; a series can't, so this one asks first,
+   * from the same corner: this one, this and the ones after it, or the whole series.
    */
   const data = calendarData;
   const prompt = $derived(data.deletePrompt);
 
-  let panel = $state<HTMLElement>();
-  // Opening moves focus in, so Escape and Tab reach the alert rather than the grid behind it.
-  $effect(() => {
-    if (prompt) panel?.focus();
-  });
-</script>
-
-<svelte:window
-  onkeydown={(e) => {
-    if (prompt && e.key === "Escape") {
-      e.stopPropagation();
+  /** Enter takes the first, safest answer — this one occurrence; Escape keeps everything. */
+  function onkeydown(e: KeyboardEvent) {
+    if (!prompt) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void data.deleteEvent(prompt.event, "instance");
+    } else if (e.key === "Escape") {
+      e.preventDefault();
       data.dismissDeletePrompt();
     }
-  }}
-/>
+  }
+</script>
+
+<svelte:window {onkeydown} />
 
 {#key prompt?.id}
   {#if prompt}
-    <div
-      class="fixed inset-0 z-[70] flex items-center justify-center bg-overlay-strong p-4 backdrop-blur-sm
-        backdrop-saturate-50"
-      transition:fade={{ duration: 140 }}
-      onclick={() => data.dismissDeletePrompt()}
-      onkeydown={() => {}}
-      role="presentation"
-    >
-      <div
-        bind:this={panel}
-        role="alertdialog"
-        aria-modal="true"
-        aria-label="Delete repeating event"
-        tabindex="-1"
-        transition:scale={{ duration: 180, start: 0.96, easing: cubicOut }}
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={() => {}}
-        class="flex flex-col items-center rounded-xl border border-line-strong bg-surface p-1.5
-          shadow-(--shadow-float) outline-none"
-      >
-        <p class="t-micro max-w-72 truncate px-2 pt-1 pb-1.5 text-center text-fg-muted">
-          Delete “{prompt.event.title || "Untitled"}” — it repeats
+    <div class="fixed right-3 bottom-3 z-50" transition:fly={{ y: 16, duration: 180 }}>
+      <div class="rounded-xl border border-line-strong bg-surface p-1.5 shadow-(--shadow-float)">
+        <p class="t-micro max-w-72 truncate px-2 pt-1 pb-1.5 text-fg-muted">
+          Delete “{prompt.event.title || "Untitled"}” — a repeating event
         </p>
-        <div class="flex items-center justify-center gap-0.5">
-        <Button
-          variant="bare"
-          label="This one"
-          title="Delete only this occurrence"
-          onclick={() => data.deleteEvent(prompt.event, "instance")}
-        >
-          {#snippet icon()}<Trash2 size={15} />{/snippet}
-        </Button>
+        <div class="flex items-center gap-0.5">
+          <Button
+            variant="solid"
+            size="sm"
+            label="This one"
+            title="Delete only this occurrence"
+            onclick={() => data.deleteEvent(prompt.event, "instance")}
+          >
+            {#snippet icon()}<Trash2 size={15} />{/snippet}
+          </Button>
         <Button
           variant="bare"
           label="From here on"
@@ -81,8 +60,10 @@
         >
           {#snippet icon()}<Repeat size={15} />{/snippet}
         </Button>
+          <Button variant="bare" label="Cancel" title="Keep it" onclick={() => data.dismissDeletePrompt()}>
+            {#snippet icon()}<X size={15} />{/snippet}
+          </Button>
         </div>
-        <Button variant="bare" label="Cancel" title="Keep it" onclick={() => data.dismissDeletePrompt()} />
       </div>
     </div>
   {/if}
