@@ -118,6 +118,23 @@ describe("EventDraft", () => {
     expect(cal.editEvent).toHaveBeenCalledTimes(1);
   });
 
+  it("drops what was typed on revert and writes none of it", () => {
+    const cal = calendar();
+    const draft = new EventDraft(cal);
+    draft.load(event());
+    draft.title = "Retro";
+    draft.to = "10:00";
+    draft.queue();
+    draft.revert();
+    vi.runAllTimers();
+    expect(cal.editEvent).not.toHaveBeenCalled();
+    expect(draft.title).toBe("Standup");
+    expect(draft.to).toBe("09:30");
+    // With nothing pending, reverting is still only putting the saved fields back.
+    draft.revert();
+    expect(draft.notes).toBe("Notes");
+  });
+
   it("carries an end before its start into the next day", () => {
     const draft = new EventDraft(calendar());
     draft.load(event());
