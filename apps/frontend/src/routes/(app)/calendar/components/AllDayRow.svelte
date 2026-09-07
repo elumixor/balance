@@ -105,6 +105,7 @@
     {#each drawnSpans as span (span.event.id)}
       <!-- The block inside is the focus stop; this answers the keys and the pointer around it. -->
       <div
+        data-event-id={span.event.id}
         role="button"
         tabindex="-1"
         class="relative py-0.5"

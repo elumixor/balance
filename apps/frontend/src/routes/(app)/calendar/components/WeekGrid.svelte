@@ -244,5 +244,5 @@
   <EventContextMenu event={data.contextMenuEvent} rect={data.contextMenuRect} categories={[...categories.values()]} />
 {/if}
 
-<SeriesEditPrompt />
-<SeriesDeletePrompt />
+<SeriesEditPrompt {categories} />
+<SeriesDeletePrompt {categories} />

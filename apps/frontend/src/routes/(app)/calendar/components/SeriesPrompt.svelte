@@ -1,82 +1,234 @@
 <script lang="ts">
-  import { X } from "lucide-svelte";
-  import { fly } from "svelte/transition";
+  import { calendarData } from "$lib/calendar/calendar-data.svelte";
+  import type { CalendarEvent } from "$lib/calendar/types";
+  import { followAnchor, layer } from "$lib/components/float";
+  import type { Category } from "$lib/core/records";
+  import { viewport } from "$lib/platform/viewport.svelte";
+  import { ArrowRightFromLine, type Icon, Repeat, X } from "lucide-svelte";
+  import { tick } from "svelte";
+  import { cubicOut } from "svelte/easing";
+  import { prefersReducedMotion } from "svelte/motion";
+  import { fade, fly } from "svelte/transition";
+  import EventBlock from "./EventBlock.svelte";
 
   /**
-   * The corner card the two series prompts share: one line naming what is happening to which
-   * event, the three scopes as plain text actions, and a dismiss. Drawn the way the update and
-   * problem cards are — a row, no ground under an action until it is pointed at — so a choice
-   * about a series reads as the same kind of thing as every other card in that corner. The first
-   * scope is the default, and the only one drawn on a ground.
+   * "How much of the series?", asked beside the occurrence it is about, in the same card the
+   * event's details open in. The week behind it is dimmed and blurred, and the occurrences the
+   * answer under the pointer — or the arrow keys — would touch are drawn back over the blur, so
+   * "from here on" is a picture before it is a decision.
    *
-   * Enter takes the first scope; Escape dismisses.
+   * Arrows move between the answers, Enter takes the one under the cursor, 1–3 take a scope
+   * outright, Escape (or a press on the week) is the way out.
    */
+  type Scope = "instance" | "following" | "all";
+
   let {
-    /** "Change" or "Delete" — the verb the row starts with, followed by the event's name. */
-    verb,
-    title,
-    /** Tooltip for each scope, in order: this one, from here on, all. */
+    /** The first line: what just happened, or is about to, to which event. */
+    heading,
+    /** The occurrence the question is about — its id, series and start pick out what's affected. */
+    event,
+    categories,
+    /** The glyph for "this one": a calendar page for a change, a bin for a delete. */
+    icon,
+    /** Tooltip per answer, in order: this one, from here on, all, cancel. */
     hints,
-    cancelHint,
     onchoose,
     oncancel,
   }: {
-    verb: string;
-    title: string;
-    hints: [string, string, string];
-    cancelHint: string;
-    onchoose: (scope: "instance" | "following" | "all") => void;
+    heading: string;
+    event: Pick<CalendarEvent, "id" | "seriesId" | "start">;
+    categories: Map<string, Category>;
+    icon: typeof Icon;
+    hints: [string, string, string, string];
+    onchoose: (scope: Scope) => void;
     oncancel: () => void;
   } = $props();
 
-  const scopes = [
-    { scope: "instance", label: "This one" },
-    { scope: "following", label: "From here on" },
-    { scope: "all", label: "All" },
-  ] as const;
+  const WIDTH = 340;
+  const MARGIN = 12;
+  const GAP = 8;
+
+  const data = calendarData;
+
+  // Read once on purpose: the glyph for "this one" is fixed for the life of a card.
+  // svelte-ignore state_referenced_locally
+  const answers = [
+    { scope: "instance" as const, label: "This one", icon, key: "1" },
+    { scope: "following" as const, label: "From here on", icon: ArrowRightFromLine, key: "2" },
+    { scope: "all" as const, label: "All", icon: Repeat, key: "3" },
+    { scope: null, label: "Cancel", icon: X, key: null },
+  ];
+  let active = $state(0);
+
+  function answer(index: number) {
+    const scope = answers[index]?.scope;
+    if (scope) onchoose(scope);
+    else oncancel();
+  }
+
+  // --- what the answer under the cursor would touch -------------------------------------------
+
+  /** The occurrences on the strip that the highlighted answer covers: none when it's Cancel. */
+  const affected = $derived.by((): CalendarEvent[] => {
+    const scope = answers[active]?.scope;
+    if (!scope) return [];
+    const start = new Date(event.start).getTime();
+    return data.events.filter((other) => {
+      if (other.id === event.id) return true;
+      if (scope === "instance" || !event.seriesId || other.seriesId !== event.seriesId) return false;
+      return scope === "all" || new Date(other.start).getTime() >= start;
+    });
+  });
+
+  interface Lifted {
+    key: string;
+    event: CalendarEvent;
+    rect: DOMRect;
+  }
+  /** Each affected block as it is drawn on the strip, one copy per day it spans. */
+  let lifted = $state<Lifted[]>([]);
+  /** Where the question is anchored: the occurrence's own block, or where it was tapped. */
+  let anchor = $state<DOMRect | null>(null);
+
+  function measure() {
+    const found: Lifted[] = [];
+    for (const other of affected) {
+      const nodes = document.querySelectorAll<HTMLElement>(`[data-event-id="${CSS.escape(other.id)}"]`);
+      nodes.forEach((node, i) => found.push({ key: `${other.id}:${i}`, event: other, rect: node.getBoundingClientRect() }));
+    }
+    lifted = found;
+    const own = document.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(event.id)}"]`);
+    anchor = own?.getBoundingClientRect() ?? data.selectedRect;
+  }
+
+  // Measured after the strip has drawn the write the question is about, and again whenever the
+  // highlighted answer changes what it covers or the window moves under it.
+  $effect(() => {
+    void affected;
+    let live = true;
+    void tick().then(() => live && measure());
+    const stop = followAnchor(measure);
+    return () => {
+      live = false;
+      stop();
+    };
+  });
+
+  // --- the card ------------------------------------------------------------------------------
+
+  let card = $state<HTMLElement>();
+  let position = $state<{ left: number; top: number } | null>(null);
+
+  /** Beside the block if there's room on either side of it, otherwise clamped into the viewport. */
+  function place() {
+    if (!card) return;
+    const height = card.offsetHeight;
+    const rect = anchor ?? new DOMRect(window.innerWidth / 2, window.innerHeight / 2 - height / 2, 0, 0);
+    const right = rect.right + GAP;
+    const left = right + WIDTH <= window.innerWidth - MARGIN ? right : rect.left - GAP - WIDTH;
+    position = {
+      left: Math.min(Math.max(MARGIN, left), window.innerWidth - WIDTH - MARGIN),
+      top: Math.min(Math.max(MARGIN, rect.top), Math.max(MARGIN, window.innerHeight - MARGIN - height)),
+    };
+  }
+
+  $effect(() => {
+    void anchor;
+    if (!card) return;
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(card);
+    return () => observer.disconnect();
+  });
+
+  // The card takes the keys: a name field left focused behind it would otherwise eat the digits.
+  $effect(() => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    card?.focus();
+  });
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      onchoose("instance");
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      oncancel();
+    const target = e.target as HTMLElement | null;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+    const step = (by: number) => {
+      active = (active + by + answers.length) % answers.length;
+    };
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") step(1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") step(-1);
+    else if (e.key === "Tab") step(e.shiftKey ? -1 : 1);
+    else if (e.key === "Enter") answer(active);
+    else if (e.key === "Escape") oncancel();
+    else {
+      const index = answers.findIndex((a) => a.key === e.key);
+      if (index < 0) return;
+      answer(index);
     }
+    e.preventDefault();
+    e.stopPropagation();
   }
+
+  const duration = $derived(prefersReducedMotion.current ? 0 : 160);
 </script>
 
-<svelte:window {onkeydown} />
+<svelte:window onkeydowncapture={onkeydown} />
 
-<div class="fixed right-3 bottom-3 z-50 max-w-[calc(100vw-24px)]" transition:fly={{ y: 16, duration: 180 }}>
-  <div
-    class="flex items-center gap-0.5 rounded-xl border border-line-strong bg-surface py-1.5 pr-1.5 pl-3
-      shadow-(--shadow-float)"
-    role="group"
-    aria-label="{verb} {title || 'Untitled'}"
-  >
-    <p class="t-label min-w-0 max-w-56 flex-1 truncate pr-2 text-fg">
-      {verb} “{title || "Untitled"}”
-    </p>
-    {#each scopes as { scope, label }, i (scope)}
-      <button
-        type="button"
-        class="press-sm t-label shrink-0 rounded-md px-2 py-1 whitespace-nowrap hover:bg-surface-alt
-          {i === 0 ? 'bg-surface-alt text-fg' : 'text-fg-muted hover:text-fg'}"
-        title={hints[i]}
-        onclick={() => onchoose(scope)}
-      >
-        {label}
-      </button>
-    {/each}
-    <button
-      type="button"
-      class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
-      aria-label={cancelHint}
-      title={cancelHint}
-      onclick={oncancel}
+<!--
+  The whole layer is marked as a popup layer, so the event card underneath — which closes on any
+  press outside itself — doesn't take a press on this card as a press away from its own.
+-->
+<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+<div
+  {@attach layer}
+  data-popup-layer
+  class="fixed inset-0 z-40 overflow-hidden bg-overlay backdrop-blur-sm"
+  transition:fade={{ duration }}
+  onclick={oncancel}
+>
+  <!-- The occurrences the answer would touch, drawn back over the blur where they stand. -->
+  {#each lifted as item (item.key)}
+    <div
+      class="pointer-events-none fixed"
+      style="left:{item.rect.left}px;top:{item.rect.top}px;width:{item.rect.width}px;height:{item.rect.height}px"
+      transition:fade={{ duration }}
     >
-      <X size={15} />
-    </button>
+      <EventBlock event={item.event} {categories} />
+    </div>
+  {/each}
+
+  <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+  <div
+    bind:this={card}
+    role="dialog"
+    aria-label={heading}
+    tabindex="-1"
+    class="touch-auto rounded-t-2xl border border-line bg-surface p-1.5 shadow-(--shadow-float) outline-none
+      max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:safe-bottom sm:absolute sm:w-[var(--popup-w)] sm:rounded-lg"
+    style="--popup-w:{WIDTH}px;left:{position?.left ?? 0}px;top:{position?.top ?? 0}px;visibility:{position || !viewport.sm
+      ? 'visible'
+      : 'hidden'}"
+    transition:fly={{ y: viewport.sm ? 6 : 400, duration: viewport.sm ? duration : duration * 1.6, easing: cubicOut }}
+    onclick={(e) => e.stopPropagation()}
+    onpointerdown={(e) => e.stopPropagation()}
+  >
+    <div class="sheet-handle sm:hidden"></div>
+    <p class="t-micro truncate px-2 pt-1 pb-1.5 text-fg-muted">{heading}</p>
+    <div class="flex items-center gap-0.5 max-sm:flex-wrap">
+      {#each answers as item, i (item.label)}
+        {@const Icon = item.icon}
+        <button
+          type="button"
+          class="press-sm t-label flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 whitespace-nowrap
+            {i === active ? 'bg-surface-alt text-fg' : 'text-fg-faint hover:text-fg'} {i === answers.length - 1 ? 'ml-auto' : ''}"
+          title={hints[i]}
+          aria-keyshortcuts={item.key ?? "Escape"}
+          onpointerenter={() => (active = i)}
+          onfocus={() => (active = i)}
+          onclick={() => answer(i)}
+        >
+          <Icon size={15} />
+          {item.label}
+        </button>
+      {/each}
+    </div>
   </div>
 </div>

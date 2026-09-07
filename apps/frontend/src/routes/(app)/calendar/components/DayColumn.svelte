@@ -118,6 +118,7 @@
     <!-- The block inside is the focus stop; this answers the keys and the pointer around it. -->
     <div
       data-event
+      data-event-id={segment.event.id}
       role="button"
       tabindex="-1"
       class="event-slot absolute cursor-pointer touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
