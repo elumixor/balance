@@ -4,7 +4,7 @@
   import { auth } from "$lib/account/auth.svelte";
   import { telemetry } from "$lib/platform/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
-  import { IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
+  import { AboutSection, IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
   import { type Pane, PANES } from "$lib/settings";
   import { preferences } from "$lib/account/preferences.svelte";
   import { settings } from "$lib/settings";
@@ -121,6 +121,9 @@
         </section>
       {/each}
 
+      <section data-pane="about" class="scroll-mt-5 mt-8 border-t border-line pt-7 md:scroll-mt-6">
+        <AboutSection />
+      </section>
     </div>
   </div>
 </Dialog>
