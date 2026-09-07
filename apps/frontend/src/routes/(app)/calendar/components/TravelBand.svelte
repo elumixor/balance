@@ -98,7 +98,7 @@
         style="height:{band.visible}px"
       >
         <Mode size={11} />
-        <span class="truncate">travel {formatHoursAndMinutes(journey.seconds / 3600)}</span>
+        <span class="truncate">{formatHoursAndMinutes(journey.seconds / 3600)}</span>
       </span>
     {/if}
   </div>
