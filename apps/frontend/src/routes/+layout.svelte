@@ -1,6 +1,6 @@
 <script lang="ts">
   import { auth } from "$lib/account/auth.svelte";
-  import { ProblemToasts } from "./components";
+  import { ProblemToasts, UpdateToast } from "./components";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import { watchDesktopFocus } from "$lib/desktop/focus-sync";
   import { watchDesktopSignIn } from "$lib/desktop/sign-in";
@@ -57,4 +57,5 @@
      in the same corner as one on the calendar. -->
 {#if !reminderWindow}
   <ProblemToasts />
+  <UpdateToast />
 {/if}
