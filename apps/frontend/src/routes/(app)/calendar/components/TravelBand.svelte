@@ -94,11 +94,11 @@
   >
     {#if band.labelled}
       <span
-        class="t-micro absolute inset-x-0 top-0 flex items-center gap-1 truncate px-1.5 text-fg-muted"
-        style="height:{band.visible}px"
+        class="t-micro absolute inset-x-0 top-0 flex items-start gap-1 overflow-hidden px-1.5 py-0.5 text-fg-muted"
+        style="max-height:{band.visible}px"
       >
-        <Mode size={11} />
-        <span class="truncate">{formatHoursAndMinutes(journey.seconds / 3600)}</span>
+        <Mode size={11} class="mt-0.5 shrink-0" />
+        <span class="min-w-0 break-words">{formatHoursAndMinutes(journey.seconds / 3600)}</span>
       </span>
     {/if}
   </div>
