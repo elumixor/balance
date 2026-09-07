@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { ArrowRightFromLine, Repeat, Trash2, X } from "lucide-svelte";
+  import { ArrowRightFromLine, Repeat, Trash2 } from "lucide-svelte";
   import { cubicOut } from "svelte/easing";
   import { fade, scale } from "svelte/transition";
 
@@ -50,12 +50,13 @@
         transition:scale={{ duration: 180, start: 0.96, easing: cubicOut }}
         onclick={(e) => e.stopPropagation()}
         onkeydown={() => {}}
-        class="rounded-xl border border-line-strong bg-surface p-1.5 shadow-(--shadow-float) outline-none"
+        class="flex flex-col items-center rounded-xl border border-line-strong bg-surface p-1.5
+          shadow-(--shadow-float) outline-none"
       >
-        <p class="t-micro max-w-72 truncate px-2 pt-1 pb-1.5 text-fg-muted">
+        <p class="t-micro max-w-72 truncate px-2 pt-1 pb-1.5 text-center text-fg-muted">
           Delete “{prompt.event.title || "Untitled"}” — it repeats
         </p>
-        <div class="flex items-center gap-0.5">
+        <div class="flex items-center justify-center gap-0.5">
         <Button
           variant="bare"
           label="This one"
@@ -80,10 +81,8 @@
         >
           {#snippet icon()}<Repeat size={15} />{/snippet}
         </Button>
-        <Button variant="bare" title="Keep it" onclick={() => data.dismissDeletePrompt()}>
-          {#snippet icon()}<X size={15} />{/snippet}
-        </Button>
         </div>
+        <Button variant="bare" label="Cancel" title="Keep it" onclick={() => data.dismissDeletePrompt()} />
       </div>
     </div>
   {/if}
