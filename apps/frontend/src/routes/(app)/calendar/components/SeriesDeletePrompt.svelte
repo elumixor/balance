@@ -50,10 +50,12 @@
         transition:scale={{ duration: 180, start: 0.96, easing: cubicOut }}
         onclick={(e) => e.stopPropagation()}
         onkeydown={() => {}}
-        class="flex items-center gap-0.5 rounded-xl border border-line-strong bg-surface p-1.5
-          shadow-(--shadow-float) outline-none"
+        class="rounded-xl border border-line-strong bg-surface p-1.5 shadow-(--shadow-float) outline-none"
       >
-        <span class="t-micro max-w-40 truncate px-2 text-fg-muted">Delete “{prompt.event.title || "Untitled"}”</span>
+        <p class="t-micro max-w-72 truncate px-2 pt-1 pb-1.5 text-fg-muted">
+          Delete “{prompt.event.title || "Untitled"}” — it repeats
+        </p>
+        <div class="flex items-center gap-0.5">
         <Button
           variant="bare"
           label="This one"
@@ -81,6 +83,7 @@
         <Button variant="bare" title="Keep it" onclick={() => data.dismissDeletePrompt()}>
           {#snippet icon()}<X size={15} />{/snippet}
         </Button>
+        </div>
       </div>
     </div>
   {/if}
