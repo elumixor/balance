@@ -28,6 +28,7 @@
   import DayHeadings from "./DayHeadings.svelte";
   import DragGhost from "./DragGhost.svelte";
   import EventContextMenu from "./EventContextMenu.svelte";
+  import SeriesDeletePrompt from "./SeriesDeletePrompt.svelte";
   import SeriesEditPrompt from "./SeriesEditPrompt.svelte";
   import TodayButton from "./TodayButton.svelte";
   import { JUMP_ANIMATE_MS, WeekScroll } from "./week-scroll.svelte";
@@ -244,3 +245,4 @@
 {/if}
 
 <SeriesEditPrompt />
+<SeriesDeletePrompt />

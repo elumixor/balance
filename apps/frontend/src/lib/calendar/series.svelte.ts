@@ -1,6 +1,7 @@
 import { invalidate } from "$lib/core/store.svelte";
 import type { EventFields } from "./purpose";
 import { type EventPatch, updateCalendarEvent } from "./queries";
+import type { CalendarEvent, SeriesScope } from "./types";
 import type { CalendarWrites, EventRef } from "./writes.svelte";
 
 /**
@@ -21,14 +22,25 @@ export interface SeriesPrompt {
   readonly patch?: EventPatch;
 }
 
+/**
+ * A recurring event about to be deleted. Unlike an edit, nothing has happened yet: a series is
+ * not something the app can put back, so the question comes before the write, not after it.
+ */
+export interface DeletePrompt {
+  readonly id: number;
+  readonly event: CalendarEvent;
+}
+
 export interface SeriesHost {
   refreshWeeks(): Promise<unknown>;
 }
 
-/** The "apply to the whole series?" question, and the write that answers yes. */
+/** The "how much of the series?" question — asked after an edit, and before a delete. */
 export class CalendarSeries {
   /** A just-edited recurring occurrence, offered the choice to apply the same edit series-wide. */
   prompt = $state<SeriesPrompt | null>(null);
+  /** A recurring occurrence waiting to hear how much of its series goes with it. */
+  deletePrompt = $state<DeletePrompt | null>(null);
   #offers = 0;
   readonly #writes: CalendarWrites;
   readonly #host: SeriesHost;
@@ -55,8 +67,20 @@ export class CalendarSeries {
     this.prompt = null;
   }
 
-  /** The offered series-wide write actually goes out. */
-  async apply() {
+  offerDelete(event: CalendarEvent) {
+    this.deletePrompt = { event, id: ++this.#offers };
+  }
+
+  /** The delete that was never confirmed never happens. */
+  dismissDelete() {
+    this.deletePrompt = null;
+  }
+
+  /**
+   * The offered series-wide write actually goes out — over every occurrence, or over this one and
+   * the ones after it, which the server answers by cutting the series in two.
+   */
+  async apply(scope: SeriesScope = "all") {
     const prompt = this.prompt;
     if (!prompt) return;
     this.prompt = null;
@@ -71,12 +95,14 @@ export class CalendarSeries {
         calendarId: prompt.ref.calendarId,
         ...fields,
         seriesId: prompt.seriesId,
+        seriesScope: scope,
         previousStart: prompt.previousStart.toISOString(),
         previousEnd: prompt.previousEnd.toISOString(),
       }),
     );
-    // A rule reshapes the whole series: the week is asked again rather than patched by hand.
-    if (prompt.patch?.recurrence !== undefined) {
+    // A rule reshapes the whole series, and a cut makes a new one: the weeks are asked again
+    // rather than patched by hand.
+    if (prompt.patch?.recurrence !== undefined || scope === "following") {
       invalidate.calendar();
       await this.#host.refreshWeeks();
     }

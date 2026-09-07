@@ -1,5 +1,8 @@
 import type { ActivityWeight } from "$lib/core/records";
 
+/** How far a change to a repeating event reaches: every occurrence, or this one and the ones after. */
+export type SeriesScope = "all" | "following";
+
 export type MappingScope = "instance" | "series";
 
 /** An event in the connected calendar, with what it counts as already resolved. */

@@ -24,17 +24,26 @@ export default authed(
       recurrence: z.array(z.string().max(MAX_RRULE_LENGTH)).max(MAX_RRULE_LINES).optional(),
       reminders: z
         .array(
-          z.object({ method: z.enum(["popup", "email"]), minutes: z.number().int().min(0).max(MAX_REMINDER_MINUTES) }),
+          z.object({
+            method: z.enum(["popup", "email"]),
+            minutes: z.number().int().min(0).max(MAX_REMINDER_MINUTES),
+          }),
         )
         .max(MAX_REMINDERS)
         .optional(),
       attendees: z
-        .array(z.object({ email: z.string().email(), optional: z.boolean().optional() }))
+        .array(
+          z.object({
+            email: z.string().email(),
+            optional: z.boolean().optional(),
+          }),
+        )
         .max(MAX_ATTENDEES)
         .optional(),
       conference: z.enum(["create", "remove"]).optional(),
       // Present only when the caller means the whole series, not just this occurrence.
       seriesId: z.string().optional(),
+      seriesScope: z.enum(["all", "following"]).optional(),
       previousStart: z.string().optional(),
       previousEnd: z.string().optional(),
     },
@@ -47,6 +56,7 @@ export default authed(
     const series = body.seriesId
       ? {
           seriesId: body.seriesId,
+          scope: body.seriesScope ?? "all",
           previousStart: body.previousStart ? parseInstant(body.previousStart, "previousStart") : new Date(),
           previousEnd: body.previousEnd ? parseInstant(body.previousEnd, "previousEnd") : new Date(),
         }

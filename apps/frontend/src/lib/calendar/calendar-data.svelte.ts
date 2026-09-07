@@ -10,7 +10,7 @@ import { instantAt, SIDE_WEEKS, STRIP_DAYS, STRIP_WEEKS } from "./geometry";
 import type { Answer } from "./purpose";
 import { CalendarSelection } from "./selection.svelte";
 import { CalendarSeries } from "./series.svelte";
-import type { CalendarEvent } from "./types";
+import type { CalendarEvent, SeriesScope } from "./types";
 import { CalendarWrites } from "./writes.svelte";
 
 export type { Answer };
@@ -494,7 +494,7 @@ class CalendarData {
   retimeEvent: CalendarEdits["retimeEvent"] = (...args) => this.#edits.retimeEvent(...args);
   patchEvent: CalendarEdits["patchEvent"] = (...args) => this.#edits.patchEvent(...args);
   respondToEvent: CalendarEdits["respondToEvent"] = (event, response) => this.#edits.respondToEvent(event, response);
-  deleteEvent: CalendarEdits["deleteEvent"] = (event) => this.#edits.deleteEvent(event);
+  deleteEvent: CalendarEdits["deleteEvent"] = (event, scope) => this.#edits.deleteEvent(event, scope);
 
   /** What a whole gathered batch counts as — one category over all of them, in one step. */
   mapEvents(events: readonly CalendarEvent[], weights: ActivityWeight[]) {
@@ -508,12 +508,21 @@ class CalendarData {
     return this.#series.prompt;
   }
 
-  applyToSeries() {
-    return this.#series.apply();
+  applyToSeries(scope: SeriesScope = "all") {
+    return this.#series.apply(scope);
   }
 
   dismissSeriesPrompt() {
     this.#series.dismiss();
+  }
+
+  /** A recurring occurrence waiting to hear how much of its series goes with it. */
+  get deletePrompt() {
+    return this.#series.deletePrompt;
+  }
+
+  dismissDeletePrompt() {
+    this.#series.dismissDelete();
   }
 
   /** Second thoughts about the occurrence itself: the offer goes, and so does the edit behind it. */

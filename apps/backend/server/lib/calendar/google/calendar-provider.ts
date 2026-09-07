@@ -62,6 +62,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
   }
 
   async createEvent(input: CreateEventInput): Promise<ExternalEvent> {
+    const zone = input.timeZone === undefined ? {} : { timeZone: input.timeZone };
     const created = await this.#request.send<GoogleEvent>(`/calendars/${encode(input.calendarId)}/events`, {
       method: "POST",
       body: {
@@ -70,7 +71,17 @@ export class GoogleCalendarProvider implements CalendarProvider {
         ...(input.location === undefined ? {} : { location: input.location }),
         ...(input.allDay
           ? { start: { date: calendarDate(input.start) }, end: { date: calendarDate(input.end) } }
-          : { start: { dateTime: input.start.toISOString() }, end: { dateTime: input.end.toISOString() } }),
+          : {
+              start: { dateTime: input.start.toISOString(), ...zone },
+              end: { dateTime: input.end.toISOString(), ...zone },
+            }),
+        ...(input.recurrence === undefined ? {} : { recurrence: [...input.recurrence] }),
+        ...(input.reminders === undefined
+          ? {}
+          : { reminders: { useDefault: false, overrides: input.reminders.map((r) => ({ ...r })) } }),
+        ...(input.attendees === undefined
+          ? {}
+          : { attendees: input.attendees.map((a) => ({ email: a.email, optional: a.optional === true })) }),
       },
     });
     return toExternalEvent(created, await this.#calendar(input.calendarId));

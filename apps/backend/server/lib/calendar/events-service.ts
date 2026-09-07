@@ -8,12 +8,15 @@ import { eventCache } from "./event-cache";
 import { EventMappingService, type MappingPurpose, type ResolvedMapping } from "./mappings-service";
 import { projectPrefs } from "./prefs-service";
 import { calendarConnections } from "./registry";
+import { isSeriesStart, remainingRule, splitPointOf, truncateRule } from "./series-split";
 import {
+  type CalendarProvider,
   type EventTimer,
   type ExternalEvent,
   type MappingScope,
   PRIMARY_CALENDAR_ID,
   type SelfResponse,
+  type SeriesScope,
   type UpdateEventInput,
 } from "./types";
 import { resolveTarget, targetFor, visibleCalendarIds } from "./write-target";
@@ -71,11 +74,22 @@ export interface CreateEventOptions {
   allDay?: boolean;
 }
 
-/** A series-scoped edit: which series, and where the occurrence being edited was before. */
+/**
+ * A series-scoped edit: which series, how far along it the change reaches, and where the
+ * occurrence being edited was before.
+ */
 export interface SeriesEdit {
   readonly seriesId: string;
+  readonly scope: SeriesScope;
   readonly previousStart: Date;
   readonly previousEnd: Date;
+}
+
+/** A series-scoped delete: which series, how far along it, and where the occurrence stands. */
+export interface SeriesDelete {
+  readonly seriesId: string;
+  readonly scope: SeriesScope;
+  readonly occurrenceStart: Date;
 }
 
 /** The one place the app reads calendar events — the week grid and the balance screen both. */
@@ -199,6 +213,10 @@ export class CalendarEventsService {
    * copy straight across, but a time change has to become a delta first — the master's own start
    * isn't the occurrence's start, so shifting every occurrence by the same amount means moving the
    * master by however far this one just moved, not to where this one landed.
+   *
+   * "This and following" is a different shape: the series is cut in two just before this
+   * occurrence, and what's left of it starts over as a new series with the change applied — the
+   * calendar has no way to say "from here on" inside one rule.
    */
   async update(
     qualifiedCalendarId: string,
@@ -207,6 +225,29 @@ export class CalendarEventsService {
     series?: SeriesEdit,
   ): Promise<ResolvedEvent> {
     const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
+    if (series?.scope === "following") {
+      const split = await this.#split(connection.provider, calendarId, eventId, series.seriesId, series.previousStart);
+      if (split) {
+        const { master, recurrence } = split;
+        const created = await connection.provider.createEvent({
+          calendarId,
+          title: patch.title ?? master.title,
+          description: patch.description ?? master.description ?? undefined,
+          location: patch.location ?? master.location ?? undefined,
+          start: patch.start ?? series.previousStart,
+          end: patch.end ?? series.previousEnd,
+          allDay: master.allDay,
+          timeZone: patch.timeZone ?? master.timeZone ?? undefined,
+          recurrence: patch.recurrence ?? recurrence,
+          reminders: patch.reminders ?? master.reminders,
+          attendees: patch.attendees ?? guestsOf(master),
+        });
+        await this.#mappings.copy({ calendarId, scope: "series", externalEventId: series.seriesId }, created.id);
+        eventCache.invalidate(this.userId);
+        const mappings = await this.#mappings.all();
+        return { ...attachMappings([{ ...created, calendarId }], mappings)[0], accountId: connection.accountId };
+      }
+    }
     const targetId = series ? series.seriesId : eventId;
     const targetPatch = series ? await this.#seriesPatch(connection.provider, calendarId, patch, series) : patch;
 
@@ -258,12 +299,59 @@ export class CalendarEventsService {
     return { ...attachMappings([updated], mappings)[0], accountId: connection.accountId };
   }
 
-  async delete(qualifiedCalendarId: string, eventId: string): Promise<void> {
+  /**
+   * One occurrence, the whole series, or this occurrence and every one after it — the last being
+   * the master's rule told to end just before this one, which is all "following" means here.
+   */
+  async delete(qualifiedCalendarId: string, eventId: string, series?: SeriesDelete): Promise<void> {
     const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
-    await connection.provider.deleteEvent(calendarId, eventId);
+    const following =
+      series?.scope === "following"
+        ? await this.#split(connection.provider, calendarId, eventId, series.seriesId, series.occurrenceStart)
+        : null;
+    if (series && !following) {
+      await connection.provider.deleteEvent(calendarId, series.seriesId);
+      await this.#mappings.remove({ calendarId, scope: "series", externalEventId: series.seriesId });
+    } else if (!series) {
+      await connection.provider.deleteEvent(calendarId, eventId);
+    }
     // The mapping's removal forgets the cached week — see `EventMappingService`.
     await this.#mappings.remove({ calendarId, scope: "instance", externalEventId: eventId });
+    eventCache.invalidate(this.userId);
   }
+
+  /**
+   * Ends the series just before this occurrence, and answers with the rule the rest of it would
+   * repeat by. Null when the occurrence is the series' first: nothing would be left before it,
+   * so the change is the whole series' and the caller treats it that way.
+   */
+  async #split(
+    provider: CalendarProvider,
+    calendarId: string,
+    occurrenceId: string,
+    seriesId: string,
+    seen: Date,
+  ): Promise<{ master: ExternalEvent; recurrence: string[] } | null> {
+    const master = await provider.getEvent(calendarId, seriesId);
+    const point = splitPointOf(occurrenceId, seen);
+    if (!master.recurrence || isSeriesStart(point, master.start)) return null;
+    const cut = point.kind === "instant" ? point.at : seen;
+    // Only a rule that counts its occurrences needs to know how many have already happened.
+    const counted = master.recurrence.some((line) => line.startsWith("RRULE:") && line.includes("COUNT="));
+    const elapsed = counted
+      ? (await provider.listEvents([calendarId], master.start, cut)).filter(
+          (event) => event.seriesId === seriesId && event.start.getTime() < cut.getTime(),
+        ).length
+      : 0;
+    await provider.updateEvent(calendarId, seriesId, { recurrence: truncateRule(master.recurrence, point) });
+    return { master, recurrence: remainingRule(master.recurrence, elapsed) };
+  }
+}
+
+/** The guest list as a create takes it: everyone with an address, the organizer included. */
+function guestsOf(master: ExternalEvent) {
+  const guests = master.attendees.flatMap((a) => (a.email ? [{ email: a.email, optional: a.optional }] : []));
+  return guests.length > 0 ? guests : undefined;
 }
 
 /** A series mapping always wins over an instance mapping on one of its occurrences — category

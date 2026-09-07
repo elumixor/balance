@@ -55,9 +55,11 @@ import type { Category } from "$lib/core/records";
     else void data.duplicateEvent(event);
   }
 
+  /** A batch goes as-is; a single repeating block is asked how much of its series goes with it. */
   function del() {
     close();
-    for (const target of targets) void data.deleteEvent(target);
+    if (batch) for (const target of targets) void data.deleteEvent(target, "instance");
+    else void data.deleteEvent(event);
   }
 </script>
 

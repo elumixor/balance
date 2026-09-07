@@ -7,6 +7,7 @@ import {
   createCalendarEvent,
   deleteCalendarEvent,
   removeEventMapping,
+  type SeriesTarget,
   saveEventMapping,
   updateCalendarEvent,
 } from "./queries";
@@ -234,6 +235,35 @@ export class CalendarWrites {
       { id: ref.id, event: null },
       () => dropCalendarEvent(ref.id),
     );
+    return done !== null;
+  }
+
+  /**
+   * The series, or this occurrence and the ones after it. Every occurrence the strip holds in
+   * that reach comes off at once; the weeks are then asked again, since a series that was cut in
+   * two, or one that is gone, changes days this strip has never loaded.
+   */
+  async removeSeries(ref: EventRef, series: SeriesTarget): Promise<boolean> {
+    const from = new Date(series.occurrenceStart).getTime();
+    const drawn: Drawn[] = this.#host.events
+      .filter(
+        (event) =>
+          event.seriesId === series.seriesId &&
+          (series.seriesScope === "all" || new Date(event.start).getTime() >= from),
+      )
+      .map((event) => ({ id: event.id, event: null }));
+    const done = await this.run(
+      () => deleteCalendarEvent(ref.id, ref.calendarId, series),
+      [...drawn, { id: ref.id, event: null }],
+      () => {
+        for (const { id } of drawn) dropCalendarEvent(id);
+        dropCalendarEvent(ref.id);
+      },
+    );
+    if (done !== null) {
+      invalidate.calendar();
+      await this.#host.refreshWeeks();
+    }
     return done !== null;
   }
 

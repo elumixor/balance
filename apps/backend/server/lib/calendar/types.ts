@@ -7,6 +7,8 @@ export const PRIMARY_CALENDAR_ID = "primary";
 export type EventStatus = "confirmed" | "tentative" | "cancelled";
 export type SelfResponse = "accepted" | "declined" | "tentative" | "needsAction";
 export type MappingScope = "instance" | "series";
+/** How far a change to a repeating event reaches: every occurrence, or this one and the ones after. */
+export type SeriesScope = "all" | "following";
 
 /**
  * How a timer run for an event is broken up. The length is always the event's own duration, so
@@ -97,6 +99,11 @@ export interface CreateEventInput {
    * both iCalendar and Google write it.
    */
   readonly allDay?: boolean;
+  /** The rest of what a series carries, when a new one is made out of half of an old one. */
+  readonly timeZone?: string;
+  readonly recurrence?: readonly string[];
+  readonly reminders?: readonly EventReminder[];
+  readonly attendees?: readonly AttendeeInput[];
 }
 
 /** Someone on the guest list, as the card writes them: an address, and whether they're optional. */

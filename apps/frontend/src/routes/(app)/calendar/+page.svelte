@@ -83,7 +83,9 @@
       e.preventDefault();
       data.clearPicked();
       data.deselect();
-      for (const event of targets) void data.deleteEvent(event);
+      // One repeating block is asked how much of its series goes; a batch means each block itself.
+      if (targets.length === 1) void data.deleteEvent(targets[0]);
+      else for (const event of targets) void data.deleteEvent(event, "instance");
       return;
     }
 

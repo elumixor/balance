@@ -16,6 +16,7 @@ export { default as ProjectPicker } from "./ProjectPicker.svelte";
 export { default as ProjectsPalette } from "./ProjectsPalette.svelte";
 export { default as RemindersRow } from "./RemindersRow.svelte";
 export { default as RepeatPicker } from "./RepeatPicker.svelte";
+export { default as SeriesDeletePrompt } from "./SeriesDeletePrompt.svelte";
 export { default as SeriesEditPrompt } from "./SeriesEditPrompt.svelte";
 export { default as SidePanelSection } from "./SidePanelSection.svelte";
 export { default as TimeField } from "./TimeField.svelte";

@@ -20,7 +20,7 @@ import {
 import { createCalendarEvent, type EventPatch, respondToCalendarEvent, updateCalendarEvent } from "./queries";
 import type { CalendarSelection } from "./selection.svelte";
 import type { CalendarSeries } from "./series.svelte";
-import { type CalendarEvent, type CalendarWeek, type MappingScope, NOT_A_MEETING } from "./types";
+import { type CalendarEvent, type CalendarWeek, type MappingScope, NOT_A_MEETING, type SeriesScope } from "./types";
 import type { CalendarWrites } from "./writes.svelte";
 
 /** How many drafts remember what they became before the lot is dropped. */
@@ -224,7 +224,9 @@ export class CalendarEdits {
   async patchEvent(event: CalendarEvent, patch: EventPatch, inverse: EventPatch) {
     this.#series.dismiss();
     if (this.#writes.isDraft(event.id)) {
-      diagnostics.report("Calendar", "The block is still being made.", { title: "Give it a second" });
+      diagnostics.report("Calendar", "The block is still being made.", {
+        title: "Give it a second",
+      });
       return;
     }
     const ref = this.#writes.ref(event);
@@ -238,7 +240,12 @@ export class CalendarEdits {
       : {};
     const write = async (fields: EventPatch) => {
       const answer = await this.#writes.run(
-        () => updateCalendarEvent(ref.id, { calendarId: ref.calendarId, ...fields, ...series }),
+        () =>
+          updateCalendarEvent(ref.id, {
+            calendarId: ref.calendarId,
+            ...fields,
+            ...series,
+          }),
         { id: ref.id, event: drawnWith(event, fields) },
         (answer) => applyCalendarEvent(answer, ref.id),
       );
@@ -301,10 +308,29 @@ export class CalendarEdits {
     });
   }
 
-  async deleteEvent(event: CalendarEvent) {
+  /**
+   * A one-off goes at once. A recurring occurrence is first asked how much of its series goes
+   * with it — unless the caller has already said, or is deleting a gathered batch, where the
+   * question would have to be asked once per block and "this one" is what a batch means anyway.
+   * Only a single occurrence can be put back: the calendar has no undo for a series.
+   */
+  async deleteEvent(event: CalendarEvent, scope?: SeriesScope | "instance") {
     this.#series.dismiss();
+    this.#series.dismissDelete();
+    if (event.seriesId && !scope && !this.#writes.isDraft(event.id)) {
+      this.#series.offerDelete(event);
+      return;
+    }
     this.#selection.deselect();
     const ref = this.#writes.ref(event);
+    if (event.seriesId && scope && scope !== "instance") {
+      await this.#writes.removeSeries(ref, {
+        seriesId: event.seriesId,
+        seriesScope: scope,
+        occurrenceStart: event.start,
+      });
+      return;
+    }
     if (!(await this.#writes.remove(ref))) return;
 
     this.history.push({

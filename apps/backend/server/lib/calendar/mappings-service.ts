@@ -133,6 +133,30 @@ export class EventMappingService {
     eventCache.invalidate(this.userId);
   }
 
+  /**
+   * The same mapping under another event — for the second half of a series split in two, which
+   * has to count as what the whole did. A mapping the target already has stands.
+   */
+  async copy(from: MappingKey, toEventId: string): Promise<void> {
+    const source = await db.query.eventMappings.findFirst({ where: this.whereKey(from), with: { weights: true } });
+    if (!source) return;
+    await this.upsert({
+      calendarId: from.calendarId,
+      scope: from.scope,
+      externalEventId: toEventId,
+      activityId: source.activityId,
+      weights: source.activityId
+        ? undefined
+        : source.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
+      projectId: source.projectId,
+      practiceId: source.practiceId,
+      taskId: source.taskId,
+      timer: source.timer as EventTimer | null,
+      source: source.source,
+      hidden: source.hidden,
+    });
+  }
+
   async remove(key: MappingKey): Promise<void> {
     await db.delete(eventMappings).where(this.whereKey(key));
     eventCache.invalidate(this.userId);

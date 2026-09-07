@@ -49,14 +49,24 @@
     draft = value ?? { frequency: "weekly", interval: 1, weekdays: [day.getDay()], end: NEVER };
   });
 
+  function endOf(kind: RuleEnd["kind"], was: RuleEnd): RuleEnd {
+    return kind === "never"
+      ? NEVER
+      : kind === "until"
+        ? { kind, day: was.kind === "until" ? was.day : formatDateInput(day) }
+        : { kind, count: was.kind === "count" ? was.count : DEFAULT_COUNT };
+  }
+
   function setEnd(kind: RuleEnd["kind"]) {
-    const end: RuleEnd =
-      kind === "never"
-        ? NEVER
-        : kind === "until"
-          ? { kind, day: draft.end.kind === "until" ? draft.end.day : formatDateInput(day) }
-          : { kind, count: draft.end.kind === "count" ? draft.end.count : DEFAULT_COUNT };
-    draft = { ...draft, end };
+    draft = { ...draft, end: endOf(kind, draft.end) };
+  }
+
+  /**
+   * A rule the presets name still has to say when it stops, so its end sits under the list too —
+   * every change there is the whole rule written again, since the calendar keeps only one line.
+   */
+  function chooseEnd(end: RuleEnd) {
+    if (value) onchoose({ ...value, end });
   }
 
   function toggleWeekday(weekday: number) {
@@ -67,6 +77,34 @@
     if (next.length > 0) draft = { ...draft, weekdays: next };
   }
 </script>
+
+{#snippet ends(end: RuleEnd, setKind: (kind: RuleEnd["kind"]) => void, set: (end: RuleEnd) => void)}
+  <div class="space-y-2">
+    <div class="flex items-center gap-2">
+      <span class="t-label text-fg-muted">Ends</span>
+      <Segmented options={ENDS} value={end.kind} onchange={setKind} />
+    </div>
+    {#if end.kind === "until"}
+      <input
+        type="date"
+        value={end.day}
+        onchange={(e) => set({ kind: "until", day: e.currentTarget.value })}
+        aria-label="Last day"
+        class="field-bare w-full"
+      />
+    {:else if end.kind === "count"}
+      <div class="flex items-center gap-2">
+        <NumberField
+          value={end.count}
+          unit="times"
+          ariaLabel="How many times"
+          inputmode="numeric"
+          onchange={(n) => set({ kind: "count", count: Math.max(1, Math.round(n)) })}
+        />
+      </div>
+    {/if}
+  </div>
+{/snippet}
 
 <AnchoredPopup {rect} width={280} {onclose}>
   {#if !custom}
@@ -96,6 +134,11 @@
       >
         Custom…
       </button>
+      {#if value}
+        <div class="mt-1.5 border-t border-line px-1.5 pt-2.5 pb-1">
+          {@render ends(value.end, (kind) => chooseEnd(endOf(kind, value.end)), chooseEnd)}
+        </div>
+      {/if}
     </div>
   {:else}
     <div class="space-y-3 p-3">
@@ -135,31 +178,7 @@
         </div>
       {/if}
 
-      <div class="space-y-2">
-        <div class="flex items-center gap-2">
-          <span class="t-label text-fg-muted">Ends</span>
-          <Segmented options={ENDS} value={draft.end.kind} onchange={setEnd} />
-        </div>
-        {#if draft.end.kind === "until"}
-          <input
-            type="date"
-            value={draft.end.day}
-            oninput={(e) => (draft = { ...draft, end: { kind: "until", day: e.currentTarget.value } })}
-            aria-label="Last day"
-            class="field-bare w-full"
-          />
-        {:else if draft.end.kind === "count"}
-          <div class="flex items-center gap-2">
-            <NumberField
-              value={draft.end.count}
-              unit="times"
-              ariaLabel="How many times"
-              inputmode="numeric"
-              onchange={(n) => (draft = { ...draft, end: { kind: "count", count: Math.max(1, Math.round(n)) } })}
-            />
-          </div>
-        {/if}
-      </div>
+      {@render ends(draft.end, setEnd, (end) => (draft = { ...draft, end }))}
 
       <div class="flex items-center justify-between gap-2 border-t border-line pt-3">
         <span class="t-micro min-w-0 truncate text-fg-faint">{describe(draft, day)}</span>

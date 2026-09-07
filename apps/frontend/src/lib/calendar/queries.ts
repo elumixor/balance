@@ -5,6 +5,7 @@ import type {
   EventReminder,
   EventTimer,
   MappingScope,
+  SeriesScope,
 } from "$lib/calendar/types";
 import { api, apiGet, callApi } from "$lib/core/api";
 import type { ActivityWeight } from "$lib/core/records";
@@ -59,15 +60,24 @@ export const updateCalendarEvent = (
   id: string,
   input: EventPatch & {
     calendarId: string;
-    /** Present only for a write meant to land on the whole series, not just this occurrence. */
+    /** Present only for a write meant to land on the series, not just this occurrence. */
     seriesId?: string;
+    /** Every occurrence, or this one and the ones after it — which cuts the series in two. */
+    seriesScope?: SeriesScope;
     previousStart?: string;
     previousEnd?: string;
   },
 ) => callApi(api.calendar.events(id).$patch(input)).then((r) => r.event as CalendarEvent);
 
-export const deleteCalendarEvent = (id: string, calendarId: string) =>
-  callApi(api.calendar.events(id).$delete({ calendarId }));
+/** The series it repeats from, when the delete means more than this one occurrence. */
+export interface SeriesTarget {
+  seriesId: string;
+  seriesScope: SeriesScope;
+  occurrenceStart: string;
+}
+
+export const deleteCalendarEvent = (id: string, calendarId: string, series?: SeriesTarget) =>
+  callApi(api.calendar.events(id).$delete({ calendarId, ...series }));
 
 /** Yes, no or maybe to an invitation — written to the calendar the other guests are reading. */
 export const respondToCalendarEvent = (

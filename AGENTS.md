@@ -213,7 +213,10 @@ how it repeats, its reminders, its guests, its call — is written straight back
 one `PATCH /calendar/events/:id` and `calendarData.patchEvent`, which draws the answer ahead and
 takes an inverse patch for undo. A rule always lands on the series' master, the only event that
 has one, so the card fetches the master once per series to read it; anything else edited on an
-occurrence is offered to the rest of the series the way a retitle is. The translations are pure
+occurrence is offered to the rest of the series the way a retitle is — every occurrence, or "from
+here on", which the server answers by ending the master's rule just before the occurrence and
+starting a new series where it stands (`calendar/series-split.ts`, pure and tested). A delete asks
+the same three ways first, since a series is the one thing the app can't put back. The translations are pure
 and tested: `calendar/recurrence.ts` speaks RRULE, `reminder-lead.ts` reads "45m" and "at time",
 and `time-zones.ts` names zones by city, works out "GMT+2" on the day, and moves an instant
 between zones keeping its wall clock. Zones a person names — "Kyiv", "the office" — and the card
