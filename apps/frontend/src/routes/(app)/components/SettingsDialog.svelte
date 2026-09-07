@@ -4,7 +4,7 @@
   import { auth } from "$lib/account/auth.svelte";
   import { telemetry } from "$lib/platform/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
-  import { AboutSection, IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
+  import { IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
   import { type Pane, PANES } from "$lib/settings";
   import { preferences } from "$lib/account/preferences.svelte";
   import { settings } from "$lib/settings";

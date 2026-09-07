@@ -10,6 +10,7 @@
   import { sessionNudge } from "$lib/planning/session-nudge.svelte";
   import { settings } from "$lib/settings";
   import { Flame, LogOut, Power, SunMoon } from "lucide-svelte";
+  import AboutSection from "./AboutSection.svelte";
   import SettingRow from "./SettingRow.svelte";
   import StarRecord from "./StarRecord.svelte";
   import ThemeSwitch from "./ThemeSwitch.svelte";
@@ -150,5 +151,9 @@
         onchange={(enabled) => void desktopAutostart.set(enabled)}
       />
     {/if}
+  </div>
+
+  <div class="mt-1 space-y-1 border-t border-line pt-5">
+    <AboutSection />
   </div>
 </div>
