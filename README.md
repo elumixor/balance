@@ -102,12 +102,24 @@ backend's route handlers — run `cd apps/backend && bunx nitro-client` after ch
 bun run build  # SvelteKit static build -> apps/backend/public, then Nitro's Vercel build output
 ```
 
-Both halves ship as one Vercel deployment at
-[balance-app-mauve.vercel.app](https://balance-app-mauve.vercel.app): the static SPA for the app,
-one function for `/mobile/*` and `/health`. Any path that isn't an API prefix answers with the app
-shell, and the client router takes it from there. `bun run deploy` ships it (see "Releasing");
-pushing to `main` does not — `vercel.json` turns Vercel's git deployments off, so a release is
-something you trigger, not something a push causes.
+Both halves ship as one Vercel deployment: the static SPA for the app, one function for `/mobile/*`
+and `/health`. Any path that isn't an API prefix answers with the app shell, and the client router
+takes it from there.
+
+There are two of those deployments, and a branch decides which one a merge lands on:
+
+| Branch    | Environment                | Address                                                                            |
+| --------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| `develop` | `develop` (Vercel custom)  | [balance-app-dev.vercel.app](https://balance-app-dev.vercel.app)                     |
+| `main`    | production                 | [balance-app-mauve.vercel.app](https://balance-app-mauve.vercel.app)                 |
+
+Everything else — a feature branch, a pull request — builds nothing: `vercel.json`'s
+`ignoreCommand` answers "skip" for any ref that isn't one of those two, so pushing work in
+progress costs no build and changes no address. Each environment has its own variables in Vercel,
+so what `develop` connects to is a question of configuration rather than of code.
+
+`bun run deploy` still ships production straight from a laptop (see "Releasing"), which is what a
+release with a new Mac app in it has to be — a Linux build container cannot make one.
 
 ## iOS
 
@@ -255,8 +267,8 @@ hands it out, so the DMG has to exist before Vercel packages the site, and a web
 first. `updater` runs between them, packing the same `.app` as a signed tarball beside the DMG —
 see `apps/frontend/scripts/stage-updater.ts`.
 
-Everything is built on this machine — there is no CI doing it, and no tag to push. The iOS half
-needs a working release setup locally: Homebrew Ruby (`brew install ruby`, macOS's own 2.6 is too
+A release is built on this machine; CI builds what a merge asks for (see "What a merge ships"). The
+iOS half needs a working release setup locally: Homebrew Ruby (`brew install ruby`, macOS's own 2.6 is too
 old for fastlane's gems), the "Apple Distribution" certificate in the login keychain, and an App
 Store Connect API key. The key is read from `APP_STORE_CONNECT_API_KEY_PATH`, or
 `~/.appstoreconnect/private_keys/AuthKey_<key id>.p8` by default; its id and issuer id go in the
@@ -293,17 +305,28 @@ The same deploy stages what the installed app reads: `Balance.app.tar.gz`, and a
 naming its version and its signature. Nothing else has to happen for an update to reach a Mac —
 bump the version (`bun run version:sync`), deploy, and every copy picks it up within six hours.
 
-### Shipping without this machine
+### What a merge ships
 
-Both halves can also be built by CI, but never by a push — each is a button in the Actions tab, so
-a merge to `main` still changes nothing that users see.
+Work happens on a branch off `develop` and nothing is built while it sits there. Merging is what
+deploys:
+
+- **into `develop`** — Vercel builds the development deployment, and the iOS beta goes to
+  TestFlight pointed at it. The TestFlight half is skipped when the merge only moved the API: that
+  is already live on the deployment every existing build talks to.
+- **into `main`** — Vercel builds production. Nothing native is rebuilt, because a release with a
+  new phone or Mac app in it is `bun run deploy` from a laptop, or an `ios-v*` tag.
 
 ```bash
-bunx devkit release ios  # tags the commit and pushes the tag; the iOS workflow picks it up
+bunx devkit release ios  # tags the commit and pushes the tag; the iOS workflow builds against production
 ```
 
-**iOS TestFlight** runs the same `fastlane beta` lane on a macOS runner, on an `ios-v*` tag or a
-manual run. It needs `APP_STORE_CONNECT_API_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`,
+**iOS TestFlight** runs the same `fastlane beta` lane on a macOS runner. It needs
+`APP_STORE_CONNECT_API_KEY_ID`, `APP_STORE_CONNECT_API_KEY_ISSUER_ID`,
 `APP_STORE_CONNECT_API_KEY_CONTENT`, `IOS_DIST_CERT_P12_BASE64` and `IOS_DIST_CERT_PASSWORD` as
-repository secrets. **Vercel Deploy** is manual only: it pings a Vercel deploy hook
-(`VERCEL_DEPLOY_HOOK_URL`), and Vercel builds `main` on its own machines.
+repository secrets — a macOS runner costs ten times an ordinary one, which is why a cheap job works
+out what changed before one is started.
+
+The Mac app is the one thing a cloud build can't make, and the site hands it out. So a Vercel build
+with nothing staged in `dist/download` carries over what the live deployment is already serving
+(`scripts/carry-download.ts`) rather than shipping a site whose `/download/latest.json` has become
+a 404 for every installed copy.

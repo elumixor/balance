@@ -13,6 +13,7 @@ import { isProduction } from "~/lib/env";
  */
 const ALLOWED_ORIGINS = [
   "https://balance-app-mauve.vercel.app",
+  "https://balance-app-dev.vercel.app",
   "https://localhost",
   "capacitor://localhost",
   "tauri://localhost",

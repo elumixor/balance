@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "devkit dev:web",
     "build": "devkit build",
+    "build:web": "devkit build:web",
     "deploy": "devkit deploy",
     "test": "bun run --filter '*' test",
     "check": "bun run --filter '*' check",

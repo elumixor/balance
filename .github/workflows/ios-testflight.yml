@@ -1,9 +1,16 @@
 name: iOS TestFlight
 
-# The usual way to ship is `bun run deploy` on a laptop. This is the same fastlane lane on a
-# GitHub runner, for when that machine isn't around: a pushed `ios-v*` tag, or a button.
+# The beta build of the app, shipped by the same fastlane lane a laptop runs.
+#
+# Merging into `develop` sends a build to TestFlight pointed at the development API, but only when
+# the merge touched something the app itself is made of — a backend-only change is already live on
+# the development deployment and needs no new build on anybody's phone. An `ios-v*` tag builds
+# against production instead, which is what a release is; the button does whatever branch it is
+# pressed on.
 on:
   push:
+    branches:
+      - develop
     tags:
       - "ios-v*"
   workflow_dispatch:
@@ -13,14 +20,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A macOS runner costs ten times what this one does, so what changed is worked out on a cheap
+  # runner first: a merge that only moved the API is already live on the deployment the app talks
+  # to, and nobody needs a new build on their phone for it.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - "apps/frontend/**"
+              - "apps/backend/server/routes/**"
+              - "package.json"
+              - "bun.lock"
+              - ".github/workflows/ios-testflight.yml"
+
   testflight:
+    needs: changes
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') || needs.changes.outputs.app == 'true'
     runs-on: macos-26
     timeout-minutes: 60
     env:
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
-      VITE_API_BASE_URL: https://balance-app-mauve.vercel.app
+      # A tag is a release and talks to production; everything else is a beta of `develop` and
+      # talks to the development deployment, which is where that branch's API is running.
+      VITE_API_BASE_URL: ${{ startsWith(github.ref, 'refs/tags/') && 'https://balance-app-mauve.vercel.app' || 'https://balance-app-dev.vercel.app' }}
       VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
