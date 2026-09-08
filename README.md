@@ -293,16 +293,21 @@ disagree. Bump that one field to release a new version.
 
 ### The Mac app, from the website
 
-`bun run deploy` builds the macOS bundle and stages `dist/download/` (the DMG plus a small
-`desktop.json`), and the web build copies it next to the app, at `/download/Balance.dmg`. Settings
+`bun run deploy` builds the macOS bundle, stages `dist/download/` (the DMG plus a small
+`desktop.json`) and publishes it to the `balance-downloads` blob store, which `/download/*`
+redirects into — so the app is handed out at `/download/Balance.dmg` whatever built the site last.
+The upload needs `BLOB_READ_WRITE_TOKEN`, and the redirect needs `DOWNLOAD_BASE_URL`; both are in
+the repo's `.env` and in every deployed environment. Settings
 offers it — in a browser only, since the two app shells are already what it would install — and
 draws the button from `desktop.json`, so a deployment that carries no DMG simply doesn't offer one.
 
 The bundle is unsigned (there is no Developer ID certificate on this account yet), so the first
 launch of a downloaded copy needs a right-click → Open. The panel says so.
 
-The same deploy stages what the installed app reads: `Balance.app.tar.gz`, and a `latest.json`
-naming its version and its signature. Nothing else has to happen for an update to reach a Mac —
+The same deploy publishes what the installed app reads: `Balance.app.tar.gz`, and a `latest.json`
+naming its version, its signature and the blob it lives at — which is also the endpoint
+`tauri.conf.json` points the updater at, so an update is fetched from the store rather than
+through the site. Nothing else has to happen for an update to reach a Mac —
 bump the version (`bun run version:sync`), deploy, and every copy picks it up within six hours.
 
 ### What a merge ships
@@ -326,7 +331,7 @@ bunx devkit release ios  # tags the commit and pushes the tag; the iOS workflow 
 repository secrets — a macOS runner costs ten times an ordinary one, which is why a cheap job works
 out what changed before one is started.
 
-The Mac app is the one thing a cloud build can't make, and the site hands it out. So a Vercel build
-with nothing staged in `dist/download` carries over what the live deployment is already serving
-(`scripts/carry-download.ts`) rather than shipping a site whose `/download/latest.json` has become
-a 404 for every installed copy.
+The Mac app is the one thing a cloud build can't make, so it isn't part of one: whoever builds it
+publishes it to a blob store (`scripts/publish-download.ts`, run by `devkit deploy`'s `download`
+step), and `/download/*` on the site redirects there. Deploying the site touches none of it, and
+the newest Mac app and the newest site no longer have to be the same deploy.

@@ -122,9 +122,11 @@ production (`balance-app-mauve.vercel.app`). Every other ref is skipped by `verc
 `ignoreCommand`, and a macOS runner is only started once a cheap job has said the app itself
 changed.
 
-Two things a cloud build can't do, and both are still a laptop's job: the Tauri bundle the site
-hands out (`scripts/carry-download.ts` carries the live one over so a deployment never drops
-`/download`), and a release, which is `bun run deploy`.
+The Tauri bundle is the one thing a cloud build can't make, so the site doesn't carry it: a Mac
+build publishes it to a blob store (`scripts/publish-download.ts`) and `/download/*` is a redirect
+into that store (`routes/download/[...path].get.ts`, `DOWNLOAD_BASE_URL`). Deploying the site
+leaves the download alone, and a release with a new Mac app in it is still `bun run deploy` from a
+laptop.
 
 ## Generated and committed
 
