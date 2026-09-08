@@ -1,6 +1,6 @@
 [package]
 name = "balance-desktop"
-version = "1.0.0"
+version = "1.0.1"
 description = "Balance for macOS"
 authors = ["Vladyslav Yazykov"]
 edition = "2021"
