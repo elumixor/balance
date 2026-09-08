@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "bun install",
-  "buildCommand": "bun scripts/carry-download.ts && bun run build:web",
+  "buildCommand": "bun run build:web",
   "ignoreCommand": "bash -c '[[ \"$VERCEL_GIT_COMMIT_REF\" == main || \"$VERCEL_GIT_COMMIT_REF\" == develop ]] && exit 1 || exit 0'",
   "git": {
     "deploymentEnabled": {

@@ -24,6 +24,7 @@
     "@biomejs/biome": "^2.5.6",
     "@elumixor/devkit": "0.10.2",
     "@types/node": "^20",
+    "@vercel/blob": "^2.8.0",
     "typescript": "^5"
   },
   "devkit": {
@@ -103,11 +104,9 @@
           "backendDir": "apps/backend",
           "apiPrefixes": [
             "mobile",
-            "health"
-          ],
-          "include": {
-            "dist/download": "download"
-          }
+            "health",
+            "download"
+          ]
         }
       },
       "mac": {
@@ -145,11 +144,14 @@
           "mac"
         ]
       },
-      "web": {
-        "type": "vercel",
+      "download": {
+        "command": "bun scripts/publish-download.ts",
         "needs": [
           "updater"
         ]
+      },
+      "web": {
+        "type": "vercel"
       },
       "iphone": {
         "type": "fastlane-ios",

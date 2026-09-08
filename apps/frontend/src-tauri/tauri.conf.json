@@ -28,7 +28,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYyOEI3MkYzMURDNzEyM0IKUldRN0VzY2Q4M0tMOGloRXRWUGpzbmRHZVNOWVFVRnQ1MzJacEFvVEEvd0FoNHRlSHp5SDBVR2sK",
-      "endpoints": ["https://balance-app-mauve.vercel.app/download/latest.json"]
+      "endpoints": ["https://wgao3owbgwirgycn.public.blob.vercel-storage.com/download/latest.json"]
     },
     "deep-link": {
       "desktop": {

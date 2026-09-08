@@ -27,6 +27,12 @@ const { version, productName } = (await Bun.file(join(frontendDir, "src-tauri/ta
 
 const app = join(bundleDir, `${productName}.app`);
 
+// The tarball is handed out by the blob store `scripts/publish-download.ts` writes to, and the
+// manifest has to name it there: the site only redirects, and an updater is a poor place to find
+// out whether something follows redirects.
+const downloadBaseUrl = process.env.DOWNLOAD_BASE_URL;
+if (!downloadBaseUrl) throw new Error("DOWNLOAD_BASE_URL is missing — put it in the repo's .env");
+
 // Bundling a DMG consumes the `.app` it packages, so whether one is still here depends on whether
 // the deploy also asked for the `app` target. Rebuilding it costs a bundling pass, not a compile —
 // the release binary in `target/` is the one that was just built.
@@ -69,7 +75,7 @@ await Bun.write(
       platforms: {
         "darwin-aarch64": {
           signature,
-          url: `https://balance-app-mauve.vercel.app/download/${productName}.app.tar.gz`,
+          url: `${downloadBaseUrl}/download/${productName}.app.tar.gz`,
         },
       },
     },

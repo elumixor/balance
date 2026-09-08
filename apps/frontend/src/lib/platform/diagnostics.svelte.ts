@@ -116,7 +116,8 @@ class Diagnostics {
 
   /** The state of the app itself, for the report somebody pastes into a message. */
   get context() {
-    return [`api: ${API_BASE_URL || "(same origin)"}`, `build: ${buildInfo.parts.join(" · ")}`].join("\n");
+    const build = [buildInfo.version, buildInfo.platform, buildInfo.provenance].filter(Boolean).join(" · ");
+    return [`api: ${API_BASE_URL || "(same origin)"}`, `build: ${build}`].join("\n");
   }
 
   /**

@@ -26,6 +26,8 @@ const schema = z.object({
   /** The audience a native Sign in with Apple token has to name. */
   APPLE_BUNDLE_ID: z.string().min(1),
   GOOGLE_MAPS_API_KEY: z.string().min(1),
+  /** The blob store the macOS app and its update manifest are published to — see `/download`. */
+  DOWNLOAD_BASE_URL: z.url(),
   AI_GATEWAY_API_KEY: z.string().min(1),
   SENTRY_DSN: z.url(),
   POSTHOG_KEY: z.string().min(1),

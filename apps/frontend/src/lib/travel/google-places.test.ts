@@ -106,10 +106,12 @@ describe("parseGooglePlaces", () => {
     expect(parseGooglePlaces(collection(at(["", "north"])))[0].latitude).toBeUndefined();
     expect(parseGooglePlaces(collection(at([13.4, 91])))[0].latitude).toBeUndefined();
     expect(parseGooglePlaces(collection(at([181, 52.5])))[0].latitude).toBeUndefined();
-    expect(parseGooglePlaces(collection({ properties: { name: "X" }, geometry: { coordinates: "13.4,52.5" } }))[0])
-      .toEqual({ label: "X", address: "" });
-    expect(parseGooglePlaces(collection({ properties: { name: "X", Location: { "Geo Coordinates": 4 } } }))[0])
-      .toEqual({ label: "X", address: "" });
+    expect(
+      parseGooglePlaces(collection({ properties: { name: "X" }, geometry: { coordinates: "13.4,52.5" } }))[0],
+    ).toEqual({ label: "X", address: "" });
+    expect(parseGooglePlaces(collection({ properties: { name: "X", Location: { "Geo Coordinates": 4 } } }))[0]).toEqual(
+      { label: "X", address: "" },
+    );
   });
 
   it("lists the same place once, however many lists hold it", () => {
