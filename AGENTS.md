@@ -113,6 +113,19 @@ the server — an RSVP, an archive in Gmail — is an `action` instead, with the
 what to draw meanwhile. Calendar events are deliberately not a synced model: Google owns them,
 and `CalendarEventsService.resolve` is still the one read path.
 
+## A branch decides where the work lands
+
+Work goes on a branch off `develop`, and pushing it deploys nothing. Merging into `develop` builds
+the development deployment (`balance-app-dev.vercel.app`, its own Vercel environment with its own
+variables) and sends an iOS beta to TestFlight pointed at it; merging into `main` builds
+production (`balance-app-mauve.vercel.app`). Every other ref is skipped by `vercel.json`'s
+`ignoreCommand`, and a macOS runner is only started once a cheap job has said the app itself
+changed.
+
+Two things a cloud build can't do, and both are still a laptop's job: the Tauri bundle the site
+hands out (`scripts/carry-download.ts` carries the live one over so a deployment never drops
+`/download`), and a release, which is `bun run deploy`.
+
 ## Generated and committed
 
 - `apps/frontend/src/lib/api-client/` is generated from the backend's routes (`bunx nitro-client`).
