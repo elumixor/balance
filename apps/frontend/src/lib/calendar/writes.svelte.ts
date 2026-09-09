@@ -126,7 +126,7 @@ export class CalendarWrites {
    * previewing. A diff taken against a preview finds nothing to write — and what it found nothing
    * to write for is the very write the preview was leading up to.
    */
-  #written(id: string): CalendarEvent | undefined {
+  written(id: string): CalendarEvent | undefined {
     if (this.#pending.has(id)) return this.#pending.get(id) ?? undefined;
     return this.#host.weeks.flatMap((week) => week.value?.events ?? []).find((event) => event.id === id);
   }
@@ -135,7 +135,7 @@ export class CalendarWrites {
     // Only what actually moved. A write that carries the title along with a new end time is a
     // write of the title as far as the calendar and everyone else reading it is concerned, and
     // two edits racing over one field are only a race if both of them name that field.
-    const base = this.#written(ref.id) ?? was;
+    const base = this.written(ref.id) ?? was;
     const patch: {
       title?: string;
       description?: string;

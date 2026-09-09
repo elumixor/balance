@@ -163,7 +163,10 @@ export class CalendarEdits {
   ) {
     this.#series.dismiss();
     const ref = this.#writes.ref(event);
-    const before = fieldsOf(event);
+    // What the last write left, never the block the screen is drawing: the card hands over the
+    // event as the grid holds it, and while a time field is open that is the very preview this
+    // write is the end of — so a diff taken against it finds nothing to write and the edit is lost.
+    const before = fieldsOf(this.#writes.written(ref.id) ?? event);
     const after: EventFields = {
       title: patch.title ?? before.title,
       description: patch.description ?? before.description,
