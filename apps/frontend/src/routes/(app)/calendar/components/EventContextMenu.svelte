@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { AnchoredPopup, CategoryPicker, PopoverItem } from "$lib/components";
+  import { AnchoredPopup, Picker, PopoverItem } from "$lib/components";
 import type { Category } from "$lib/core/records";
   import type { CalendarEvent } from "$lib/calendar/types";
-  import ProjectPicker from "./ProjectPicker.svelte";
   import { Copy, Hexagon, Tag, Trash2 } from "lucide-svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
+  import { purposeItems, purposeKey, purposeOf, type Purpose } from "$lib/projects/purpose.svelte";
+  import { categoryItems } from "$lib/ui/picker";
 
   /**
    * The handful of things a right-click is for: set what a block (or a whole gathered batch)
@@ -43,7 +44,7 @@ import type { Category } from "$lib/core/records";
   }
 
   /** What the block was for. On a batch, every gathered block is tagged the same way. */
-  function chooseProject(purpose: { projectId: string | null; practiceId: string | null }) {
+  function chooseProject(purpose: Purpose) {
     projectRect = null;
     close();
     for (const target of targets) void data.tagEvent(target, purpose);
@@ -90,21 +91,27 @@ import type { Category } from "$lib/core/records";
 </AnchoredPopup>
 
 {#if categoryRect}
-  <CategoryPicker
+  <Picker
     rect={categoryRect}
-    categories={plannable}
+    items={categoryItems(plannable)}
     value={batch ? "" : (event.weights[0]?.categoryId ?? "")}
+    placeholder="Search categories"
+    ariaLabel="Search categories"
     onchoose={chooseCategory}
     onclose={() => (categoryRect = null)}
   />
 {/if}
 
 {#if projectRect}
-  <ProjectPicker
+  <Picker
     rect={projectRect}
-    categoryId={batch ? undefined : event.weights[0]?.categoryId}
-    value={batch ? "" : event.projectId ? `project:${event.projectId}` : event.practiceId ? `practice:${event.practiceId}` : ""}
-    onchoose={chooseProject}
+    width={260}
+    items={purposeItems()}
+    value={batch ? "" : purposeKey(event)}
+    placeholder="Project or practice"
+    ariaLabel="Search projects"
+    onchoose={(key) => chooseProject(purposeOf(key))}
+    onclear={() => chooseProject({ projectId: null, practiceId: null })}
     onclose={() => (projectRect = null)}
   />
 {/if}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { clock } from "$lib/platform/clock.svelte";
 import type { Category } from "$lib/core/records";
-  import { CategoryIcon, CategoryPicker } from "$lib/components";
+  import { CategoryIcon, Picker } from "$lib/components";
   import { restColor } from "$lib/ui/colors";
   import { formatClock } from "$lib/ui/format";
   import { DEFAULT_ICON } from "$lib/ui/icons";
@@ -9,6 +9,7 @@ import type { Category } from "$lib/core/records";
   import type { CalendarEvent } from "$lib/calendar/types";
   import type { CaptionSide } from "$lib/calendar/week-grid";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
+  import { categoryItems } from "$lib/ui/picker";
   import { eventCategory } from "$lib/calendar/event-category";
   import { practices, projects, tasks } from "$lib/core/synced.svelte";
   import { MapPinCheck } from "lucide-svelte";
@@ -253,10 +254,12 @@ import type { Category } from "$lib/core/records";
 {/if}
 
 {#if categoryRect}
-  <CategoryPicker
+  <Picker
     rect={categoryRect}
-    categories={plannable}
+    items={categoryItems(plannable)}
     value={category?.id ?? ""}
+    placeholder="Search categories"
+    ariaLabel="Search categories"
     onchoose={chooseCategory}
     onclose={() => (categoryRect = null)}
   />

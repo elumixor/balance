@@ -1,8 +1,9 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Button, CategoryPicker, Dot, Field, NumberField, Popover, PopoverItem, Select, Skeleton, Textarea } from "$lib/components";
+  import { Button, Dot, Field, NumberField, Picker, Popover, PopoverItem, Select, Skeleton, Textarea } from "$lib/components";
   import { restColor } from "$lib/ui/colors";
+  import { categoryItems } from "$lib/ui/picker";
   import { formatHoursDecimal } from "$lib/ui/format";
   import { CheckpointCard, CreateAssist, DecisionSheet, GoalPicker, HoursBars, LinksList, PeopleList, StageRail, TaskList } from "./components";
   import { ProjectCover, StatusChip } from "$lib/components";
@@ -245,10 +246,12 @@
     {/if}
 
     {#if sphereRect}
-      <CategoryPicker
+      <Picker
         rect={sphereRect}
-        categories={data.spheres}
+        items={categoryItems(data.spheres)}
         value={project.categoryId}
+        placeholder="Search categories"
+        ariaLabel="Search categories"
         onchoose={(categoryId) => {
           sphereRect = null;
           data.update(project.id, { categoryId });

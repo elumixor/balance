@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { CategoryIcon, CategoryPicker, Field } from "$lib/components";
+  import { CategoryIcon, Field, Picker } from "$lib/components";
   import type { Category } from "$lib/core/records";
   import { practices, projects, tasks } from "$lib/core/synced.svelte";
+  import { purposeItems, purposeKey, purposeOf } from "$lib/projects/purpose.svelte";
+  import { projectsData } from "$lib/projects/projects-data.svelte";
   import { restColor } from "$lib/ui/colors";
   import { DEFAULT_ICON } from "$lib/ui/icons";
+  import { categoryItems } from "$lib/ui/picker";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import type { EventDraft } from "$lib/calendar/event-draft.svelte";
   import type { CalendarEvent, MappingScope } from "$lib/calendar/types";
-  import { X } from "lucide-svelte";
   import type { Pickers } from "./EventEditor.svelte";
-  import ProjectPicker from "./ProjectPicker.svelte";
 
   /**
-   * The top of the card: what the hour was for, then what it counts as beside what it's called.
-   * The sphere is the icon beside the name, so it is not said twice; the purpose is tagged from
-   * here, because tagging a grey block after the fact is how a real week is reconciled and it
-   * should cost one tap.
+   * The top of the card: what the hour counts as and what it was for on one line, then what it's
+   * called. Both are tagged from here, because tagging a grey block after the fact is how a real
+   * week is reconciled and it should cost one tap.
    */
   let {
     event,
@@ -23,7 +23,7 @@
     categories,
     /** What the block counts as, resolved by the card — the same badge the block on the grid wears. */
     category,
-    /** Whether the project line is drawn, which is where the actions row sits when it is. */
+    /** Whether what the hour was for is drawn beside the sphere. */
     withProject,
     pickers = $bindable(),
     /** The name field, for the card to put the cursor in. */
@@ -52,13 +52,15 @@
   }
 
   const data = calendarData;
-  /** Icon sizes: the sphere badge, and the cross on the purpose pill. */
-  const BADGE = 28;
-  const DETACH = 11;
+  /** The sphere badge, which now sits on the small line above the name. */
+  const BADGE = 22;
 
   // A repeating event always counts as the same thing on every occurrence — only a one-off event
   // gets an instance-scoped mapping.
   const scope: MappingScope = $derived(event.seriesId ? "series" : "instance");
+
+  const key = $derived(purposeKey(event));
+  const items = $derived(purposeItems());
 
   /** "Project / task", by name — the tag is the id, the card says the thing. */
   const purpose = $derived.by(() => {
@@ -70,26 +72,25 @@
     if (event.practiceId) return practices.all.find((p) => p.id === event.practiceId)?.name ?? "A practice";
     return null;
   });
-  const purposeKey = $derived(
-    event.projectId ? `project:${event.projectId}` : event.practiceId ? `practice:${event.practiceId}` : "",
-  );
-  /** Whether the cross on the pill has been pressed once and is waiting to be meant. */
-  let detaching = $state(false);
-
-  // Another block is another question; a "Detach?" left open belongs to the last one.
-  $effect(() => {
-    event.id;
-    detaching = false;
-  });
+  /** The project wears its sphere's colour, so the line reads as one thing with the badge. */
+  const purposeColor = $derived(items.find((item) => item.key === key)?.color ?? category?.color ?? restColor);
 
   function choosePurpose(next: { projectId: string | null; practiceId: string | null }) {
     pickers.project = null;
     void draft.write("The project wasn’t saved", data.tagEvent(event, next));
   }
 
+  function createProject(name: string) {
+    const created = projectsData.create(category?.id, name);
+    if (created) choosePurpose({ projectId: created.id, practiceId: null });
+  }
+
   function detach() {
-    detaching = false;
-    void draft.write("The project wasn’t detached", data.tagEvent(event, { projectId: null, practiceId: null, taskId: null }));
+    void draft.write(
+      "The project wasn’t detached",
+      data.tagEvent(event, { projectId: null, practiceId: null, taskId: null }),
+    );
+    pickers.project = null;
   }
 
   /**
@@ -106,38 +107,35 @@
     }
     void draft.write("The category wasn’t saved", data.mapEvent(event, scope, { weights }));
   }
+
+  function unmap() {
+    pickers.category = null;
+    void draft.write("The category wasn’t cleared", data.unmapEvent(event));
+  }
 </script>
 
-{#if withProject}
-  <div class="flex min-w-0 items-center gap-1.5 px-3 pt-2 pr-28">
+<!-- What it counts as and what it was for, on the line above the name. -->
+<div class="flex min-w-0 items-center gap-2 px-3 pt-2 pr-28">
+  <button
+    type="button"
+    aria-label="Change category"
+    class="press-sm shrink-0 rounded-md"
+    onclick={(e) => (pickers.category = e.currentTarget.getBoundingClientRect())}
+  >
+    <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={BADGE} />
+  </button>
+
+  {#if withProject}
     {#if purpose}
-      <span class="t-micro flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-fg-muted">
-        <button
-          type="button"
-          class="press-sm min-w-0 truncate hover:text-fg"
-          title="Change what this is for"
-          onclick={(e) => (pickers.project = e.currentTarget.getBoundingClientRect())}
-        >
-          {purpose}
-        </button>
-        {#if !detaching}
-          <button
-            type="button"
-            aria-label="Detach from {purpose}"
-            onclick={() => (detaching = true)}
-            class="press-sm shrink-0 rounded p-0.5 text-fg-faint hover:text-fg"
-          >
-            <X size={DETACH} />
-          </button>
-        {/if}
-      </span>
-      {#if detaching}
-        <span class="t-micro flex shrink-0 items-center gap-2 text-fg-muted">
-          Detach?
-          <button type="button" onclick={detach} class="press-sm t-micro text-fg underline">Yes</button>
-          <button type="button" onclick={() => (detaching = false)} class="press-sm t-micro text-fg-faint">No</button>
-        </span>
-      {/if}
+      <button
+        type="button"
+        class="press-sm t-micro min-w-0 truncate rounded px-1 py-0.5"
+        style="color:{purposeColor}"
+        title="Change what this is for"
+        onclick={(e) => (pickers.project = e.currentTarget.getBoundingClientRect())}
+      >
+        {purpose}
+      </button>
     {:else}
       <button
         type="button"
@@ -147,19 +145,11 @@
         Add Project
       </button>
     {/if}
-  </div>
-{/if}
+  {/if}
+</div>
 
-<!-- What it counts as and what it's called, beside the things you can do to it. -->
-<div class="flex items-center gap-1 px-3 pb-2 {withProject ? 'pt-1' : 'pt-2 pr-28'}">
-  <button
-    type="button"
-    aria-label="Change category"
-    class="press-sm shrink-0 rounded-md"
-    onclick={(e) => (pickers.category = e.currentTarget.getBoundingClientRect())}
-  >
-    <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={BADGE} />
-  </button>
+<!-- What it's called. -->
+<div class="flex items-center gap-1 px-3 pt-1 pb-2">
   {#if draft.editable}
     <Field
       bind:value={draft.title}
@@ -177,21 +167,30 @@
 </div>
 
 {#if pickers.project}
-  <ProjectPicker
+  <Picker
     rect={pickers.project}
-    value={purposeKey}
-    categoryId={category?.id}
-    onchoose={choosePurpose}
+    width={260}
+    {items}
+    value={key}
+    placeholder="Project or practice"
+    ariaLabel="Search projects"
+    onchoose={(next) => choosePurpose(purposeOf(next))}
+    onclear={detach}
+    oncreate={createProject}
+    createLabel={(name) => `New project “${name}”`}
     onclose={() => (pickers.project = null)}
   />
 {/if}
 
 {#if pickers.category}
-  <CategoryPicker
+  <Picker
     rect={pickers.category}
-    {categories}
+    items={categoryItems(categories)}
     value={category?.id ?? ""}
+    placeholder="Search categories"
+    ariaLabel="Search categories"
     onchoose={chooseCategory}
+    onclear={unmap}
     onclose={() => (pickers.category = null)}
   />
 {/if}

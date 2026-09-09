@@ -12,7 +12,6 @@ export { default as OriginPicker } from "./OriginPicker.svelte";
 export { default as ParticipantsRow } from "./ParticipantsRow.svelte";
 export { default as PlanningBar } from "./PlanningBar.svelte";
 export { default as ProjectMeters } from "./ProjectMeters.svelte";
-export { default as ProjectPicker } from "./ProjectPicker.svelte";
 export { default as ProjectsPalette } from "./ProjectsPalette.svelte";
 export { default as RemindersRow } from "./RemindersRow.svelte";
 export { default as RepeatPicker } from "./RepeatPicker.svelte";
