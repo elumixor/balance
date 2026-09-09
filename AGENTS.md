@@ -138,8 +138,13 @@ laptop.
   `$lib/calendar/agenda.svelte.ts` as the one answer to "what is next" that the menu bar and the reminders
   both read. Don't fetch or reason about events in Rust — the session lives in the webview. A new
   command has to be named in `build.rs` and in `capabilities/default.json`, or the built app never
-  receives it. The shell registers itself as a login item on its first launch and is then started
-  with `--hidden`, so the menu bar and the reminders run without a window; the reminder card can't
+  receives it. The shell is a background agent, not an app somebody opens: `login_item.rs` writes
+  a `launchd` job of its own on every launch — `RunAtLoad` plus `KeepAlive` for an exit nobody
+  asked for, so a crash comes back and a quit from the tray stays quit — and it is started with
+  `--hidden`, so the menu bar and the reminders run without a window. The session it draws from
+  survives a relaunch because the Mac holds a device grant in a file (`grant.rs`), the same
+  mechanism iOS has in Capacitor Preferences: what clerk-js leaves behind in the webview does not
+  survive, which is why a login-item launch used to have nothing to show. The reminder card can't
   become the key window, which is what keeps a dismiss from bringing the hidden main window back.
   `target/` and `gen/` are generated; the rest is committed.
 - `apps/frontend/ios/` is a committed Xcode project, and holds everything Apple: `App/WatchApp`,

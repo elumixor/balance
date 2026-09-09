@@ -1,4 +1,6 @@
 mod dock;
+mod grant;
+mod login_item;
 mod reminder;
 mod tray;
 
@@ -108,32 +110,9 @@ const REPORT_ERRORS: &str = r#"
 })();
 "#;
 
-/// Passed by the login item (see the autostart plugin in `run`). A launch nobody asked for should
-/// put nothing on screen: the menu bar item appears, the reminders start, and the window waits.
-const HIDDEN_FLAG: &str = "--hidden";
-
-/// Left in the app's data directory once the login item has been registered. Registering is done
-/// once rather than on every launch, so switching it off — in settings here, or in System
-/// Settings — stays switched off.
-const AUTOSTART_MARKER: &str = "autostart-registered";
-
-fn register_autostart_once(app: &AppHandle) {
-    use tauri_plugin_autostart::ManagerExt;
-
-    let Ok(dir) = app.path().app_data_dir() else {
-        return;
-    };
-    let marker = dir.join(AUTOSTART_MARKER);
-    if marker.exists() {
-        return;
-    }
-    if let Err(e) = app.autolaunch().enable() {
-        log::warn!("couldn't register as a login item: {e}");
-        return;
-    }
-    let _ = std::fs::create_dir_all(&dir);
-    let _ = std::fs::write(marker, b"");
-}
+/// Passed by the login item (see [`crate::login_item`]). A launch nobody asked for should put
+/// nothing on screen: the menu bar item appears, the reminders start, and the window waits.
+pub const HIDDEN_FLAG: &str = "--hidden";
 
 fn build_main_window(app: &AppHandle, visible: bool) -> tauri::Result<()> {
     let url = app_url("/")
@@ -175,10 +154,6 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_window(app);
         }));
-        builder = builder.plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec![HIDDEN_FLAG]),
-        ));
     }
 
     let app = builder
@@ -194,6 +169,11 @@ pub fn run() {
             reminder::show_reminder,
             reminder::close_reminder,
             reminder::resize_reminder,
+            grant::read_device_grant,
+            grant::write_device_grant,
+            grant::clear_device_grant,
+            login_item::login_item_enabled,
+            login_item::set_login_item,
             open_window,
             restart_app
         ])
@@ -204,7 +184,7 @@ pub fn run() {
             build_main_window(app.handle(), !hidden)?;
             spawn_agenda_ticks(app.handle());
             #[cfg(desktop)]
-            register_autostart_once(app.handle());
+            login_item::register(app.handle());
 
             // The webview drives it — see `src/lib/desktop/updates.svelte.ts`. This side only
             // has to be able to fetch the manifest, check its signature and swap the bundle.

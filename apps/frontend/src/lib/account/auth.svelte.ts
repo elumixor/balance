@@ -3,11 +3,22 @@ import { SocialLogin } from "@capgo/capacitor-social-login";
 import { Clerk } from "@clerk/clerk-js";
 import { postPublic } from "$lib/core/api";
 import { APPLE_CLIENT_ID, CLERK_PUBLISHABLE_KEY, DEV_AUTH, DEV_AUTH_EMAIL, GOOGLE_IOS_CLIENT_ID } from "$lib/core/env";
+import { isDesktop } from "$lib/desktop/platform";
 import { ensureDeviceGrant, redeemClerkTicket, restoreNativeSession, revokeDeviceGrant } from "./device-grant";
 import { getProfile } from "./queries";
 import { readSignedIn, writeSignedIn } from "./signed-in";
 
 const isNativeApp = Capacitor.isNativePlatform();
+
+/**
+ * Which shells sign themselves back in rather than asking.
+ *
+ * Both of them, for the same reason: what clerk-js leaves behind is pruned in the iOS webview and
+ * does not survive a relaunch of the Mac shell either, so both used to open on a sign-in screen —
+ * and on the Mac a login-item launch then had no session for the menu bar to draw from. The grant
+ * lives where nothing prunes it (see `device-grant.ts`).
+ */
+const keepsDeviceGrant = isNativeApp || isDesktop;
 
 /**
  * How long the whole start-up — Clerk's own load, and the device's silent sign-in behind it — is
@@ -114,7 +125,7 @@ class Auth {
       // Telling Clerk it isn't a standard browser is not the fix, however tempting it reads: a
       // development instance then can't run its browser handshake at all, and every launch fails
       // with "Unable to authenticate this browser for your development instance".
-      if (isNativeApp && !clerk.session) {
+      if (keepsDeviceGrant && !clerk.session) {
         await withDeadline(restoreNativeSession(clerk), "Signing this device back in took too long.");
       }
     } catch (e) {
@@ -139,7 +150,7 @@ class Auth {
     this.avatarUrl = clerk?.user?.hasImage ? (clerk.user.imageUrl ?? "") : "";
     this.userId = clerk?.user?.id ?? "";
     writeSignedIn(this.signedIn);
-    if (isNativeApp && clerk?.session) void ensureDeviceGrant(clerk);
+    if (keepsDeviceGrant && clerk?.session) void ensureDeviceGrant(clerk);
     if (clerk?.session) void this.#profile();
   }
 
@@ -268,7 +279,7 @@ class Auth {
     const clerk = await this.load();
     await clerk.signOut();
     // The grant has to go with the session, or the next launch signs the device straight back in.
-    if (isNativeApp) await revokeDeviceGrant();
+    if (keepsDeviceGrant) await revokeDeviceGrant();
     this.#sync();
   }
 }

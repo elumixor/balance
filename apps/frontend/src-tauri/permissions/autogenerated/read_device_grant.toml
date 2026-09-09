@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-read-device-grant"
+description = "Enables the read_device_grant command without any pre-configured scope."
+commands.allow = ["read_device_grant"]
+
+[[permission]]
+identifier = "deny-read-device-grant"
+description = "Denies the read_device_grant command without any pre-configured scope."
+commands.deny = ["read_device_grant"]

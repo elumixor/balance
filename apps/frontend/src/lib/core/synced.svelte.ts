@@ -130,6 +130,9 @@ export const synced = syncedClient({
   },
 });
 
+/** The one message `NotSignedInError` carries, which the queue only ever has as a string. */
+const NOT_SIGNED_IN = "Not authenticated";
+
 /**
  * What the server refused, for the screen that wants to say so. Held rather than thrown: the
  * write was made a while ago and its screen may be long gone, so there is nobody left to catch it.
@@ -138,7 +141,10 @@ const lastRejection = new Cell<string | null>(null);
 
 export const syncStatus = {
   get error() {
-    return lastRejection.value ?? synced.error;
+    const error = lastRejection.value ?? synced.error;
+    // A queue that ran before there was a session is not a queue that failed — see
+    // `NotSignedInError`. It goes up again as soon as one arrives, with nothing said meanwhile.
+    return error === NOT_SIGNED_IN ? null : error;
   },
   /** Only the writes the server refused — a screen showing its own row's failure wants these. */
   get rejected() {

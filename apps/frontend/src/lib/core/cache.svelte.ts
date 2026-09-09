@@ -1,4 +1,5 @@
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
+import { NotSignedInError } from "./api";
 import * as persist from "./persist";
 
 /**
@@ -84,6 +85,9 @@ export class Cached<T> {
       // still older than the write that came in behind it.
       if (generation !== this.#generation) this.#stale = true;
     } catch (e) {
+      // Asked before there was a session to ask with: not a failure and not an answer either, so
+      // the value stays unfetched and this refetches when `warmStore` runs behind the sign-in.
+      if (e instanceof NotSignedInError) return;
       this.error = e instanceof Error ? e.message : this.fallbackError;
       // The card says what this cache is for and carries the way out, since this is the thing
       // that knows how to ask again. The fallback sentence was always written for a person.

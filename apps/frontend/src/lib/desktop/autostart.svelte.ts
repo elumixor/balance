@@ -1,13 +1,14 @@
+import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./platform";
 import { report } from "./report";
 
 /**
- * Whether the Mac app opens at login.
+ * Whether the Mac app opens at login — and comes back if it dies.
  *
- * The shell registers itself once, on its first launch (`register_autostart_once` in
- * `src-tauri/src/lib.rs`), because the menu bar and the reminders only exist while the app is
- * running — and an app somebody has to remember to open is one that isn't. This is the switch
- * in settings that turns that back off, and reads what the system currently says.
+ * The menu bar, the Dock icon and the reminders only exist while the app is running, so the shell
+ * registers itself as a `launchd` agent on every launch (`src-tauri/src/login_item.rs`): an app
+ * somebody has to remember to open is one that isn't there when it matters. This is the switch in
+ * settings that turns that off, and reads what is registered rather than what was chosen.
  */
 class DesktopAutostart {
   enabled = $state<boolean | null>(null);
@@ -16,8 +17,7 @@ class DesktopAutostart {
   async load() {
     if (!isDesktop) return;
     try {
-      const { isEnabled } = await import("@tauri-apps/plugin-autostart");
-      this.enabled = await isEnabled();
+      this.enabled = await invoke<boolean>("login_item_enabled");
     } catch (e) {
       report("Couldn't tell whether Balance opens at login", e);
     }
@@ -28,8 +28,7 @@ class DesktopAutostart {
     const before = this.enabled;
     this.enabled = enabled;
     try {
-      const { enable, disable } = await import("@tauri-apps/plugin-autostart");
-      await (enabled ? enable() : disable());
+      await invoke("set_login_item", { enabled });
     } catch (e) {
       this.enabled = before;
       report("Couldn't change whether Balance opens at login", e);

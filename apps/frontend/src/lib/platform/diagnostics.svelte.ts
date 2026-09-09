@@ -63,6 +63,10 @@ class Diagnostics {
   }
 
   #report(scope: string, error: unknown, options?: ReportOptions) {
+    // A request made before there was a session to make it with. The app is on its way to the
+    // sign-in screen, where a card saying "Not authenticated" is the one thing the person can
+    // already see — and it outlived the sign-in, sitting over the calendar afterwards.
+    if (error instanceof Error && error.name === "NotSignedInError") return;
     const message = messageOf(error);
     const fullDetail = [options?.detail, detailOf(error)].filter(Boolean).join("\n");
     // The same failure every 30 seconds from a loop that keeps retrying is that many failures,

@@ -21,6 +21,22 @@ export class ApiClientError extends Error {
 }
 
 /**
+ * No session yet, or none any more — which is a state the app moves through, not a failure.
+ *
+ * A launch draws the shell before Clerk has replayed anything, and every screen under it asks for
+ * its data on mount, so a device whose session has gone used to answer three "Not authenticated"
+ * cards in the corner on the way to the sign-in screen — and they were still sitting there over
+ * the calendar once the person had signed in. Nothing is reported for one of these: the caches
+ * stay unfetched, and the pass that runs when a session arrives fetches them.
+ */
+export class NotSignedInError extends ApiClientError {
+  constructor() {
+    super("Not authenticated");
+    this.name = "NotSignedInError";
+  }
+}
+
+/**
  * How long a request — or the token minted for it — is allowed to take before it counts as lost.
  *
  * There has to be a limit, because a request that never answers is worse than one that fails: the
@@ -54,7 +70,7 @@ async function authenticatedFetch(input: Parameters<typeof fetch>[0], init?: Par
   // Clerk refreshes the session token over the network, so this hangs for the same reasons a
   // request does — and a request that never gets its token never even starts.
   const token = await withTimeout(auth.token(), "Can't reach the server. Check your connection and try again.");
-  if (!token) throw new ApiClientError("Not authenticated");
+  if (!token) throw new NotSignedInError();
 
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${token}`);

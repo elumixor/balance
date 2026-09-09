@@ -1,9 +1,28 @@
 import { Preferences } from "@capacitor/preferences";
+import { invoke } from "@tauri-apps/api/core";
 import type { Clerk } from "@clerk/clerk-js";
 import { ApiClientError, postPublic } from "$lib/core/api";
+import { isDesktop } from "$lib/desktop/platform";
 
 /** The device's standing permission to sign itself back in — see `restoreNativeSession`. */
 const DEVICE_GRANT_KEY = "balance:device-grant";
+
+/**
+ * Where the grant is kept, per shell.
+ *
+ * It has to outlive the webview's own storage, which is the whole point of it: iOS has Capacitor
+ * Preferences, and the Mac has a file in the app's data directory (`src-tauri/src/grant.rs`) —
+ * WebKit's store for `http://localhost:8123` is exactly the thing that does not survive.
+ */
+async function storeGrant(token: string) {
+  if (isDesktop) return void (await invoke("write_device_grant", { token }));
+  await Preferences.set({ key: DEVICE_GRANT_KEY, value: token });
+}
+
+async function forgetGrant() {
+  if (isDesktop) return void (await invoke("clear_device_grant"));
+  await Preferences.remove({ key: DEVICE_GRANT_KEY });
+}
 
 /**
  * Signs the device back in without anybody touching the screen.
@@ -23,13 +42,13 @@ export async function restoreNativeSession(clerk: Clerk) {
     }>("/auth/device/ticket", {
       token,
     });
-    await Preferences.set({ key: DEVICE_GRANT_KEY, value: rotated });
+    await storeGrant(rotated);
     await redeemClerkTicket(clerk, ticket);
   } catch (e) {
     // A grant the server refuses (revoked, expired, or spent by a restore interrupted after it
     // rotated) is worth forgetting; a launch with no network is not — throwing that grant away
     // would turn every offline start into a sign-in screen the next time there is a signal.
-    if (e instanceof ApiClientError && e.rejected) await Preferences.remove({ key: DEVICE_GRANT_KEY });
+    if (e instanceof ApiClientError && e.rejected) await forgetGrant();
   }
 }
 
@@ -50,7 +69,7 @@ async function issueDeviceGrant(clerk: Clerk) {
     const sessionToken = await clerk.session?.getToken();
     if (!sessionToken) return;
     const { token } = await postPublic<{ token: string }>("/auth/device", {}, sessionToken);
-    await Preferences.set({ key: DEVICE_GRANT_KEY, value: token });
+    await storeGrant(token);
   } catch {
     // Worst case the next launch asks for a sign-in, which is what it did before this existed.
   }
@@ -58,7 +77,7 @@ async function issueDeviceGrant(clerk: Clerk) {
 
 export async function revokeDeviceGrant() {
   const token = await readDeviceGrant();
-  await Preferences.remove({ key: DEVICE_GRANT_KEY });
+  await forgetGrant();
   if (!token) return;
   try {
     await postPublic("/auth/device/revoke", { token });
@@ -68,6 +87,7 @@ export async function revokeDeviceGrant() {
 }
 
 async function readDeviceGrant() {
+  if (isDesktop) return (await invoke<string | null>("read_device_grant")) ?? null;
   const { value } = await Preferences.get({ key: DEVICE_GRANT_KEY });
   return value ?? null;
 }

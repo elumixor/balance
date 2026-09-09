@@ -20,9 +20,13 @@
     "allow-show-reminder",
     "allow-close-reminder",
     "allow-resize-reminder",
+    "allow-read-device-grant",
+    "allow-write-device-grant",
+    "allow-clear-device-grant",
+    "allow-login-item-enabled",
+    "allow-set-login-item",
     "allow-open-window",
     "allow-restart-app",
-    "updater:default",
-    "autostart:default"
+    "updater:default"
   ]
 }

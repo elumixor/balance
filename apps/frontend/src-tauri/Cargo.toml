@@ -32,6 +32,8 @@ tokio = { version = "1", features = ["time"] }
 # Unpinned minors on purpose: these are the versions tao and wry already resolve to, and a second
 # objc2 in the binary would mean a second registration of the same Objective-C classes.
 [target.'cfg(target_os = "macos")'.dependencies]
+# One call: the uid the login item's `launchd` domain is named after (`gui/501`).
+libc = "0.2"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSGeometry"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
@@ -50,9 +52,6 @@ tauri-plugin-updater = "2.9.0"
 # The `deep-link` feature is what makes a second launch hand its `balance://` URL to the running
 # instance instead of starting a second one beside it in the menu bar.
 tauri-plugin-single-instance = { version = "2.4.3", features = ["deep-link"] }
-# Registered as a login item on first launch, so the menu bar and the reminders are there after a
-# restart without anyone remembering to open the app. It is launched with `--hidden` (see `run`).
-tauri-plugin-autostart = "2.5.1"
 
 [profile.release]
 codegen-units = 1
