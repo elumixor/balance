@@ -105,7 +105,8 @@
           "apiPrefixes": [
             "mobile",
             "health",
-            "download"
+            "download",
+            "mcp"
           ]
         }
       },

@@ -4,7 +4,7 @@
   import { auth } from "$lib/account/auth.svelte";
   import { telemetry } from "$lib/platform/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
-  import { AboutSection, IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
+  import { AboutSection, AssistantsPane, IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
   import { type Pane, PANES } from "$lib/settings";
   import { preferences } from "$lib/account/preferences.svelte";
   import { settings } from "$lib/settings";
@@ -113,6 +113,8 @@
             <TimeZonesPane />
           {:else if pane.value === "integrations"}
             <IntegrationsPane />
+          {:else if pane.value === "assistants"}
+            <AssistantsPane />
           {:else}
             <SettingsGroup title="Calendars">
               <CalendarsSection variant="page" />

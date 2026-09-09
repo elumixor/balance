@@ -36,6 +36,31 @@ export const deviceGrantsRelations = relations(deviceGrants, ({ one }) => ({
   user: one(users, { fields: [deviceGrants.userId], references: [users.id] }),
 }));
 
+/**
+ * A key an assistant holds so it can act as the account over MCP.
+ *
+ * A Clerk session is minutes long and lives in a browser; the thing on the other end of `/mcp` is
+ * a terminal or a chat that was configured once and is expected to still work next month. So the
+ * key is minted here, shown once, and only its hash is kept — the same rule as a device grant,
+ * except that this one is not rotated on use: the holder has nowhere to write a replacement.
+ * `name` is what the settings list calls it, so a key can be revoked without guessing which.
+ */
+export const mcpTokens = pgTable("mcp_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+});
+
+export const mcpTokensRelations = relations(mcpTokens, ({ one }) => ({
+  user: one(users, { fields: [mcpTokens.userId], references: [users.id] }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   categories: many(categories),
   activities: many(activities),
@@ -43,6 +68,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   eventMappings: many(eventMappings),
   trackingSessions: many(trackingSessions),
   deviceGrants: many(deviceGrants),
+  mcpTokens: many(mcpTokens),
   plannedDays: many(plannedDays),
   plannedWeeks: many(plannedWeeks),
   starLedger: many(starLedger),

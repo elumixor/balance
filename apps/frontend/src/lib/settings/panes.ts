@@ -1,8 +1,8 @@
 import type { Icon as IconType } from "lucide-svelte";
-import { Bell, CalendarDays, Globe, MapPin, Plug, UserRound } from "lucide-svelte";
+import { Bell, Bot, CalendarDays, Globe, MapPin, Plug, UserRound } from "lucide-svelte";
 
 /** The sections of the settings panel, in the order they are laid out and the rail lists them. */
-export type Pane = "general" | "notifications" | "places" | "zones" | "calendars" | "integrations";
+export type Pane = "general" | "notifications" | "places" | "zones" | "calendars" | "integrations" | "assistants";
 
 interface PaneInfo {
   value: Pane;
@@ -39,6 +39,12 @@ export const PANES: PaneInfo[] = [
     keywords: "google account connect drawn default new events land",
   },
   { value: "integrations", label: "Integrations", icon: Plug, keywords: "apple health sleep sync feed" },
+  {
+    value: "assistants",
+    label: "Assistants",
+    icon: Bot,
+    keywords: "mcp claude key token api assistant agent model context protocol",
+  },
 ];
 
 /** The sections whose name or words contain the query; every section for an empty one. */

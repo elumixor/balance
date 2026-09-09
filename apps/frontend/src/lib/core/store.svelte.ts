@@ -5,6 +5,7 @@ import { weekKey, weekRange } from "$lib/calendar/dates";
 import { getCalendarPrefs, getCalendarWeek } from "$lib/calendar/queries";
 import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
 import { getIntegrations } from "$lib/integrations/queries";
+import { listMcpKeys } from "$lib/mcp/queries";
 import { deviceTimeZone, localDay } from "$lib/planning/zone";
 import { getProjectProgress } from "$lib/projects/queries";
 import { Cached } from "./cache.svelte";
@@ -24,6 +25,8 @@ export const store = {
   integrations: new Cached(getIntegrations, "Couldn't check your connected calendars.", "integrations", "Calendars"),
   calendars: new Cached(getCalendarPrefs, "Couldn't load your calendars.", "calendars", "Calendars"),
   preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences", "Settings"),
+  /** Not kept on the device: a list of keys is worth one request when the panel is opened. */
+  mcpKeys: new Cached(listMcpKeys, "Couldn't load your assistant keys.", undefined, "Assistants"),
   /**
    * What the calendar says every project has had — read fresh from the device's own day, since a
    * week is a week where the person is. Its failure is the projects screen's to show.

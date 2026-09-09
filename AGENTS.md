@@ -293,6 +293,31 @@ client keys are public by design and live in one place (`VITE_SENTRY_DSN`, `VITE
 which the release lane writes into the iOS and watchOS `Info.plist`s so all four platforms report
 to one project.
 
+## An assistant is another client, and it gets the services, not the API
+
+`server/lib/mcp/` is the Model Context Protocol, spoken at `/mcp`: `tools.ts` is what an assistant
+can do, `protocol.ts` is the JSON-RPC that carries it, `authenticate.ts` is whose account it is
+about. The protocol is written out rather than pulled in — a stateless server of tools is one
+`switch`, where the official SDK brings a transport built around Node's `req`/`res` and a zod of
+its own, neither of which survives being a Vercel function.
+
+Three rules hold it together. **A tool calls a service, never the HTTP API** — an MCP call is
+already inside the process, and going out through `fetch` would be a second copy of auth and a
+second set of DTOs; a tool's answer is deliberately smaller than the screen's, because a week of
+full events is thousands of tokens of fields nobody asked about. **A failed tool is a result, not
+an error**: an `ApiError` — "reconnect your calendar" — comes back as `isError` with its sentence,
+and only a malformed request is a JSON-RPC error. And **stateless is the deployment's doing**: two
+calls are two processes, so there is no session id, `GET` and `DELETE` answer 405, and the key on
+each request is the whole of what the server knows.
+
+That key is an `mcp_tokens` row (`lib/mcp/tokens.ts`), minted in Settings → Assistants, shown
+once, stored as a hash, and never rotated — the holder has nowhere to write a replacement. Anything
+that isn't one of ours is handed to the ordinary session check, which is what makes `DEV_AUTH_EMAIL`
+cover this endpoint too. Two lines of configuration exist only for this route and are easy to miss:
+`/mcp` is in `nitro-client.config.ts`'s `excludeRoutes` (by path, so `/mobile/mcp/keys` stays typed),
+and `mcp` is in the root `package.json`'s `apiPrefixes`, without which a production deployment
+answers `/mcp` with the app shell and a 200.
+
 ## A route is a signature, a service is the work
 
 `server/lib/` is one folder per subject — `auth`, `categories`, `calendar`, `planning`, `projects`,

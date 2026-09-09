@@ -96,6 +96,28 @@ The frontend's typed API client (`apps/frontend/src/lib/api-client`) is generate
 backend's route handlers — run `cd apps/backend && bunx nitro-client` after changing a
 `server/routes/mobile/**` handler's schema or response shape, and commit the regenerated output.
 
+## Connecting an assistant (MCP)
+
+The API speaks the Model Context Protocol at `/mcp`, so an assistant can read the week, the
+spheres and the projects, and write blocks back. Thirteen tools, four of which write; the same
+services the app's own routes call sit behind them.
+
+What gets in is a key, made in **Settings → Assistants**. It is shown once — only its hash is
+stored — and the panel writes out the line that uses it:
+
+```bash
+claude mcp add --transport http balance https://balance-app-mauve.vercel.app/mcp \
+  --header "Authorization: Bearer balance_mcp_…"
+```
+
+Any MCP client that takes a URL and a bearer header works the same way; `claude mcp list` says
+whether it connected. A key is the whole account, so the list says when each was last used, and
+revoking one takes effect on the next call. Claude's web connectors are the one place this does
+not fit: that dialog has no field for a header, and there is no OAuth server behind `/mcp`.
+
+In development the endpoint is `http://localhost:3100/mcp`, and `DEV_AUTH_EMAIL` covers it the way
+it covers everything else — no key needed against a local backend.
+
 ## Deploying the web app + API
 
 ```bash
