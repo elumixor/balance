@@ -321,6 +321,9 @@ export class CalendarDrag {
     this.#pressAt = { x: e.clientX, y: e.clientY };
     if ((e.target as Element | null)?.closest("[data-event]")) return;
     if (e.pointerType === "touch") {
+      // A second finger is a pinch, and the hold the first one had started is not what it means —
+      // only one is ever waiting, so the abort the pinch calls has something to cancel.
+      this.#cancelHold();
       const at = { clientX: e.clientX, clientY: e.clientY };
       this.#holdTimer = setTimeout(() => {
         this.#holdTimer = null;
