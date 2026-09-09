@@ -115,13 +115,15 @@
         onleave={leave}
       />
     {/if}
-    <!-- The block inside is the focus stop; this answers the keys and the pointer around it. -->
+    <!-- The block inside is the focus stop; this answers the keys and the pointer around it. No
+         `touch-none` on any of it: a finger landing on a block still scrolls the week, and only the
+         hold that starts a drag takes the rest of the gesture off the browser — see `CalendarDrag`. -->
     <div
       data-event
       data-event-id={segment.event.id}
       role="button"
       tabindex="-1"
-      class="event-slot absolute cursor-pointer touch-none select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
+      class="event-slot absolute cursor-pointer select-none {dragging ? 'opacity-0' : trailing ? 'opacity-40' : ''}"
       style="top:{segment.top}px;height:{segment.height}px;left:{left}px;width:{width}px;z-index:{z}"
       in:appear={{ id: segment.event.id }}
       onpointerenter={(e) => enter(e, segment.event.id)}
@@ -155,7 +157,7 @@
           role="button"
           tabindex="-1"
           aria-label="Drag to change when it ends"
-          class="absolute right-0 left-5 z-20 cursor-ns-resize touch-none"
+          class="absolute right-0 left-5 z-20 cursor-ns-resize"
           style="height:{bands.band}px;bottom:{-bands.overhang}px"
           onpointerdown={(e) => data.beginResize(segment.event, e)}
           onpointermove={(e) => data.moveDrag(e)}
@@ -168,7 +170,7 @@
           role="button"
           tabindex="-1"
           aria-label="Drag to change when it starts"
-          class="absolute right-0 left-5 z-20 cursor-ns-resize touch-none"
+          class="absolute right-0 left-5 z-20 cursor-ns-resize"
           style="height:{bands.band}px;top:{-bands.overhang}px"
           onpointerdown={(e) => data.beginResizeStart(segment.event, e)}
           onpointermove={(e) => data.moveDrag(e)}

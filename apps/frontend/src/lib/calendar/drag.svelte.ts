@@ -10,6 +10,13 @@ import { DEFAULT_EVENT_MINUTES, SNAP_MINUTES, segmentsForRange, snapMinutes } fr
 /** How far a finger has to travel before a tap becomes a drag, and how long before a hold does. */
 const DRAG_THRESHOLD_PX = 6;
 const LONG_PRESS_MS = 350;
+/**
+ * How long a finger has to stay still before the grid takes the gesture off the browser. Travelling
+ * can't be what starts a drag on a touch screen — that same movement is how the week is scrolled,
+ * and the two can't both have it — so on a finger every drag begins with a hold, and a press that
+ * moves before the hold has fired is a scroll the browser keeps.
+ */
+const TOUCH_HOLD_MS = 450;
 const AUTOSCROLL_EDGE_PX = 48;
 const AUTOSCROLL_STEP_PX = 12;
 
@@ -90,6 +97,8 @@ interface PendingDrag {
   readonly copy: boolean;
   /** The element the press started on, and the one a started drag captures the pointer to. */
   readonly el: Element;
+  /** A finger rather than a mouse: it holds to begin, and travelling drops the press. */
+  readonly touch: boolean;
   timer: ReturnType<typeof setTimeout> | null;
   armed: boolean;
 }
@@ -159,6 +168,12 @@ export class CalendarDrag {
   #autoscroll: number | null = null;
   /** Where the press on empty grid landed, so a release that travelled isn't read as a tap. */
   #pressAt: { x: number; y: number } | null = null;
+  /** A finger held still on empty grid, waiting to become a block — see `beginMarquee`. */
+  #holdTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Whether a started touch drag is currently refusing the scroll — see `#holdScroll`. */
+  #scrollHeld = false;
+  /** Refuses the scroll the rest of a started touch drag would otherwise be — see `#start`. */
+  readonly #refuseScroll = (e: TouchEvent) => e.preventDefault();
   /** The last tap on empty grid, which the next one is measured against — see `tapEmpty`. */
   #lastTap: { x: number; y: number; at: number } | null = null;
   readonly #host: DragHost;
@@ -223,6 +238,9 @@ export class CalendarDrag {
     if (pending && !pending.armed) {
       const travelled = Math.hypot(e.clientX - pending.originX, e.clientY - pending.originY);
       if (travelled < DRAG_THRESHOLD_PX) return;
+      // A finger that has travelled before its hold fired is scrolling the week rather than
+      // moving anything: the press is dropped, and the browser keeps the gesture it started.
+      if (pending.touch) return this.#cancelPending();
       this.#start(pending);
     }
     const drag = this.state;
@@ -274,6 +292,7 @@ export class CalendarDrag {
   endDrag(e?: { metaKey: boolean; ctrlKey: boolean }) {
     this.#cancelPending();
     this.#stopAutoscroll();
+    this.#releaseScroll();
     const drag = this.state;
     this.state = null;
     if (!drag) return;
@@ -292,12 +311,25 @@ export class CalendarDrag {
    * A box dragged over empty grid gathers what it touches. Only where there's nothing already —
    * over a block the same press moves it — and only with a mouse: a finger dragging the grid is
    * scrolling it, which is how the week changes.
+   *
+   * A finger held still there makes an hour instead, the way a mouse's two taps do — the one way
+   * onto the week that doesn't start at the palette, and the only one a finger can ask for without
+   * the scroll taking the second tap. Travelling first cancels it, and the week scrolls as it was.
    */
   beginMarquee(e: PointerEvent) {
     // Every press on the grid is measured, mouse or finger: it's what tells a tap from a drag.
     this.#pressAt = { x: e.clientX, y: e.clientY };
-    if (e.pointerType !== "mouse" || e.button !== 0) return;
     if ((e.target as Element | null)?.closest("[data-event]")) return;
+    if (e.pointerType === "touch") {
+      const at = { clientX: e.clientX, clientY: e.clientY };
+      this.#holdTimer = setTimeout(() => {
+        this.#holdTimer = null;
+        this.#pressAt = null;
+        void this.#createAt(at);
+      }, TOUCH_HOLD_MS);
+      return;
+    }
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
     const box = this.columnsEl?.getBoundingClientRect();
     if (!box) return;
     const at = pointerToPoint(box, e);
@@ -316,6 +348,12 @@ export class CalendarDrag {
   }
 
   moveMarquee(e: PointerEvent) {
+    // A finger that has travelled is scrolling the week, so the block its hold would have made is
+    // no longer what the press means.
+    const press = this.#pressAt;
+    if (this.#holdTimer && press && Math.hypot(e.clientX - press.x, e.clientY - press.y) >= DRAG_THRESHOLD_PX) {
+      this.#cancelHold();
+    }
     const marquee = this.marquee;
     const box = this.columnsEl?.getBoundingClientRect();
     if (!marquee || !box) return;
@@ -326,6 +364,7 @@ export class CalendarDrag {
   }
 
   endMarquee() {
+    this.#cancelHold();
     this.marquee = null;
   }
 
@@ -336,7 +375,9 @@ export class CalendarDrag {
    */
   abortGesture() {
     this.#cancelPending();
+    this.#cancelHold();
     this.#stopAutoscroll();
+    this.#releaseScroll();
     this.#pressAt = null;
     this.state = null;
     this.marquee = null;
@@ -364,10 +405,14 @@ export class CalendarDrag {
     void this.#createAt(e);
   }
 
-  /** An hour at the tapped slot, opened beside the pointer as soon as it has an id to be named by. */
-  #createAt(e: PointerEvent) {
+  /**
+   * An hour at the pressed slot, opened beside the pointer as soon as it has an id to be named by.
+   * Two taps ask for it with a mouse, a held finger with a touch, so the guards are here rather
+   * than on either way in.
+   */
+  #createAt(e: { clientX: number; clientY: number }) {
     const box = this.columnsEl?.getBoundingClientRect();
-    if (!box) return;
+    if (!box || this.state || !this.#host.connected) return;
     const at = pointerToPoint(box, e);
     const day = addDays(this.#host.stripStart, clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1));
     const minutes = clamp(snapMinutes(at.minutes), 0, MINUTES_PER_DAY - DEFAULT_EVENT_MINUTES);
@@ -414,12 +459,16 @@ export class CalendarDrag {
     locked?: boolean;
     copy?: boolean;
   }) {
-    // Otherwise a press-drag across a title selects its text instead of moving the block.
-    input.e.preventDefault();
+    const touch = input.e.pointerType === "touch";
+    // Otherwise a press-drag across a title selects its text instead of moving the block. Never on
+    // a finger: until the hold has fired the gesture is still the browser's, and a press that has
+    // already swallowed its own default is a week that won't scroll.
+    if (!touch) input.e.preventDefault();
     this.#dragged = false;
     const pending: PendingDrag = {
       kind: input.kind,
       el: input.e.currentTarget as Element,
+      touch,
       pointerId: input.e.pointerId,
       originX: input.e.clientX,
       originY: input.e.clientY,
@@ -435,8 +484,14 @@ export class CalendarDrag {
     // until the pointer happens to land on another element wired to the same handler. A captured
     // pointer's click still lands here as normal, so the tap opens the event as long as `#dragged`
     // stays false — that flag, not capture timing, is what tells `tap()` to swallow the click.
-    pending.el.setPointerCapture?.(input.e.pointerId);
-    if (input.longPress) pending.timer = setTimeout(() => this.#start(pending), LONG_PRESS_MS);
+    //
+    // A finger needs none of it: a touch pointer is already captured to the element it landed on,
+    // and claiming it here would be claiming a gesture that may still turn out to be a scroll.
+    if (!touch) pending.el.setPointerCapture?.(input.e.pointerId);
+    // Every drag a finger makes begins with a hold, since travelling is how the week is scrolled;
+    // a mouse only holds where a nudge would already mean something else.
+    if (touch) pending.timer = setTimeout(() => this.#start(pending), TOUCH_HOLD_MS);
+    else if (input.longPress) pending.timer = setTimeout(() => this.#start(pending), LONG_PRESS_MS);
     this.#pending = pending;
     if (input.armed) this.#start(pending);
   }
@@ -446,6 +501,13 @@ export class CalendarDrag {
     pending.armed = true;
     this.#dragged = true;
     if (pending.timer) clearTimeout(pending.timer);
+    // The hold has fired, so the block moves rather than the week. The finger has been still up to
+    // now, so nothing has begun to scroll yet — and refusing the moves from here is the only way to
+    // keep it that way, since `touch-action` is read when the touch lands and can't be changed after.
+    if (pending.touch) {
+      pending.el.setPointerCapture?.(pending.pointerId);
+      this.#holdScroll();
+    }
 
     this.#grabOffsetMinutes = 0;
     this.#grabOffsetDays = 0;
@@ -528,6 +590,24 @@ export class CalendarDrag {
   #cancelPending() {
     if (this.#pending?.timer) clearTimeout(this.#pending.timer);
     this.#pending = null;
+  }
+
+  #cancelHold() {
+    if (this.#holdTimer) clearTimeout(this.#holdTimer);
+    this.#holdTimer = null;
+  }
+
+  #holdScroll() {
+    if (this.#scrollHeld) return;
+    this.#scrollHeld = true;
+    // Not passive: the whole point is to take the rest of the gesture off the browser.
+    document.addEventListener("touchmove", this.#refuseScroll, { passive: false });
+  }
+
+  #releaseScroll() {
+    if (!this.#scrollHeld) return;
+    this.#scrollHeld = false;
+    document.removeEventListener("touchmove", this.#refuseScroll);
   }
 
   #autoscrollNear(clientY: number) {
