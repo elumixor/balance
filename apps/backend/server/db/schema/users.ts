@@ -44,6 +44,11 @@ export const deviceGrantsRelations = relations(deviceGrants, ({ one }) => ({
  * key is minted here, shown once, and only its hash is kept — the same rule as a device grant,
  * except that this one is not rotated on use: the holder has nowhere to write a replacement.
  * `name` is what the settings list calls it, so a key can be revoked without guessing which.
+ *
+ * A key made by hand has no `clientId` and no expiry. One issued through the OAuth flow carries
+ * the client it was issued to and expires, because a refresh token behind it can make another —
+ * revoking the key takes that client's refresh tokens with it, or the connector would simply
+ * mint itself a new one.
  */
 export const mcpTokens = pgTable("mcp_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -51,6 +56,7 @@ export const mcpTokens = pgTable("mcp_tokens", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  clientId: text("client_id"),
   tokenHash: text("token_hash").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),

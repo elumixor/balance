@@ -1,6 +1,7 @@
-import { type H3Event, setResponseHeader } from "h3";
+import { getRequestURL, type H3Event, setResponseHeader } from "h3";
 import { type DbUser, resolveUser } from "~/lib/auth/service";
 import { NotAuthenticatedError } from "~/lib/http/api-error";
+import { SCOPE } from "./oauth";
 import { MCP_TOKEN_PREFIX, mcpTokenService } from "./tokens";
 
 const BEARER = /^Bearer (.+)$/;
@@ -12,9 +13,9 @@ const BEARER = /^Bearer (.+)$/;
  * still work next month, and a Clerk session token is minutes long. It holds an MCP key instead —
  * minted in settings, shown once, checked here.
  *
- * The refusal carries a plain `WWW-Authenticate: Bearer`, and deliberately no
- * `resource_metadata`: there is no authorization server behind this, and pointing a client at a
- * discovery document that does not exist sends it down an OAuth dance that cannot finish.
+ * The refusal carries `WWW-Authenticate` with `resource_metadata`, which is the whole of how a
+ * client that was given nothing but a URL finds its way to the consent screen: it reads the
+ * document that header names, finds the authorization server, and comes back with a token.
  */
 export async function authenticateMcp(event: H3Event): Promise<DbUser> {
   const header = event.headers.get("authorization") ?? event.headers.get("Authorization");
@@ -33,5 +34,10 @@ export async function authenticateMcp(event: H3Event): Promise<DbUser> {
 }
 
 function challenge(event: H3Event) {
-  setResponseHeader(event, "www-authenticate", 'Bearer realm="balance"');
+  const metadata = `${getRequestURL(event).origin}/.well-known/oauth-protected-resource/mcp`;
+  setResponseHeader(
+    event,
+    "www-authenticate",
+    `Bearer realm="balance", resource_metadata="${metadata}", scope="${SCOPE}"`,
+  );
 }

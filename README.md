@@ -112,8 +112,27 @@ claude mcp add --transport http balance https://balance-app-mauve.vercel.app/mcp
 
 Any MCP client that takes a URL and a bearer header works the same way; `claude mcp list` says
 whether it connected. A key is the whole account, so the list says when each was last used, and
-revoking one takes effect on the next call. Claude's web connectors are the one place this does
-not fit: that dialog has no field for a header, and there is no OAuth server behind `/mcp`.
+revoking one takes effect on the next call.
+
+### Claude on the web
+
+A web connector is given a URL and nothing else — there is no field for a header — so that half
+goes through OAuth instead. In Claude, **Settings → Connectors → Add custom connector**, and paste:
+
+```
+https://balance-app-mauve.vercel.app/mcp
+```
+
+Nothing else is needed: no client id, no secret. Claude reads the `401`'s `WWW-Authenticate`
+header, finds `/.well-known/oauth-protected-resource/mcp`, registers itself (RFC 7591), and opens
+Balance's own `/authorize` page. That page signs you in if you aren't, says who is asking and
+where they'd be sent back to, and its **Allow** mints the key — which then shows up in
+**Settings → Assistants** like any other, and revoking it takes the connection with it.
+
+The authorization server is this deployment: `/.well-known/oauth-authorization-server`,
+`/mobile/oauth/register` and `/mobile/oauth/token`, with PKCE required, rotating refresh tokens
+and a 30-day access token. There is nothing to configure per environment — every document names
+whichever origin the request arrived on.
 
 In development the endpoint is `http://localhost:3100/mcp`, and `DEV_AUTH_EMAIL` covers it the way
 it covers everything else — no key needed against a local backend.

@@ -313,10 +313,20 @@ each request is the whole of what the server knows.
 That key is an `mcp_tokens` row (`lib/mcp/tokens.ts`), minted in Settings → Assistants, shown
 once, stored as a hash, and never rotated — the holder has nowhere to write a replacement. Anything
 that isn't one of ours is handed to the ordinary session check, which is what makes `DEV_AUTH_EMAIL`
-cover this endpoint too. Two lines of configuration exist only for this route and are easy to miss:
-`/mcp` is in `nitro-client.config.ts`'s `excludeRoutes` (by path, so `/mobile/mcp/keys` stays typed),
-and `mcp` is in the root `package.json`'s `apiPrefixes`, without which a production deployment
-answers `/mcp` with the app shell and a 200.
+cover this endpoint too. Two lines of configuration exist only for these routes and are easy to
+miss: `/mcp` is in `nitro-client.config.ts`'s `excludeRoutes` (by path, so `/mobile/mcp/keys` stays
+typed), and `mcp` and `.well-known` are in the root `package.json`'s `apiPrefixes`, without which a
+production deployment answers them with the app shell and a 200.
+
+A key made by hand can't reach a chat client that is only given a URL, so `lib/mcp/oauth.ts` is an
+authorization server as well: RFC 9728 metadata under `routes/.well-known/` says where it is, RFC
+7591 registration lets a client name itself, and `/authorize` — a page in the app, not a route
+here — is where a person says yes. It is small on purpose: authorization code only, public clients
+only, PKCE required rather than negotiated, refresh tokens rotated, and one scope, because a key is
+the whole account and the consent screen says exactly that. What it issues is an ordinary
+`mcp_tokens` row, so `/mcp` has one idea of a caller and the settings list has one row to revoke —
+and revoking a row that names a client takes that client's refresh tokens with it, or the connector
+would mint itself another the moment the key stopped working.
 
 ## A route is a signature, a service is the work
 

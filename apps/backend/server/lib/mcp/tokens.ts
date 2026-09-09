@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "~/db";
-import { mcpTokens } from "~/db/schema";
+import { mcpTokens, oauthRefreshTokens } from "~/db/schema";
 import type { DbUser } from "~/lib/auth/service";
 import { NotAuthenticatedError, NotFoundError } from "~/lib/http/api-error";
 
@@ -27,11 +27,17 @@ export interface McpTokenSummary {
  */
 class McpTokenService {
   /** Mints a key for an account that has just proved it holds a session. */
-  async issue(userId: string, name: string, expiresAt?: Date) {
+  async issue(userId: string, name: string, options: { expiresAt?: Date; clientId?: string } = {}) {
     const secret = `${MCP_TOKEN_PREFIX}${randomBytes(SECRET_BYTES).toString("base64url")}`;
     const [created] = await db
       .insert(mcpTokens)
-      .values({ userId, name, tokenHash: hash(secret), expiresAt: expiresAt ?? null })
+      .values({
+        userId,
+        name,
+        tokenHash: hash(secret),
+        expiresAt: options.expiresAt ?? null,
+        clientId: options.clientId ?? null,
+      })
       .returning();
     return { token: secret, key: summarize(created) };
   }
@@ -50,6 +56,21 @@ class McpTokenService {
       .where(and(eq(mcpTokens.id, id), eq(mcpTokens.userId, userId)))
       .returning();
     if (!deleted) throw new NotFoundError("That key is already gone");
+    // A connector holds a refresh token as well as this key, and would mint itself another the
+    // moment this one stopped working. Taking the key means taking the connection.
+    if (deleted.clientId) {
+      await db
+        .delete(oauthRefreshTokens)
+        .where(and(eq(oauthRefreshTokens.userId, userId), eq(oauthRefreshTokens.clientId, deleted.clientId)));
+    }
+  }
+
+  /**
+   * Drops the keys one OAuth client already holds for this account, leaving its refresh tokens
+   * alone — a token refresh replaces the key, it does not end the connection.
+   */
+  async clearForClient(userId: string, clientId: string) {
+    await db.delete(mcpTokens).where(and(eq(mcpTokens.userId, userId), eq(mcpTokens.clientId, clientId)));
   }
 
   /**

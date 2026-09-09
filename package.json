@@ -106,7 +106,8 @@
             "mobile",
             "health",
             "download",
-            "mcp"
+            "mcp",
+            ".well-known"
           ]
         }
       },
