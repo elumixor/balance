@@ -2,7 +2,7 @@
   import { goto } from "$app/navigation";
   import { Button, Popover, PopoverItem, StarBurst, StarCount } from "$lib/components";
   import { planMode } from "$lib/planning/plan-mode.svelte";
-  import { BedDouble, LogOut, MoreHorizontal } from "lucide-svelte";
+  import { BedDouble, LogOut, MoreHorizontal, Sparkles } from "lucide-svelte";
 
   /**
    * The strip the calendar wears while a day is being planned: a row above the grid rather than a
@@ -94,6 +94,15 @@
           </Button>
         {/snippet}
         {#snippet content(closeMenu)}
+          <PopoverItem
+            label="Plan with AI"
+            onclick={() => {
+              closeMenu();
+              planMode.showAssist = true;
+            }}
+          >
+            {#snippet icon()}<Sparkles size={14} />{/snippet}
+          </PopoverItem>
           <PopoverItem
             label="Make it a rest day"
             onclick={() => {

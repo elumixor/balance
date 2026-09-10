@@ -2,6 +2,7 @@ export { default as CalendarPanel } from "./CalendarPanel.svelte";
 export { default as CardSettings } from "./CardSettings.svelte";
 export { default as CategoryDial } from "./CategoryDial.svelte";
 export { default as ConferencingRow } from "./ConferencingRow.svelte";
+export { default as DayAssistDialog } from "./DayAssistDialog.svelte";
 export { default as EventBlock } from "./EventBlock.svelte";
 export { default as EventContextMenu } from "./EventContextMenu.svelte";
 export { default as EventEditor } from "./EventEditor.svelte";

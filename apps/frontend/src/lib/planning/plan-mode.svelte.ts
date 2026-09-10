@@ -62,6 +62,8 @@ class PlanMode {
   error = $state<string | null>(null);
   /** What the last commit paid, for the bar to celebrate with before it closes. */
   awarded = $state<StarAward[] | null>(null);
+  /** The AI-assist sheet: open the moment planning starts, reachable again from the bar's menu. */
+  showAssist = $state(false);
 
   readonly active = $derived(this.day !== null);
 
@@ -105,6 +107,7 @@ class PlanMode {
     this.weeklyAward = options.weeklyAward ?? 0;
     this.error = null;
     this.awarded = null;
+    this.showAssist = true;
     void goto(`/calendar?plan=${options.day}`);
   }
 
@@ -124,6 +127,7 @@ class PlanMode {
     this.day = null;
     this.awarded = null;
     this.error = null;
+    this.showAssist = false;
   }
 
   /** Whether a column is the day being planned. */

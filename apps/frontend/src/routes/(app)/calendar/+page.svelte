@@ -1,6 +1,6 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { CalendarPanel, EventEditor, PlanningBar, SidePanelSection, WeekGrid } from "./components";
+  import { CalendarPanel, DayAssistDialog, EventEditor, PlanningBar, SidePanelSection, WeekGrid } from "./components";
   import { ConnectGoogle } from "$lib/calendar/components";
   import { Button, Divider, Popover, StarBadge } from "$lib/components";
   import { categories } from "$lib/core/synced.svelte";
@@ -178,6 +178,7 @@
        filled is hidden by the thing asking for it, on a phone or a desktop. -->
   {#if planMode.active}
     <PlanningBar />
+    <DayAssistDialog />
   {/if}
 
   <!-- The grid and everything that floats over it. Its own stacking context, under the bar rather
