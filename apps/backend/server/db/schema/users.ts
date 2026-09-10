@@ -3,7 +3,7 @@ import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { eventMappings, providerAccounts } from "./calendar";
 import { activities, categories } from "./categories";
 import { plannedDays, plannedWeeks, starLedger } from "./planning";
-import { gateEvents, goals, practices, projectComparisons, projects, stages, tasks } from "./projects";
+import { people, practices, projects, stages, tasks } from "./projects";
 import { trackingSessions } from "./tracking";
 
 export const users = pgTable("users", {
@@ -78,11 +78,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   plannedDays: many(plannedDays),
   plannedWeeks: many(plannedWeeks),
   starLedger: many(starLedger),
-  goals: many(goals),
+  people: many(people),
   practices: many(practices),
   projects: many(projects),
   stages: many(stages),
   tasks: many(tasks),
-  gateEvents: many(gateEvents),
-  projectComparisons: many(projectComparisons),
 }));

@@ -1,31 +1,6 @@
 import { z } from "zod";
 
-/** The shapes the model's six answers take — every one a proposal for a person to act on. */
-const gateMetric = z.enum(["days", "people", "throughput", "event", "hours"]);
-const template = z.enum(["build", "search", "delivery", "exit", "evergreen", "simple"]);
-
-export const createSuggestionSchema = z.object({
-  /** "recurring" is a valid answer: this is a practice, not a project. */
-  kind: z.enum(["project", "recurring"]),
-  reason: z.string(),
-  template,
-  hoursPerWeek: z.number().min(0).max(40),
-  budgetHours: z.number().min(0).max(1000),
-  gates: z
-    .array(
-      z.object({
-        sentence: z.string(),
-        metric: gateMetric,
-        threshold: z.number().int().min(1),
-        windowDays: z.number().int().min(1).max(90),
-        /** What existing data would count it — calendar blocks, a manual row, a ping. */
-        countedBy: z.string(),
-      }),
-    )
-    .min(2)
-    .max(3),
-});
-
+/** The shapes the model's two answers take — both proposals for a person to act on. */
 export const weekNoteSchema = z.object({
   note: z.string(),
   /** Projects to give less than their claim this week, by id, with why. */
@@ -36,24 +11,6 @@ export const weekNoteSchema = z.object({
       why: z.string(),
     }),
   ),
-});
-
-export const checkpointHelpSchema = z.object({
-  /** What stopped it, in one sentence the person would recognise as theirs. */
-  blocker: z.string(),
-  tasks: z
-    .array(
-      z.object({
-        title: z.string(),
-        estimateHours: z.number().min(0.25).max(40),
-      }),
-    )
-    .max(6),
-});
-
-export const decisionAdviceSchema = z.object({
-  recommendation: z.enum(["ship", "extend", "park", "kill", "restart", "hold"]),
-  why: z.string(),
 });
 
 export const eventPlanSchema = z.object({
@@ -84,7 +41,4 @@ export const eventPlanSchema = z.object({
 });
 
 export type EventPlan = z.infer<typeof eventPlanSchema>;
-export type CreateSuggestion = z.infer<typeof createSuggestionSchema>;
 export type WeekNote = z.infer<typeof weekNoteSchema>;
-export type CheckpointHelp = z.infer<typeof checkpointHelpSchema>;
-export type DecisionAdvice = z.infer<typeof decisionAdviceSchema>;

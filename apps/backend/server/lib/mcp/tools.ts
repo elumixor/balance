@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { type ZodRawShape, z } from "zod";
 import { db } from "~/db";
-import { goals, practices, projects, stages } from "~/db/schema";
+import { practices, projects, stages, tasks } from "~/db/schema";
 import type { DbUser } from "~/lib/auth/service";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { qualifyCalendarId, splitCalendarId } from "~/lib/calendar/ids";
@@ -345,55 +345,56 @@ export const mcpTools: McpTool[] = [
     name: "list_projects",
     title: "List projects and practices",
     description:
-      "What the hours are for: goals, the projects under them with their open stage and its gate, " +
-      "and the practices that never complete. Pass `progress` for the counts behind each gate.",
+      "What the hours are for: the tree of projects with what each claims a week, the stages and " +
+      "open tasks under them, and the practices that never complete. Pass `progress` for the hours " +
+      "the calendar says each has actually had.",
     inputSchema: {
       progress: z.boolean().optional().describe("Also count what the calendar says each has had."),
       timeZone: z.string().optional(),
     },
     async run(args, user) {
-      const [goalRows, projectRows, stageRows, practiceRows] = await Promise.all([
-        db.query.goals.findMany({ where: and(eq(goals.userId, user.id), eq(goals.archived, false)) }),
+      const [projectRows, stageRows, taskRows, practiceRows] = await Promise.all([
         db.query.projects.findMany({ where: and(eq(projects.userId, user.id), eq(projects.archived, false)) }),
-        db.query.stages.findMany({ where: eq(stages.userId, user.id) }),
+        db.query.stages.findMany({ where: and(eq(stages.userId, user.id), eq(stages.archived, false)) }),
+        db.query.tasks.findMany({ where: and(eq(tasks.userId, user.id), eq(tasks.archived, false)) }),
         db.query.practices.findMany({ where: and(eq(practices.userId, user.id), eq(practices.archived, false)) }),
       ]);
       const zone = await zoneOf(user, args.timeZone);
       const progress = args.progress ? await new ProjectProgressService(user.id, zone, dayIn(zone)).compute() : null;
       return {
-        goals: goalRows.map((g) => ({
-          id: g.id,
-          statement: g.statement,
-          categoryId: g.categoryId,
-          horizon: g.horizon,
-        })),
-        projects: projectRows.map((p) => ({
-          id: p.id,
-          name: p.name,
-          categoryId: p.categoryId,
-          goalId: p.goalId,
-          status: p.status,
-          hoursPerWeek: Number(p.hoursPerWeek),
-          deadline: p.deadline,
+        projects: projectRows.map((project) => ({
+          id: project.id,
+          name: project.name,
+          parentId: project.parentId,
+          categoryId: project.categoryId,
+          status: project.status,
+          hoursPerWeek: Number(project.hoursPerWeek),
+          notionUrl: project.notionUrl,
           stages: stageRows
-            .filter((s) => s.projectId === p.id)
+            .filter((stage) => stage.projectId === project.id)
             .sort((a, b) => a.ordinal - b.ordinal)
-            .map((s) => ({
-              id: s.id,
-              name: s.name,
-              sentence: s.sentence,
-              startedOn: s.startedOn,
-              decideOn: s.decideOn,
+            .map((stage) => ({ id: stage.id, name: stage.name, startsOn: stage.startsOn, endsOn: stage.endsOn })),
+          // Only what is still to do: a project's finished tasks are its history, not its state.
+          openTasks: taskRows
+            .filter((task) => task.projectId === project.id && task.status !== "done" && task.status !== "dropped")
+            .map((task) => ({
+              id: task.id,
+              title: task.title,
+              status: task.status,
+              stageId: task.stageId,
+              parentId: task.parentId,
+              startsOn: task.startsOn,
+              endsOn: task.endsOn,
             })),
-          progress: progress?.projects[p.id] ?? null,
+          progress: progress?.projects[project.id] ?? null,
         })),
-        practices: practiceRows.map((p) => ({
-          id: p.id,
-          name: p.name,
-          categoryId: p.categoryId,
-          unit: p.unit,
-          targetPerWeek: Number(p.targetPerWeek),
-          progress: progress?.practices[p.id] ?? null,
+        practices: practiceRows.map((practice) => ({
+          id: practice.id,
+          name: practice.name,
+          categoryId: practice.categoryId,
+          unit: practice.unit,
+          targetPerWeek: Number(practice.targetPerWeek),
+          progress: progress?.practices[practice.id] ?? null,
         })),
       };
     },

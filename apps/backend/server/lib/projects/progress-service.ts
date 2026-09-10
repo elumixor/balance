@@ -1,28 +1,23 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "~/db";
-import { gateEvents, practices, projects, stages } from "~/db/schema";
+import { practices, projects } from "~/db/schema";
 import type { ResolvedEvent } from "~/lib/calendar/events-service";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
-import { addDays, type Day, dayIn, daysBetween, startOf } from "~/lib/planning/days";
-import { type GateProgress, gateProgress, type Observation } from "./gates";
+import { addDays, type Day, startOf } from "~/lib/planning/days";
 
-/** How far back a card's bars go, and how far a budget is judged over. */
+/** How far back a card's bars go, and how far a practice is judged over. */
 export const WEEKS_SHOWN = 8;
 export const BUDGET_WEEKS = 4;
-/** `/calendar/events` refuses more than this at once, and so must the range asked for here. */
-const MAX_RANGE_DAYS = 62;
 const MS_PER_HOUR = 3_600_000;
 
 export interface ProjectProgress {
   /** Hours logged in each of the last `WEEKS_SHOWN` weeks, oldest first, this week last. */
   readonly hoursByWeek: number[];
-  /** The open stage's gate, or null when the project has no stage running. */
-  readonly stageId: string | null;
-  readonly gate: GateProgress | null;
+  /** The same, with everything nested under it added in — what a parent's bar shows. */
+  readonly rolledUpByWeek: number[];
 }
 
 export interface PracticeProgress {
-  /** Times (or hours) in each of the last `WEEKS_SHOWN` weeks, oldest first. */
   readonly byWeek: number[];
   /** Kept over the last four whole weeks, as a share of the target. Clamped to one. */
   readonly adherence: number;
@@ -38,9 +33,12 @@ export interface Progress {
 }
 
 /**
- * What the calendar says each project and practice has actually had — the evidence the cards
- * compare against a claim, and the counts a gate is judged on. Never stored: the calendar is the
- * source of truth, and this is one read of it through the same path every screen uses.
+ * What the calendar says each project and practice has actually had — the hours a card compares
+ * against its claim. Never stored: the calendar is the source of truth, and this is one read of
+ * it through the same path every screen uses.
+ *
+ * A project holding other projects has two answers, and both are worth having: what was booked
+ * against it by name, and what its whole tree came to.
  */
 export class ProjectProgressService {
   constructor(
@@ -50,55 +48,48 @@ export class ProjectProgressService {
   ) {}
 
   async compute(): Promise<Progress> {
-    const [projectRows, stageRows, practiceRows, gateRows] = await Promise.all([
+    const [projectRows, practiceRows] = await Promise.all([
       db.query.projects.findMany({ where: and(eq(projects.userId, this.userId), eq(projects.archived, false)) }),
-      db.query.stages.findMany({ where: and(eq(stages.userId, this.userId), eq(stages.archived, false)) }),
       db.query.practices.findMany({ where: and(eq(practices.userId, this.userId), eq(practices.archived, false)) }),
-      db.query.gateEvents.findMany({ where: and(eq(gateEvents.userId, this.userId), eq(gateEvents.archived, false)) }),
     ]);
 
-    const openStages = stageRows.filter((s) => s.startedOn && s.decideOn && !s.outcome);
-    const weeks = this.weeks();
-    const from = this.rangeStart(weeks[0].start, openStages);
-    const to = startOf(addDays(this.today, 1), this.timeZone);
-    const range = await new CalendarEventsService(this.userId).resolve(from, to);
+    const weeks = this.#weeks();
+    const range = await new CalendarEventsService(this.userId).resolve(
+      startOf(weeks[0].start, this.timeZone),
+      startOf(addDays(this.today, 1), this.timeZone),
+    );
     // Only what has happened is evidence: a block booked for tomorrow is a plan, not hours.
     const now = new Date();
-    const done = range.events.filter((e) => e.countsTowardHours && e.end <= now);
+    const done = range.events.filter((event) => event.countsTowardHours && event.end <= now);
+
+    const own = new Map(
+      projectRows.map((project) => [
+        project.id,
+        weeks.map((week) => this.#hoursIn(done.filter((e) => e.mapping?.projectId === project.id), week)),
+      ]),
+    );
+    const parents = new Map(projectRows.map((project) => [project.id, project.parentId]));
 
     const projectsOut: Record<string, ProjectProgress> = {};
     for (const project of projectRows) {
-      const own = done.filter((e) => e.mapping?.projectId === project.id);
-      const stage = openStages.find((s) => s.projectId === project.id);
-      projectsOut[project.id] = {
-        hoursByWeek: weeks.map((week) => this.hoursIn(own, week)),
-        stageId: stage?.id ?? null,
-        gate: stage
-          ? gateProgress({
-              metric: stage.metric,
-              threshold: stage.threshold,
-              windowDays: stage.windowDays,
-              decideOn: stage.decideOn as Day,
-              today: this.today,
-              observations: [
-                ...(stage.metric === "people" ? [] : own.map((e) => this.observationOf(e))),
-                ...gateRows
-                  .filter((g) => g.stageId === stage.id)
-                  .map((g) => ({ day: g.day, key: g.actorKey, quantity: Number(g.quantity) })),
-              ],
-            })
-          : null,
-      };
+      const hoursByWeek = own.get(project.id) ?? [];
+      const rolledUpByWeek = hoursByWeek.map((hours, index) =>
+        [...own].reduce(
+          (total, [id, byWeek]) => (id !== project.id && descends(id, project.id, parents) ? total + (byWeek[index] ?? 0) : total),
+          hours,
+        ),
+      );
+      projectsOut[project.id] = { hoursByWeek, rolledUpByWeek };
     }
 
     const practicesOut: Record<string, PracticeProgress> = {};
     for (const practice of practiceRows) {
-      const own = done.filter((e) => e.mapping?.practiceId === practice.id);
+      const events = done.filter((event) => event.mapping?.practiceId === practice.id);
       const byWeek = weeks.map((week) =>
-        practice.unit === "hours" ? this.hoursIn(own, week) : this.timesIn(own, week),
+        practice.unit === "hours" ? this.#hoursIn(events, week) : this.#timesIn(events, week),
       );
       // The four whole weeks before this one — a week still being lived can't be judged yet.
-      const judged = byWeek.slice(-BUDGET_WEEKS - 1, -1).reduce((sum, n) => sum + n, 0);
+      const judged = byWeek.slice(-BUDGET_WEEKS - 1, -1).reduce((sum, count) => sum + count, 0);
       const target = Number(practice.targetPerWeek) * BUDGET_WEEKS;
       practicesOut[practice.id] = { byWeek, adherence: target > 0 ? Math.min(1, judged / target) : 1 };
     }
@@ -106,31 +97,23 @@ export class ProjectProgressService {
     return {
       connected: range.connected,
       needsReconnect: range.needsReconnect,
-      weeks: weeks.map((w) => w.start),
+      weeks: weeks.map((week) => week.start),
       projects: projectsOut,
       practices: practicesOut,
     };
   }
 
   /** The Mondays of the last `WEEKS_SHOWN` weeks, this one last, each with its instants. */
-  private weeks() {
+  #weeks() {
     const weekday = (new Date(`${this.today}T00:00:00Z`).getUTCDay() + 6) % 7;
     const monday = addDays(this.today, -weekday);
-    return Array.from({ length: WEEKS_SHOWN }, (_, i) => {
-      const start = addDays(monday, (i - WEEKS_SHOWN + 1) * 7);
+    return Array.from({ length: WEEKS_SHOWN }, (_, index) => {
+      const start = addDays(monday, (index - WEEKS_SHOWN + 1) * 7);
       return { start, from: startOf(start, this.timeZone), to: startOf(addDays(start, 7), this.timeZone) };
     });
   }
 
-  /** Far enough back for the bars and for every open gate's window, but never past what one read allows. */
-  private rangeStart(firstWeek: Day, open: readonly (typeof stages.$inferSelect)[]) {
-    const windowStarts = open.map((s) => addDays(s.decideOn as Day, -s.windowDays));
-    const earliest = [firstWeek, ...windowStarts].sort()[0];
-    const floor = addDays(this.today, -MAX_RANGE_DAYS + 1);
-    return startOf(daysBetween(floor, earliest) < 0 ? floor : earliest, this.timeZone);
-  }
-
-  private hoursIn(events: readonly ResolvedEvent[], week: { from: Date; to: Date }) {
+  #hoursIn(events: readonly ResolvedEvent[], week: { from: Date; to: Date }) {
     let ms = 0;
     for (const event of events) {
       const start = Math.max(event.start.getTime(), week.from.getTime());
@@ -140,14 +123,17 @@ export class ProjectProgressService {
     return Math.round((ms / MS_PER_HOUR) * 100) / 100;
   }
 
-  private timesIn(events: readonly ResolvedEvent[], week: { from: Date; to: Date }) {
-    return events.filter((e) => e.start >= week.from && e.start < week.to).length;
+  #timesIn(events: readonly ResolvedEvent[], week: { from: Date; to: Date }) {
+    return events.filter((event) => event.start >= week.from && event.start < week.to).length;
   }
+}
 
-  private observationOf(event: ResolvedEvent): Observation {
-    return {
-      day: dayIn(this.timeZone, event.start),
-      quantity: (event.end.getTime() - event.start.getTime()) / MS_PER_HOUR,
-    };
+/** Whether `id` is somewhere under `ancestor`, following each row's parent up to the root. */
+function descends(id: string, ancestor: string, parents: ReadonlyMap<string, string | null>) {
+  let current = parents.get(id) ?? null;
+  while (current) {
+    if (current === ancestor) return true;
+    current = parents.get(current) ?? null;
   }
+  return false;
 }

@@ -3,32 +3,33 @@ import { z } from "zod";
 import { projects } from "~/db/schema";
 import { asNumeric, defined, numeric, TableStore } from "./table-store";
 
-export const projectStatusSchema = z.enum(["active", "held", "parked", "shipped", "killed"]);
-export const projectTemplateSchema = z.enum(["build", "search", "delivery", "exit", "evergreen", "simple"]);
+export const projectStatusSchema = z.enum(["active", "paused", "done", "dropped"]);
+
+const fieldSchema = z.object({
+  id: z.string().min(1),
+  icon: z.string().trim().default("circle"),
+  label: z.string().trim(),
+  type: z.enum(["text", "date", "number", "url"]).default("text"),
+  value: z.string().default(""),
+});
 
 /**
- * A project as both halves agree it looks. Status is written by the client for `held` — the one
- * status that is a choice rather than an outcome — and by the decision action for the rest; a
- * client that sets `shipped` by hand is only ever describing what the action already did.
+ * A project as both halves agree it looks. The Notion columns travel with it but are never taken
+ * from a client write: they say where a row came from, and only a sync may answer that.
  */
 export const projectSchema = z.object({
   id: z.uuid(),
-  goalId: z.uuid().nullable().default(null),
+  parentId: z.uuid().nullable().default(null),
   categoryId: z.uuid(),
   name: z.string().trim(),
   description: z.string().default(""),
-  template: projectTemplateSchema.default("simple"),
-  hoursPerWeek: z.number().min(0).max(168).default(0),
+  icon: z.string().trim().nullable().default(null),
   status: projectStatusSchema.default("active"),
-  cover: z.string().trim().nullable().default(null),
-  links: z.array(z.object({ label: z.string(), url: z.string() })).default([]),
-  people: z.array(z.string()).default([]),
-  deadline: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .default(null),
-  unparkTrigger: z.string().nullable().default(null),
+  hoursPerWeek: z.number().min(0).max(168).default(0),
+  fields: z.array(fieldSchema).default([]),
+  memberIds: z.array(z.uuid()).default([]),
+  ordinal: z.number().int().default(0),
+  notionUrl: z.string().nullable().default(null),
 });
 
 export type SyncedProject = z.infer<typeof projectSchema>;
@@ -40,49 +41,44 @@ export const projectsModel = syncedModel({
     missing: "That project no longer exists.",
     toRecord: (row) => ({
       id: row.id,
-      goalId: row.goalId,
+      parentId: row.parentId,
       categoryId: row.categoryId,
       name: row.name,
       description: row.description,
-      template: projectTemplateSchema.catch("simple").parse(row.template),
-      hoursPerWeek: Number(row.hoursPerWeek),
+      icon: row.icon,
       status: row.status,
-      cover: row.cover,
-      links: row.links,
-      people: row.people,
-      deadline: row.deadline,
-      unparkTrigger: row.unparkTrigger,
+      hoursPerWeek: Number(row.hoursPerWeek),
+      fields: row.fields,
+      memberIds: row.memberIds,
+      ordinal: row.ordinal,
+      notionUrl: row.notionUrl,
     }),
     toRow: (userId, r) => ({
       id: r.id,
       userId,
-      goalId: r.goalId,
+      parentId: r.parentId,
       categoryId: r.categoryId,
       name: r.name,
       description: r.description,
-      template: r.template,
-      hoursPerWeek: asNumeric(r.hoursPerWeek),
+      icon: r.icon,
       status: r.status,
-      cover: r.cover,
-      links: r.links,
-      people: r.people,
-      deadline: r.deadline,
-      unparkTrigger: r.unparkTrigger,
+      hoursPerWeek: asNumeric(r.hoursPerWeek),
+      fields: r.fields,
+      memberIds: r.memberIds,
+      ordinal: r.ordinal,
     }),
     toPatch: (p) =>
       defined({
-        goalId: p.goalId,
+        parentId: p.parentId,
         categoryId: p.categoryId,
         name: p.name,
         description: p.description,
-        template: p.template,
-        hoursPerWeek: numeric(p.hoursPerWeek),
+        icon: p.icon,
         status: p.status,
-        cover: p.cover,
-        links: p.links,
-        people: p.people,
-        deadline: p.deadline,
-        unparkTrigger: p.unparkTrigger,
+        hoursPerWeek: numeric(p.hoursPerWeek),
+        fields: p.fields,
+        memberIds: p.memberIds,
+        ordinal: p.ordinal,
       }),
   }),
 });

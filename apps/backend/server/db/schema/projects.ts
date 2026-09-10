@@ -1,5 +1,17 @@
 import { relations } from "drizzle-orm";
-import { boolean, date, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  type AnyPgColumn,
+  boolean,
+  date,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { categories } from "./categories";
 import { users } from "./users";
 
@@ -57,7 +69,7 @@ export const projects = pgTable("projects", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  parentId: uuid("parent_id").references((): typeof projects.id => projects.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id").references((): AnyPgColumn => projects.id, { onDelete: "cascade" }),
   categoryId: uuid("category_id")
     .notNull()
     .references(() => categories.id, { onDelete: "cascade" }),
@@ -74,6 +86,8 @@ export const projects = pgTable("projects", {
   ordinal: integer("ordinal").notNull().default(0),
   notionPageId: text("notion_page_id"),
   notionUrl: text("notion_url"),
+  /** The Notion data source holding this project's tasks, found once and remembered. */
+  notionTasksDataSourceId: text("notion_tasks_data_source_id"),
   /** What Notion said this page was last edited at, so a pull knows which half is newer. */
   notionEditedAt: timestamp("notion_edited_at", { withTimezone: true }),
   archived: boolean("archived").notNull().default(false),
@@ -135,7 +149,7 @@ export const tasks = pgTable("tasks", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   stageId: uuid("stage_id").references(() => stages.id, { onDelete: "set null" }),
-  parentId: uuid("parent_id").references((): typeof tasks.id => tasks.id, { onDelete: "cascade" }),
+  parentId: uuid("parent_id").references((): AnyPgColumn => tasks.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   status: text("status").$type<TaskStatus>().notNull().default("todo"),

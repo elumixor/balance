@@ -15,11 +15,10 @@ export default authed(
           id: z.string(),
           name: z.string(),
           description: z.string(),
-          stage: z.string(),
-          sentence: z.string(),
+          stage: z.string().nullable(),
           hoursPerWeek: z.number(),
           tasks: z.array(
-            z.object({ id: z.string(), title: z.string(), estimateHours: z.number().nullable(), done: z.boolean() }),
+            z.object({ id: z.string(), title: z.string(), estimateHours: z.number().nullable(), open: z.boolean() }),
           ),
         })
         .nullable(),

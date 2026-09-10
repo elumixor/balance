@@ -1,13 +1,7 @@
 import type { z } from "zod";
 import { ask as askModel } from "~/lib/ai/gateway";
 
-/** What each of the six moments is asked, word for word, and the shape of what it is told. */
-
-export interface CreateInput {
-  idea: string;
-  sphere: string;
-  existingProjects: string[];
-}
+/** What each of the two moments is asked, word for word, and the shape of what it is told. */
 
 export interface WeekInput {
   freeHours: number;
@@ -21,29 +15,6 @@ export interface WeekInput {
   fixed: string[];
 }
 
-export interface CheckpointInput {
-  project: string;
-  stage: string;
-  sentence: string;
-  count: number;
-  threshold: number;
-  note: string;
-}
-
-export interface DecisionInput {
-  project: string;
-  stage: string;
-  sentence: string;
-  count: number;
-  threshold: number;
-  measurable: boolean;
-  hoursInvested: number;
-  hoursPerWeek: number;
-  extended: boolean;
-  isLast: boolean;
-  checkpoints: { day: string; count: number; moved: boolean; note: string }[];
-}
-
 export interface EventInput {
   title: string;
   description: string;
@@ -53,14 +24,13 @@ export interface EventInput {
     id: string;
     name: string;
     description: string;
-    stage: string;
-    sentence: string;
+    stage: string | null;
     hoursPerWeek: number;
     tasks: {
       id: string;
       title: string;
       estimateHours: number | null;
-      done: boolean;
+      open: boolean;
     }[];
   } | null;
   candidates: { id: string; name: string; description: string }[];
@@ -68,8 +38,8 @@ export interface EventInput {
 }
 
 const VOICE = `You help with a personal time-balance app called Balance. The person claims hours a
-week from spheres of their life for projects; each project has stages, each stage a gate — a count
-in a window compared to a threshold — and a decision date derived from budget and rate.
+week from spheres of their life for projects; a project holds stages, and a stage holds the tasks
+that make it up, each with its own days on a timeline.
 Plain words, second person, no exclamation marks, no coaching cliches, no emoji. Be specific and
 short. Never invent numbers you weren't given. You propose; the person decides.`;
 
@@ -79,18 +49,6 @@ export function ask<T>(schema: z.ZodType<T>, prompt: string): Promise<T | null> 
 }
 
 export const prompts = {
-  create(input: CreateInput): string {
-    return `Idea: "${input.idea}". Sphere: ${input.sphere}. Existing projects there: ${input.existingProjects.join(", ") || "none"}.
-Decide first whether this is a project (bounded, ends in a decision) or a recurring practice — say
-"recurring" when it is something to keep doing rather than finish. For a project, propose the
-template (build: my tool -> other people -> product; search: throughput on what the person
-controls, never offers received; delivery: one external deadline; exit: events only; simple: one
-gate; evergreen: budget only), a starting hours a week, a budget for the first stage, and 2-3
-candidate gate sentences for the first stage. Each gate is a count in a window: metric, threshold,
-window days, and what would count it from data that already exists (calendar blocks tagged to the
-project, a manual row, a ping from the built thing).`;
-  },
-
   week(input: WeekInput): string {
     return `Free hours left this week inside working hours: ${input.freeHours}.
 Projects wanting hours (id, name, claimed/week, already logged this week, rank where 1 is highest):
@@ -101,31 +59,15 @@ less to this week (lowest rank first) and how many hours each should get instead
 when everything fits.`;
   },
 
-  checkpoint(input: CheckpointInput): string {
-    return `Project "${input.project}", stage "${input.stage}", gate "${input.sentence}" — count ${input.count} of ${input.threshold}.
-The person wrote at the checkpoint: "${input.note}".
-Name the blocker in one sentence they would recognise as their own, then break the next two weeks
-into 2-6 concrete subtasks with estimates in hours.`;
-  },
-
-  decision(input: DecisionInput): string {
-    return `Project "${input.project}", stage "${input.stage}", gate "${input.sentence}".
-Count ${input.count} of ${input.threshold}${input.measurable ? "" : " (window not open yet)"}. Hours invested: ${input.hoursInvested} at ${input.hoursPerWeek}h/week. ${input.extended ? "Already extended once." : "Not extended."} ${input.isLast ? "Last stage." : "More stages follow."}
-Checkpoints: ${input.checkpoints.map((c) => `${c.day}: ${c.count}, ${c.moved ? "moved" : "stuck"}${c.note ? ` — ${c.note}` : ""}`).join("; ") || "none"}.
-Outcomes: ship (gate passed), hold (passed, not promoted), extend (only if not extended: one named
-fix, two weeks), park (needs a trigger), kill, restart (a different bet). Recommend one and say why
-in two sentences.`;
-  },
-
   event(input: EventInput): string {
     const tasks = input.project?.tasks ?? [];
     return `Calendar block: "${input.title}" (${input.hours}h). Notes: "${input.description || "none"}". Sphere: ${input.sphere || "unknown"}.
 ${
   input.project
     ? `Tagged to project "${input.project.name}" (id ${input.project.id}): ${input.project.description || "no description"}.
-Running stage "${input.project.stage}", gate "${input.project.sentence}", ${input.project.hoursPerWeek}h/week.
-Open tasks under the stage (id · title · estimate · done):
-${tasks.map((t) => `- ${t.id} · ${t.title} · ${t.estimateHours ?? "?"}h · ${t.done ? "done" : "open"}`).join("\n") || "none"}`
+${input.project.stage ? `Current stage "${input.project.stage}". ` : ""}${input.project.hoursPerWeek}h/week.
+Its tasks (id · title · estimate · state):
+${tasks.map((t) => `- ${t.id} · ${t.title} · ${t.estimateHours ?? "?"}h · ${t.open ? "open" : "done"}`).join("\n") || "none"}`
     : `Not tagged to a project. Projects it could be for (id · name · description):
 ${input.candidates.map((c) => `- ${c.id} · ${c.name} · ${c.description || ""}`).join("\n") || "none"}`
 }

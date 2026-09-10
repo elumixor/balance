@@ -106,6 +106,13 @@
       "when": 1788939002101,
       "tag": "0014_nebulous_jackal",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789076944776,
+      "tag": "0015_yummy_maginty",
+      "breakpoints": true
     }
   ]
 }

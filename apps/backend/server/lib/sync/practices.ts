@@ -5,7 +5,6 @@ import { asNumeric, defined, numeric, TableStore } from "./table-store";
 
 export const practiceSchema = z.object({
   id: z.uuid(),
-  goalId: z.uuid().nullable().default(null),
   categoryId: z.uuid(),
   name: z.string().trim(),
   unit: z.enum(["times", "hours"]).default("times"),
@@ -21,7 +20,6 @@ export const practicesModel = syncedModel({
     missing: "That practice no longer exists.",
     toRecord: (row) => ({
       id: row.id,
-      goalId: row.goalId,
       categoryId: row.categoryId,
       name: row.name,
       unit: row.unit === "hours" ? "hours" : "times",
@@ -30,7 +28,6 @@ export const practicesModel = syncedModel({
     toRow: (userId, r) => ({
       id: r.id,
       userId,
-      goalId: r.goalId,
       categoryId: r.categoryId,
       name: r.name,
       unit: r.unit,
@@ -38,7 +35,6 @@ export const practicesModel = syncedModel({
     }),
     toPatch: (p) =>
       defined({
-        goalId: p.goalId,
         categoryId: p.categoryId,
         name: p.name,
         unit: p.unit,
