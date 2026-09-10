@@ -50,7 +50,10 @@ Both apps read the one `.env` at the root (symlinked into each). Every key is re
 missing one stops the backend at start-up and the frontend at build time with its name — see
 `apps/backend/server/lib/env.ts` for the full list. The backend needs `DATABASE_URL`,
 `DATABASE_URL_UNPOOLED`, `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
-`GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and `OAUTH_STATE_SECRET` (the last two are
+`GOOGLE_OAUTH_REDIRECT_URI`, the same three for Notion (`NOTION_OAUTH_CLIENT_ID`,
+`NOTION_OAUTH_CLIENT_SECRET`, `NOTION_OAUTH_REDIRECT_URI` — a connection made at
+[notion.so/profile/integrations](https://www.notion.so/profile/integrations) with OAuth as its
+authentication method), `TOKEN_ENCRYPTION_KEY` and `OAUTH_STATE_SECRET` (the last two are
 `openssl rand -base64 32`), `GOOGLE_MAPS_API_KEY` for travel times through the Google Routes API
 and address suggestions through the Places API, `AI_GATEWAY_API_KEY` for the session copy and the
 project proposals, `SENTRY_DSN`, `POSTHOG_KEY`, `POSTHOG_HOST` for its own failures, and `APPLE_BUNDLE_ID` and
