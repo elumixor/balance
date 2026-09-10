@@ -118,6 +118,26 @@ describe("EventDraft", () => {
     expect(cal.editEvent).toHaveBeenCalledTimes(1);
   });
 
+  it("writes a time settled on after the delay has already run out", () => {
+    const cal = calendar();
+    const draft = new EventDraft(cal);
+    draft.load(event());
+    draft.to = "10:00";
+    draft.flush();
+    expect(cal.editEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads a time the way it was typed rather than only as HH:MM", () => {
+    const draft = new EventDraft(calendar());
+    draft.load(event());
+    expect(draft.parseRange("9", "1403")).toEqual({
+      start: new Date(2026, 7, 10, 9),
+      end: new Date(2026, 7, 10, 14, 3),
+    });
+    expect(draft.parseRange("9.30", "930")?.start).toEqual(new Date(2026, 7, 10, 9, 30));
+    expect(draft.parseRange("soon", "930")).toBeNull();
+  });
+
   it("drops what was typed on revert and writes none of it", () => {
     const cal = calendar();
     const draft = new EventDraft(cal);

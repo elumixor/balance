@@ -41,3 +41,38 @@ export function spanBetween(startMinutes: number, endMinutes: number): number {
   const diff = endMinutes - startMinutes;
   return diff > 0 ? diff : diff + MINUTES_PER_DAY;
 }
+
+/**
+ * A span as it is typed: "6m", "45m", "1h", "1h30", "1h30m", "1.5h", or "+90" for plain minutes.
+ * A marker is required — a bare "930" is a time of day, not fifteen and a half hours.
+ */
+export function parseDuration(text: string): number | null {
+  const trimmed = text.replace(/\s+/g, "").toLowerCase();
+  const plus = trimmed.startsWith("+");
+  const body = plus ? trimmed.slice(1) : trimmed;
+  const hoursAndMinutes = /^(\d+(?:\.\d+)?)h(\d{1,2})?m?$/.exec(body);
+  const minutesOnly = /^(\d+)m$/.exec(body);
+  const bare = plus && /^\d+$/.test(body) ? body : null;
+
+  let minutes: number | null = null;
+  if (hoursAndMinutes) {
+    minutes = Math.round(Number(hoursAndMinutes[1]) * MINUTES_PER_HOUR) + Number(hoursAndMinutes[2] ?? 0);
+  } else if (minutesOnly) minutes = Number(minutesOnly[1]);
+  else if (bare !== null) minutes = Number(bare);
+
+  if (minutes === null || minutes <= 0 || minutes > MINUTES_PER_DAY) return null;
+  return minutes;
+}
+
+/**
+ * What one end of an event means when it has been typed into: a time of day as given, or — when
+ * a span was typed instead — that span from the other end, forward for the end and back for the
+ * start. Null when it reads as neither, or as a span with nothing to measure it from.
+ */
+export function entryToClock(text: string, other: number | null, end: boolean): string | null {
+  const clock = normalizeClock(text);
+  if (clock) return clock;
+  const minutes = parseDuration(text);
+  if (minutes === null || other === null) return null;
+  return toClock(end ? other + minutes : other - minutes);
+}

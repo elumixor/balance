@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { MINUTES_PER_DAY, normalizeClock, spanBetween, toClock, toMinutes } from "$lib/calendar/clock-text";
+  import { entryToClock, MINUTES_PER_DAY, spanBetween, toClock, toMinutes } from "$lib/calendar/clock-text";
   import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "./float";
   import { formatHoursAndMinutes } from "$lib/ui/format";
 
@@ -10,6 +10,9 @@
    *
    * Both ends use this, so a duration can be given from either side: picking in the start field
    * moves the start and leaves the end where it is, and picking in the end field does the reverse.
+   *
+   * A span can be typed in place of a time — "6m", "1h30", "+90" — and is read from the other
+   * end, which is the only way to a length the quarter-hour list doesn't hold.
    *
    * Without a counterpart it is a time of day on its own — "when should the evening reminder
    * arrive" — and offers the whole day's quarter hours, with no span to speak of.
@@ -42,6 +45,9 @@
   const MENU_WIDTH = 190;
 
   let input = $state<HTMLInputElement>();
+  /** What is in the box, which is not what the field holds: "6m" is text here and a clock there. */
+  let text = $state(value);
+  let focused = $state(false);
   let list = $state<HTMLElement>();
   let open = $state(false);
   let highlighted = $state(0);
@@ -80,7 +86,7 @@
     const mine = toMinutes(value);
     if (counterpart === null) return mine === null ? 0 : Math.round(mine / STEP_MINUTES) % SLOTS;
     if (other === null || mine === null) return end ? 0 : options.length - 1;
-    const clock = normalizeClock(value);
+    const clock = value;
     const exact = options.findIndex((o) => o.clock === clock);
     if (exact >= 0) return exact;
     const slots = Math.ceil(spanBetween(end ? other : mine, end ? mine : other) / STEP_MINUTES);
@@ -92,7 +98,7 @@
   }
 
   function show() {
-    fallback = normalizeClock(value) ?? fallback;
+    fallback = resolve(value) ?? fallback;
     candidate = fallback;
     highlighted = matchIndex();
     place();
@@ -106,8 +112,14 @@
     input?.focus();
   }
 
+  /** What the text in the box comes to: a clock as typed, or a span read from the other end. */
+  function resolve(entry: string) {
+    return entryToClock(entry, other, end);
+  }
+
   function set(clock: string) {
     value = clock;
+    text = clock;
     fallback = clock;
     candidate = clock;
     oninput?.(clock);
@@ -121,10 +133,10 @@
     oncommit?.();
   }
 
-  /** What's typed either reads as a time, in which case it's tidied up, or it goes back. */
+  /** What's typed either reads as a time or a span, in which case it's tidied up, or it goes back. */
   function settle() {
-    const clock = normalizeClock(value);
-    if (clock !== value) set(clock ?? fallback);
+    const clock = resolve(text);
+    if (clock !== text) set(clock ?? fallback);
     oncommit?.();
   }
 
@@ -158,6 +170,13 @@
     if (e.key === "Tab") settle();
   }
 
+  // A time the field is given rather than typed — a load, an undo, a block dragged on the grid —
+  // replaces what the box shows, unless the box is the thing being typed into.
+  $effect(() => {
+    const given = value;
+    if (!focused) text = given;
+  });
+
   // Typing walks the highlight along with it, so the list always points at what's been entered.
   $effect(() => {
     if (open) highlighted = matchIndex();
@@ -190,19 +209,24 @@
 >
   <input
     bind:this={input}
-    bind:value
-    oninput={(e) => {
+    bind:value={text}
+    oninput={() => {
       // Half-typed text is nobody's business but this field's — only a real time is passed on,
       // and the grid keeps drawing the last readable one until another arrives.
-      const clock = normalizeClock(e.currentTarget.value);
+      const clock = resolve(text);
       candidate = clock ?? fallback;
-      if (clock) oninput?.(clock);
+      if (clock) {
+        value = clock;
+        oninput?.(clock);
+      }
     }}
     onfocus={() => {
+      focused = true;
       input?.select();
       show();
     }}
     onblur={() => {
+      focused = false;
       settle();
       open = false;
     }}

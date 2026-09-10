@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { MINUTES_PER_DAY, normalizeClock, spanBetween, toClock, toMinutes } from "./clock-text";
+import {
+  entryToClock,
+  MINUTES_PER_DAY,
+  normalizeClock,
+  parseDuration,
+  spanBetween,
+  toClock,
+  toMinutes,
+} from "./clock-text";
 
 describe("normalizeClock", () => {
   it("reads every way a time gets typed", () => {
@@ -54,5 +62,60 @@ describe("spanBetween", () => {
   it("carries an end before its start into the next day", () => {
     expect(spanBetween(23 * 60, 60)).toBe(120);
     expect(spanBetween(600, 600)).toBe(MINUTES_PER_DAY);
+  });
+});
+
+describe("parseDuration", () => {
+  it("reads a span however it is written", () => {
+    expect(parseDuration("6m")).toBe(6);
+    expect(parseDuration("45m")).toBe(45);
+    expect(parseDuration("90m")).toBe(90);
+    expect(parseDuration("1h")).toBe(60);
+    expect(parseDuration("1h30")).toBe(90);
+    expect(parseDuration("1h30m")).toBe(90);
+    expect(parseDuration("1h 30 m")).toBe(90);
+    expect(parseDuration("1.5h")).toBe(90);
+    expect(parseDuration("+90")).toBe(90);
+    expect(parseDuration("+1h")).toBe(60);
+    expect(parseDuration("24h")).toBe(MINUTES_PER_DAY);
+  });
+
+  it("refuses a bare number, which is a time of day", () => {
+    expect(parseDuration("930")).toBeNull();
+    expect(parseDuration("6")).toBeNull();
+    expect(parseDuration("")).toBeNull();
+    expect(parseDuration("+")).toBeNull();
+    expect(parseDuration("soon")).toBeNull();
+  });
+
+  it("refuses a span that is no span at all, or longer than a day", () => {
+    expect(parseDuration("0m")).toBeNull();
+    expect(parseDuration("0h")).toBeNull();
+    expect(parseDuration("+0")).toBeNull();
+    expect(parseDuration("25h")).toBeNull();
+  });
+});
+
+describe("entryToClock", () => {
+  const nine = toMinutes("09:00");
+
+  it("takes a time of day as it stands", () => {
+    expect(entryToClock("1403", nine, true)).toBe("14:03");
+    expect(entryToClock("14:03", null, false)).toBe("14:03");
+  });
+
+  it("measures a span from the other end, each way", () => {
+    expect(entryToClock("6m", nine, true)).toBe("09:06");
+    expect(entryToClock("1h30", nine, true)).toBe("10:30");
+    expect(entryToClock("6m", nine, false)).toBe("08:54");
+  });
+
+  it("wraps past midnight rather than refusing", () => {
+    expect(entryToClock("2h", toMinutes("23:30"), true)).toBe("01:30");
+  });
+
+  it("has no answer for a span with nothing to measure from, or for neither", () => {
+    expect(entryToClock("6m", null, true)).toBeNull();
+    expect(entryToClock("soon", nine, true)).toBeNull();
   });
 });

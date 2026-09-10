@@ -1,3 +1,4 @@
+import { normalizeClock } from "./clock-text";
 import { formatClock, formatDateInput, formatHoursAndMinutes, parseDateAndClock } from "$lib/ui/format";
 import type { CalendarEvent } from "./types";
 
@@ -123,8 +124,10 @@ export class EventDraft {
   }
 
   parseRange(fromClock = this.from, toClock = this.to) {
-    const start = parseDateAndClock(this.date, fromClock);
-    const end = parseDateAndClock(this.date, toClock);
+    // The fields hold a time the way it was typed — "9", "1403", "9.30" — and only a clock can be
+    // put on a date, so what they hold is read the same way the field reading it back does.
+    const start = parseDateAndClock(this.date, normalizeClock(fromClock) ?? fromClock);
+    const end = parseDateAndClock(this.date, normalizeClock(toClock) ?? toClock);
     if (!start || !end) return null;
     // A block that ends before it starts ran past midnight.
     return { start, end: end <= start ? new Date(end.getTime() + MS_PER_DAY) : end };
@@ -135,10 +138,14 @@ export class EventDraft {
     this.#timer = setTimeout(() => this.#commit(), SAVE_DELAY_MS);
   }
 
-  /** A pending edit still belongs to the user: it goes now rather than after the delay. */
+  /**
+   * A pending edit still belongs to the user: it goes now rather than after the delay. A time
+   * settled on after the delay has already run out — the one the failed half-typed write left
+   * behind — is written too, which is why this doesn't ask whether anything is queued.
+   */
   flush() {
-    if (!this.#timer || this.#deleted) return;
-    clearTimeout(this.#timer);
+    if (this.#deleted) return;
+    if (this.#timer) clearTimeout(this.#timer);
     this.#timer = null;
     this.#commit();
   }
