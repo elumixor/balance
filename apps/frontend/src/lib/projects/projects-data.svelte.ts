@@ -133,19 +133,21 @@ class ProjectsData {
    * corner rather than an empty screen: what was pulled last time is still on the device.
    */
   async mirror(force = false) {
-    if (!this.notion?.dataSourceId) return;
-    if (!force && Date.now() - this.#syncedAt < SYNC_EVERY_MS) return;
+    if (!this.notion?.dataSourceId) return null;
+    if (!force && Date.now() - this.#syncedAt < SYNC_EVERY_MS) return null;
     this.#syncedAt = Date.now();
     try {
       const answer = await syncNotion();
       store.notion.set(answer.status);
       if (answer.summary) await synced.sync();
+      return answer.summary;
     } catch (error) {
       this.#syncedAt = 0;
       diagnostics.report("Projects", error, {
         title: "Couldn't read your Notion workspace.",
         retry: () => void this.mirror(true),
       });
+      return null;
     }
   }
 

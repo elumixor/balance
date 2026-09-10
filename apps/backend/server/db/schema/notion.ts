@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
-import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { categories } from "./categories";
 import { users } from "./users";
 
 /**
@@ -11,6 +12,17 @@ import { users } from "./users";
  * database of projects, chosen after connecting; everything else — which page holds a project's
  * tasks, who the people are — is found from there on every sync.
  */
+/**
+ * What the projects database's columns mean. Only the two the app can't guess are here: which
+ * column is the sentence under the name, and which columns are worth drawing beside it. Everything
+ * else — a task's status, its dates, whose it is — is found by type and name on the task database
+ * itself, which is a different database per project and has nobody to ask.
+ */
+export interface NotionMapping {
+  description: string | null;
+  fields: string[];
+}
+
 export const notionConnections = pgTable("notion_connections", {
   userId: uuid("user_id")
     .primaryKey()
@@ -21,6 +33,10 @@ export const notionConnections = pgTable("notion_connections", {
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   /** The Notion data source of projects, chosen from what the grant can see. Null until it is. */
   projectsDataSourceId: text("projects_data_source_id"),
+  /** The sphere mirrored projects land in — the one thing Notion has no answer for. */
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+  /** What each column of that database means here, as somebody said it does. */
+  mapping: jsonb("mapping").$type<NotionMapping>().notNull().default({ description: null, fields: [] }),
   workspaceId: text("workspace_id").notNull().default(""),
   /** What the workspace calls itself, for the settings row to say which one is connected. */
   workspaceName: text("workspace_name").notNull().default(""),

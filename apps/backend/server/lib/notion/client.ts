@@ -101,16 +101,18 @@ export class NotionClient {
     });
   }
 
-  /** Every database this grant can see, for the picker that says which one holds the projects. */
+  /**
+   * Every database this grant can see, with its columns — the whole of what the setup dialog has
+   * to ask about, in one request rather than one per database somebody might pick.
+   */
   async databases() {
-    const answer = await this.#request<{ results: { id: string; title?: { plain_text: string }[] }[] }>(
-      "/search",
-      "POST",
-      { filter: { property: "object", value: "data_source" }, page_size: 100 },
-    );
+    const answer = await this.#request<{
+      results: { id: string; title?: { plain_text: string }[]; properties?: Record<string, { type: string }> }[];
+    }>("/search", "POST", { filter: { property: "object", value: "data_source" }, page_size: 100 });
     return answer.results.map((result) => ({
       id: result.id,
       name: result.title?.map((run) => run.plain_text).join("") || "Untitled",
+      properties: Object.entries(result.properties ?? {}).map(([name, property]) => ({ name, type: property.type })),
     }));
   }
 

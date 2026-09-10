@@ -1,0 +1,3 @@
+ALTER TABLE "notion_connections" ADD COLUMN "category_id" uuid;--> statement-breakpoint
+ALTER TABLE "notion_connections" ADD COLUMN "mapping" jsonb DEFAULT '{"description":null,"fields":[]}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "notion_connections" ADD CONSTRAINT "notion_connections_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE set null ON UPDATE no action;

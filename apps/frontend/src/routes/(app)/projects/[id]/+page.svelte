@@ -1,17 +1,27 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Field, NumberField, ProjectCover, Screen, Segmented, Skeleton, StatusChip, Textarea } from "$lib/components";
+  import { Field, NumberField, ProjectCover, Screen, Segmented, Select, Skeleton, Textarea } from "$lib/components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { ProjectStatus } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
-  import { ExternalLink, Trash2 } from "lucide-svelte";
-  import { Breadcrumb, FieldsPanel, MembersRow, SubProjects, TaskBoard, TaskList, TaskTimeline } from "./components";
+  import { ExternalLink, Plus, Trash2 } from "lucide-svelte";
+  import {
+    Breadcrumb,
+    FieldsPanel,
+    MembersRow,
+    SubProjects,
+    TaskBoard,
+    TaskInspector,
+    TaskList,
+    TaskTimeline,
+  } from "./components";
 
   /**
    * One project, open: what it is, what it says about itself, what sits under it, and the work
    * itself in whichever of the three shapes answers the question being asked — time, order, or
-   * where things stand.
+   * where things stand. Opening a task is a panel under the view rather than a dialog, so the
+   * plan it belongs to stays on screen while it is edited.
    */
   void data.enter();
 
@@ -29,7 +39,21 @@
     { value: "board", label: "Board", href: `/projects/${id}?view=board` },
   ]);
 
-  const STATUSES: ProjectStatus[] = ["active", "paused", "done", "dropped"];
+  const STATUSES: { value: ProjectStatus; label: string }[] = [
+    { value: "active", label: "Active" },
+    { value: "paused", label: "Paused" },
+    { value: "done", label: "Done" },
+    { value: "dropped", label: "Dropped" },
+  ];
+
+  let selectedId = $state<string | null>(null);
+  const selected = $derived(selectedId ? (data.tasksOf(id).find((task) => task.id === selectedId) ?? null) : null);
+
+  // A task selected on one project has nothing to say on the next one.
+  $effect(() => {
+    void id;
+    selectedId = null;
+  });
 
   async function remove() {
     if (!project || !data.remove(project)) return;
@@ -43,26 +67,22 @@
   {:else if !project || !card}
     <p class="t-body text-fg-muted">That project isn’t here any more.</p>
   {:else}
-    <div class="space-y-8">
-      <header class="space-y-3">
+    <div class="mx-auto max-w-5xl space-y-8">
+      <header class="space-y-4">
         <Breadcrumb {path} />
 
-        <div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div class="flex flex-col gap-8 md:flex-row md:items-start">
           <div class="flex min-w-0 flex-1 items-start gap-3">
             <ProjectCover icon={project.icon} category={card.category} />
-            <div class="min-w-0 flex-1 space-y-1.5">
-              <div class="flex items-center gap-2">
-                <Field
-                  value={project.name}
-                  variant="bare"
-                  placeholder="Untitled project"
-                  ariaLabel="Project name"
-                  oninput={(name) => data.update(project.id, { name })}
-                  class="t-title"
-                />
-                <StatusChip status={project.status} />
-              </div>
-              <MembersRow {project} />
+            <div class="min-w-0 flex-1">
+              <Field
+                value={project.name}
+                variant="bare"
+                placeholder="Untitled project"
+                ariaLabel="Project name"
+                oninput={(name) => data.update(project.id, { name })}
+                class="t-heading h-auto py-0.5"
+              />
               <Textarea
                 value={project.description}
                 variant="bare"
@@ -71,14 +91,26 @@
                 ariaLabel="Description"
                 oninput={(description) => data.update(project.id, { description })}
               />
+              <div class="mt-1 flex items-center gap-3 px-2">
+                <MembersRow {project} />
+                {#if project.notionUrl}
+                  <a
+                    href={project.notionUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    class="t-micro flex items-center gap-1.5 text-fg-faint underline-offset-2 hover:underline"
+                  >
+                    <ExternalLink size={11} />
+                    Notion
+                  </a>
+                {/if}
+              </div>
             </div>
           </div>
 
-          <div class="w-full space-y-3 md:w-72">
-            <FieldsPanel {project} />
-
-            <div class="flex items-center gap-2">
-              <span class="t-micro flex-1 text-fg-muted">Hours a week</span>
+          <div class="w-full shrink-0 space-y-1 md:w-72">
+            <div class="flex items-center justify-between gap-2 px-1">
+              <span class="t-micro text-fg-muted">Hours a week</span>
               <NumberField
                 value={project.hoursPerWeek}
                 unit="h"
@@ -86,73 +118,55 @@
                 onchange={(hoursPerWeek) => data.update(project.id, { hoursPerWeek })}
               />
             </div>
-
-            <div class="flex items-center gap-2">
-              <span class="t-micro flex-1 text-fg-muted">Status</span>
-              <select
-                class="field-boxed"
+            <div class="flex items-center justify-between gap-2 px-1">
+              <span class="t-micro text-fg-muted">Status</span>
+              <Select
+                variant="bare"
+                label="Status"
                 value={project.status}
-                onchange={(e) => data.setStatus(project, e.currentTarget.value as ProjectStatus)}
-              >
-                {#each STATUSES as status (status)}
-                  <option value={status}>{status}</option>
-                {/each}
-              </select>
+                options={STATUSES}
+                onchange={(status) => data.setStatus(project, status)}
+              />
             </div>
-
-            <div class="flex items-center justify-between">
-              {#if project.notionUrl}
-                <a
-                  href={project.notionUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  class="t-micro flex items-center gap-1.5 text-fg-muted underline-offset-2 hover:underline"
-                >
-                  <ExternalLink size={12} />
-                  Open in Notion
-                </a>
-              {:else}
-                <span></span>
-              {/if}
-              <button type="button" onclick={remove} class="press t-micro flex items-center gap-1.5 text-danger">
-                <Trash2 size={12} />
-                Delete
-              </button>
-            </div>
+            <FieldsPanel {project} />
           </div>
         </div>
       </header>
 
-      {#if card.childCount > 0}
-        <SubProjects {project} />
-      {/if}
-
       <section class="space-y-3">
         <div class="flex items-center justify-between gap-3">
-          <h2 class="t-label text-fg-muted">Tasks</h2>
           <Segmented options={VIEWS} value={view} />
+          <button
+            type="button"
+            onclick={() => data.addStage(project.id, "")}
+            class="bare-button t-micro px-1.5 py-1"
+          >
+            <Plus size={11} />
+            Stage
+          </button>
         </div>
 
         {#if view === "timeline"}
-          <TaskTimeline projectId={project.id} {color} />
+          <TaskTimeline projectId={project.id} {color} {selectedId} onselect={(next) => (selectedId = next)} />
         {:else if view === "list"}
-          <TaskList projectId={project.id} />
+          <TaskList projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
         {:else}
-          <TaskBoard projectId={project.id} />
+          <TaskBoard projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
         {/if}
 
-        <button
-          type="button"
-          onclick={() => data.addStage(project.id, "")}
-          class="press hoverable t-micro rounded-md text-fg-faint"
-        >
-          + Stage
-        </button>
+        {#if selected}
+          <div class="list-item-in"><TaskInspector task={selected} onclose={() => (selectedId = null)} /></div>
+        {/if}
       </section>
 
-      {#if card.childCount === 0}
-        <SubProjects {project} />
-      {/if}
+      <SubProjects {project} />
+
+      <div class="flex justify-end">
+        <button type="button" onclick={remove} class="bare-button t-micro px-1.5 py-1 hover:text-danger">
+          <Trash2 size={12} />
+          Delete project
+        </button>
+      </div>
     </div>
   {/if}
 </Screen>

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "~/db";
-import { notionConnections } from "~/db/schema";
+import { type NotionMapping, notionConnections } from "~/db/schema";
 import { decryptSecret, encryptSecret } from "~/lib/calendar/crypto";
 import { ApiError } from "~/lib/http/api-error";
 import { NotionAuthError, NotionClient } from "./client";
@@ -18,6 +18,9 @@ export interface NotionStatus {
   readonly workspaceName: string;
   /** The data source projects are read from, or empty while nobody has picked one. */
   readonly dataSourceId: string;
+  /** The sphere mirrored projects land in. Empty until the setup dialog has been through. */
+  readonly categoryId: string;
+  readonly mapping: NotionMapping;
   readonly lastSyncedAt: string | null;
   readonly lastError: string | null;
 }
@@ -27,6 +30,8 @@ const DISCONNECTED: NotionStatus = {
   needsReconnect: false,
   workspaceName: "",
   dataSourceId: "",
+  categoryId: "",
+  mapping: { description: null, fields: [] },
   lastSyncedAt: null,
   lastError: null,
 };
@@ -45,6 +50,8 @@ export class NotionService {
       needsReconnect: row.needsReconnect,
       workspaceName: row.workspaceName,
       dataSourceId: row.projectsDataSourceId ?? "",
+      categoryId: row.categoryId ?? "",
+      mapping: row.mapping,
       lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
       lastError: row.lastError,
     };
@@ -67,8 +74,18 @@ export class NotionService {
     return (await this.#client()).databases();
   }
 
-  async chooseDataSource(projectsDataSourceId: string) {
-    await this.#stamp({ projectsDataSourceId, lastError: null });
+  /**
+   * The answers the setup dialog collects: which database, which sphere its projects land in, and
+   * what the columns beside their names mean. Kept together because they are asked together, and
+   * because a database chosen without them would sync into nowhere.
+   */
+  async configure(input: { dataSourceId: string; categoryId: string; mapping: NotionMapping }) {
+    await this.#stamp({
+      projectsDataSourceId: input.dataSourceId,
+      categoryId: input.categoryId,
+      mapping: input.mapping,
+      lastError: null,
+    });
     return this.status();
   }
 
@@ -87,7 +104,11 @@ export class NotionService {
 
     try {
       const client = await this.#client();
-      const summary = await new NotionSync(this.userId, client, row.projectsDataSourceId).run();
+      const summary = await new NotionSync(this.userId, client, {
+        dataSourceId: row.projectsDataSourceId,
+        categoryId: row.categoryId,
+        mapping: row.mapping,
+      }).run();
       await this.#stamp({ lastSyncedAt: new Date(), lastError: null, needsReconnect: false });
       return { status: await this.status(), summary };
     } catch (error) {

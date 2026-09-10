@@ -98,6 +98,19 @@ export interface Progress {
   practices: Record<string, PracticeProgress>;
 }
 
+/** What each column of the projects database means here — the setup dialog's answers. */
+export interface NotionMapping {
+  description: string | null;
+  fields: string[];
+}
+
+/** One database the connected workspace can see, with the columns it holds. */
+export interface NotionDatabase {
+  id: string;
+  name: string;
+  properties: { name: string; type: string }[];
+}
+
 /** What the settings row draws about the mirrored workspace — `/mobile/notion/status`. */
 export interface NotionStatus {
   connected: boolean;
@@ -105,6 +118,9 @@ export interface NotionStatus {
   workspaceName: string;
   /** The data source projects are read from, or empty while nobody has picked one. */
   dataSourceId: string;
+  /** The sphere mirrored projects land in. Empty until the setup dialog has been through. */
+  categoryId: string;
+  mapping: NotionMapping;
   lastSyncedAt: string | null;
   lastError: string | null;
 }

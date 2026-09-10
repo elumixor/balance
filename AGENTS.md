@@ -440,8 +440,13 @@ screen inside an embedded webview is refused. Access tokens now expire, so the r
 kept too (both encrypted with `calendar/crypto.ts`) and a run renews before it starts rather than
 failing once and reconnecting.
 
-One question is left after connecting: which data source holds the projects, chosen in settings
-from what the grant can actually see (`/mobile/notion/databases`). "Not connected", "nothing
+What is left after connecting is one dialog, because it is one decision: which data source holds
+the projects, which sphere their hours come out of, and what the columns beside their names mean —
+the sentence under a name, and which columns are worth drawing. It is asked once against what the
+grant can actually see (`/mobile/notion/databases` answers each database with its columns) and
+kept on the connection, so opening it again is changing the answers rather than starting over.
+Nothing about a task database is asked: that is a different database per project, so its columns
+are found by type and name (`data-source.ts`). "Not connected", "nothing
 chosen" and "the grant expired" are states the settings row draws, returned as 200 with
 `connected` / `dataSourceId` / `needsReconnect` — never a 401, which the frontend reads as a dead
 Clerk session. The projects screen asks for a run when it opens, at most every five minutes, and

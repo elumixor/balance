@@ -11,6 +11,7 @@ export { default as CardRow } from "./CardRow.svelte";
 export { default as CategoryIcon } from "./CategoryIcon.svelte";
 export { default as ComboField } from "./ComboField.svelte";
 export { default as CopyButton } from "./CopyButton.svelte";
+export { default as DateField } from "./DateField.svelte";
 export { default as Dialog } from "./Dialog.svelte";
 export { default as Divider } from "./Divider.svelte";
 export { default as Dot } from "./Dot.svelte";

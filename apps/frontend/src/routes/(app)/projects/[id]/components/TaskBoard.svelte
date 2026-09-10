@@ -3,14 +3,17 @@
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { Person, Task, TaskStatus } from "$lib/projects/types";
   import { Plus } from "lucide-svelte";
-  import TaskSheet from "./TaskSheet.svelte";
 
   /**
    * The same tasks as columns. The four the app counts by, never the board's own — a mirrored
    * project can have eleven columns, and a wall of them says less than where the work stands.
    * What the other board calls the column is on the card, under the title.
    */
-  let { projectId }: { projectId: string } = $props();
+  let {
+    projectId,
+    selectedId,
+    onselect,
+  }: { projectId: string; selectedId: string | null; onselect: (id: string | null) => void } = $props();
 
   const COLUMNS: { status: TaskStatus; label: string }[] = [
     { status: "todo", label: "To do" },
@@ -20,7 +23,6 @@
   ];
 
   const tasks = $derived(data.tasksOf(projectId).filter((task) => task.status !== "dropped"));
-  let openId = $state<string | null>(null);
 
   const peopleOn = (task: Task) =>
     task.assigneeIds.map((id) => data.personById.get(id)).filter((one): one is Person => Boolean(one));
@@ -29,38 +31,36 @@
 <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
   {#each COLUMNS as column (column.status)}
     {@const own = tasks.filter((task) => task.status === column.status)}
-    <section class="space-y-2 rounded-lg border border-line bg-surface p-2">
-      <h3 class="t-micro flex items-center justify-between text-fg-muted">
+    <section class="space-y-1.5">
+      <h3 class="t-label flex items-center justify-between px-1 text-fg-muted">
         {column.label}
-        <span class="tabular-nums text-fg-faint">{own.length}</span>
+        <span class="t-data-micro text-fg-faint">{own.length}</span>
       </h3>
 
       {#each own as task (task.id)}
         <button
           type="button"
-          onclick={() => (openId = task.id)}
-          class="press hoverable block w-full space-y-1 rounded-md border border-line bg-bg p-2 text-left"
+          onclick={() => onselect(task.id === selectedId ? null : task.id)}
+          class="press-sm block w-full space-y-1 rounded-md border border-line bg-surface p-2 text-left
+            {task.id === selectedId ? 'border-line-strong' : ''}"
         >
-          <span class="t-micro block text-fg">{task.title || "Untitled task"}</span>
+          <span class="t-label block text-fg">{task.title || "Untitled task"}</span>
           <span class="flex items-center justify-between gap-2">
-            {#if task.statusLabel && task.statusLabel !== column.label}
-              <span class="t-micro truncate text-fg-faint">{task.statusLabel}</span>
-            {:else}
-              <span></span>
-            {/if}
+            <span class="t-micro truncate text-fg-faint">
+              {task.statusLabel && task.statusLabel !== column.label ? task.statusLabel : (task.endsOn ?? "")}
+            </span>
             <Avatars people={peopleOn(task)} size={16} max={2} />
           </span>
         </button>
-        <TaskSheet {task} open={openId === task.id} onclose={() => (openId = null)} />
       {/each}
 
       {#if column.status === "todo"}
         <button
           type="button"
-          onclick={() => data.addTask(projectId, null)}
-          class="press hoverable t-micro flex items-center gap-1.5 rounded-md py-1 text-fg-faint"
+          onclick={() => onselect(data.addTask(projectId, null).id)}
+          class="bare-button t-micro w-full justify-start px-1.5 py-1"
         >
-          <Plus size={12} />
+          <Plus size={11} />
           Task
         </button>
       {/if}

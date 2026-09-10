@@ -1,6 +1,6 @@
 import { api, apiGet, callApi } from "$lib/core/api";
 import type { Assisted, WeekNote } from "$lib/projects/assist";
-import type { NotionStatus, NotionSyncResult, Progress } from "$lib/projects/types";
+import type { NotionDatabase, NotionMapping, NotionStatus, NotionSyncResult, Progress } from "$lib/projects/types";
 
 /** The device's day and zone travel with the ask, the same way the planning sessions send theirs. */
 export const getProjectProgress = (timeZone: string, today: string) =>
@@ -25,10 +25,10 @@ export const startNotionConnect = (mode: "app" | "web", origin: string) =>
   callApi(api.notion.start.$post({ mode, origin })).then((r) => r.url);
 
 export const listNotionDatabases = () =>
-  apiGet<{ databases: { id: string; name: string }[] }>("/notion/databases").then((r) => r.databases);
+  apiGet<{ databases: NotionDatabase[] }>("/notion/databases").then((r) => r.databases);
 
-export const chooseNotionDatabase = (dataSourceId: string) =>
-  callApi(api.notion.database.$post({ dataSourceId })) as Promise<NotionStatus>;
+export const configureNotion = (input: { dataSourceId: string; categoryId: string; mapping: NotionMapping }) =>
+  callApi(api.notion.configure.$post(input)) as Promise<NotionStatus>;
 
 export const disconnectNotion = () => callApi(api.notion.disconnect.$post({})) as Promise<NotionStatus>;
 
