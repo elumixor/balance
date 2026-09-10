@@ -81,8 +81,10 @@
   }
 
   function createProject(name: string) {
-    const created = projectsData.create(category?.id, name);
-    if (created) choosePurpose({ projectId: created.id, practiceId: null });
+    const created = projectsData.create(null, category?.id);
+    if (!created) return;
+    projectsData.update(created.id, { name });
+    choosePurpose({ projectId: created.id, practiceId: null });
   }
 
   function detach() {

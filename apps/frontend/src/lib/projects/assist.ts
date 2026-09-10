@@ -1,36 +1,14 @@
-import type { GateMetric, ProjectTemplate } from "./types";
-
-export interface GateProposal {
-  sentence: string;
-  metric: GateMetric;
-  threshold: number;
-  windowDays: number;
-  countedBy: string;
+/**
+ * What the model may answer with, and the one shape every ask comes back in. `available: false`
+ * is a real answer: with no key configured, or a model that is down, every screen carries on.
+ */
+export interface Assisted<T> {
+  available: boolean;
+  suggestion: T | null;
 }
 
-export interface CreateSuggestion {
-  kind: "project" | "recurring";
-  reason: string;
-  template: ProjectTemplate;
-  hoursPerWeek: number;
-  budgetHours: number;
-  gates: GateProposal[];
-}
-
+/** A note over the week's deterministic fill, and what it would give less to. */
 export interface WeekNote {
   note: string;
   drop: { projectId: string; hours: number; why: string }[];
 }
-
-export interface CheckpointHelp {
-  blocker: string;
-  tasks: { title: string; estimateHours: number }[];
-}
-
-export interface DecisionAdvice {
-  recommendation: "ship" | "extend" | "park" | "kill" | "restart" | "hold";
-  why: string;
-}
-
-/** `available: false` is the whole answer when no model is configured or it is down. */
-export type Assisted<T> = { available: true; suggestion: T } | { available: false; suggestion: null };

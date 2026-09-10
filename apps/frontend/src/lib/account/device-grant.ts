@@ -1,6 +1,6 @@
 import { Preferences } from "@capacitor/preferences";
-import { invoke } from "@tauri-apps/api/core";
 import type { Clerk } from "@clerk/clerk-js";
+import { invoke } from "@tauri-apps/api/core";
 import { ApiClientError, postPublic } from "$lib/core/api";
 import { isDesktop } from "$lib/desktop/platform";
 

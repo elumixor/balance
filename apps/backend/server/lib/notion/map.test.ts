@@ -38,8 +38,9 @@ describe("dateOf", () => {
   });
 
   it("drops the time of day from a range", () => {
-    expect(dateOf({ type: "date", date: { start: "2026-09-10T09:00:00+02:00", end: "2026-09-12T18:00:00+02:00" } }))
-      .toEqual({ startsOn: "2026-09-10", endsOn: "2026-09-12" });
+    expect(
+      dateOf({ type: "date", date: { start: "2026-09-10T09:00:00+02:00", end: "2026-09-12T18:00:00+02:00" } }),
+    ).toEqual({ startsOn: "2026-09-10", endsOn: "2026-09-12" });
   });
 
   it("is empty for an empty date", () => {

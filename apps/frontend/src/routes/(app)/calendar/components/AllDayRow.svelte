@@ -79,12 +79,12 @@
         href="/projects/{marker.projectId}"
         title={marker.label}
         class="t-micro relative flex min-w-0 items-center gap-1 self-center truncate rounded-sm px-1 py-px
-          {marker.kind === 'decision' ? 'text-fg' : 'text-fg-muted'}"
-        style="grid-row:1;grid-column:{marker.dayIndex + 1};margin-right:{BLOCK_GUTTER_PX}px;{marker.kind === 'decision'
+          {marker.kind === 'stage' ? 'text-fg' : 'text-fg-muted'}"
+        style="grid-row:1;grid-column:{marker.dayIndex + 1};margin-right:{BLOCK_GUTTER_PX}px;{marker.kind === 'stage'
           ? `background:color-mix(in oklab,${marker.color} 18%,transparent)`
           : ''}"
       >
-        {#if marker.kind === "decision"}
+        {#if marker.kind === "stage"}
           <Flag size={10} style="color:{marker.color}" class="shrink-0" />
         {:else}
           <span class="size-1.5 shrink-0 rounded-full" style="background:{marker.color}"></span>

@@ -16,6 +16,14 @@ vi.mock("$lib/integrations/queries", () => ({ getIntegrations: async () => [] })
 vi.mock("$lib/account/queries", () => ({ getPreferences: async () => ({}) }));
 vi.mock("$lib/projects/queries", () => ({
   getProjectProgress: (timeZone: string, today: string) => progress(timeZone, today),
+  getNotionStatus: async () => ({
+    connected: false,
+    needsReconnect: false,
+    workspaceName: "",
+    databaseId: "",
+    lastSyncedAt: null,
+    lastError: null,
+  }),
 }));
 const progress = vi.fn(async (_timeZone: string, _today: string) => ({
   connected: true,

@@ -10,15 +10,17 @@
 
   /**
    * The projects that want hours this week, as chips to drag onto the grid. A chip becomes a
-   * block that counts toward the project's sphere and is evidence for its gate; a task under the
-   * chip narrows the block to that task, and brings its estimate as the block's length.
+   * block that counts toward the project's sphere; a task under the chip narrows the block to
+   * that task, and brings its estimate as the block's length.
    */
   let { categories }: { categories: readonly Category[] } = $props();
 
   const data = calendarData;
   const colorOf = $derived(new Map(categories.map((c) => [c.id, c.color])));
   const live = $derived(
-    projectsData.cards.filter((card) => !card.archived && (card.project.hoursPerWeek > 0 || card.stage)),
+    projectsData.live
+      .filter((project) => project.status === "active" && project.hoursPerWeek > 0)
+      .map((project) => projectsData.cardOf(project)),
   );
 
   let planning = $state(false);
@@ -42,7 +44,9 @@
   <ul class="space-y-1.5">
     {#each live as card (card.project.id)}
       {@const color = colorOf.get(card.project.categoryId) ?? restColor}
-      {@const tasks = card.stage ? (projectsData.tasksByStage.get(card.stage.id) ?? []).filter((t) => !t.done) : []}
+      {@const tasks = projectsData
+        .tasksOf(card.project.id)
+        .filter((task) => task.status !== "done" && task.status !== "dropped")}
       <li class="space-y-1">
         <div
           role="button"

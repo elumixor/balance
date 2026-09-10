@@ -1,9 +1,8 @@
 import type { Category } from "$lib/core/records";
-import { checkpointsBetween } from "$lib/projects/decide-on";
-import type { Project, Stage } from "$lib/projects/types";
+import type { Project, Stage, Task } from "$lib/projects/types";
 import { restColor } from "$lib/ui/colors";
 
-export type MarkerKind = "decision" | "checkpoint";
+export type MarkerKind = "stage" | "task";
 
 /** A day on the strip that a project has something to say about — drawn in the all-day row. */
 export interface DayMarker {
@@ -26,47 +25,52 @@ function dayIndexOfKey(day: string, stripStart: Date) {
 }
 
 /**
- * Every running stage's decision day, and its fortnightly checkpoints, as markers on the days
- * the strip holds. Decision days are the big ones; a checkpoint is a small tick — the calendar
- * is where the week is lived, and the day a bet is settled belongs on it.
+ * The days work is due on: a stage ending, and every open task's last day. The calendar is where
+ * the week is lived, and a day something is due on belongs on it rather than only on a timeline
+ * somebody has to go and look at.
  */
-export function decisionMarkers(
+export function dueMarkers(
   stages: readonly Stage[],
+  tasks: readonly Task[],
   projects: readonly Project[],
   categories: readonly Category[],
   stripStart: Date,
   dayCount: number,
 ): DayMarker[] {
-  const projectById = new Map(projects.map((p) => [p.id, p]));
-  const colorById = new Map(categories.map((c) => [c.id, c.color]));
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const colorById = new Map(categories.map((category) => [category.id, category.color]));
   const markers: DayMarker[] = [];
 
-  for (const stage of stages) {
-    if (!stage.startedOn || !stage.decideOn || stage.outcome) continue;
-    const project = projectById.get(stage.projectId);
-    if (!project) continue;
-    const color = colorById.get(project.categoryId) ?? restColor;
-    const name = project.name || "Untitled project";
-    const days: { day: string; kind: MarkerKind }[] = [
-      ...checkpointsBetween(stage.startedOn, stage.decideOn).map((day) => ({ day, kind: "checkpoint" as const })),
-      { day: stage.decideOn, kind: "decision" as const },
-    ];
-    for (const { day, kind } of days) {
-      const dayIndex = dayIndexOfKey(day, stripStart);
-      if (dayIndex < 0 || dayIndex >= dayCount) continue;
-      markers.push({
-        key: `${stage.id}:${day}`,
-        projectId: project.id,
-        label: kind === "decision" ? `Decide: ${name}` : name,
-        kind,
-        color,
-        dayIndex,
-      });
-    }
+  const add = (
+    key: string,
+    projectId: string,
+    day: string | null,
+    kind: MarkerKind,
+    label: (name: string) => string,
+  ) => {
+    const project = projectById.get(projectId);
+    if (!day || !project) return;
+    const dayIndex = dayIndexOfKey(day, stripStart);
+    if (dayIndex < 0 || dayIndex >= dayCount) return;
+    markers.push({
+      key,
+      projectId,
+      label: label(project.name || "Untitled project"),
+      kind,
+      color: colorById.get(project.categoryId) ?? restColor,
+      dayIndex,
+    });
+  };
+
+  for (const stage of stages)
+    add(`stage:${stage.id}`, stage.projectId, stage.endsOn, "stage", (name) => `${name} · ${stage.name} ends`);
+  for (const task of tasks) {
+    if (task.status === "done" || task.status === "dropped") continue;
+    add(`task:${task.id}`, task.projectId, task.endsOn, "task", () => task.title || "Untitled task");
   }
 
   return markers.sort((a, b) => a.dayIndex - b.dayIndex || RANK[a.kind] - RANK[b.kind]);
 }
 
-/** A decision draws first on a day that also has a checkpoint. */
-const RANK: Record<MarkerKind, number> = { decision: 0, checkpoint: 1 };
+/** A stage ending draws first on a day that also has a task due. */
+const RANK: Record<MarkerKind, number> = { stage: 0, task: 1 };

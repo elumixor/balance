@@ -65,7 +65,12 @@ export class ProjectProgressService {
     const own = new Map(
       projectRows.map((project) => [
         project.id,
-        weeks.map((week) => this.#hoursIn(done.filter((e) => e.mapping?.projectId === project.id), week)),
+        weeks.map((week) =>
+          this.#hoursIn(
+            done.filter((e) => e.mapping?.projectId === project.id),
+            week,
+          ),
+        ),
       ]),
     );
     const parents = new Map(projectRows.map((project) => [project.id, project.parentId]));
@@ -75,7 +80,8 @@ export class ProjectProgressService {
       const hoursByWeek = own.get(project.id) ?? [];
       const rolledUpByWeek = hoursByWeek.map((hours, index) =>
         [...own].reduce(
-          (total, [id, byWeek]) => (id !== project.id && descends(id, project.id, parents) ? total + (byWeek[index] ?? 0) : total),
+          (total, [id, byWeek]) =>
+            id !== project.id && descends(id, project.id, parents) ? total + (byWeek[index] ?? 0) : total,
           hours,
         ),
       );

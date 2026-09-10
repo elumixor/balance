@@ -167,7 +167,7 @@ the app worth having: twice a day the phone asks you to look at what happened an
 happens next, and committing that decision is what earns stars.
 
 Four pure modules hold every rule, and they are the only things here with tests
-(`cd apps/backend && bun test`): `stars.ts` says what a commit pays and what a total means, `coverage.ts`
+(`cd apps/backend && bun test`, alongside the Notion translations): `stars.ts` says what a commit pays and what a total means, `coverage.ts`
 says how full a day is and how closely it was kept, `days.ts` turns `YYYY-MM-DD` plus a zone into
 instants, and `schedule.ts` says when the next reminders fall. Everything else is a database or a
 calendar away from them.
@@ -376,50 +376,66 @@ refuses to make requests at all when the address it has can't be one.
 ## Projects are the layer between a sphere's hours and Tuesday 9:00
 
 A sphere is a category on the ring; `server/lib/projects/` and `src/lib/projects/` are what those
-hours are _for_. Four levels, each a valid end state: a recurring event, a goal with a practice
-under it, a project with one stage, a project with several. Everything but a name and a sphere is
-optional, and a project has to be creatable in ten seconds — if a flow feels heavy for "find a job",
-the flow is wrong, not the job.
+hours are _for_. A project is work with a name under a sphere, and it can hold other work: nesting
+is the whole shape of it — "ATMA / Hypocrisy / Combat" is three rows with a `parentId` each, and
+every level is a project with the same fields, so there is no second kind of thing for the level
+above or below. A child carries its parent's sphere, because hours have to land on the ring
+somewhere. Everything but a name and a sphere is optional, and a project has to be creatable in ten
+seconds.
 
-Goals hold no hours, ever: the schema has no field for them. Projects claim hours a week from a
-sphere and end in a decision; practices never complete and are measured by adherence over the last
-four whole weeks. All of them are synced models (`server/lib/sync/`, one `TableStore` each) and live
-in `src/lib/synced.svelte.ts`, so a card is written the way a category is.
+Under a project: **stages**, which are bands across its timeline and hold no work of their own, and
+**tasks**, which nest the same way projects do. A task carries its days, who it is for, what board
+column it sits in and how big it is thought to be. A parent's dates are its own when it has them
+and its children's span otherwise (`gantt.ts`), so a plan can be written from the top down or from
+the bottom up. What a project says about itself beyond that — "Start Date", "Estimated Duration",
+"Dashboard" — is a list of fields it carries, and the app has no opinion about which fields those
+are. Practices are the exception that never becomes a project: something recurring, measured by
+adherence over the last four whole weeks.
 
-A stage is a gate — always a count in a window compared to a threshold — and a date. The date is
-derived when the stage starts (`decisions.ts`: budget ÷ the project's rate, never before the window
-can close) and is never edited; the one extension is its own action, logged on the stage. Outcomes
-are the `decide` action on `stages`, and only a person calls it: passing a gate offers promotion
-and never performs it, `held` is a real status, a restart with the same sentence is refused, and
-park zeroes the hours until a trigger. Templates are a table in `src/lib/projects/templates.ts`;
-the server never branches on them.
+Projects, people, stages and tasks are all synced models (`server/lib/sync/`, one `TableStore`
+each) and live in `src/lib/core/synced.svelte.ts`, so a row is written the way a category is. The
+three pure modules are tested to 100%: `tree.ts` (nesting, breadcrumbs, and what to do about a
+cycle), `gantt.ts` (spans, the window, bars and columns) and `rollup.ts` (a stage's progress,
+counted on the leaves, because a parent is a heading over its subtasks). The screens are three ways
+to read the same tasks — a timeline, an outline and a board — and the address holds which one, so a
+reload keeps it.
 
-Counts are derived, not typed. `ProjectProgressService` reads the calendar through the same
+Hours are still the point. `ProjectProgressService` reads the calendar through the same
 `CalendarEventsService.resolve` as everything else and counts blocks whose mapping carries a
 `projectId` — the same `event_mappings` row that says what an hour counts as also says what it was
-for. Tagging a grey block to a project after the fact is how a real week is reconciled, so it is on
-the block's card and its context menu, not hidden in a settings screen. Manual rows
-(`gate_events`) exist for what nothing can observe and look manual. A gate whose window has not
-opened is "not measurable", never "failing". Both rule modules are tested (`bun test`); the client
-keeps a copy of the date rule (`decide-on.ts`, covered) only to preview where a stage would land.
+for — and answers twice for a project holding others: what was booked against it by name, and what
+its whole tree came to. Tagging a grey block to a project after the fact is how a real week is
+reconciled, so it is on the block's card and its context menu. Filling the week is a solver
+(`calendar/filler.ts`): remaining claims into free working hours, biggest claim first, shown as a
+diff of blocks to accept or trim.
 
-Hours are allocated by ranking, not by a priority field. When a sphere's live claims exceed its
-hours on the ring, the gallery asks pairwise questions — "which matters more?", then "which would
-you rather do?" — only for pairs the answers so far don't already decide (`ranking.ts`, transitive
-closure over `project_comparisons`), and reports the pattern across the two orders as an
-observation. `allocate.ts` fits claims under the cap top-down; applying it is a write the person
-presses. Filling the week is a solver (`calendar/filler.ts`): remaining claims into free working
-hours, projects taking turns in rank order, shown as a diff of blocks to accept or trim.
+The model's two moments are `server/lib/projects/assist/` (schemas, prompts, both over one
+`lib/ai/gateway.ts`) and the `projects/assist/*` routes, and both are proposals: a note over the
+week's fill about what to drop, and a calendar block worked out into a project, a task, steps and a
+length (the route exists; the card's assistant button does not call it yet). Neither writes a
+record, and a model that answers nothing leaves every screen as it was.
 
-The model's six moments are `server/lib/projects/assist/` (schemas, prompts, the five entry points, all over one `lib/ai/gateway.ts`) and the `projects/assist/*` routes,
-and all of them are proposals: gate sentences for a vague idea (including "this is a recurring
-event"), a note over the week's fill about what to drop, subtasks out of a stuck checkpoint's note,
-a recommendation on decision day, and a calendar block worked out into a project, a task, steps and a length (the route exists; the card's assistant button does not call it yet). None of them writes a record, moves a date, marks a gate or
-sets an outcome — the routes can only return text — and a model that answers nothing leaves every
-screen as it was.
+## Notion is mirrored, and the rule about who wins is one line
 
-`apps/backend/scripts/import-projects.ts` is the one-time import from Notion: a card per row of
-`scripts/projects.json`, with a link back and nothing that syncs.
+`server/lib/notion/` mirrors a Notion workspace into that layer: one database of projects and,
+under each project's own page, the database its tasks live in — found by walking down from the page
+and taking the first one whose name says tasks (`discover.ts`), then remembered on the project.
+The protocol is written out rather than pulled in, the same way `lib/mcp/` is: `client.ts` is eight
+requests against one API version, and `map.ts` and `data-source.ts` are the pure translations (both
+tested with `bun test`) — a property into a field, a column into a status, whatever a board calls
+"Ready For Test" into one of the five the app counts by.
+
+**Notion owns everything it is shown**: a project's name, its description, its fields, which tasks
+exist and what they are called. The app owns the three things a person changes while doing the work
+rather than while planning it — a task's status, its dates, and who it is for — and those go up
+first, so a pull can never overwrite a tap made a second ago. A page that has gone archives its row
+here rather than leaving a bar nothing will move.
+
+The grant is an integration token somebody pasted, encrypted with the same `calendar/crypto.ts` a
+refresh token is. "Not connected" and "the token stopped working" are states the settings row
+draws, returned as 200 with `connected` / `needsReconnect` — never a 401, which the frontend reads
+as a dead Clerk session. The projects screen asks for a run when it opens, at most every five
+minutes, and its failure is a card in the corner: what was pulled last time is still on the device.
 
 ## Integrations hang off the events that planned them
 

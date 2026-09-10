@@ -32,18 +32,17 @@ function event(partial: Partial<CalendarEvent> & { start: string; end: string })
 function project(partial: Partial<Project>): Project {
   return {
     id: "p",
-    goalId: null,
     categoryId: "cat",
     name: "Balance",
     description: "",
-    template: "simple",
     hoursPerWeek: 4,
     status: "active",
-    cover: null,
-    links: [],
-    people: [],
-    deadline: null,
-    unparkTrigger: null,
+    parentId: null,
+    icon: null,
+    fields: [],
+    memberIds: [],
+    ordinal: 0,
+    notionUrl: null,
     ...partial,
   };
 }
@@ -72,8 +71,8 @@ describe("projectHours", () => {
   it("drops projects with nothing to say, and everything that isn't live", () => {
     const projects = [
       project({ id: "quiet", hoursPerWeek: 0 }),
-      project({ id: "parked", status: "parked", hoursPerWeek: 5 }),
-      project({ id: "held", status: "held", hoursPerWeek: 2 }),
+      project({ id: "parked", status: "dropped", hoursPerWeek: 5 }),
+      project({ id: "held", status: "paused", hoursPerWeek: 2 }),
     ];
     const events = [event({ id: "a", projectId: "quiet", start: "2026-09-08T09:00:00", end: "2026-09-08T10:00:00" })];
     expect(projectHours(events, projects, weekStart).map((t) => t.id)).toEqual(["quiet", "held"]);

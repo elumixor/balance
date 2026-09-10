@@ -5,31 +5,19 @@
   import type { Category } from "$lib/core/records";
 
   /**
-   * What a project looks like at a glance: its art, its logo, an emoji — or, with none of those,
-   * its sphere's own icon, so a card with nothing chosen still belongs to the sphere it sits under.
+   * What a project looks like at a glance: the emoji it carries — Notion's own, when it came from
+   * there — or, with none, its sphere's icon, so a project with nothing chosen still belongs to
+   * the sphere it sits under.
    */
-  let {
-    cover,
-    category,
-    size = 44,
-  }: { cover: string | null; category: Category | null; size?: number } = $props();
-
-  const isImage = $derived(Boolean(cover && /^(https?:\/\/|data:)/.test(cover)));
+  let { icon, category, size = 44 }: { icon: string | null; category: Category | null; size?: number } = $props();
 </script>
 
-{#if cover && isImage}
-  <img
-    src={cover}
-    alt=""
-    style="width:{size}px;height:{size}px"
-    class="shrink-0 rounded-md border border-line object-cover"
-  />
-{:else if cover}
+{#if icon}
   <span
     style="width:{size}px;height:{size}px;font-size:{Math.round(size * 0.55)}px"
     class="flex shrink-0 items-center justify-center rounded-md bg-surface-alt leading-none"
   >
-    {cover}
+    {icon}
   </span>
 {:else}
   <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} {size} />

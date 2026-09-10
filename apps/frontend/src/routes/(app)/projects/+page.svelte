@@ -1,29 +1,23 @@
 <script lang="ts">
-  import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { Dot, Screen, Segmented, Skeleton } from "$lib/components";
-  import { EmptyState, PracticeRow, ProjectCard, RankingPrompt } from "./components";
-  import { projectsData as data } from "$lib/projects/projects-data.svelte";
+  import { Screen, Skeleton } from "$lib/components";
+  import { Dot } from "$lib/components";
   import { synced } from "$lib/core/synced.svelte";
-  import { Plus, Sparkles } from "lucide-svelte";
+  import { projectsData as data } from "$lib/projects/projects-data.svelte";
+  import { rowsOf } from "$lib/projects/tree";
+  import { formatHoursDecimal } from "$lib/ui/format";
+  import { Plus, RefreshCw } from "lucide-svelte";
+  import { EmptyState, PracticeRow, ProjectRow } from "./components";
 
   /**
-   * The projects those hours are for: a gallery of cards under the spheres they belong to, in the
-   * sphere's own colour — a sibling of the planning dial rather than a board. Three ways to look at
-   * the same cards, in the address so a reload keeps the one you had.
+   * Everything the hours are for, as one column per sphere: the projects under it in the tree
+   * they actually form, and the practices that never complete beneath them. A mirrored workspace
+   * is checked when the screen opens, so the tree is what Notion said a moment ago.
    */
   void data.enter();
 
-  type View = "gallery" | "decisions" | "archive";
-  const view = $derived((page.url.searchParams.get("view") as View | null) ?? "gallery");
-  const VIEWS: { value: View; label: string; href: string }[] = [
-    { value: "gallery", label: "By sphere", href: "/projects" },
-    { value: "decisions", label: "By decision", href: "/projects?view=decisions" },
-    { value: "archive", label: "Archive", href: "/projects?view=archive" },
-  ];
-
-  function add(categoryId?: string) {
-    const created = data.create(categoryId);
+  function add(categoryId: string) {
+    const created = data.create(null, categoryId);
     if (created) void goto(`/projects/${created.id}`);
   }
 
@@ -44,56 +38,60 @@
 <svelte:window {onkeydown} />
 
 <Screen title="Projects" wide>
-  <div class="mb-6"><Segmented options={VIEWS} value={view} /></div>
+  {#if data.notion?.connected}
+    <button
+      type="button"
+      onclick={() => void data.mirror(true)}
+      class="press hoverable t-micro mb-4 flex items-center gap-1.5 rounded-md border border-line px-2 py-1 text-fg-muted"
+    >
+      <RefreshCw size={12} />
+      {data.notion.needsReconnect ? "Reconnect Notion" : `Sync ${data.notion.workspaceName || "Notion"}`}
+    </button>
+  {/if}
 
   {#if !data.ready}
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div class="space-y-2">
       {#each [0, 1, 2] as i (i)}
-        <Skeleton height={124} radius={10} />
+        <Skeleton height={52} radius={10} />
       {/each}
     </div>
-  {:else if view === "gallery"}
+  {:else}
     {#if data.spheres.length === 0}
       <EmptyState title="Cut the week into spheres first." hint="Projects live under the categories on the planning ring." />
     {/if}
+
     <div class="space-y-10">
       {#each data.groups as group (group.category.id)}
-        {@const color = group.category.color}
-        <section class="space-y-3">
-          <h2 class="t-heading flex items-center gap-2.5" style="color:{color}">
-            <Dot {color} size={10} />
+        <section class="space-y-2">
+          <h2 class="t-heading flex items-center gap-2.5" style="color:{group.category.color}">
+            <Dot color={group.category.color} size={10} />
             {group.category.name || "Unnamed sphere"}
+            <span class="t-micro tabular-nums font-normal text-fg-faint">
+              {formatHoursDecimal(group.claimed)} / {formatHoursDecimal(group.category.targetHoursPerWeek)}h claimed
+            </span>
           </h2>
 
-          {#if group.over > 0 && group.cards.length > 1}
-            <RankingPrompt category={group.category} over={group.over} />
-          {/if}
-
-          {#each group.wishes as wish (wish.id)}
-            <p class="t-micro flex items-center gap-1.5 text-fg-faint">
-              <Sparkles size={11} />
-              “{wish.statement}” has nothing under it yet.
-            </p>
+          {#each rowsOf(group.nodes) as row (row.item.id)}
+            <div class="list-item-in"><ProjectRow card={data.cardOf(row.item)} depth={row.depth} /></div>
           {/each}
 
-          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {#each group.cards as card (card.project.id)}
-              <div class="list-item-in"><ProjectCard {card} today={data.today} /></div>
-            {/each}
-            <button
-              type="button"
-              onclick={() => add(group.category.id)}
-              class="press hoverable flex min-h-16 items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong text-fg-muted"
-            >
-              <Plus size={15} />
-              <span class="t-label">New project</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onclick={() => add(group.category.id)}
+            class="press hoverable flex w-full items-center gap-2 rounded-lg border border-dashed border-line-strong px-3 py-2 text-fg-muted"
+          >
+            <Plus size={14} />
+            <span class="t-label">New project</span>
+          </button>
 
           {#if group.practices.length > 0}
             <div class="divide-y divide-line rounded-lg border border-line bg-surface px-3">
               {#each group.practices as practice (practice.id)}
-                <PracticeRow {practice} progress={data.progress?.practices[practice.id] ?? null} {color} />
+                <PracticeRow
+                  {practice}
+                  progress={data.progress?.practices[practice.id] ?? null}
+                  color={group.category.color}
+                />
               {/each}
             </div>
           {/if}
@@ -108,24 +106,5 @@
         </section>
       {/each}
     </div>
-  {:else if view === "decisions"}
-    {#if data.byDecision.length === 0}
-      <EmptyState title="Nothing is waiting on a decision." />
-    {/if}
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {#each data.byDecision as card (card.project.id)}
-        <div class="list-item-in"><ProjectCard {card} today={data.today} /></div>
-      {/each}
-    </div>
-  {:else}
-    {#if data.archive.length === 0}
-      <EmptyState title="Nothing parked, shipped or killed yet." hint="A finished project keeps its card here." />
-    {/if}
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {#each data.archive as card (card.project.id)}
-        <div class="list-item-in"><ProjectCard {card} today={data.today} /></div>
-      {/each}
-    </div>
   {/if}
-
 </Screen>

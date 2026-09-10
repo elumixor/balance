@@ -20,12 +20,16 @@ export async function findTasksDataSource(client: NotionClient, pageId: string):
     for (const blockId of frontier) {
       const blocks = await client.children(blockId);
       visited += blocks.length;
-      const database = blocks.find((block) => block.type === "child_database" && TASKS.test(block.child_database?.title ?? ""));
+      const database = blocks.find(
+        (block) => block.type === "child_database" && TASKS.test(block.child_database?.title ?? ""),
+      );
       if (database) {
         const [source] = (await client.database(database.id)).data_sources;
         if (source) return source.id;
       }
-      next.push(...blocks.filter((block) => block.type === "child_page" && block.has_children).map((block) => block.id));
+      next.push(
+        ...blocks.filter((block) => block.type === "child_page" && block.has_children).map((block) => block.id),
+      );
     }
     frontier = next;
   }

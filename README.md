@@ -11,10 +11,12 @@ app adds is meaning: each event is mapped to an *activity* (a template that spli
 several categories), or, as an exception, straight to categories. Drag an activity onto the week
 and it becomes a real event in your calendar.
 
-On top of the ring sits a projects layer: each sphere's hours are claimed by projects — bounded
-work with a gate per stage and a decision date derived from the budget — or kept by practices that
-never complete. The calendar is the evidence: a block tagged to a project counts toward its gate
-and against its claim.
+On top of the ring sits a projects layer: each sphere's hours are claimed by projects — work with
+a name that can hold other work, nested as deeply as it needs to be, with stages across its
+timeline and tasks under them — or kept by practices that never complete. The calendar is the
+evidence: a block tagged to a project counts against its claim. A Notion workspace can be mirrored
+into that layer, so the projects and tasks already written there are the ones the week is planned
+around.
 
 ## Layout
 

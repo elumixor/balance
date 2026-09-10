@@ -3,7 +3,7 @@
   import { calendarData, STRIP_DAYS } from "$lib/calendar/calendar-data.svelte";
   import { addDays } from "$lib/calendar/dates";
   import { freeScroll } from "$lib/calendar/free-scroll";
-  import { decisionMarkers } from "$lib/calendar/markers";
+  import { dueMarkers } from "$lib/calendar/markers";
   import { pinch } from "$lib/calendar/pinch";
   import { anchoredScrollTop, timeScale } from "$lib/calendar/time-scale.svelte";
   import {
@@ -17,7 +17,7 @@
     type StripWindow,
   } from "$lib/calendar/week-grid";
   import type { Category } from "$lib/core/records";
-  import { projects, stages } from "$lib/core/synced.svelte";
+  import { projects, stages, tasks } from "$lib/core/synced.svelte";
   import { clock } from "$lib/platform/clock.svelte";
   import { viewport } from "$lib/platform/viewport.svelte";
   import { theme } from "$lib/ui/theme.svelte";
@@ -112,8 +112,8 @@
   /** Only the banners touching the days on screen reserve rows, so the header follows the live scroll. */
   const allDayRows = $derived(allDayRowCount(allDay, window));
   /** The projects' days on the strip take a row of their own, only when one of them is in view. */
-  const markers = $derived(decisionMarkers(stages.all, projects.all, [...categories.values()], data.stripStart, STRIP_DAYS));
-  const markerRows = $derived(markers.some((m) => inWindow(m.dayIndex, window)) ? 1 : 0);
+  const markers = $derived(dueMarkers(stages.all, tasks.all, projects.all, [...categories.values()], data.stripStart, STRIP_DAYS));
+  const markerRows = $derived(markers.some((marker) => inWindow(marker.dayIndex, window)) ? 1 : 0);
   const headerPx = $derived(DAY_HEAD_PX + (allDayRows + markerRows) * ALL_DAY_PX);
 
   const todayStart = $derived(clock.todayStart);

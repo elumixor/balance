@@ -1,6 +1,7 @@
 import type { PickerItem } from "$lib/components/Picker.svelte";
 import { categories, practices, projects } from "$lib/core/synced.svelte";
 import { restColor } from "$lib/ui/colors";
+import { pathTo } from "./tree";
 
 /** What an hour was for: a project, a practice, or nothing in particular. */
 export interface Purpose {
@@ -29,10 +30,13 @@ const colorOf = (categoryId: string) => categories.all.find((c) => c.id === cate
 export function purposeItems(): PickerItem[] {
   return [
     ...projects.all
-      .filter((p) => p.status === "active" || p.status === "held")
+      .filter((p) => p.status === "active" || p.status === "paused")
       .map((p) => ({
         key: `${PROJECT}:${p.id}`,
-        name: p.name || "Untitled project",
+        // Nested work needs its parents named, or two "Combat" rows are the same row.
+        name: pathTo(projects.all, p.id)
+          .map((one) => one.name || "Untitled")
+          .join(" / "),
         color: colorOf(p.categoryId),
       })),
     ...practices.all.map((p) => ({

@@ -5,9 +5,8 @@ import type { WeekNote } from "$lib/projects/assist";
   import { formatClock, formatDayDate, formatHoursDecimal } from "$lib/ui/format";
   import { projectsData } from "$lib/projects/projects-data.svelte";
   import { assistWeek } from "$lib/projects/queries";
-  import { comparisons, projects } from "$lib/core/synced.svelte";
+  import { projects } from "$lib/core/synced.svelte";
   import type { Category } from "$lib/core/records";
-  import { rankOrder } from "$lib/projects/ranking";
   import { X } from "lucide-svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { DEFAULT_FILL, type FillBlock, fillWeek, freeSlots } from "$lib/calendar/filler";
@@ -44,19 +43,22 @@ import type { WeekNote } from "$lib/projects/assist";
       .map((e) => ({ start: new Date(e.start), end: new Date(e.end) })),
   );
 
-  /** Claims in rank order, less what the week already holds for each. */
-  const wants = $derived.by(() => {
-    const totals = projectHours(data.eventsForTotals, projects.all, weekStart);
-    const order = rankOrder(
-      totals.map((t) => t.id),
-      comparisons.all,
-      "priority",
-    );
-    return order
-      .map((id) => totals.find((t) => t.id === id))
-      .filter((t): t is NonNullable<typeof t> => Boolean(t))
-      .map((t) => ({ id: t.id, hours: Math.max(0, t.claimedHours - t.actualHours), name: t.name, categoryId: t.categoryId, claimed: t.claimedHours, logged: t.actualHours }));
-  });
+  /**
+   * What each project still wants this week, biggest claim first — the order the solver fills in,
+   * and the order the note is asked about.
+   */
+  const wants = $derived(
+    projectHours(data.eventsForTotals, projects.all, weekStart)
+      .toSorted((a, b) => b.claimedHours - a.claimedHours)
+      .map((total) => ({
+        id: total.id,
+        hours: Math.max(0, total.claimedHours - total.actualHours),
+        name: total.name,
+        categoryId: total.categoryId,
+        claimed: total.claimedHours,
+        logged: total.actualHours,
+      })),
+  );
 
   const free = $derived(freeSlots({ ...DEFAULT_FILL, weekStart, from: now, busy, dayStart, dayEnd }));
   const freeHours = $derived(free.reduce((sum, s) => sum + (s.end.getTime() - s.start.getTime()) / 3_600_000, 0));

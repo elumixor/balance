@@ -1,5 +1,5 @@
-import { normalizeClock } from "./clock-text";
 import { formatClock, formatDateInput, formatHoursAndMinutes, parseDateAndClock } from "$lib/ui/format";
+import { normalizeClock } from "./clock-text";
 import type { CalendarEvent } from "./types";
 
 /** How long after the last keystroke the edit goes to the calendar. */

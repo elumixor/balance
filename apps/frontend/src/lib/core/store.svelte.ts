@@ -7,7 +7,7 @@ import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
 import { getIntegrations } from "$lib/integrations/queries";
 import { listMcpKeys } from "$lib/mcp/queries";
 import { deviceTimeZone, localDay } from "$lib/planning/zone";
-import { getProjectProgress } from "$lib/projects/queries";
+import { getNotionStatus, getProjectProgress } from "$lib/projects/queries";
 import { Cached } from "./cache.svelte";
 import * as persist from "./persist";
 import { synced } from "./synced.svelte";
@@ -27,6 +27,8 @@ export const store = {
   preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences", "Settings"),
   /** Not kept on the device: a list of keys is worth one request when the panel is opened. */
   mcpKeys: new Cached(listMcpKeys, "Couldn't load your assistant keys.", undefined, "Assistants"),
+  /** Whether a Notion workspace is mirrored, and what the last run of it did. */
+  notion: new Cached(getNotionStatus, "Couldn't check your Notion connection.", "notion", "Projects"),
   /**
    * What the calendar says every project has had — read fresh from the device's own day, since a
    * week is a week where the person is. Its failure is the projects screen's to show.

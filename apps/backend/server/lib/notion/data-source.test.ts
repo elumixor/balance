@@ -73,4 +73,4 @@ describe("resolveTaskFields", () => {
       groups: {},
     });
   });
-})
+});

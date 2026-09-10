@@ -6,6 +6,7 @@
   import { invalidate } from "$lib/core/store.svelte";
   import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
+  import NotionSection from "./NotionSection.svelte";
 
   /**
    * What knows how some hours actually went — Apple Health today. One row per integration: its
@@ -80,3 +81,5 @@
     {/each}
   </div>
 </SettingsGroup>
+
+<NotionSection />

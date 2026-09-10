@@ -38,7 +38,12 @@ export const PANES: PaneInfo[] = [
     icon: CalendarDays,
     keywords: "google account connect drawn default new events land",
   },
-  { value: "integrations", label: "Integrations", icon: Plug, keywords: "apple health sleep sync feed" },
+  {
+    value: "integrations",
+    label: "Integrations",
+    icon: Plug,
+    keywords: "apple health sleep sync feed notion projects tasks workspace mirror",
+  },
   {
     value: "assistants",
     label: "Assistants",

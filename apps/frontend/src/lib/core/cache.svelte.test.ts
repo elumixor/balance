@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
+import { NotSignedInError } from "./api";
 import { Cached } from "./cache.svelte";
 import * as persist from "./persist";
 
@@ -85,6 +86,18 @@ describe("failure", () => {
     expect(cached.value).toBe("rows");
     expect(cached.error).toBe("offline");
     expect(cached.loading).toBe(false);
+  });
+
+  /**
+   * A request made before there was a session to make it with. The app is on its way to the
+   * sign-in screen, and a card about it there is a card about the screen the person is looking at.
+   */
+  it("says nothing about a request made before there was a session", async () => {
+    const cached = new Cached(() => Promise.reject(new NotSignedInError()), "Couldn't load that week.");
+    await cached.ensure();
+    expect(cached.error).toBeNull();
+    expect(cached.hasValue).toBe(false);
+    expect(diagnostics.problems).toHaveLength(0);
   });
 
   it("falls back to the message the screen can use when the failure has none", async () => {

@@ -1,11 +1,7 @@
-export { default as CheckpointCard } from "./CheckpointCard.svelte";
-export { default as CreateAssist } from "./CreateAssist.svelte";
-export { default as DecisionSheet } from "./DecisionSheet.svelte";
-export { default as GatePanel } from "./GatePanel.svelte";
-export { default as GoalPicker } from "./GoalPicker.svelte";
-export { default as HoursBars } from "./HoursBars.svelte";
-export { default as LinksList } from "./LinksList.svelte";
-export { default as PeopleList } from "./PeopleList.svelte";
-export { default as StageFields } from "./StageFields.svelte";
-export { default as StageRail } from "./StageRail.svelte";
+export { default as Breadcrumb } from "./Breadcrumb.svelte";
+export { default as FieldsPanel } from "./FieldsPanel.svelte";
+export { default as MembersRow } from "./MembersRow.svelte";
+export { default as SubProjects } from "./SubProjects.svelte";
+export { default as TaskBoard } from "./TaskBoard.svelte";
 export { default as TaskList } from "./TaskList.svelte";
+export { default as TaskTimeline } from "./TaskTimeline.svelte";

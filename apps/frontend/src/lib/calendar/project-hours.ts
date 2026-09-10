@@ -33,7 +33,7 @@ export function projectHours(
   }
 
   return projects
-    .filter((project) => project.status === "active" || project.status === "held")
+    .filter((project) => project.status === "active" || project.status === "paused")
     .map((project) => ({
       id: project.id,
       name: project.name,

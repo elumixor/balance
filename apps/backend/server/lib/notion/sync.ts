@@ -110,11 +110,7 @@ export class NotionSync {
 
   #mirrored() {
     return db.query.projects.findMany({
-      where: and(
-        eq(projects.userId, this.userId),
-        eq(projects.archived, false),
-        isNotNull(projects.notionPageId),
-      ),
+      where: and(eq(projects.userId, this.userId), eq(projects.archived, false), isNotNull(projects.notionPageId)),
     });
   }
 

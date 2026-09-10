@@ -1,263 +1,158 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Button, Dot, Field, NumberField, Picker, Popover, PopoverItem, Select, Skeleton, Textarea } from "$lib/components";
-  import { restColor } from "$lib/ui/colors";
-  import { categoryItems } from "$lib/ui/picker";
-  import { formatHoursDecimal } from "$lib/ui/format";
-  import { CheckpointCard, CreateAssist, DecisionSheet, GoalPicker, HoursBars, LinksList, PeopleList, StageRail, TaskList } from "./components";
-  import { ProjectCover, StatusChip } from "$lib/components";
+  import { Field, NumberField, ProjectCover, Screen, Segmented, Skeleton, StatusChip, Textarea } from "$lib/components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
-  import { TEMPLATES } from "$lib/projects/templates";
-  import { synced } from "$lib/core/synced.svelte";
-  import type { ProjectTemplate } from "$lib/projects/types";
-  import { ArrowLeft, MoreHorizontal } from "lucide-svelte";
+  import type { ProjectStatus } from "$lib/projects/types";
+  import { restColor } from "$lib/ui/colors";
+  import { ExternalLink, Trash2 } from "lucide-svelte";
+  import { Breadcrumb, FieldsPanel, MembersRow, SubProjects, TaskBoard, TaskList, TaskTimeline } from "./components";
 
   /**
-   * One project, open. Nothing here has a Save button: every field is a synced record written a
-   * moment after the typing stops. The stage rail is the spine, the decision is inside the running
-   * stage, and the evidence — hours, gate count — is the calendar's, refetched behind the page.
+   * One project, open: what it is, what it says about itself, what sits under it, and the work
+   * itself in whichever of the three shapes answers the question being asked — time, order, or
+   * where things stand.
    */
   void data.enter();
 
   const id = $derived(page.params.id ?? "");
-  const card = $derived(data.cardById.get(id) ?? null);
-  const project = $derived(card?.project ?? null);
-  const stages = $derived(data.stagesOf(id));
+  const project = $derived(data.projectById(id));
+  const card = $derived(project ? data.cardOf(project) : null);
   const color = $derived(card?.category?.color ?? restColor);
-  const currentTasks = $derived(card?.stage ? (data.tasksByStage.get(card.stage.id) ?? []) : []);
-  const hoursInvested = $derived(card?.hoursByWeek.reduce((sum, h) => sum + h, 0) ?? 0);
-  const isLast = $derived(card?.stage ? !stages.some((s) => s.ordinal > (card.stage?.ordinal ?? 0) && !s.outcome) : true);
+  const path = $derived(data.pathOf(id));
 
-  let deciding = $state(false);
-  let sphereRect = $state<DOMRect | null>(null);
-  let coverDraft = $state<string | null>(null);
+  type View = "timeline" | "list" | "board";
+  const view = $derived((page.url.searchParams.get("view") as View | null) ?? "timeline");
+  const VIEWS = $derived<{ value: View; label: string; href: string }[]>([
+    { value: "timeline", label: "Timeline", href: `/projects/${id}` },
+    { value: "list", label: "List", href: `/projects/${id}?view=list` },
+    { value: "board", label: "Board", href: `/projects/${id}?view=board` },
+  ]);
 
-  /** The name field grabs focus on a project that was just made — the ten-second promise. */
-  let nameEl = $state<HTMLInputElement | null>(null);
-  $effect(() => {
-    if (!nameEl || data.focusId !== id) return;
-    data.focusId = null;
-    nameEl.focus();
-  });
+  const STATUSES: ProjectStatus[] = ["active", "paused", "done", "dropped"];
 
-  function remove() {
-    if (project && data.removeProject(project)) void goto("/projects");
+  async function remove() {
+    if (!project || !data.remove(project)) return;
+    await goto(project.parentId ? `/projects/${project.parentId}` : "/projects");
   }
-
-  /** ⌘Z takes back the last edit on this page. */
-  function onkeydown(e: KeyboardEvent) {
-    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-    const key = e.key.toLowerCase();
-    const redo = key === "y" || (key === "z" && e.shiftKey);
-    if (key !== "z" && !redo) return;
-    const target = e.target as HTMLElement | null;
-    if (target?.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
-    e.preventDefault();
-    if (redo) synced.redo();
-    else synced.undo();
-  }
-
-  const templateOptions = TEMPLATES.map((t) => ({ value: t.key, label: `${t.label} — ${t.shape}` }));
 </script>
 
-<svelte:window {onkeydown} />
-
-<div class="safe-top-4 mx-auto h-full w-full max-w-2xl overflow-y-auto px-5 pb-10 md:px-10 md:pt-8 md:pb-16">
-  <a href="/projects" class="press-sm hoverable -mx-2 mb-4 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-fg-muted">
-    <ArrowLeft size={14} />
-    <span class="t-micro">Projects</span>
-  </a>
-
+<Screen title={project?.name || "Project"} wide>
   {#if !data.ready}
-    <div class="space-y-3">
-      <Skeleton height={44} width="60%" />
-      <Skeleton height={120} radius={10} />
-    </div>
+    <Skeleton height={180} radius={10} />
   {:else if !project || !card}
-    <p class="t-body text-fg-muted">That project isn't here any more.</p>
+    <p class="t-body text-fg-muted">That project isn’t here any more.</p>
   {:else}
-    <header class="mb-6 space-y-4">
-      <div class="flex items-start gap-4">
-        <button
-          type="button"
-          aria-label="Change cover"
-          onclick={() => (coverDraft = coverDraft === null ? (project.cover ?? "") : null)}
-          class="press-sm shrink-0"
-        >
-          <ProjectCover cover={project.cover} category={card.category} size={56} />
-        </button>
-        <div class="min-w-0 flex-1 space-y-1">
-          <input
-            bind:this={nameEl}
-            value={project.name}
-            oninput={(e) => data.update(project.id, { name: e.currentTarget.value })}
-            placeholder="Name the project"
-            aria-label="Project name"
-            class="field-bare t-title -mx-2 h-12 w-full"
-          />
-          <Textarea
-            value={project.description}
-            oninput={(description) => data.update(project.id, { description })}
-            rows={1}
-            placeholder="One line on what it is"
-            ariaLabel="Description"
-            class="-mx-1 bg-transparent px-1 py-1"
-          />
-        </div>
-        <div class="flex shrink-0 items-center gap-1">
-          <StatusChip status={project.status} />
-          <Popover width={200}>
-            {#snippet trigger(open)}
-              <Button variant="bare" title="More" onclick={open}>
-                {#snippet icon()}<MoreHorizontal size={16} class="text-fg-muted" />{/snippet}
-              </Button>
-            {/snippet}
-            {#snippet content(close)}
-              {#if project.status === "held"}
-                <PopoverItem label="Back to active" onclick={() => { data.setStatus(project, "active"); close(); }} />
-              {/if}
-              <PopoverItem label="Delete project" tone="danger" onclick={() => { close(); remove(); }} />
-            {/snippet}
-          </Popover>
-        </div>
-      </div>
-
-      {#if coverDraft !== null}
-        <div class="flex items-center gap-2">
-          <Field
-            value={coverDraft}
-            oninput={(value) => (coverDraft = value)}
-            placeholder="An emoji, or an image URL"
-            ariaLabel="Cover"
-          />
-          <Button size="sm" label="Set" onclick={() => { data.update(project.id, { cover: coverDraft?.trim() || null }); coverDraft = null; }} />
-        </div>
-      {/if}
-
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <button
-          type="button"
-          onclick={(e) => (sphereRect = e.currentTarget.getBoundingClientRect())}
-          class="press-sm hoverable -mx-2 flex items-center gap-1.5 rounded-md px-2 py-1.5"
-        >
-          <Dot {color} />
-          <span class="t-label text-fg">{card.category?.name ?? "Pick a sphere"}</span>
-        </button>
-        <label class="t-label flex items-center gap-1.5 text-fg-muted">
-          <NumberField
-            value={project.hoursPerWeek}
-            unit="h/wk"
-            width="w-12"
-            ariaLabel="Hours a week claimed"
-            onchange={(hoursPerWeek) => data.update(project.id, { hoursPerWeek: Math.max(0, Math.min(168, hoursPerWeek)) })}
-          />
-          claimed
-        </label>
-        <GoalPicker categoryId={project.categoryId} value={card.goal} onchange={(goalId) => data.update(project.id, { goalId })} />
-      </div>
-
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Select
-          width={260}
-          label="Template"
-          value={project.template}
-          options={templateOptions}
-          onchange={(template: ProjectTemplate) => data.applyTemplate(project, template)}
-        />
-        {#if project.template === "delivery"}
-          <label class="t-label flex items-center gap-1.5 text-fg-muted">
-            due
-            <input
-              type="date"
-              value={project.deadline ?? ""}
-              onchange={(e) => data.update(project.id, { deadline: e.currentTarget.value || null })}
-              aria-label="Deadline"
-              class="field-boxed"
-            />
-          </label>
-        {/if}
-      </div>
-
-      {#if project.status === "parked" && project.unparkTrigger}
-        <p class="t-label text-fg-muted">Parked until: {project.unparkTrigger}</p>
-      {/if}
-    </header>
-
     <div class="space-y-8">
-      {#if card.stage && card.checkpointDue}
-        <CheckpointCard stage={card.stage} gate={card.gate} day={card.checkpointDue} projectName={project.name} />
+      <header class="space-y-3">
+        <Breadcrumb {path} />
+
+        <div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div class="flex min-w-0 flex-1 items-start gap-3">
+            <ProjectCover icon={project.icon} category={card.category} />
+            <div class="min-w-0 flex-1 space-y-1.5">
+              <div class="flex items-center gap-2">
+                <Field
+                  value={project.name}
+                  variant="bare"
+                  placeholder="Untitled project"
+                  ariaLabel="Project name"
+                  oninput={(name) => data.update(project.id, { name })}
+                  class="t-title"
+                />
+                <StatusChip status={project.status} />
+              </div>
+              <MembersRow {project} />
+              <Textarea
+                value={project.description}
+                variant="bare"
+                rows={2}
+                placeholder="What is this, in one line?"
+                ariaLabel="Description"
+                oninput={(description) => data.update(project.id, { description })}
+              />
+            </div>
+          </div>
+
+          <div class="w-full space-y-3 md:w-72">
+            <FieldsPanel {project} />
+
+            <div class="flex items-center gap-2">
+              <span class="t-micro flex-1 text-fg-muted">Hours a week</span>
+              <NumberField
+                value={project.hoursPerWeek}
+                unit="h"
+                ariaLabel="Hours a week"
+                onchange={(hoursPerWeek) => data.update(project.id, { hoursPerWeek })}
+              />
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="t-micro flex-1 text-fg-muted">Status</span>
+              <select
+                class="field-boxed"
+                value={project.status}
+                onchange={(e) => data.setStatus(project, e.currentTarget.value as ProjectStatus)}
+              >
+                {#each STATUSES as status (status)}
+                  <option value={status}>{status}</option>
+                {/each}
+              </select>
+            </div>
+
+            <div class="flex items-center justify-between">
+              {#if project.notionUrl}
+                <a
+                  href={project.notionUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="t-micro flex items-center gap-1.5 text-fg-muted underline-offset-2 hover:underline"
+                >
+                  <ExternalLink size={12} />
+                  Open in Notion
+                </a>
+              {:else}
+                <span></span>
+              {/if}
+              <button type="button" onclick={remove} class="press t-micro flex items-center gap-1.5 text-danger">
+                <Trash2 size={12} />
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {#if card.childCount > 0}
+        <SubProjects {project} />
       {/if}
 
-      {#if stages.length === 0 && project.template !== "evergreen"}
-        <CreateAssist {project} category={card.category} />
-      {/if}
+      <section class="space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="t-label text-fg-muted">Tasks</h2>
+          <Segmented options={VIEWS} value={view} />
+        </div>
 
-      {#if project.template !== "evergreen" || stages.length > 0}
-        <section class="space-y-3">
-          <h2 class="t-label text-fg-muted">Stages</h2>
-          <StageRail {project} {stages} gate={card.gate} {color} ondecide={() => (deciding = true)} />
-        </section>
-      {/if}
-
-      {#if card.stage}
-        <section class="space-y-2">
-          <h2 class="t-label text-fg-muted">Subtasks · {card.stage.name}</h2>
-          <TaskList stageId={card.stage.id} tasks={currentTasks} />
-        </section>
-      {/if}
-
-      <section class="space-y-2">
-        <h2 class="t-label flex items-baseline justify-between text-fg-muted">
-          <span>Hours</span>
-          <span class="t-micro text-fg-faint">{formatHoursDecimal(hoursInvested)} in the last {card.hoursByWeek.length || 8} weeks</span>
-        </h2>
-        {#if data.progress}
-          <HoursBars weeks={data.progress.weeks} hours={card.hoursByWeek} claimed={project.hoursPerWeek} {color} />
+        {#if view === "timeline"}
+          <TaskTimeline projectId={project.id} {color} />
+        {:else if view === "list"}
+          <TaskList projectId={project.id} />
         {:else}
-          <Skeleton height={40} />
+          <TaskBoard projectId={project.id} />
         {/if}
-        <p class="t-micro text-fg-faint">Blocks on the calendar tagged to this project. Tag one from its card, or drag the project onto the week.</p>
+
+        <button
+          type="button"
+          onclick={() => data.addStage(project.id, "")}
+          class="press hoverable t-micro rounded-md text-fg-faint"
+        >
+          + Stage
+        </button>
       </section>
 
-      <section class="grid gap-6 sm:grid-cols-2">
-        <div class="space-y-2">
-          <h2 class="t-label text-fg-muted">Links</h2>
-          <LinksList links={project.links} onchange={(links) => data.update(project.id, { links })} />
-        </div>
-        <div class="space-y-2">
-          <h2 class="t-label text-fg-muted">People</h2>
-          <PeopleList people={project.people} onchange={(people) => data.update(project.id, { people })} />
-        </div>
-      </section>
+      {#if card.childCount === 0}
+        <SubProjects {project} />
+      {/if}
     </div>
-
-
-    {#if card.stage}
-      <DecisionSheet
-        open={deciding}
-        onclose={() => (deciding = false)}
-        stage={card.stage}
-        {project}
-        gate={card.gate}
-        {hoursInvested}
-        {isLast}
-      />
-    {/if}
-
-    {#if sphereRect}
-      <Picker
-        rect={sphereRect}
-        items={categoryItems(data.spheres)}
-        value={project.categoryId}
-        placeholder="Search categories"
-        ariaLabel="Search categories"
-        onchoose={(categoryId) => {
-          sphereRect = null;
-          data.update(project.id, { categoryId });
-        }}
-        onclose={() => (sphereRect = null)}
-      />
-    {/if}
   {/if}
-</div>
+</Screen>

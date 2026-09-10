@@ -64,7 +64,7 @@
       </span>
     </div>
   </div>
-  <Button variant="bare" title="Remove practice" onclick={() => data.removePractice(practice)}>
+  <Button variant="bare" title="Remove practice" onclick={() => data.removePractice(practice.id)}>
     {#snippet icon()}<X size={14} class="text-fg-faint" />{/snippet}
   </Button>
 </div>
