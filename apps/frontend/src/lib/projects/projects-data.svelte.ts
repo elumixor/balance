@@ -109,7 +109,9 @@ class ProjectsData {
     return {
       project,
       category: this.categoryById.get(project.categoryId) ?? null,
-      members: project.memberIds.map((id) => this.personById.get(id)).filter((one): one is Person => Boolean(one)),
+      members: (project.memberIds ?? [])
+        .map((id) => this.personById.get(id))
+        .filter((one): one is Person => Boolean(one)),
       hoursByWeek: progress?.hoursByWeek ?? [],
       rolledUpByWeek: progress?.rolledUpByWeek ?? [],
       childCount: this.childrenOf(project.id).length,

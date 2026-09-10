@@ -32,7 +32,13 @@ class Cell<T> {
 
 const runes: Signals = { state: <T>(initial: T) => new Cell(initial) };
 
-const PREFIX = "balance:synced:v1";
+/**
+ * The device's copy is versioned, and the version is bumped when a model's shape changes: records
+ * written by an older build are hydrated before anything can check them, so a project from before
+ * projects had members would reach the screens as one with no `memberIds` at all — and a `.map`
+ * on it takes every effect in the app down with it.
+ */
+const PREFIX = "balance:synced:v2";
 
 /**
  * The device's copy. `localStorage` rather than Capacitor's `Preferences` because it answers
@@ -121,7 +127,21 @@ export const projects = synced.models.projects;
 export const stages = synced.models.stages;
 export const tasks = synced.models.tasks;
 
+/** What earlier versions of the copy left behind, swept once so it isn't carried forever. */
+function forgetOlderVersions() {
+  const stale = safely(() => {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("balance:synced:") && !key.startsWith(PREFIX)) keys.push(key);
+    }
+    return keys;
+  });
+  for (const key of stale ?? []) safely(() => localStorage.removeItem(key));
+}
+
 if (typeof window !== "undefined") {
+  forgetOlderVersions();
   // Before the first frame, and before there's a session: what the device holds is what the last
   // session ended with, which is what the app should open on.
   void synced.hydrate();
