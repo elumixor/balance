@@ -431,11 +431,21 @@ rather than while planning it — a task's status, its dates, and who it is for 
 first, so a pull can never overwrite a tap made a second ago. A page that has gone archives its row
 here rather than leaving a bar nothing will move.
 
-The grant is an integration token somebody pasted, encrypted with the same `calendar/crypto.ts` a
-refresh token is. "Not connected" and "the token stopped working" are states the settings row
-draws, returned as 200 with `connected` / `needsReconnect` — never a 401, which the frontend reads
-as a dead Clerk session. The projects screen asks for a run when it opens, at most every five
-minutes, and its failure is a card in the corner: what was pulled last time is still on the device.
+The grant is OAuth (`lib/notion/oauth.ts`), for the UX rather than the security: Notion's own
+consent screen is where somebody ticks the pages this app may read, so nothing is pasted into a
+text field and no database has to be shared with an integration by hand. It rides the calendar's
+machinery — the signed `state` of `calendar/state.ts`, the HTML `callback-page.ts`, and
+`core/oauth-connect.ts` on the device, which opens a real browser and polls, because a consent
+screen inside an embedded webview is refused. Access tokens now expire, so the refresh token is
+kept too (both encrypted with `calendar/crypto.ts`) and a run renews before it starts rather than
+failing once and reconnecting.
+
+One question is left after connecting: which data source holds the projects, chosen in settings
+from what the grant can actually see (`/mobile/notion/databases`). "Not connected", "nothing
+chosen" and "the grant expired" are states the settings row draws, returned as 200 with
+`connected` / `dataSourceId` / `needsReconnect` — never a 401, which the frontend reads as a dead
+Clerk session. The projects screen asks for a run when it opens, at most every five minutes, and
+its failure is a card in the corner: what was pulled last time is still on the device.
 
 ## Integrations hang off the events that planned them
 

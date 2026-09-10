@@ -103,7 +103,8 @@ export interface NotionStatus {
   connected: boolean;
   needsReconnect: boolean;
   workspaceName: string;
-  databaseId: string;
+  /** The data source projects are read from, or empty while nobody has picked one. */
+  dataSourceId: string;
   lastSyncedAt: string | null;
   lastError: string | null;
 }

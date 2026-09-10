@@ -101,6 +101,19 @@ export class NotionClient {
     });
   }
 
+  /** Every database this grant can see, for the picker that says which one holds the projects. */
+  async databases() {
+    const answer = await this.#request<{ results: { id: string; title?: { plain_text: string }[] }[] }>(
+      "/search",
+      "POST",
+      { filter: { property: "object", value: "data_source" }, page_size: 100 },
+    );
+    return answer.results.map((result) => ({
+      id: result.id,
+      name: result.title?.map((run) => run.plain_text).join("") || "Untitled",
+    }));
+  }
+
   async children(blockId: string) {
     const blocks: NotionBlock[] = [];
     let cursor: string | null = null;

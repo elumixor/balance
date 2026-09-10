@@ -1,7 +1,7 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "~/db";
 import { categories, projects } from "~/db/schema";
-import { ApiError, UpstreamError } from "~/lib/http/api-error";
+import { ApiError } from "~/lib/http/api-error";
 import type { NotionClient, NotionPage } from "./client";
 import { findTasksDataSource } from "./discover";
 import { fieldsOf, plainText, relationIds } from "./map";
@@ -31,14 +31,11 @@ export class NotionSync {
   constructor(
     private readonly userId: string,
     private readonly client: NotionClient,
-    private readonly databaseId: string,
+    private readonly dataSourceId: string,
   ) {}
 
   async run(): Promise<SyncSummary> {
-    const [source] = (await this.client.database(this.databaseId)).data_sources;
-    if (!source) throw new UpstreamError("That Notion database has no data sources to read.");
-
-    const pages = await this.client.queryDataSource(source.id);
+    const pages = await this.client.queryDataSource(this.dataSourceId);
     const live = pages.filter((page) => !page.in_trash && !page.archived);
     const categoryId = await this.#defaultCategory();
     for (const page of live) await this.#writeProject(page, categoryId);

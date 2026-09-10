@@ -1,10 +1,11 @@
+import { oauthConnect } from "$lib/core/oauth-connect";
 import type { Category } from "$lib/core/records";
 import { invalidate, store } from "$lib/core/store.svelte";
 import { categories, people, practices, projects, stages, synced, syncStatus, tasks } from "$lib/core/synced.svelte";
 import { localDay } from "$lib/planning/zone";
 import { clock } from "$lib/platform/clock.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
-import { syncNotion } from "./queries";
+import { startNotionConnect, syncNotion } from "./queries";
 import { completionOf } from "./rollup";
 import { descendantsOf, pathTo, rowsOf, treeOf } from "./tree";
 import type { Person, Project, ProjectField, ProjectStatus, Stage, Task } from "./types";
@@ -130,6 +131,7 @@ class ProjectsData {
    * corner rather than an empty screen: what was pulled last time is still on the device.
    */
   async mirror(force = false) {
+    if (!this.notion?.dataSourceId) return;
     if (!force && Date.now() - this.#syncedAt < SYNC_EVERY_MS) return;
     this.#syncedAt = Date.now();
     try {
@@ -143,6 +145,21 @@ class ProjectsData {
         retry: () => void this.mirror(true),
       });
     }
+  }
+
+  /** The consent flow, and the mirror's first run the moment the grant and a database exist. */
+  connectNotion(signal?: AbortSignal) {
+    return oauthConnect(
+      {
+        start: (mode, origin) => startNotionConnect(mode, origin),
+        poll: async () => {
+          await store.notion.refresh();
+          return Boolean(store.notion.value?.connected);
+        },
+        landed: () => void this.mirror(true),
+      },
+      signal,
+    );
   }
 
   // --- writes ---------------------------------------------------------------

@@ -4,19 +4,20 @@ import { notionConnections } from "~/db/schema";
 import { decryptSecret, encryptSecret } from "~/lib/calendar/crypto";
 import { ApiError } from "~/lib/http/api-error";
 import { NotionAuthError, NotionClient } from "./client";
-import { databaseIdOf } from "./map";
+import { type NotionGrant, notionOAuth } from "./oauth";
 import { NotionSync, type SyncSummary } from "./sync";
 
 /**
- * What the settings screen draws. "Not connected" and "the token stopped working" are states with
- * a row each rather than errors — the same rule the calendar's grant is under, and for the same
- * reason: a 401 out of here would read as a dead session and bounce somebody to sign-in.
+ * What the settings row draws. "Not connected", "nothing chosen yet" and "the grant expired" are
+ * states with a row each rather than errors — the same rule the calendar's grant is under, and for
+ * the same reason: a 401 out of here would read as a dead session and bounce somebody to sign-in.
  */
 export interface NotionStatus {
   readonly connected: boolean;
   readonly needsReconnect: boolean;
   readonly workspaceName: string;
-  readonly databaseId: string;
+  /** The data source projects are read from, or empty while nobody has picked one. */
+  readonly dataSourceId: string;
   readonly lastSyncedAt: string | null;
   readonly lastError: string | null;
 }
@@ -25,10 +26,13 @@ const DISCONNECTED: NotionStatus = {
   connected: false,
   needsReconnect: false,
   workspaceName: "",
-  databaseId: "",
+  dataSourceId: "",
   lastSyncedAt: null,
   lastError: null,
 };
+
+/** Renewed this long before it actually expires, so a sync never starts on a dying token. */
+const REFRESH_MARGIN_MS = 60_000;
 
 export class NotionService {
   constructor(private readonly userId: string) {}
@@ -40,35 +44,31 @@ export class NotionService {
       connected: true,
       needsReconnect: row.needsReconnect,
       workspaceName: row.workspaceName,
-      databaseId: row.projectsDatabaseId,
+      dataSourceId: row.projectsDataSourceId ?? "",
       lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
       lastError: row.lastError,
     };
   }
 
-  /**
-   * The token and the database are checked together before either is stored: a grant that can't
-   * open the database it names is not a connection, and saying so now is the difference between
-   * a sentence on the settings screen and a sync that fails nightly for a fortnight.
-   */
-  async connect(token: string, database: string): Promise<NotionStatus> {
-    const projectsDatabaseId = databaseIdOf(database);
-    if (!projectsDatabaseId) throw new ApiError("That doesn't look like a Notion database link.");
+  /** The consent screen's URL. The app opens it in a real browser and waits for the row to change. */
+  authUrl(state: string) {
+    return notionOAuth.authUrl(state);
+  }
 
-    const answer = await new NotionClient(token).database(projectsDatabaseId);
-    const workspaceName = answer.title.map((run) => run.plain_text).join("") || "Notion";
-    const values = {
-      token: encryptSecret(token),
-      projectsDatabaseId,
-      workspaceName,
-      needsReconnect: false,
-      lastError: null,
-      updatedAt: new Date(),
-    };
-    await db
-      .insert(notionConnections)
-      .values({ userId: this.userId, ...values })
-      .onConflictDoUpdate({ target: notionConnections.userId, set: values });
+  /** What the callback does with the code Notion sent back: one grant, kept encrypted. */
+  async complete(code: string) {
+    const grant = await notionOAuth.exchangeCode(code);
+    await this.#write(grant);
+    return this.status();
+  }
+
+  /** The databases this grant can see, for the one question left after connecting. */
+  async dataSources() {
+    return (await this.#client()).databases();
+  }
+
+  async chooseDataSource(projectsDataSourceId: string) {
+    await this.#stamp({ projectsDataSourceId, lastError: null });
     return this.status();
   }
 
@@ -78,16 +78,16 @@ export class NotionService {
   }
 
   /**
-   * A run, and what it left behind. A refused token is written down rather than thrown: the screen
+   * A run, and what it left behind. A refused grant is written down rather than thrown: the screen
    * that asked shows the row it already has, now saying it needs reconnecting.
    */
   async sync(): Promise<{ status: NotionStatus; summary: SyncSummary | null }> {
     const row = await this.#row();
-    if (!row) return { status: DISCONNECTED, summary: null };
+    if (!row?.projectsDataSourceId) return { status: await this.status(), summary: null };
 
-    const client = new NotionClient(decryptSecret(row.token));
     try {
-      const summary = await new NotionSync(this.userId, client, row.projectsDatabaseId).run();
+      const client = await this.#client();
+      const summary = await new NotionSync(this.userId, client, row.projectsDataSourceId).run();
       await this.#stamp({ lastSyncedAt: new Date(), lastError: null, needsReconnect: false });
       return { status: await this.status(), summary };
     } catch (error) {
@@ -97,6 +97,36 @@ export class NotionService {
       if (!(error instanceof ApiError)) throw error;
       return { status: await this.status(), summary: null };
     }
+  }
+
+  /** The client for this account's grant, renewed first when the token it holds is about to go. */
+  async #client() {
+    const row = await this.#row();
+    if (!row) throw new ApiError("Connect a Notion workspace first.");
+    const stale = row.expiresAt !== null && row.expiresAt.getTime() - REFRESH_MARGIN_MS < Date.now();
+    if (!stale) return new NotionClient(decryptSecret(row.token));
+
+    if (!row.refreshToken) throw new NotionAuthError("That Notion connection has expired.");
+    const grant = await notionOAuth.refresh(decryptSecret(row.refreshToken));
+    await this.#write(grant);
+    return new NotionClient(grant.accessToken);
+  }
+
+  #write(grant: NotionGrant) {
+    const values = {
+      token: encryptSecret(grant.accessToken),
+      refreshToken: grant.refreshToken === null ? null : encryptSecret(grant.refreshToken),
+      expiresAt: grant.expiresAt,
+      workspaceId: grant.workspaceId,
+      workspaceName: grant.workspaceName,
+      needsReconnect: false,
+      lastError: null,
+      updatedAt: new Date(),
+    };
+    return db
+      .insert(notionConnections)
+      .values({ userId: this.userId, ...values })
+      .onConflictDoUpdate({ target: notionConnections.userId, set: values });
   }
 
   #stamp(values: Partial<typeof notionConnections.$inferInsert>) {

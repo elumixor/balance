@@ -10,25 +10,28 @@ const REDIRECT_DELAY_MS = 900;
 /**
  * The page the OAuth callback answers with — the one HTML the API serves.
  *
- * On web this tab is the app's own tab, so it goes back to the calendar — at the origin the app
- * is actually served from, which in dev is the Vite server rather than this one. On iOS it's a
+ * On web this tab is the app's own tab, so it goes back to the screen the flow started from — at
+ * the origin the app is actually served from, which in dev is the Vite server rather than this one. On iOS it's a
  * Safari sheet the app opened; nothing here can dismiss it reliably, so it says so and the app
  * notices the connection on its own.
  */
 export function callbackPage({
   mode,
   origin,
+  back: path = "/calendar",
   title,
   body,
   failed,
 }: {
   mode: ConnectMode;
   origin: string;
+  /** The screen the flow belongs to — a calendar grant lands on the week, Notion's on projects. */
+  back?: string;
   title: string;
   body: string;
   failed?: boolean;
 }) {
-  const back = `${origin}/calendar`;
+  const back = `${origin}${path}`;
   const redirect =
     mode === "web" && !failed && isAppOrigin(origin)
       ? `<script>setTimeout(() => location.replace(${JSON.stringify(back)}), ${REDIRECT_DELAY_MS})</script>`

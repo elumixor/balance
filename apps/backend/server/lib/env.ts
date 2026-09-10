@@ -21,6 +21,10 @@ const schema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1),
   GOOGLE_OAUTH_REDIRECT_URI: z.url(),
+  /** The Notion connection projects are mirrored through — OAuth, so nobody pastes a secret. */
+  NOTION_OAUTH_CLIENT_ID: z.string().min(1),
+  NOTION_OAUTH_CLIENT_SECRET: z.string().min(1),
+  NOTION_OAUTH_REDIRECT_URI: z.url(),
   /** The audience a native Google sign-in's id token has to name — the iOS OAuth client. */
   GOOGLE_IOS_CLIENT_ID: z.string().min(1),
   /** The audience a native Sign in with Apple token has to name. */

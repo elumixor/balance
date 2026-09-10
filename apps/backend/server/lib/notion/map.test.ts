@@ -1,23 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { databaseIdOf, dateOf, fieldsOf, plainText, priorityOf, relationIds, taskStatus } from "./map";
+import { dateOf, fieldsOf, plainText, priorityOf, relationIds, taskStatus } from "./map";
 
 const text = (value: string) => ({ type: "rich_text", rich_text: [{ plain_text: value }] });
-
-describe("databaseIdOf", () => {
-  it("takes the id out of a page URL with a slug in front of it", () => {
-    expect(databaseIdOf("https://www.notion.so/atma/Projects-2eb26381fbfd80998539d8da670c9760?v=1")).toBe(
-      "2eb26381fbfd80998539d8da670c9760",
-    );
-  });
-
-  it("keeps a dashed id as it is", () => {
-    expect(databaseIdOf("2eb26381-fbfd-8099-8539-d8da670c9760")).toBe("2eb26381-fbfd-8099-8539-d8da670c9760");
-  });
-
-  it("has nothing to say about a sentence", () => {
-    expect(databaseIdOf("my projects database")).toBeNull();
-  });
-});
 
 describe("plainText", () => {
   it("joins the runs of a title", () => {

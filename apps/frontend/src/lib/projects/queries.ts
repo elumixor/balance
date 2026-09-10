@@ -20,8 +20,15 @@ export const assistWeek = (input: {
 
 export const getNotionStatus = () => apiGet<NotionStatus>("/notion/status");
 
-export const connectNotion = (input: { token: string; database: string }) =>
-  callApi(api.notion.connect.$post(input)) as Promise<NotionStatus>;
+/** The consent URL, asked for over the authenticated channel — see `core/oauth-connect.ts`. */
+export const startNotionConnect = (mode: "app" | "web", origin: string) =>
+  callApi(api.notion.start.$post({ mode, origin })).then((r) => r.url);
+
+export const listNotionDatabases = () =>
+  apiGet<{ databases: { id: string; name: string }[] }>("/notion/databases").then((r) => r.databases);
+
+export const chooseNotionDatabase = (dataSourceId: string) =>
+  callApi(api.notion.database.$post({ dataSourceId })) as Promise<NotionStatus>;
 
 export const disconnectNotion = () => callApi(api.notion.disconnect.$post({})) as Promise<NotionStatus>;
 

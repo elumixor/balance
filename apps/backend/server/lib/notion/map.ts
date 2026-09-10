@@ -3,21 +3,6 @@ import type { ProjectField, TaskPriority, TaskStatus } from "~/db/schema";
 /** A property value as Notion sends it: a tagged union this file is the only reader of. */
 type Property = Record<string, unknown> & { type?: string };
 
-const HEX_ID = /[0-9a-f]{32}/i;
-const DASHED_ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-
-/**
- * The id inside whatever somebody pasted — a share URL, a page URL with a slug in front of it,
- * or an id on its own, dashed or not. Null when there is no id in it at all, which is the one
- * thing the settings screen has to be able to say back.
- */
-export function databaseIdOf(input: string): string | null {
-  const dashed = DASHED_ID.exec(input)?.[0];
-  if (dashed) return dashed.toLowerCase();
-  const bare = HEX_ID.exec(input.replace(/-/g, ""))?.[0];
-  return bare ? bare.toLowerCase() : null;
-}
-
 /** Every text-ish property reduced to the words in it — titles, rich text, and nothing else. */
 export function plainText(property: Property | undefined): string {
   if (!property) return "";
