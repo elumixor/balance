@@ -1,5 +1,6 @@
 export * from "./calendar";
 export * from "./categories";
+export * from "./notion";
 export * from "./oauth";
 export * from "./planning";
 export * from "./preferences";

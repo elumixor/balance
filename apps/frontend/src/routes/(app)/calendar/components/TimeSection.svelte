@@ -7,6 +7,7 @@
   import { offsetLabel, shiftZone } from "$lib/calendar/time-zones";
   import type { CalendarEvent } from "$lib/calendar/types";
   import { deviceTimeZone } from "$lib/planning/zone";
+  import { viewport } from "$lib/platform/viewport.svelte";
   import { formatClock, formatDayDate, parseDateAndClock } from "$lib/ui/format";
   import { ArrowRight, CalendarClock, Clock, Repeat } from "lucide-svelte";
   import type { Pickers } from "./EventEditor.svelte";
@@ -141,7 +142,17 @@
   </CardRow>
 
   <CardRow icon={CalendarClock} set>
-    {#if editable}
+    {#if editable && viewport.touch}
+      <!-- A finger gets the platform's own date input: `showPicker` on a field nobody can see is
+           a picker that never opens, which is a date that can't be changed at all. -->
+      <input
+        type="date"
+        bind:value={draft.date}
+        onchange={() => draft.queue()}
+        aria-label="Date"
+        class="field-bare t-label shrink-0"
+      />
+    {:else if editable}
       <!-- Reads as "Fri Aug 14"; the native picker behind it is what's actually being typed in. -->
       <button type="button" onclick={openDatePicker} class="field-bare press-sm t-label shrink-0">
         {dateLabel}

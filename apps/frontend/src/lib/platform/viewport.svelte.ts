@@ -10,6 +10,12 @@ const XL = 1280;
 
 class Viewport {
   width = $state(browser ? window.innerWidth : MD);
+  /**
+   * Whether the app is touched rather than pointed at. A finger has no caret and no Tab key, so a
+   * field that is typed into and picked from on a Mac is the platform's own wheel on a phone —
+   * which is also the only thing that knows to lift itself over the keyboard.
+   */
+  readonly touch = browser && window.matchMedia("(pointer: coarse)").matches;
 
   /** Where a sheet becomes a card: the phone is everything under this. */
   get sm() {

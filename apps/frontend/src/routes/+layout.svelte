@@ -8,6 +8,7 @@
   import { telemetry } from "$lib/platform/telemetry";
   import { theme } from "$lib/ui/theme.svelte";
   import { mobileStatusBar } from "$lib/mobile/status-bar.svelte";
+  import { keyboard } from "$lib/platform/keyboard.svelte";
   import { viewport } from "$lib/platform/viewport.svelte";
   import { watchdog } from "$lib/platform/watchdog.svelte";
   import type { Snippet } from "svelte";
@@ -28,6 +29,7 @@
   theme.start();
   mobileStatusBar.start();
   viewport.start();
+  keyboard.start();
   // Failures also surface through `auth.startupError`, which the splash reads; this keeps the
   // rejection handled and puts it where a screen that isn't the splash can show it too.
   if (!reminderWindow) {

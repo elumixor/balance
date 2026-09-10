@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { entryToClock, MINUTES_PER_DAY, spanBetween, toClock, toMinutes } from "$lib/calendar/clock-text";
+  import { entryToClock, MINUTES_PER_DAY, normalizeClock, spanBetween, toClock, toMinutes } from "$lib/calendar/clock-text";
+  import { viewport } from "$lib/platform/viewport.svelte";
   import { followAnchor, layer, MENU_MAX_HEIGHT, placeMenu, type FloatPosition } from "./float";
   import { formatHoursAndMinutes } from "$lib/ui/format";
 
@@ -10,6 +11,11 @@
    *
    * Both ends use this, so a duration can be given from either side: picking in the start field
    * moves the start and leaves the end where it is, and picking in the end field does the reverse.
+   *
+   * On a phone none of that applies: the field is the platform's own time input, whose wheel
+   * gives any minute of the day and knows to put itself over the sheet rather than under it. A
+   * list of quarter hours that can't be scrolled without dismissing the keyboard is worse than
+   * the thing every other app on the device already uses.
    *
    * A span can be typed in place of a time — "6m", "1h30", "+90" — and is read from the other
    * end, which is the only way to a length the quarter-hour list doesn't hold.
@@ -202,45 +208,67 @@
 </script>
 
 <!-- The box is the field: the input holds the time, the span sits beside it inside the same border. -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-  onpointerdown={focus}
-  class="field-bare flex shrink-0 items-center gap-2"
->
-  <input
-    bind:this={input}
-    bind:value={text}
-    oninput={() => {
-      // Half-typed text is nobody's business but this field's — only a real time is passed on,
-      // and the grid keeps drawing the last readable one until another arrives.
-      const clock = resolve(text);
-      candidate = clock ?? fallback;
-      if (clock) {
-        value = clock;
-        oninput?.(clock);
-      }
-    }}
-    onfocus={() => {
-      focused = true;
-      input?.select();
-      show();
-    }}
-    onblur={() => {
-      focused = false;
-      settle();
-      open = false;
-    }}
-    {onkeydown}
-    aria-label={ariaLabel}
-    autocomplete="off"
-    autocapitalize="off"
-    class="w-11 bg-transparent outline-none"
-  />
-  <!-- The span belongs to one field, not both: saying it twice in one row says nothing extra. -->
-  {#if end && span}
-    <span class="shrink-0 text-fg-faint">{span}</span>
-  {/if}
-</div>
+{#if viewport.touch}
+  <div class="field-bare flex shrink-0 items-center gap-2">
+    <!-- Nothing is intercepted here — the press, the wheel and the keyboard are the platform's. -->
+    <input
+      type="time"
+      {value}
+      onchange={(e) => {
+        // A wheel reports every notch it passes, so this queues the edit the way typing does
+        // rather than writing each one: a spin from nine to noon is one write, not twelve.
+        const clock = normalizeClock(e.currentTarget.value.slice(0, 5));
+        if (clock) set(clock);
+      }}
+      onblur={() => oncommit?.()}
+      aria-label={ariaLabel}
+      class="shrink-0 bg-transparent outline-none"
+    />
+    {#if end && span}
+      <span class="shrink-0 text-fg-faint">{span}</span>
+    {/if}
+  </div>
+{:else}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    onpointerdown={focus}
+    class="field-bare flex shrink-0 items-center gap-2"
+  >
+    <input
+      bind:this={input}
+      bind:value={text}
+      oninput={() => {
+        // Half-typed text is nobody's business but this field's — only a real time is passed on,
+        // and the grid keeps drawing the last readable one until another arrives.
+        const clock = resolve(text);
+        candidate = clock ?? fallback;
+        if (clock) {
+          value = clock;
+          oninput?.(clock);
+        }
+      }}
+      onfocus={() => {
+        focused = true;
+        input?.select();
+        show();
+      }}
+      onblur={() => {
+        focused = false;
+        settle();
+        open = false;
+      }}
+      {onkeydown}
+      aria-label={ariaLabel}
+      autocomplete="off"
+      autocapitalize="off"
+      class="w-11 bg-transparent outline-none"
+    />
+    <!-- The span belongs to one field, not both: saying it twice in one row says nothing extra. -->
+    {#if end && span}
+      <span class="shrink-0 text-fg-faint">{span}</span>
+    {/if}
+  </div>
+{/if}
 
 {#if open && position}
   <!-- Pressing a row must not blur the field first, or the list is gone before the press lands. -->

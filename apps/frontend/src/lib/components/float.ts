@@ -22,7 +22,10 @@ export function placeMenu(anchor: HTMLElement, width: number, maxHeight = MENU_M
   const rect = anchor.getBoundingClientRect();
   const safe = safeArea();
   const below = rect.bottom + GAP;
-  const fitsBelow = below + maxHeight <= window.innerHeight - safe.bottom - MARGIN;
+  // What is actually visible, not what the page is: a keyboard leaves `innerHeight` alone, and a
+  // list placed against it goes under the keys.
+  const height = window.visualViewport?.height ?? window.innerHeight;
+  const fitsBelow = below + maxHeight <= height - safe.bottom - MARGIN;
   return {
     left: Math.min(Math.max(MARGIN, rect.left), window.innerWidth - width - MARGIN),
     top: fitsBelow ? below : Math.max(safe.top + MARGIN, rect.top - GAP - maxHeight),
