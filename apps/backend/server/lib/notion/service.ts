@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "~/db";
-import { type NotionMapping, notionConnections } from "~/db/schema";
+import { type NotionMapping, notionConnections, projects } from "~/db/schema";
 import { decryptSecret, encryptSecret } from "~/lib/calendar/crypto";
-import { ApiError } from "~/lib/http/api-error";
+import { ApiError, NotFoundError } from "~/lib/http/api-error";
 import { NotionAuthError, NotionClient } from "./client";
 import { type NotionGrant, notionOAuth } from "./oauth";
 import { NotionSync, type SyncSummary } from "./sync";
@@ -89,6 +89,45 @@ export class NotionService {
     return this.status();
   }
 
+  /** What somebody could point a project at — pages and databases by name. */
+  async search(query: string) {
+    return (await this.#client()).search(query);
+  }
+
+  /**
+   * One project pointed at Notion by hand: the page it is written on, or the database its tasks
+   * live in when somebody picks that directly. The tasks follow on the next run — from the
+   * database under that page, found the same way a mirrored project's is.
+   */
+  async link(projectId: string, target: { id: string; kind: "page" | "database" }) {
+    const project = await db.query.projects.findFirst({
+      where: and(eq(projects.id, projectId), eq(projects.userId, this.userId)),
+    });
+    if (!project) throw new NotFoundError("That project no longer exists.");
+
+    const client = await this.#client();
+    const page = target.kind === "page" ? await client.page(target.id) : null;
+    await db
+      .update(projects)
+      .set({
+        notionPageId: target.kind === "page" ? target.id : null,
+        notionTasksDataSourceId: target.kind === "database" ? target.id : null,
+        notionUrl: page?.url ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
+    return this.sync();
+  }
+
+  /** The link goes; everything it brought in stays, because those rows are the app's records now. */
+  async unlink(projectId: string) {
+    await db
+      .update(projects)
+      .set({ notionPageId: null, notionTasksDataSourceId: null, notionUrl: null, updatedAt: new Date() })
+      .where(and(eq(projects.id, projectId), eq(projects.userId, this.userId)));
+    return this.status();
+  }
+
   async disconnect(): Promise<NotionStatus> {
     await db.delete(notionConnections).where(eq(notionConnections.userId, this.userId));
     return DISCONNECTED;
@@ -100,12 +139,12 @@ export class NotionService {
    */
   async sync(): Promise<{ status: NotionStatus; summary: SyncSummary | null }> {
     const row = await this.#row();
-    if (!row?.projectsDataSourceId) return { status: await this.status(), summary: null };
+    if (!row) return { status: DISCONNECTED, summary: null };
 
     try {
       const client = await this.#client();
       const summary = await new NotionSync(this.userId, client, {
-        dataSourceId: row.projectsDataSourceId,
+        dataSourceId: row.projectsDataSourceId ?? null,
         categoryId: row.categoryId,
         mapping: row.mapping,
       }).run();

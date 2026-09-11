@@ -5,11 +5,12 @@
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { ProjectStatus } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
-  import { ExternalLink, Plus, Trash2 } from "lucide-svelte";
+  import { Plus, Trash2 } from "lucide-svelte";
   import {
     Breadcrumb,
     FieldsPanel,
     MembersRow,
+    NotionLinkRow,
     SubProjects,
     TaskBoard,
     TaskInspector,
@@ -93,17 +94,6 @@
               />
               <div class="mt-1 flex items-center gap-3 px-2">
                 <MembersRow {project} />
-                {#if project.notionUrl}
-                  <a
-                    href={project.notionUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    class="t-micro flex items-center gap-1.5 text-fg-faint underline-offset-2 hover:underline"
-                  >
-                    <ExternalLink size={11} />
-                    Notion
-                  </a>
-                {/if}
               </div>
             </div>
           </div>
@@ -128,6 +118,7 @@
                 onchange={(status) => data.setStatus(project, status)}
               />
             </div>
+            <NotionLinkRow {project} />
             <FieldsPanel {project} />
           </div>
         </div>

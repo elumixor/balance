@@ -116,6 +116,28 @@ export class NotionClient {
     }));
   }
 
+  /**
+   * Pages and databases by name, for linking one project by hand. Both kinds come back together
+   * because somebody linking a project is pointing at "Hypocrisy" without caring which it is.
+   */
+  async search(query: string) {
+    const answer = await this.#request<{
+      results: {
+        id: string;
+        object: string;
+        url?: string;
+        title?: { plain_text: string }[];
+        properties?: Record<string, unknown>;
+      }[];
+    }>("/search", "POST", { ...(query ? { query } : {}), page_size: 25 });
+    return answer.results.map((result) => ({
+      id: result.id,
+      kind: result.object === "page" ? ("page" as const) : ("database" as const),
+      name: titleOf(result) || "Untitled",
+      url: result.url ?? null,
+    }));
+  }
+
   async children(blockId: string) {
     const blocks: NotionBlock[] = [];
     let cursor: string | null = null;
@@ -145,4 +167,13 @@ export class NotionClient {
       throw new NotionAuthError("Notion refused the token — reconnect the workspace.");
     throw new UpstreamError(`Notion answered ${response.status}: ${detail.slice(0, 200)}`);
   }
+}
+
+/** A search result's name, wherever that result keeps it — a database's own title, a page's. */
+function titleOf(result: { title?: { plain_text: string }[]; properties?: Record<string, unknown> }) {
+  if (result.title) return result.title.map((run) => run.plain_text).join("");
+  const property = Object.values(result.properties ?? {}).find(
+    (value) => (value as { type?: string }).type === "title",
+  ) as { title?: { plain_text: string }[] } | undefined;
+  return property?.title?.map((run) => run.plain_text).join("") ?? "";
 }

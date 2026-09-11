@@ -425,6 +425,12 @@ requests against one API version, and `map.ts` and `data-source.ts` are the pure
 tested with `bun test`) — a property into a field, a column into a status, whatever a board calls
 "Ready For Test" into one of the five the app counts by.
 
+There are two ways in and a run does both. The dialog above imports a whole database of projects;
+a project made here is pointed at Notion from its own screen instead (`NotionLinkRow`,
+`/mobile/notion/link`) — at the page it is written on, or at a task database directly. Either way
+what follows is the same: every linked project's tasks, pulled from the database under its page.
+Unlinking keeps them, because by then they are this app's records.
+
 **Notion owns everything it is shown**: a project's name, its description, its fields, which tasks
 exist and what they are called. The app owns the three things a person changes while doing the work
 rather than while planning it — a task's status, its dates, and who it is for — and those go up

@@ -5,7 +5,7 @@ import { categories, people, practices, projects, stages, synced, syncStatus, ta
 import { localDay } from "$lib/planning/zone";
 import { clock } from "$lib/platform/clock.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
-import { startNotionConnect, syncNotion } from "./queries";
+import { linkProjectToNotion, startNotionConnect, syncNotion, unlinkProjectFromNotion } from "./queries";
 import { completionOf } from "./rollup";
 import { descendantsOf, pathTo, rowsOf, treeOf } from "./tree";
 import type { Person, Project, ProjectField, ProjectStatus, Stage, Task } from "./types";
@@ -164,6 +164,19 @@ class ProjectsData {
       },
       signal,
     );
+  }
+
+  /** Point one project at a Notion page or database, and pull what it holds straight away. */
+  async link(projectId: string, target: { id: string; kind: "page" | "database" }) {
+    const answer = await linkProjectToNotion({ projectId, ...target });
+    store.notion.set(answer.status);
+    await synced.sync();
+    return answer.summary;
+  }
+
+  async unlink(projectId: string) {
+    store.notion.set(await unlinkProjectFromNotion(projectId));
+    await synced.sync();
   }
 
   // --- writes ---------------------------------------------------------------

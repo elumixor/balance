@@ -1,4 +1,4 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, or } from "drizzle-orm";
 import { db } from "~/db";
 import { categories, type NotionMapping, projects } from "~/db/schema";
 import { ApiError } from "~/lib/http/api-error";
@@ -31,23 +31,32 @@ export class NotionSync {
   constructor(
     private readonly userId: string,
     private readonly client: NotionClient,
-    private readonly config: { dataSourceId: string; categoryId: string | null; mapping: NotionMapping },
+    private readonly config: { dataSourceId: string | null; categoryId: string | null; mapping: NotionMapping },
   ) {}
 
+  /**
+   * Two ways in, and a run does both. A projects database set up in settings brings its rows in
+   * as projects; a project linked to a Notion page by hand is one somebody made here and pointed
+   * at Notion afterwards. Either way what follows is the same: every linked project's tasks.
+   */
   async run(): Promise<SyncSummary> {
-    const pages = await this.client.queryDataSource(this.config.dataSourceId);
-    const live = pages.filter((page) => !page.in_trash && !page.archived);
-    const categoryId = await this.#defaultCategory();
-    for (const page of live) await this.#writeProject(page, categoryId);
-    await this.#writeParents(live);
+    if (this.config.dataSourceId) await this.#pullProjects(this.config.dataSourceId);
 
     const tasks = new TaskSync(this.userId, this.client);
-    for (const project of await this.#mirrored()) {
+    for (const project of await this.#linked()) {
       const dataSourceId = project.notionTasksDataSourceId ?? (await this.#findTasks(project.id, project.notionPageId));
       if (dataSourceId) this.#counts.tasks += await tasks.run(project.id, dataSourceId);
     }
     this.#counts.people = tasks.peopleSeen;
     return { ...this.#counts };
+  }
+
+  async #pullProjects(dataSourceId: string) {
+    const pages = await this.client.queryDataSource(dataSourceId);
+    const live = pages.filter((page) => !page.in_trash && !page.archived);
+    const categoryId = await this.#defaultCategory();
+    for (const page of live) await this.#writeProject(page, categoryId);
+    await this.#writeParents(live);
   }
 
   /** The sphere a project mirrored for the first time lands in, until somebody moves it. */
@@ -107,7 +116,7 @@ export class NotionSync {
 
   /** The second pass: a page can name a parent that had not been written when it was read. */
   async #writeParents(pages: readonly NotionPage[]) {
-    const byNotionId = new Map((await this.#mirrored()).map((project) => [project.notionPageId, project.id]));
+    const byNotionId = new Map((await this.#linked()).map((project) => [project.notionPageId, project.id]));
     for (const page of pages) {
       const child = byNotionId.get(page.id);
       const parentPage = parentOf(page);
@@ -128,9 +137,14 @@ export class NotionSync {
     return dataSourceId;
   }
 
-  #mirrored() {
+  /** Every project that points at something in Notion, however it came to. */
+  #linked() {
     return db.query.projects.findMany({
-      where: and(eq(projects.userId, this.userId), eq(projects.archived, false), isNotNull(projects.notionPageId)),
+      where: and(
+        eq(projects.userId, this.userId),
+        eq(projects.archived, false),
+        or(isNotNull(projects.notionPageId), isNotNull(projects.notionTasksDataSourceId)),
+      ),
     });
   }
 

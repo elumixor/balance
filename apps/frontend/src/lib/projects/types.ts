@@ -111,6 +111,14 @@ export interface NotionDatabase {
   properties: { name: string; type: string }[];
 }
 
+/** Something in Notion a project can be pointed at — the page it's written on, or a database. */
+export interface NotionTarget {
+  id: string;
+  kind: "page" | "database";
+  name: string;
+  url: string | null;
+}
+
 /** What the settings row draws about the mirrored workspace — `/mobile/notion/status`. */
 export interface NotionStatus {
   connected: boolean;
