@@ -425,6 +425,12 @@ requests against one API version, and `map.ts` and `data-source.ts` are the pure
 tested with `bun test`) — a property into a field, a column into a status, whatever a board calls
 "Ready For Test" into one of the five the app counts by.
 
+Nothing here asks somebody to connect an account first. Every entry point — "Import from Notion"
+under the projects, "Link to Notion" on a project, the settings row — is pressable with no grant
+at all: `projectsData.ensureNotion()` asks for one at that moment and the action carries on by
+itself. An errand ("connect this, then come back and do what you wanted") is the thing being
+designed out.
+
 There are two ways in and a run does both. The dialog above imports a whole database of projects;
 a project made here is pointed at Notion from its own screen instead (`NotionLinkRow`,
 `/mobile/notion/link`) — at the page it is written on, or at a task database directly. Either way

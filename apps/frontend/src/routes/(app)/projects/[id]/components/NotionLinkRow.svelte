@@ -1,5 +1,6 @@
 <script lang="ts">
   import { ComboField, Popover, Spinner } from "$lib/components";
+  import { ConnectCancelled } from "$lib/core/oauth-connect";
   import { store } from "$lib/core/store.svelte";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
@@ -12,6 +13,10 @@
    * written on — its tasks are pulled from the task database under that page, the same way a
    * project that arrived from Notion gets its own. Unlinking keeps the tasks: they are this app's
    * records once they are here.
+   *
+   * The row is here whether or not a workspace is connected. Pressing it with no grant asks for
+   * one and then opens the search anyway, because "connect an account first" is a errand nobody
+   * came here to run.
    */
   let { project }: { project: Project } = $props();
 
@@ -26,8 +31,10 @@
   let searching = $state(false);
   let working = $state(false);
 
-  // The list follows what is typed: Notion's own search, asked once the typing pauses.
+  // The list follows what is typed: Notion's own search, asked once the typing pauses, and only
+  // once there is a grant to ask with.
   $effect(() => {
+    if (!status?.connected || status.needsReconnect) return;
     const text = query;
     searching = true;
     const timer = setTimeout(() => void find(text), TYPING_MS);
@@ -42,6 +49,22 @@
       diagnostics.report("Notion", error, { title: "Couldn't search your Notion workspace" });
     } finally {
       searching = false;
+    }
+  }
+
+  /** The whole of connecting, when it is needed, and then the thing that was actually pressed. */
+  async function begin(open: () => void) {
+    if (status?.connected && !status.needsReconnect) {
+      open();
+      return;
+    }
+    working = true;
+    try {
+      if (await data.ensureNotion()) open();
+    } catch (error) {
+      if (!(error instanceof ConnectCancelled)) diagnostics.report("Notion", error, { title: "Couldn't connect Notion" });
+    } finally {
+      working = false;
     }
   }
 
@@ -69,8 +92,7 @@
   }
 </script>
 
-{#if status?.connected && !status.needsReconnect}
-  <div class="flex items-center justify-between gap-2 px-1">
+<div class="flex items-center justify-between gap-2 px-1">
     <span class="t-micro text-fg-muted">Notion</span>
 
     {#if working}
@@ -93,7 +115,7 @@
     {:else}
       <Popover width={280} align="end">
         {#snippet trigger(open)}
-          <button type="button" onclick={open} class="bare-button t-micro px-1.5 py-1">
+          <button type="button" onclick={() => void begin(open)} class="bare-button t-micro px-1.5 py-1">
             <Link2 size={12} />
             Link to Notion
           </button>
@@ -123,5 +145,4 @@
         {/snippet}
       </Popover>
     {/if}
-  </div>
-{/if}
+</div>

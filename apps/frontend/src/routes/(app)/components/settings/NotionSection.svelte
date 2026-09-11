@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { Button } from "$lib/components";
+  import { Button, NotionSetup } from "$lib/components";
   import { ConnectCancelled } from "$lib/core/oauth-connect";
   import { store } from "$lib/core/store.svelte";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import { projectsData } from "$lib/projects/projects-data.svelte";
   import { disconnectNotion } from "$lib/projects/queries";
   import { NotebookPen } from "lucide-svelte";
-  import NotionSetup from "./NotionSetup.svelte";
   import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
@@ -23,11 +22,14 @@
 
   void store.notion.ensure();
 
-  async function connect() {
+  /**
+   * One button, whatever state this is in: it asks for a grant when there isn't one and then
+   * opens the dialog that was actually wanted. Nobody is sent away to connect something first.
+   */
+  async function open() {
     working = true;
     try {
-      await projectsData.connectNotion();
-      setup = true;
+      if (await projectsData.ensureNotion()) setup = true;
     } catch (error) {
       if (!(error instanceof ConnectCancelled))
         diagnostics.report("Notion", error, { title: "Couldn't connect Notion" });
@@ -49,7 +51,7 @@
 
   const note = $derived.by(() => {
     if (!status?.connected) return "Mirror the projects and tasks you already keep there.";
-    if (status.needsReconnect) return "The connection expired — connect it again.";
+    if (status.needsReconnect) return "The connection expired — importing again will renew it.";
     if (!status.dataSourceId) return "Connected. Choose which database holds your projects.";
     return when(status.lastSyncedAt);
   });
@@ -66,27 +68,21 @@
 
 <SettingsGroup title="Notion">
   <SettingRow icon={NotebookPen} label={status?.connected ? status.workspaceName || "Notion" : "Notion"} {note}>
-    {#if status?.connected && !status.needsReconnect}
-      <div class="flex gap-2">
-        <Button
-          label={status.dataSourceId ? "Configure" : "Choose database"}
-          variant={status.dataSourceId ? "outline" : "solid"}
-          size="sm"
-          onclick={() => (setup = true)}
-        />
-        {#if status.dataSourceId}
-          <Button label="Sync now" variant="outline" size="sm" onclick={() => void projectsData.mirror(true)} />
-        {/if}
-        <Button label="Disconnect" variant="outline" size="sm" disabled={working} onclick={() => void disconnect()} />
-      </div>
-    {:else}
+    <div class="flex gap-2">
       <Button
-        label={working ? "Waiting…" : status?.needsReconnect ? "Reconnect" : "Connect"}
+        label={working ? "Waiting…" : status?.dataSourceId ? "Configure" : "Import projects"}
+        variant={status?.dataSourceId ? "outline" : "solid"}
         size="sm"
         disabled={working}
-        onclick={() => void connect()}
+        onclick={() => void open()}
       />
-    {/if}
+      {#if status?.dataSourceId}
+        <Button label="Sync now" variant="outline" size="sm" onclick={() => void projectsData.mirror(true)} />
+      {/if}
+      {#if status?.connected}
+        <Button label="Disconnect" variant="outline" size="sm" disabled={working} onclick={() => void disconnect()} />
+      {/if}
+    </div>
   </SettingRow>
 
   {#if status?.lastError}

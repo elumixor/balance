@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { Button, Dialog, Dot, Field, Select, Spinner } from "$lib/components";
+  import Button from "./Button.svelte";
+  import Dialog from "./Dialog.svelte";
+  import Dot from "./Dot.svelte";
+  import Field from "./Field.svelte";
+  import Select from "./Select.svelte";
+  import Spinner from "./Spinner.svelte";
   import { categories } from "$lib/core/synced.svelte";
   import { store } from "$lib/core/store.svelte";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
@@ -28,9 +33,16 @@
   let importing = $state(false);
   let imported = $state<string | null>(null);
 
-  // Opening reads the workspace and starts from whatever was answered last time.
+  // Opening reads the workspace and starts from whatever was answered last time. A dialog opened
+  // without a grant asks for one rather than showing an empty list.
   $effect(() => {
     if (!open) return;
+    if (!status?.connected || status.needsReconnect) {
+      void projectsData.ensureNotion().then((granted) => {
+        if (granted) void load();
+      });
+      return;
+    }
     dataSourceId = status?.dataSourceId ?? "";
     categoryId = status?.categoryId || (spheres[0]?.id ?? "");
     description = status?.mapping.description ?? null;

@@ -133,7 +133,9 @@ class ProjectsData {
    * corner rather than an empty screen: what was pulled last time is still on the device.
    */
   async mirror(force = false) {
-    if (!this.notion?.dataSourceId) return null;
+    // A run is worth making whenever there is a grant: a database configured in settings is one
+    // way projects arrive, and a project linked to a page by hand is the other.
+    if (!this.notion?.connected || this.notion.needsReconnect) return null;
     if (!force && Date.now() - this.#syncedAt < SYNC_EVERY_MS) return null;
     this.#syncedAt = Date.now();
     try {
@@ -149,6 +151,20 @@ class ProjectsData {
       });
       return null;
     }
+  }
+
+  /**
+   * A grant, if one is needed.
+   *
+   * Nothing in the app asks somebody to go and connect something first: an action that needs a
+   * connection asks for it at the moment it is pressed, and then carries on with what was
+   * actually being done. Returns whether there is one to carry on with.
+   */
+  async ensureNotion() {
+    await store.notion.ensure();
+    if (this.notion?.connected && !this.notion.needsReconnect) return true;
+    await this.connectNotion();
+    return Boolean(this.notion?.connected && !this.notion.needsReconnect);
   }
 
   /** The consent flow, and the mirror's first run the moment the grant and a database exist. */

@@ -1,11 +1,13 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { Dot, Screen, Skeleton } from "$lib/components";
+  import { Dot, NotionSetup, Screen, Skeleton } from "$lib/components";
   import { synced } from "$lib/core/synced.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { rowsOf } from "$lib/projects/tree";
   import { formatHoursDecimal } from "$lib/ui/format";
-  import { Plus, RefreshCw } from "lucide-svelte";
+  import { ConnectCancelled } from "$lib/core/oauth-connect";
+  import { diagnostics } from "$lib/platform/diagnostics.svelte";
+  import { NotebookPen, Plus, RefreshCw } from "lucide-svelte";
   import { EmptyState, PracticeRow, ProjectRow, SphereClaimBar } from "./components";
 
   /**
@@ -15,6 +17,24 @@
    * opens, so the tree is what Notion said a moment ago.
    */
   void data.enter();
+
+  let setup = $state(false);
+  let connecting = $state(false);
+
+  /**
+   * Importing is one press from here whether or not a workspace is connected: the grant is asked
+   * for at the moment it is needed, and the dialog it was for opens straight after.
+   */
+  async function importFromNotion() {
+    connecting = true;
+    try {
+      if (await data.ensureNotion()) setup = true;
+    } catch (error) {
+      if (!(error instanceof ConnectCancelled)) diagnostics.report("Notion", error, { title: "Couldn't connect Notion" });
+    } finally {
+      connecting = false;
+    }
+  }
 
   async function add(categoryId: string) {
     const created = data.create(null, categoryId);
@@ -104,12 +124,20 @@
         {/each}
       </div>
 
-      {#if data.notion?.connected && data.notion.dataSourceId}
-        <button type="button" onclick={() => void data.mirror(true)} class="bare-button t-micro mt-8 px-2 py-1">
-          <RefreshCw size={11} />
-          {data.notion.needsReconnect ? "Reconnect Notion" : `Sync ${data.notion.workspaceName || "Notion"}`}
+      <div class="mt-8 flex items-center gap-1">
+        <button type="button" onclick={() => void importFromNotion()} class="bare-button t-micro px-2 py-1">
+          <NotebookPen size={11} />
+          {connecting ? "Waiting for Notion…" : data.notion?.dataSourceId ? "Notion import" : "Import from Notion"}
         </button>
-      {/if}
+        {#if data.notion?.dataSourceId}
+          <button type="button" onclick={() => void data.mirror(true)} class="bare-button t-micro px-2 py-1">
+            <RefreshCw size={11} />
+            Sync now
+          </button>
+        {/if}
+      </div>
     {/if}
   </div>
 </Screen>
+
+<NotionSetup open={setup} onclose={() => (setup = false)} />
