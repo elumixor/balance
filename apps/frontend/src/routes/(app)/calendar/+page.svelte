@@ -1,6 +1,7 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { CalendarPanel, DayAssistDialog, EventEditor, PlanningBar, SidePanelSection, WeekGrid } from "./components";
+  import { CalendarPanel, DayAssistDialog, EventEditor, PlanningBar, WeekGrid } from "./components";
+  import { ShellSlot } from "../components";
   import { ConnectGoogle } from "$lib/calendar/components";
   import { Button, Divider, Popover, StarBadge } from "$lib/components";
   import { categories } from "$lib/core/synced.svelte";
@@ -107,9 +108,9 @@
 <svelte:window {onkeydown} {onkeyup} />
 
 <!-- The rail carries this screen's own controls; on a phone they're behind the strip's one button. -->
-<SidePanelSection>
+<ShellSlot slot="panel">
   <CalendarPanel />
-</SidePanelSection>
+</ShellSlot>
 
 <div class="relative flex h-full min-h-0 flex-col">
   <!-- The phone's bar for this screen. A real row rather than chips floating over the grid: a

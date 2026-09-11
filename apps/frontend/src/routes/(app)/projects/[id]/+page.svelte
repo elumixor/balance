@@ -18,6 +18,7 @@
     TaskList,
     TaskTimeline,
   } from "./components";
+  import { ShellSlot } from "../../components";
 
   /**
    * One project, open: what it is and what it says about itself at the top, and under that the
@@ -75,34 +76,38 @@
   <div class="flex h-full min-h-0 flex-col">
     <!-- On a phone the properties stack under the name, which would leave the plan no room at all;
          there the header keeps half the window and scrolls inside it. -->
-    <header class="safe-top-4 max-h-[55dvh] shrink-0 overflow-y-auto px-5 pb-4 md:max-h-none md:px-8 md:pt-8">
+    <!-- Where this project sits goes on the shell's own line, beside the nav icons, rather than
+         taking a row of the screen to say it twice. A phone has no strip, so there it stays here. -->
+    <ShellSlot slot="where">
+      <Breadcrumb {path} />
+    </ShellSlot>
+
+    <header class="safe-top-4 max-h-[55dvh] shrink-0 overflow-y-auto px-5 pb-4 md:max-h-none md:px-8 md:pt-12">
       <div class="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row md:items-start md:gap-8">
-        <div class="min-w-0 flex-1 space-y-3">
-          <Breadcrumb {path} />
-          <div class="flex min-w-0 items-start gap-3">
-            <ProjectCover icon={project.icon} category={card.category} />
-            <div class="min-w-0 flex-1">
-              <Field
-                value={project.name}
-                variant="bare"
-                placeholder="Untitled project"
-                ariaLabel="Project name"
-                oninput={(name) => data.update(project.id, { name })}
-                class="t-heading h-auto py-0.5"
-              />
-              <div class="flex items-center gap-3 px-2 py-0.5">
-                <MembersRow {project} />
-              </div>
-              <Textarea
-                value={project.description}
-                variant="bare"
-                rows={2}
-                placeholder="What is this, in one line?"
-                ariaLabel="Description"
-                oninput={(description) => data.update(project.id, { description })}
-              />
-            </div>
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="md:hidden">
+            <Breadcrumb {path} />
           </div>
+          <div class="flex min-w-0 items-center gap-3">
+            <ProjectCover icon={project.icon} category={card.category} />
+            <Field
+              value={project.name}
+              variant="bare"
+              placeholder="Untitled project"
+              ariaLabel="Project name"
+              oninput={(name) => data.update(project.id, { name })}
+              class="t-heading h-auto py-0.5"
+            />
+          </div>
+          <MembersRow {project} />
+          <Textarea
+            value={project.description}
+            variant="bare"
+            rows={2}
+            placeholder="What is this, in one line?"
+            ariaLabel="Description"
+            oninput={(description) => data.update(project.id, { description })}
+          />
         </div>
 
         <div class="w-full shrink-0 space-y-4 md:w-72">

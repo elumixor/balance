@@ -3,9 +3,13 @@
   import { people } from "$lib/core/synced.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { Person, Project } from "$lib/projects/types";
-  import { Plus } from "lucide-svelte";
+  import { UserRoundPlus } from "lucide-svelte";
 
-  /** Who has this project — the avatars under its name, and the list they are chosen from. */
+  /**
+   * Who has this project — the faces under its name, and the list they are chosen from. The way in
+   * is one more circle at the end of the row wearing a person rather than a bare plus, so a row
+   * with nobody on it yet still says what it is asking for.
+   */
   let { project }: { project: Project } = $props();
 
   const members = $derived(
@@ -25,9 +29,19 @@
 
 <Popover width={240}>
   {#snippet trigger(toggle)}
-    <button type="button" onclick={toggle} class="press hoverable flex items-center gap-1.5 rounded-md p-0.5">
-      <Avatars people={members} size={22} />
-      <Plus size={13} class="text-fg-faint" />
+    <button
+      type="button"
+      onclick={toggle}
+      aria-label="Who this project is shared with"
+      class="press flex items-center rounded-full p-0.5"
+    >
+      <Avatars people={members} size={24} />
+      <span
+        class="flex size-6 items-center justify-center rounded-full border border-line-strong border-dashed
+          bg-surface text-fg-faint {members.length > 0 ? '-ml-1.5' : ''}"
+      >
+        <UserRoundPlus size={13} />
+      </span>
     </button>
   {/snippet}
 

@@ -4,5 +4,6 @@ export { default as ImportPlacesDialog } from "./ImportPlacesDialog.svelte";
 export { default as NavStrip } from "./NavStrip.svelte";
 export { default as SessionNudge } from "./SessionNudge.svelte";
 export { default as SettingsDialog } from "./SettingsDialog.svelte";
+export { default as ShellSlot } from "./ShellSlot.svelte";
 export { default as SideNav } from "./SideNav.svelte";
 export { default as TabBar } from "./TabBar.svelte";

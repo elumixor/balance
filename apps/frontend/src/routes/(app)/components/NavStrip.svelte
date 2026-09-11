@@ -3,12 +3,18 @@
   import { AccountPill, Tooltip } from "$lib/components";
   import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
+  import { shellSlots } from "$lib/nav/shell-slots.svelte";
 
   /**
    * The wide-screen strip. Everything that isn't the current screen's own controls fits on one
    * line: where you are on the left, who you are on the right. Three destinations don't need a
    * read-down list with their names spelled out — the icons are the whole vocabulary, and
    * hovering one says the name and the key that gets there.
+   *
+   * A screen that is somewhere in particular — one project out of a tree of them — says so on this
+   * same line rather than spending a row of its own on a breadcrumb (`ShellSlot slot="where"`).
+   * The strip keeps the rail's width when nothing is handed to it, so the calendar's panel and the
+   * account still line up the way they always have.
    *
    * One strip, floating in the top-left corner of every screen. On the calendar it lands on the
    * empty top of the left panel; elsewhere on the screen's own top padding. Either way the icons
@@ -28,9 +34,9 @@
      wouldn't drag. -->
 <div
   data-tauri-drag-region={isDesktop ? true : undefined}
-  class="absolute top-0 left-0 z-30 hidden w-60 select-none items-center gap-1 px-3 md:flex {isDesktop
-    ? 'h-9 pl-[78px]'
-    : 'mt-3 px-4'}"
+  class="absolute top-0 left-0 z-30 hidden max-w-full select-none items-center gap-1 px-3 md:flex {shellSlots.where
+    ? 'right-0'
+    : 'w-60'} {isDesktop ? 'h-9 pl-[78px]' : 'mt-3 px-4'}"
 >
   {#each NAV_TABS as tab (tab.href)}
     {@const active = isActive(page.url.pathname, tab.href)}
@@ -53,6 +59,10 @@
       </a>
     </Tooltip>
   {/each}
+
+  {#if shellSlots.where}
+    <div class="ml-1 flex min-w-0 items-center">{@render shellSlots.where()}</div>
+  {/if}
 
   <div data-tauri-drag-region={isDesktop ? true : undefined} class="flex-1"></div>
 

@@ -18,7 +18,6 @@ export { default as RemindersRow } from "./RemindersRow.svelte";
 export { default as RepeatPicker } from "./RepeatPicker.svelte";
 export { default as SeriesDeletePrompt } from "./SeriesDeletePrompt.svelte";
 export { default as SeriesEditPrompt } from "./SeriesEditPrompt.svelte";
-export { default as SidePanelSection } from "./SidePanelSection.svelte";
 export { default as TimeZonePicker } from "./TimeZonePicker.svelte";
 export { default as TravelChips } from "./TravelChips.svelte";
 export { default as WeekGrid } from "./WeekGrid.svelte";
