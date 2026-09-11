@@ -208,8 +208,8 @@
   </div>
 {/snippet}
 
-<div class="rounded-lg border border-line bg-surface">
-  <div class="flex items-center justify-end gap-1 border-b border-line px-2 py-1.5">
+<div class="flex h-full min-h-0 flex-col bg-surface">
+  <div class="flex shrink-0 items-center justify-end gap-1 border-b border-line px-2 py-1.5">
     <Select
       variant="bare"
       label="Zoom"
@@ -227,7 +227,7 @@
     </button>
   </div>
 
-  <div bind:this={scroller} class="relative overflow-x-auto overscroll-x-contain">
+  <div bind:this={scroller} class="relative min-h-0 flex-1 overflow-auto overscroll-x-contain">
     <div class="w-max min-w-full">
       <TimelineHeader window={bounds} scale={scale.value} today={data.today} {width} />
 

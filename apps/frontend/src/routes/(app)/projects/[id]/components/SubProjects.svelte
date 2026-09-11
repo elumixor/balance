@@ -16,25 +16,25 @@
   }
 </script>
 
-<section class="space-y-2">
-  <h2 class="t-label text-fg-muted">Under this</h2>
-  <ul class="divide-y divide-line rounded-lg border border-line bg-surface">
+<section class="space-y-1">
+  <h2 class="t-micro px-2 text-fg-muted">Under this</h2>
+  <ul>
     {#each children as child (child.id)}
       {@const card = data.cardOf(child)}
       <li>
-        <a href="/projects/{child.id}" class="hoverable flex items-center gap-3 px-3 py-2">
-          <ProjectCover icon={child.icon} category={card.category} size={22} />
-          <span class="t-body min-w-0 flex-1 truncate text-fg">{child.name || "Untitled project"}</span>
+        <a href="/projects/{child.id}" class="hoverable flex items-center gap-2 rounded-md px-2 py-1">
+          <ProjectCover icon={child.icon} category={card.category} size={18} />
+          <span class="t-micro min-w-0 flex-1 truncate text-fg">{child.name || "Untitled project"}</span>
           {#if card.total > 0}
-            <span class="t-micro shrink-0 tabular-nums text-fg-faint">{card.done}/{card.total}</span>
+            <span class="t-data-micro shrink-0 text-fg-faint">{card.done}/{card.total}</span>
           {/if}
           <StatusChip status={child.status} />
           <ChevronRight size={13} class="shrink-0 text-fg-faint" />
         </a>
       </li>
     {/each}
-    <li class="px-3 py-2">
-      <button type="button" onclick={add} class="press hoverable t-micro flex items-center gap-1.5 text-fg-faint">
+    <li>
+      <button type="button" onclick={add} class="bare-button t-micro px-2 py-1">
         <Plus size={12} />
         Sub-project
       </button>

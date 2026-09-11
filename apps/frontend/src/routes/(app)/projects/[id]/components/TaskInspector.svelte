@@ -39,7 +39,7 @@
   }
 </script>
 
-<div class="space-y-0.5 rounded-lg border border-line bg-surface p-2">
+<div class="mx-auto max-w-5xl space-y-0.5 p-2">
   <div class="flex items-center gap-1">
     <Field
       value={task.title}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Field, NumberField, ProjectCover, Screen, Segmented, Select, Skeleton, Textarea } from "$lib/components";
+  import { Field, NumberField, ProjectCover, Segmented, Select, Skeleton, Textarea } from "$lib/components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { ProjectStatus } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
@@ -20,10 +20,14 @@
   } from "./components";
 
   /**
-   * One project, open: what it is, what it says about itself, what sits under it, and the work
-   * itself in whichever of the three shapes answers the question being asked — time, order, or
-   * where things stand. Opening a task is a panel under the view rather than a dialog, so the
-   * plan it belongs to stays on screen while it is edited.
+   * One project, open: what it is and what it says about itself at the top, and under that the
+   * work itself in whichever of the three shapes answers the question being asked — time, order,
+   * or where things stand.
+   *
+   * The view takes the whole of the window below the header, edge to edge and with no card around
+   * it: a timeline is a plan somebody reads across, and a measure down the middle of the screen is
+   * a month of it nobody can see. Opening a task docks a panel under the view rather than opening
+   * a dialog, so the plan it belongs to stays on screen while it is edited.
    */
   void data.enter();
 
@@ -63,18 +67,19 @@
   }
 </script>
 
-<Screen title={project?.name || "Project"} wide>
-  {#if !data.ready}
-    <Skeleton height={180} radius={10} />
-  {:else if !project || !card}
-    <p class="t-body text-fg-muted">That project isn’t here any more.</p>
-  {:else}
-    <div class="mx-auto max-w-5xl space-y-8">
-      <header class="space-y-4">
-        <Breadcrumb {path} />
-
-        <div class="flex flex-col gap-8 md:flex-row md:items-start">
-          <div class="flex min-w-0 flex-1 items-start gap-3">
+{#if !data.ready}
+  <div class="safe-top-4 p-5 md:p-10"><Skeleton height={180} radius={10} /></div>
+{:else if !project || !card}
+  <p class="safe-top-4 p-5 text-fg-muted t-body md:p-10">That project isn’t here any more.</p>
+{:else}
+  <div class="flex h-full min-h-0 flex-col">
+    <!-- On a phone the properties stack under the name, which would leave the plan no room at all;
+         there the header keeps half the window and scrolls inside it. -->
+    <header class="safe-top-4 max-h-[55dvh] shrink-0 overflow-y-auto px-5 pb-4 md:max-h-none md:px-8 md:pt-8">
+      <div class="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row md:items-start md:gap-8">
+        <div class="min-w-0 flex-1 space-y-3">
+          <Breadcrumb {path} />
+          <div class="flex min-w-0 items-start gap-3">
             <ProjectCover icon={project.icon} category={card.category} />
             <div class="min-w-0 flex-1">
               <Field
@@ -85,6 +90,9 @@
                 oninput={(name) => data.update(project.id, { name })}
                 class="t-heading h-auto py-0.5"
               />
+              <div class="flex items-center gap-3 px-2 py-0.5">
+                <MembersRow {project} />
+              </div>
               <Textarea
                 value={project.description}
                 variant="bare"
@@ -93,13 +101,12 @@
                 ariaLabel="Description"
                 oninput={(description) => data.update(project.id, { description })}
               />
-              <div class="mt-1 flex items-center gap-3 px-2">
-                <MembersRow {project} />
-              </div>
             </div>
           </div>
+        </div>
 
-          <div class="w-full shrink-0 space-y-0.5 md:w-72">
+        <div class="w-full shrink-0 space-y-4 md:w-72">
+          <div class="space-y-0.5">
             <PropertyRow label="Hours a week">
               {#snippet icon()}
                 <span class="flex size-6 items-center justify-center"><Clock size={13} /></span>
@@ -126,43 +133,47 @@
             <NotionLinkRow {project} />
             <FieldsPanel {project} />
           </div>
+
+          <SubProjects {project} />
+
+          <div class="flex justify-end">
+            <button type="button" onclick={remove} class="bare-button t-micro px-1.5 py-1 hover:text-danger">
+              <Trash2 size={12} />
+              Delete project
+            </button>
+          </div>
         </div>
-      </header>
-
-      <section class="space-y-3">
-        <div class="flex items-center justify-between gap-3">
-          <Segmented options={VIEWS} value={view} />
-          <button
-            type="button"
-            onclick={() => data.addStage(project.id, "")}
-            class="bare-button t-micro px-1.5 py-1"
-          >
-            <Plus size={11} />
-            Stage
-          </button>
-        </div>
-
-        {#if view === "timeline"}
-          <TaskTimeline projectId={project.id} {color} {selectedId} onselect={(next) => (selectedId = next)} />
-        {:else if view === "list"}
-          <TaskList projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
-        {:else}
-          <TaskBoard projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
-        {/if}
-
-        {#if selected}
-          <div class="list-item-in"><TaskInspector task={selected} onclose={() => (selectedId = null)} /></div>
-        {/if}
-      </section>
-
-      <SubProjects {project} />
-
-      <div class="flex justify-end">
-        <button type="button" onclick={remove} class="bare-button t-micro px-1.5 py-1 hover:text-danger">
-          <Trash2 size={12} />
-          Delete project
-        </button>
       </div>
+    </header>
+
+    <div class="flex shrink-0 items-center justify-between gap-3 border-y border-line px-5 md:px-8">
+      <Segmented options={VIEWS} value={view} />
+      <button type="button" onclick={() => data.addStage(project.id, "")} class="bare-button t-micro px-1.5 py-1">
+        <Plus size={11} />
+        Stage
+      </button>
     </div>
-  {/if}
-</Screen>
+
+    <div class="min-h-0 flex-1">
+      {#if view === "timeline"}
+        <TaskTimeline projectId={project.id} {color} {selectedId} onselect={(next) => (selectedId = next)} />
+      {:else}
+        <div class="h-full overflow-y-auto px-5 py-4 md:px-8">
+          <div class="mx-auto max-w-5xl">
+            {#if view === "list"}
+              <TaskList projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
+            {:else}
+              <TaskBoard projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
+            {/if}
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    {#if selected}
+      <div class="list-item-in max-h-[45%] shrink-0 overflow-y-auto border-t border-line bg-surface">
+        <TaskInspector task={selected} onclose={() => (selectedId = null)} />
+      </div>
+    {/if}
+  </div>
+{/if}
