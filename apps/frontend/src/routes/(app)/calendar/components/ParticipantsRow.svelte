@@ -3,6 +3,7 @@
   import type { EventAttendee, EventResponse } from "$lib/calendar/types";
   import { Crown, Plus, Users, X } from "lucide-svelte";
   import type { Snippet } from "svelte";
+  import OrganizerPicker from "./OrganizerPicker.svelte";
 
   /**
    * Who else is coming, and what they said. A line per guest with a dot for their answer, the
@@ -14,14 +15,20 @@
     attendees,
     organizer,
     editable,
+    calendarId,
     onchange,
+    onhost,
     answer,
   }: {
     attendees: EventAttendee[];
     organizer: EventAttendee | null;
     /** Whether this is your event to invite people to. */
     editable: boolean;
+    /** The calendar hosting it, so the picker under the organizer's name knows what is ticked. */
+    calendarId: string;
     onchange: (attendees: { email: string; optional?: boolean }[]) => void;
+    /** Hands the event to another calendar. Absent on an event that isn't yours to hand over. */
+    onhost?: (calendarId: string) => void;
     /** Your own RSVP, drawn at the end of your line — only when there is one to give. */
     answer?: Snippet;
   } = $props();
@@ -113,7 +120,11 @@
       {#if organizer}
         <div class="flex items-center gap-2">
           <Dot color={RESPONSE_COLORS[organizer.response]} size={6} />
-          <span class="t-label min-w-0 truncate">{nameOf(organizer)}</span>
+          {#if onhost}
+            <OrganizerPicker {calendarId} label={nameOf(organizer)} onchoose={onhost} />
+          {:else}
+            <span class="t-label min-w-0 truncate">{nameOf(organizer)}</span>
+          {/if}
           <Tooltip label="Organizer">
             <span class="flex shrink-0 text-fg-faint" aria-label="Organizer"><Crown size={12} /></span>
           </Tooltip>

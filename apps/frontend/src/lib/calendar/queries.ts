@@ -69,6 +69,16 @@ export const updateCalendarEvent = (
   },
 ) => callApi(api.calendar.events(id).$patch(input)).then((r) => r.event as CalendarEvent);
 
+/**
+ * Hands the event to another calendar, which is what changing its organizer means. A repeating
+ * event moves as a series, so its master is named; the answer is the event in its new home, with
+ * a new id when the two calendars belong to different accounts.
+ */
+export const moveCalendarEvent = (
+  id: string,
+  input: { calendarId: string; destinationCalendarId: string; seriesId?: string },
+) => callApi(api.calendar.events(id).move.$post(input)).then((r) => r.event as CalendarEvent);
+
 /** The series it repeats from, when the delete means more than this one occurrence. */
 export interface SeriesTarget {
   seriesId: string;

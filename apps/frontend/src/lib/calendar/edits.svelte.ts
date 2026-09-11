@@ -284,6 +284,35 @@ export class CalendarEdits {
   }
 
   /**
+   * Who hosts the event: handing it to another calendar is the calendar's own way of changing an
+   * organizer, and it is offered wherever the organizer's name is drawn. Everything else about
+   * the event stays put — between two accounts it can't, since neither can write the other's
+   * calendar, so the far side makes it again and the near one lets it go.
+   *
+   * Undoing is the same move backwards, run against whatever came back rather than what was
+   * there before: a hand-over answers with a different event, and that is the one to send home.
+   */
+  async moveEventToCalendar(event: CalendarEvent, calendarId: string) {
+    if (event.calendarId === calendarId) return;
+    if (this.#writes.isDraft(event.id)) {
+      diagnostics.report("Calendar", "The block is still being made.", { title: "Give it a second" });
+      return;
+    }
+    this.#series.dismiss();
+    const ref = this.#writes.ref(event);
+    const from = event.calendarId;
+    let current = event;
+    const move = async (to: string) => {
+      const moved = await this.#writes.moveToCalendar(ref, current, to);
+      if (moved) current = moved;
+      return moved !== null;
+    };
+
+    if (!(await move(calendarId))) return;
+    this.history.push({ undo: () => move(from), redo: () => move(calendarId) });
+  }
+
+  /**
    * Yes, no or maybe to an invitation. Not an edit of the event — it's the organizer's — but a
    * write like any other: the answer is drawn on the card and the block at once, since a no takes
    * the hour out of its category's total, and it waits its turn in the queue behind whatever

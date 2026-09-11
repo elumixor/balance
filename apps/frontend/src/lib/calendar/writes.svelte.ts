@@ -6,6 +6,7 @@ import { type EventFields, type Mapping, mappingFieldsOf, NO_PURPOSE, type Purpo
 import {
   createCalendarEvent,
   deleteCalendarEvent,
+  moveCalendarEvent,
   removeEventMapping,
   type SeriesTarget,
   saveEventMapping,
@@ -227,6 +228,35 @@ export class CalendarWrites {
       scope === "instance" ? () => drawn[0]?.event && applyCalendarEvent(drawn[0].event) : undefined,
     );
     return done !== null;
+  }
+
+  /**
+   * Hands the event to another calendar — a change of organizer, so every guest hears about it.
+   * A repeating event moves as a series, and every occurrence of it on screen goes with the
+   * master, which only a refetch can draw; a one-off is answered for in full by the write itself.
+   *
+   * Between two accounts the far side makes a new event, so the handle every step of this
+   * event's history holds is moved onto whatever came back.
+   */
+  async moveToCalendar(ref: EventRef, was: CalendarEvent, calendarId: string): Promise<CalendarEvent | null> {
+    if (ref.calendarId === calendarId) return was;
+    const seriesId = was.seriesId ?? undefined;
+    const drawn: Drawn[] = seriesId
+      ? this.#host.events.filter((e) => e.seriesId === seriesId).map((e) => ({ id: e.id, event: { ...e, calendarId } }))
+      : [{ id: ref.id, event: { ...was, id: ref.id, calendarId } }];
+    const moved = await this.run(
+      () =>
+        moveCalendarEvent(ref.id, {
+          calendarId: ref.calendarId,
+          destinationCalendarId: calendarId,
+          ...(seriesId ? { seriesId } : {}),
+        }),
+      drawn,
+      seriesId ? undefined : (event) => applyCalendarEvent(event, ref.id),
+    );
+    if (!moved) return null;
+    this.moveRef(ref, moved);
+    return moved;
   }
 
   async remove(ref: EventRef, occurrenceOf?: string): Promise<boolean> {

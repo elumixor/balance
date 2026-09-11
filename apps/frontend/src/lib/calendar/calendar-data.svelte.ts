@@ -494,6 +494,8 @@ class CalendarData {
   retimeEvent: CalendarEdits["retimeEvent"] = (...args) => this.#edits.retimeEvent(...args);
   patchEvent: CalendarEdits["patchEvent"] = (...args) => this.#edits.patchEvent(...args);
   respondToEvent: CalendarEdits["respondToEvent"] = (event, response) => this.#edits.respondToEvent(event, response);
+  moveEventToCalendar: CalendarEdits["moveEventToCalendar"] = (event, calendarId) =>
+    this.#edits.moveEventToCalendar(event, calendarId);
   deleteEvent: CalendarEdits["deleteEvent"] = (event, scope) => this.#edits.deleteEvent(event, scope);
 
   /** What a whole gathered batch counts as — one category over all of them, in one step. */

@@ -19,7 +19,7 @@ import {
   type SeriesScope,
   type UpdateEventInput,
 } from "./types";
-import { resolveTarget, targetFor, visibleCalendarIds } from "./write-target";
+import { resolveTarget, targetFor, visibleCalendarIds, type WriteTarget } from "./write-target";
 
 export interface ResolvedEvent extends ExternalEvent {
   readonly mapping:
@@ -307,6 +307,62 @@ export class CalendarEventsService {
     eventCache.invalidate(this.userId);
     const mappings = await this.#mappings.all();
     return { ...attachMappings([updated], mappings)[0], accountId: connection.accountId };
+  }
+
+  /**
+   * Hands the event to another calendar, which is what changing its organizer means: the new
+   * calendar's account becomes the host, and every guest sees the invitation coming from it.
+   *
+   * Inside one account Google does it in one call, keeping the event's id, its guests and their
+   * answers. Between two accounts nothing can: neither side can write the other's calendar, so
+   * the event is written again on the far side and taken off the near one. That copy is a new
+   * event — a new id, guests asked again, and whatever a device observed against the old
+   * occurrence left behind — which is why it is only reached for when the accounts differ.
+   *
+   * An occurrence can't go alone: a series lives on its master, so the master is what moves.
+   */
+  async move(qualifiedCalendarId: string, eventId: string, destination: string, seriesId?: string) {
+    const from = await targetFor(this.userId, qualifiedCalendarId);
+    const to = await targetFor(this.userId, destination);
+    const sameAccount = from.connection.accountId === to.connection.accountId;
+    const targetId = seriesId ?? eventId;
+    if (sameAccount && from.calendarId === to.calendarId) return this.get(qualifiedCalendarId, eventId);
+
+    const moved = sameAccount
+      ? await from.connection.provider.moveEvent(from.calendarId, targetId, to.calendarId)
+      : await this.#handOver(from, to, targetId);
+
+    await this.#mappings.relocateEvent(
+      { calendarId: from.calendarId, eventId: targetId },
+      { calendarId: to.calendarId, eventId: moved.id },
+    );
+    eventCache.invalidate(this.userId);
+    const mappings = await this.#mappings.all();
+    return { ...attachMappings([moved], mappings)[0], accountId: to.connection.accountId };
+  }
+
+  /** The cross-account half of a move: written on the far side, then taken off the near one. */
+  async #handOver(from: WriteTarget, to: WriteTarget, eventId: string): Promise<ExternalEvent> {
+    const source = await from.connection.provider.getEvent(from.calendarId, eventId);
+    const created = await to.connection.provider.createEvent({
+      calendarId: to.calendarId,
+      title: source.title,
+      description: source.description ?? undefined,
+      location: source.location ?? undefined,
+      start: source.start,
+      end: source.end,
+      allDay: source.allDay,
+      timeZone: source.timeZone ?? undefined,
+      recurrence: source.recurrence ?? undefined,
+      reminders: source.reminders,
+      attendees: guestsOf(source),
+    });
+    // A Meet link belongs to the calendar that made it, so the copy is given one of its own.
+    const withCall = source.conferenceUrl
+      ? await to.connection.provider.updateEvent(to.calendarId, created.id, { conference: "create" })
+      : created;
+    await from.connection.provider.deleteEvent(from.calendarId, eventId);
+    return withCall;
   }
 
   /**

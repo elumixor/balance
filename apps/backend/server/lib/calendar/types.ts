@@ -145,6 +145,11 @@ export interface CalendarProvider {
   createEvent(input: CreateEventInput): Promise<ExternalEvent>;
   updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent>;
   deleteEvent(calendarId: string, eventId: string): Promise<void>;
+  /**
+   * Hands the event to another of the same account's calendars, which is what changing its
+   * organizer means. Two accounts can't do this between them — see `CalendarEventsService.move`.
+   */
+  moveEvent(calendarId: string, eventId: string, destinationCalendarId: string): Promise<ExternalEvent>;
   /** How many occurrences a series still has, counted only as far as `upTo`. */
   countInstances(calendarId: string, seriesId: string, upTo: number): Promise<number>;
   /** Answers an invitation as the signed-in user. */

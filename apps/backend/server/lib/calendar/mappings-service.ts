@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "~/db";
 import { eventMappings, eventMappingWeights } from "~/db/schema";
 import { ActivityService, type ActivityWeightInput } from "~/lib/categories/service";
@@ -141,11 +141,11 @@ export class EventMappingService {
    * The same mapping under another event — for the second half of a series split in two, which
    * has to count as what the whole did. A mapping the target already has stands.
    */
-  async copy(from: MappingKey, toEventId: string): Promise<void> {
+  async copy(from: MappingKey, toEventId: string, toCalendarId = from.calendarId): Promise<void> {
     const source = await db.query.eventMappings.findFirst({ where: this.whereKey(from), with: { weights: true } });
     if (!source) return;
     await this.upsert({
-      calendarId: from.calendarId,
+      calendarId: toCalendarId,
       scope: from.scope,
       externalEventId: toEventId,
       activityId: source.activityId,
@@ -160,6 +160,48 @@ export class EventMappingService {
       hidden: source.hidden,
       endLocation: source.endLocation,
     });
+  }
+
+  /**
+   * The same mapping, under the event's new home — an event handed to another calendar is still
+   * the same hour, and what it counts as travels with it. The old row goes, since nothing points
+   * at it any more.
+   */
+  async relocate(from: MappingKey, to: { calendarId: string; externalEventId: string }): Promise<void> {
+    if (from.calendarId === to.calendarId && from.externalEventId === to.externalEventId) return;
+    await this.copy(from, to.externalEventId, to.calendarId);
+    await this.remove(from);
+  }
+
+  /**
+   * Everything this app knows about an event that has just changed calendars: both scopes, and —
+   * when the move kept the event's id, which a hand-over between two accounts doesn't — the
+   * occurrence rows underneath a series, whose ids are the master's with a date on the end.
+   */
+  async relocateEvent(
+    from: { calendarId: string; eventId: string },
+    to: { calendarId: string; eventId: string },
+  ): Promise<void> {
+    if (from.calendarId === to.calendarId && from.eventId === to.eventId) return;
+    for (const scope of ["instance", "series"] as const) {
+      await this.relocate(
+        { calendarId: from.calendarId, scope, externalEventId: from.eventId },
+        { calendarId: to.calendarId, externalEventId: to.eventId },
+      );
+    }
+    if (from.eventId !== to.eventId) return;
+    await db
+      .update(eventMappings)
+      .set({ calendarId: to.calendarId })
+      .where(
+        and(
+          eq(eventMappings.userId, this.userId),
+          eq(eventMappings.provider, PROVIDER),
+          eq(eventMappings.calendarId, from.calendarId),
+          sql`starts_with(${eventMappings.externalEventId}, ${`${from.eventId}_`})`,
+        ),
+      );
+    eventCache.invalidate(this.userId);
   }
 
   async remove(key: MappingKey): Promise<void> {

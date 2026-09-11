@@ -65,6 +65,14 @@
     void draft.write("The guest list wasn’t saved", data.patchEvent(event, { attendees }, { attendees: before }));
   }
 
+  /**
+   * Whose event it is: handing it to another calendar is what the calendar means by changing the
+   * organizer, so the name at the top of the guest list is the picker for it.
+   */
+  function chooseHost(calendarId: string) {
+    void draft.write("The organizer wasn’t changed", data.moveEventToCalendar(event, calendarId));
+  }
+
   function addCall() {
     void draft.write("The call wasn’t added", data.patchEvent(event, { conference: "create" }, { conference: "remove" }));
   }
@@ -89,7 +97,14 @@
     />
   {/if}
   {#if participants}
-    <ParticipantsRow attendees={event.attendees} organizer={event.organizer} editable={hosting} onchange={chooseGuests}>
+    <ParticipantsRow
+      attendees={event.attendees}
+      organizer={event.organizer}
+      editable={hosting}
+      calendarId={event.calendarId}
+      onchange={chooseGuests}
+      onhost={hosting ? chooseHost : undefined}
+    >
       {#snippet answer()}
         {#if answerable}
           <RsvpControl {event} {draft} />

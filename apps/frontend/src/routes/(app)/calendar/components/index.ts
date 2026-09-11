@@ -9,6 +9,7 @@ export { default as EventEditor } from "./EventEditor.svelte";
 export { default as FillWeekSheet } from "./FillWeekSheet.svelte";
 export { default as LocationRow } from "./LocationRow.svelte";
 export { default as MonthGrid } from "./MonthGrid.svelte";
+export { default as OrganizerPicker } from "./OrganizerPicker.svelte";
 export { default as OriginPicker } from "./OriginPicker.svelte";
 export { default as ParticipantsRow } from "./ParticipantsRow.svelte";
 export { default as PlanningBar } from "./PlanningBar.svelte";

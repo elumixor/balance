@@ -128,6 +128,20 @@ export class GoogleCalendarProvider implements CalendarProvider {
     return toExternalEvent(updated, await this.#calendar(calendarId));
   }
 
+  /**
+   * Google's own word for changing an event's organizer: the event is handed to another calendar
+   * of the same account, keeping its id, its guests and their answers. Only the account that owns
+   * both calendars can do it, and an occurrence can't go alone — the master carries the series.
+   */
+  async moveEvent(calendarId: string, eventId: string, destinationCalendarId: string): Promise<ExternalEvent> {
+    const params = new URLSearchParams({ destination: destinationCalendarId, sendUpdates: "all" });
+    const moved = await this.#request.send<GoogleEvent>(
+      `/calendars/${encode(calendarId)}/events/${encode(eventId)}/move?${params}`,
+      { method: "POST" },
+    );
+    return toExternalEvent(moved, await this.#calendar(destinationCalendarId));
+  }
+
   async deleteEvent(calendarId: string, eventId: string): Promise<void> {
     await this.#request.send<void>(`/calendars/${encode(calendarId)}/events/${encode(eventId)}`, {
       method: "DELETE",

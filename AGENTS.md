@@ -251,7 +251,11 @@ has one, so the card fetches the master once per series to read it; anything els
 occurrence is offered to the rest of the series the way a retitle is — every occurrence, or "from
 here on", which the server answers by ending the master's rule just before the occurrence and
 starting a new series where it stands (`calendar/series-split.ts`, pure and tested). A delete asks
-the same three ways first, since a series is the one thing the app can't put back. The translations are pure
+the same three ways first, since a series is the one thing the app can't put back. Who hosts it is
+the organizer's name on the guest list, which is a picker of every connected account's calendars
+(`OrganizerPicker`): choosing one hands the event over — one call inside an account, keeping its id
+and its guests' answers, and written again on the far side and deleted on the near one between two,
+because neither account can write the other's calendar. A repeating event moves as its master. The translations are pure
 and tested: `calendar/recurrence.ts` speaks RRULE, `reminder-lead.ts` reads "45m" and "at time",
 and `time-zones.ts` names zones by city, works out "GMT+2" on the day, and moves an instant
 between zones keeping its wall clock. Zones a person names — "Kyiv", "the office" — and the card
