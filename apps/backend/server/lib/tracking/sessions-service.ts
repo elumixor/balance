@@ -19,6 +19,13 @@ const MIN_MINUTES = 1;
 
 const MS_PER_MINUTE = 60_000;
 
+/**
+ * How far back a session is allowed to say it began. A watch that has been offline for longer
+ * than this is likelier to be carrying a wrong clock than a genuinely week-old timer, and a
+ * calendar event written into last month is worse than one written into this hour.
+ */
+const BACKDATE_LIMIT_MS = 7 * 24 * 60 * MS_PER_MINUTE;
+
 /** Google's answers that mean the event is not ours to move any more — see `moveEnd`. */
 const EVENT_GONE_STATUSES = new Set([403, 404, 410]);
 
@@ -64,6 +71,12 @@ export class TrackingSessionsService {
     /** An event already in the calendar the timer is for — no new one is written. */
     eventId?: string;
     calendarId?: string;
+    /**
+     * When the timer actually began, for one that was started while the wrist had no network and
+     * is only now being told about. Never in the future, and never further back than
+     * `BACKDATE_LIMIT_MS`, because a clock that is wrong is likelier than a timer that old.
+     */
+    startedAt?: Date;
   }): Promise<TrackingSessionDTO> {
     const category = await db.query.categories.findFirst({
       where: and(eq(categories.id, input.categoryId), eq(categories.userId, this.userId)),
@@ -76,7 +89,7 @@ export class TrackingSessionsService {
       return this.#startFor(category, input.calendarId, input.eventId, input.durationMinutes ?? null);
     }
 
-    const startedAt = new Date();
+    const startedAt = backdated(input.startedAt);
     const minutes = input.durationMinutes ?? PROVISIONAL_MINUTES;
     if (minutes < MIN_MINUTES) throw new ApiError("A session has to run for at least a minute");
     const plannedEnd = new Date(startedAt.getTime() + minutes * MS_PER_MINUTE);
@@ -186,12 +199,17 @@ export class TrackingSessionsService {
    * already on the calendar? Only a timer that wrote its own event is asked — one started from a
    * reminder already knows.
    */
-  async stop(): Promise<StoppedSession | null> {
+  async stop(at?: Date): Promise<StoppedSession | null> {
     const running = await this.#running();
     if (!running) return null;
     const { session, category } = running;
 
-    const endedAt = atLeastOneMinuteAfter(session.startedAt, new Date());
+    // `at` is for a watch that stopped a timer with no signal and is only now able to say so;
+    // without it the hours would grow by however long it stayed offline. A moment in the future
+    // is this one, for the same reason a backdated start is.
+    const now = new Date();
+    const requested = at && at < now ? at : now;
+    const endedAt = atLeastOneMinuteAfter(session.startedAt, requested);
     await this.#moveEnd(session, endedAt);
 
     const [stopped] = await db
@@ -202,6 +220,68 @@ export class TrackingSessionsService {
 
     const candidates = stopped.fromEvent ? [] : await this.#matcher.candidates(stopped);
     return { stopped: this.#toDTO(stopped, category), candidates };
+  }
+
+  /**
+   * A timer that ran and finished while the wrist had no network, written down after the fact.
+   *
+   * It is a start and a stop in one call rather than the two replayed in order: by the time the
+   * watch can reach the server the session is over, and replaying a start would leave a running
+   * timer on every other screen for as long as the stop took to follow. The event is written for
+   * the span it actually ran, so the week reads the same as if the watch had been online.
+   *
+   * Nothing here is asked about matching a planned event: that question was already asked and
+   * answered on the wrist while it was offline, or it was never going to be.
+   */
+  async log(input: {
+    categoryId: string;
+    startedAt: Date;
+    endedAt: Date;
+    title?: string;
+  }): Promise<TrackingSessionDTO> {
+    const category = await db.query.categories.findFirst({
+      where: and(eq(categories.id, input.categoryId), eq(categories.userId, this.userId)),
+    });
+    if (!category) throw new NotFoundError("That category no longer exists");
+
+    const startedAt = backdated(input.startedAt);
+    const endedAt = atLeastOneMinuteAfter(startedAt, input.endedAt > new Date() ? new Date() : input.endedAt);
+
+    const created = await this.#events.create({
+      start: startedAt,
+      end: endedAt,
+      title: input.title?.trim() || category.name,
+    });
+    const calendarId = qualifyCalendarId(created.accountId, created.calendarId);
+
+    try {
+      await this.#mappings.upsert({
+        calendarId: created.calendarId,
+        scope: "instance",
+        externalEventId: created.id,
+        weights: [{ categoryId: category.id, weightPercent: 100 }],
+      });
+
+      // Already closed as it goes in, so the partial unique index on the running session never
+      // sees it and a timer running right now — on the phone, say — is left alone.
+      const [session] = await db
+        .insert(trackingSessions)
+        .values({
+          userId: this.userId,
+          categoryId: category.id,
+          calendarId,
+          externalEventId: created.id,
+          startedAt,
+          plannedEndAt: endedAt,
+          endedAt,
+        })
+        .returning();
+
+      return this.#toDTO(session, category);
+    } catch (e) {
+      await this.#discard(calendarId, created.id);
+      throw e;
+    }
   }
 
   /**
@@ -326,4 +406,19 @@ function isOwn(event: ResolvedEvent): boolean {
 function atLeastOneMinuteAfter(start: Date, candidate: Date): Date {
   const floor = new Date(start.getTime() + MIN_MINUTES * MS_PER_MINUTE);
   return candidate > floor ? candidate : floor;
+}
+
+/**
+ * When a caller says a timer began. Absent is now; a moment in the future is now, because a clock
+ * running fast must not write the week ahead; anything older than the limit is refused rather than
+ * quietly moved, since silently logging the wrong hours is the one outcome nobody can spot.
+ */
+function backdated(startedAt: Date | undefined): Date {
+  const now = new Date();
+  if (!startedAt) return now;
+  if (startedAt > now) return now;
+  if (now.getTime() - startedAt.getTime() > BACKDATE_LIMIT_MS) {
+    throw new ApiError("That timer is too old to be recorded");
+  }
+  return startedAt;
 }

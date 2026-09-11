@@ -73,6 +73,10 @@ struct RunningSessionView: View {
 struct RunningControls: View {
     let session: ActiveSession
     let isBusy: Bool
+    /// Whether this timer is the watch's own — started with no signal, so nothing else knows about
+    /// it yet. Worth a mark, because "it is not on my phone" is otherwise a small mystery; not
+    /// worth a sentence, because the timer is running perfectly well.
+    var isLocal = false
     let onFinish: () -> Void
 
     private var tint: Color { Color(hex: session.categoryColor) }
@@ -91,6 +95,11 @@ struct RunningControls: View {
         .overlay(alignment: .top) {
             if isBusy {
                 ProgressView().controlSize(.mini).offset(y: -12)
+            } else if isLocal {
+                Image(systemName: "cloud.slash")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.secondary)
+                    .offset(y: -12)
             }
         }
     }

@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "0BA32AF97802BFE5B8E1D8D0"
+               BlueprintIdentifier = "981886D006B3D43BFC35FF0C"
                BuildableName = "BalanceWatch.app"
                BlueprintName = "BalanceWatch"
                ReferencedContainer = "container:App.xcodeproj">
@@ -30,7 +30,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "0BA32AF97802BFE5B8E1D8D0"
+            BlueprintIdentifier = "981886D006B3D43BFC35FF0C"
             BuildableName = "BalanceWatch.app"
             BlueprintName = "BalanceWatch"
             ReferencedContainer = "container:App.xcodeproj">
@@ -53,7 +53,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "0BA32AF97802BFE5B8E1D8D0"
+            BlueprintIdentifier = "981886D006B3D43BFC35FF0C"
             BuildableName = "BalanceWatch.app"
             BlueprintName = "BalanceWatch"
             ReferencedContainer = "container:App.xcodeproj">
@@ -70,7 +70,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "0BA32AF97802BFE5B8E1D8D0"
+            BlueprintIdentifier = "981886D006B3D43BFC35FF0C"
             BuildableName = "BalanceWatch.app"
             BlueprintName = "BalanceWatch"
             ReferencedContainer = "container:App.xcodeproj">

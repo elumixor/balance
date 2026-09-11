@@ -1,6 +1,7 @@
 import { setResponseStatus } from "h3";
 import { z } from "zod";
 import { authed } from "~/lib/http/authed";
+import { parseInstant } from "~/lib/http/schemas";
 import { TrackingSessionsService } from "~/lib/tracking/sessions-service";
 
 /**
@@ -17,10 +18,15 @@ export default authed(
       /** An event already on the calendar to time, with its qualified calendar id — no new event. */
       eventId: z.string().min(1).optional(),
       calendarId: z.string().min(1).optional(),
+      /** When it actually began, for a timer started on a wrist that had no network at the time. */
+      startedAt: z.string().optional(),
     },
   },
   async ({ body, event, user }) => {
-    const active = await new TrackingSessionsService(user.id).start(body);
+    const active = await new TrackingSessionsService(user.id).start({
+      ...body,
+      startedAt: body.startedAt ? parseInstant(body.startedAt, "startedAt") : undefined,
+    });
     setResponseStatus(event, 201);
     return { active };
   },

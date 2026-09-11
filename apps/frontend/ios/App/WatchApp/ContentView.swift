@@ -58,7 +58,11 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if clerk.session != nil || WatchPreview.isEnabled || DevAuth.isEnabled {
+            // A week that arrived earlier is enough to work from: the ring can be dragged, a timer
+            // can be started and run, and the calendar is told about it when there is something to
+            // tell. Waiting for a session before drawing any of that is what used to make a watch
+            // out of range — the exact moment a timer matters most — a card asking for a phone.
+            if clerk.session != nil || WatchPreview.isEnabled || DevAuth.isEnabled || summary.hasLoaded {
                 tracker
             } else {
                 NotSignedInView(isPairing: pairing.isPairing)
@@ -86,6 +90,12 @@ struct ContentView: View {
                             } label: {
                                 Image(systemName: "xmark")
                             }
+                        } else if phase == .idle {
+                            // The one thing on this watch that takes a sentence rather than a
+                            // gesture, and the only place a block can be moved from the wrist.
+                            NavigationLink(value: Route.voice) {
+                                Image(systemName: "mic.fill")
+                            }
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
@@ -103,6 +113,8 @@ struct ContentView: View {
                 .navigationDestination(for: Route.self) { route in
                     switch route {
                     case .calendar: CalendarSettingsView()
+                    case .upcoming: UpcomingView(events: summary.events, isStale: summary.isStale)
+                    case .voice: VoiceView { await reload() }
                     }
                 }
         }
@@ -288,9 +300,14 @@ struct ContentView: View {
         case .idle:
             // What is coming up is a thing to know at a glance, not while aiming: a finger on the
             // ring is halfway through a decision, and the line below it only competes for the eye.
-            NextEventLine(event: wheel.isPressing ? nil : summary.nextEvent)
-                .animation(.easeOut(duration: 0.15), value: wheel.isPressing)
-                .transition(.opacity)
+            // It is also the way into the whole list — the line answers "what is next", and the
+            // obvious next question is "and after that".
+            NavigationLink(value: Route.upcoming) {
+                NextEventLine(event: wheel.isPressing ? nil : summary.nextEvent, isStale: summary.isStale)
+            }
+            .buttonStyle(.plain)
+            .animation(.easeOut(duration: 0.15), value: wheel.isPressing)
+            .transition(.opacity)
         case .planning:
             if let planner {
                 RingButton(symbol: "play.fill", tint: Color(hex: planner.category.color)) {
@@ -303,6 +320,7 @@ struct ContentView: View {
                 RunningControls(
                     session: active,
                     isBusy: sessions.isBusy,
+                    isLocal: sessions.isLocal,
                     onFinish: { Task { await sessions.stop() } }
                 )
                 .transition(.opacity)
@@ -310,13 +328,18 @@ struct ContentView: View {
         }
     }
 
-    private var errorMessage: String? { sessions.errorMessage ?? summary.errorMessage }
+    private var errorMessage: String? {
+        sessions.errorMessage ?? summary.errorMessage ?? PendingWrites.shared.errorMessage
+    }
 
     // MARK: - Actions
 
     /// One request answers the whole screen, so the session controller is fed from it rather than
     /// asking again; handing it over is also what writes the widget's blob.
     private func reload() async {
+        // What is owed goes first: a timer that ran out of range is part of this week, and asking
+        // for the week before sending it would draw a ring with those hours missing.
+        await PendingWrites.shared.flush()
         await summary.refresh()
         if let value = summary.summary { sessions.apply(summary: value) }
         // The reminder is only ever scheduled when there is no iPhone to schedule it instead; the
@@ -365,6 +388,8 @@ struct ContentView: View {
 
 private enum Route: Hashable {
     case calendar
+    case upcoming
+    case voice
 }
 
 /// The one action under the ring, sitting in the screen's bottom margin with enough shadow under it
@@ -423,6 +448,9 @@ private struct MeasuredSizeKey: PreferenceKey {
 /// the home gesture, and a line this quiet can live in it without being in the way.
 private struct NextEventLine: View {
     let event: NextEvent?
+    /// Whether the week behind this line came off the disk rather than off the wire. Said with a
+    /// glyph rather than a sentence: the line is one line, and "what is next" is still true.
+    var isStale = false
 
     var body: some View {
         Group {
@@ -435,9 +463,15 @@ private struct NextEventLine: View {
                         Text(event.title)
                             .lineLimit(1)
                     }
-                    timing(for: event)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    HStack(spacing: 3) {
+                        if isStale {
+                            Image(systemName: "cloud.slash")
+                                .font(.system(size: 8))
+                        }
+                        timing(for: event)
+                    }
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 }
                 .font(.caption2)
                 .minimumScaleFactor(0.7)

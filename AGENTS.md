@@ -155,7 +155,14 @@ laptop.
   (`DialLayout`), the hours formatting, the Lucide-to-SF-Symbols map — because the widget runs in
   its own process and a second copy of that maths is a second, quietly different answer. The watch
   reads `/mobile/watch/summary` and writes through `/mobile/tracking/*`; `SessionController` is the
-  one place that knows what is running, and the only writer of the App Group snapshot. A calendar file shared into the
+  one place that knows what is running, and the only writer of the App Group snapshot. A wrist is
+  out of range often, and that is exactly when a timer matters, so nothing on this screen waits for
+  a connection: the last summary is kept in `WatchCache` and drawn before the first request goes
+  out, a timer started with no signal runs on the watch alone and is written to the calendar as one
+  finished block once there is one (`OfflineWrites.swift`, `POST /mobile/tracking/log`), and a stop
+  carries the moment it happened so the hours never grow while the watch is away. Speaking to the
+  calendar is `POST /mobile/watch/voice`, which hands the dictated sentence to the assistant's own
+  MCP tools — the watch never learns a second idea of what "tomorrow morning" means. A calendar file shared into the
   phone app arrives the same native-to-webview way: `IcsImportPlugin.swift` only carries it,
   `$lib/calendar/ics.ts` parses it, and the events are written through the ordinary calendar API. A file
   dropped on the Mac app or a browser tab goes to the same sheet through `IcsDropZone.svelte`.

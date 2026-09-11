@@ -187,12 +187,32 @@ and widget are wired in by `ios/wire_watch_targets.rb` — re-run it (it is idem
 ever regenerates the project, and commit the resulting `project.pbxproj`.
 
 The watch app is a tracker, not a second dashboard. `GET /mobile/watch/summary` answers the whole
-screen in one call — the week by category, the next calendar event, and any timer already running —
-and the ring it draws is a picker: press, drag out to a category, let go, choose a duration.
-Starting a timer is `POST /mobile/tracking/start`, which writes a real calendar event and maps it
-wholly to that category, so a session and a planned event are the same kind of thing by the time
-anything reads the week back. `stop` and `extend` move that event's end. The one setting the watch
-owns is where those events are written, on `CalendarSettingsView`.
+screen in one call — the week by category, everything still coming up, and any timer already
+running — and the ring it draws is a picker: press, drag out to a category, let go, choose a
+duration. Starting a timer is `POST /mobile/tracking/start`, which writes a real calendar event and
+maps it wholly to that category, so a session and a planned event are the same kind of thing by the
+time anything reads the week back. `stop` and `extend` move that event's end. The one setting the
+watch owns is where those events are written, on `CalendarSettingsView`.
+
+Below the ring is what is next, and tapping it opens the rest: `UpcomingView` lists the fortnight
+the summary covers under a heading per day, and an event opens to the one thing a wrist can usefully
+do about it — run its own timer, against the block already on the calendar rather than a second one
+beside it.
+
+None of that waits for a connection. Every summary that arrives is kept in `WatchCache`, and the
+screen is drawn from it before the first request goes out, so a watch out of range has a ring to
+drag and categories to start a timer against. A timer started with no signal runs on the watch alone
+— `LocalSession` carries it across a relaunch — and is written to the calendar as a single finished
+block through `POST /mobile/tracking/log` once there is a connection; a timer the server already
+knew about carries the moment it was stopped, so the hours never grow while the watch is away.
+`PendingWrites` is that queue, drained oldest first on every appearance: still offline and a write
+waits, refused and it is dropped with the reason on screen, because a record that can never succeed
+would otherwise block every one behind it.
+
+The mic in the corner is the one input a wrist has that can carry a sentence. `POST
+/mobile/watch/voice` hands the dictated words to the same MCP tools an assistant gets
+(`server/lib/watch/voice-service.ts`), so the calendar is read and changed by the services rather
+than by anything the watch has its own copy of, and the reply is one sentence written to be heard.
 
 Every screen goes through `SessionController`, the single answer to "what is running", and the week
 plus the running session are written to the `group.com.elumixor.balance` App Group as a

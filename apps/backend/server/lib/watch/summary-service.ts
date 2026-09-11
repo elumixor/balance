@@ -13,6 +13,13 @@ import { TrackingSessionsService } from "~/lib/tracking/sessions-service";
 
 /** How far ahead "what's next" is worth looking. Past a fortnight, nothing is next any more. */
 const LOOKAHEAD_DAYS = 14;
+
+/**
+ * How many of those the wrist is sent. The upcoming list is a screen somebody scrolls for a few
+ * seconds, not an agenda — and every event costs bytes on a watch that may be asking over
+ * Bluetooth.
+ */
+const UPCOMING_LIMIT = 20;
 const DAYS_PER_WEEK = 7;
 
 /**
@@ -26,7 +33,7 @@ export class WatchSummaryService {
   async summary(weekStart: string | undefined, now = new Date()) {
     const week = resolveWeek(weekStart, now);
 
-    const [data, upcoming, active, preferences] = await Promise.all([
+    const [data, resolved, active, preferences] = await Promise.all([
       new StatsRepository(this.userId).get(week.start, week.end),
       new CalendarEventsService(this.userId).resolve(now, addDays(now, LOOKAHEAD_DAYS)),
       new TrackingSessionsService(this.userId).current(),
@@ -34,7 +41,8 @@ export class WatchSummaryService {
     ]);
 
     const stats = categoryStatsCalculator.compute(data.categories, data.events, week);
-    const next = nextEvent(upcoming.events, now, active?.eventId);
+    const ahead = eventsAhead(resolved.events, now, active?.eventId).slice(0, UPCOMING_LIMIT);
+    const views = ahead.map((e) => nextEventView(e, now, data.categories));
 
     return {
       connected: data.connected,
@@ -51,7 +59,10 @@ export class WatchSummaryService {
           targetHours: s.targetHours,
           actualHours: s.actualHours,
         })),
-      nextEvent: next ? nextEventView(next, now, data.categories) : null,
+      // The first of the list and the list itself, because an older watch build only knows how to
+      // read the one — and the two can never disagree about which event is next this way.
+      nextEvent: views[0] ?? null,
+      upcoming: views,
       active,
       // The watch reminds about `nextEvent` itself when no iPhone is there to do it, and it has
       // no other way to learn how far ahead this account wants to be told.
@@ -65,17 +76,17 @@ export class WatchSummaryService {
 }
 
 /**
- * The soonest event still going. A running session has an event of its own, and the screen
- * already shows it as the timer at the top — offering it again as "what's next" would be the
- * watch telling you about itself.
+ * Everything still to come, soonest first. A running session has an event of its own, and the
+ * screen already shows it as the timer at the top — offering it again as "what's next" would be
+ * the watch telling you about itself.
  */
-function nextEvent(events: readonly ResolvedEvent[], now: Date, activeEventId: string | undefined) {
+function eventsAhead(events: readonly ResolvedEvent[], now: Date, activeEventId: string | undefined) {
   return events
     .filter(
       (e) =>
         !e.allDay && e.selfResponse !== "declined" && e.status !== "cancelled" && e.end > now && e.id !== activeEventId,
     )
-    .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
 function nextEventView(next: ResolvedEvent, now: Date, categories: readonly CategoryInput[]) {

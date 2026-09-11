@@ -217,14 +217,24 @@ public struct WatchSummary: Codable, Sendable {
     public let now: Date
     public let categories: [WatchCategory]
     public let nextEvent: NextEvent?
+    /// Everything still to come, soonest first, `nextEvent` included as its first entry. Optional
+    /// so an answer from an older server — and a cached summary written by an older build — still
+    /// decodes, falling back to the one event it did carry.
+    public let upcoming: [NextEvent]?
     public let active: ActiveSession?
     /// Absent from an older server's answer, which is what `defaults` is for.
     public let reminders: WatchReminders?
 
+    /// The list to draw: what the server sent, or the single next event when that is all there is.
+    public var events: [NextEvent] {
+        if let upcoming, !upcoming.isEmpty { return upcoming }
+        return nextEvent.map { [$0] } ?? []
+    }
+
     public init(
         connected: Bool, needsReconnect: Bool, weekStart: Date, now: Date,
         categories: [WatchCategory], nextEvent: NextEvent?, active: ActiveSession?,
-        reminders: WatchReminders? = nil
+        reminders: WatchReminders? = nil, upcoming: [NextEvent]? = nil
     ) {
         self.connected = connected
         self.needsReconnect = needsReconnect
@@ -232,6 +242,7 @@ public struct WatchSummary: Codable, Sendable {
         self.now = now
         self.categories = categories
         self.nextEvent = nextEvent
+        self.upcoming = upcoming
         self.active = active
         self.reminders = reminders
     }
@@ -289,5 +300,39 @@ public struct CalendarsResponse: Codable, Sendable {
         self.accounts = accounts
         self.visibleCalendarIds = visibleCalendarIds
         self.writeCalendarId = writeCalendarId
+    }
+}
+
+/// What one spoken instruction did. `changed` is the whole reason the reply carries anything
+/// besides words: it says whether the week on the wrist is now out of date.
+public struct VoiceReply: Codable, Sendable {
+    public let reply: String
+    public let changed: Bool
+    /// Which tools the assistant reached for, in order. Shown nowhere — kept because "it said it
+    /// moved something and nothing moved" is otherwise unanswerable from a watch.
+    public let used: [String]
+
+    public init(reply: String, changed: Bool, used: [String] = []) {
+        self.reply = reply
+        self.changed = changed
+        self.used = used
+    }
+}
+
+/// Whether a failure is the network being away rather than the server refusing.
+///
+/// The distinction is the whole of offline behaviour on the watch: a refusal is something to show
+/// and roll back, an absence is something to wait out with the timer still running. URLSession
+/// spells the absence several ways, and Clerk not having handed over a session yet is a third.
+public func isOfflineFailure(_ error: Error) -> Bool {
+    if let api = error as? APIError { return api.isOffline }
+    guard let url = error as? URLError else { return false }
+    switch url.code {
+    case .notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost, .cannotFindHost,
+         .timedOut, .dataNotAllowed, .internationalRoamingOff, .secureConnectionFailed,
+         .dnsLookupFailed, .resourceUnavailable:
+        return true
+    default:
+        return false
     }
 }

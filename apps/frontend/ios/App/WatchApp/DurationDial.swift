@@ -18,14 +18,14 @@ enum TrackingDuration: Equatable {
 /// nothing to act on, it only says how far through you are — so it is described either as a rhythm
 /// ("every ten minutes") or as a count of equal parts, whichever the session is easier to think
 /// about. An open-ended session can only have a rhythm: it has no length to divide.
-enum TickPlan: Equatable {
+enum TickPlan: Codable, Equatable {
     case off
     case every(minutes: Int)
     case parts(Int)
 }
 
 /// Everything the dial decides: how long, and how often to be nudged while it runs.
-struct TrackingPlan: Equatable {
+struct TrackingPlan: Codable, Equatable {
     /// Zero means an open-ended session — the dial reads it as "Free".
     var minutes: Int
     var ticks: TickPlan

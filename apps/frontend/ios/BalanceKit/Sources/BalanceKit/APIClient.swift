@@ -6,6 +6,19 @@ public enum APIError: Error, LocalizedError {
     case server(String)
     case invalidResponse
 
+    /// Whether this is the network being away rather than the server saying no.
+    ///
+    /// A watch loses its connection constantly, and "not signed in yet" is the same thing from the
+    /// app's point of view: the ticket has not come across from the phone, so there is nobody to
+    /// ask. Both mean *keep what is on the wrist and try again later*, which is what separates a
+    /// timer that goes on running from one that has to be rolled back.
+    public var isOffline: Bool {
+        switch self {
+        case .notAuthenticated: return true
+        case .server, .invalidResponse: return false
+        }
+    }
+
     public var errorDescription: String? {
         switch self {
         case .notAuthenticated: return "Not signed in."
@@ -24,6 +37,10 @@ public final class APIClient {
     public var baseURL = DevAuth.apiBaseURL ?? URL(string: "https://balance-app-mauve.vercel.app")!
 
     private let session = URLSession.shared
+
+    /// A wrist does not wait. Past this the request has failed as far as the person is concerned,
+    /// and the offline path — keep the timer, queue the write — is a better answer than a spinner.
+    private let timeout: TimeInterval = 20
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
         // Not `.iso8601`: the backend's timestamps carry milliseconds, which that strategy refuses.
@@ -59,7 +76,7 @@ public final class APIClient {
         } else {
             throw APIError.notAuthenticated
         }
-        var request = URLRequest(url: url(path: path, query: query))
+        var request = URLRequest(url: url(path: path, query: query), timeoutInterval: timeout)
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -137,7 +154,7 @@ public final class APIClient {
     /// event instead of writing one of its own.
     public func startTracking(
         categoryId: String, durationMinutes: Int? = nil, title: String? = nil,
-        eventId: String? = nil, calendarId: String? = nil
+        eventId: String? = nil, calendarId: String? = nil, startedAt: Date? = nil
     ) async throws -> ActiveSession {
         struct Body: Encodable {
             let categoryId: String
@@ -145,6 +162,7 @@ public final class APIClient {
             let title: String?
             let eventId: String?
             let calendarId: String?
+            let startedAt: String?
         }
         struct Response: Decodable { let active: ActiveSession }
         let response: Response = try await send(
@@ -152,22 +170,54 @@ public final class APIClient {
             method: "POST",
             body: Body(
                 categoryId: categoryId, durationMinutes: durationMinutes, title: title,
-                eventId: eventId, calendarId: calendarId
+                eventId: eventId, calendarId: calendarId,
+                startedAt: startedAt.map(ISO8601.string(from:))
             )
         )
         return response.active
+    }
+
+    /// A timer that ran and finished while the watch had no network, told to the server once it
+    /// has one again — one call rather than a start and a stop replayed in order, so no other
+    /// screen ever shows a timer that ended an hour ago as running.
+    @discardableResult
+    public func logTracking(
+        categoryId: String, startedAt: Date, endedAt: Date, title: String? = nil
+    ) async throws -> ActiveSession {
+        struct Body: Encodable {
+            let categoryId: String
+            let startedAt: String
+            let endedAt: String
+            let title: String?
+        }
+        struct Response: Decodable { let session: ActiveSession }
+        let response: Response = try await send(
+            path: "/mobile/tracking/log",
+            method: "POST",
+            body: Body(
+                categoryId: categoryId,
+                startedAt: ISO8601.string(from: startedAt),
+                endedAt: ISO8601.string(from: endedAt),
+                title: title
+            )
+        )
+        return response.session
     }
 
     /// Stops the running timer and returns what was stopped — nil if nothing was running, since
     /// asking twice is not an error, only a watch face that was a moment behind — along with the
     /// planned events the timer might have been for.
     @discardableResult
-    public func stopTracking() async throws -> StoppedSession {
+    public func stopTracking(at endedAt: Date? = nil) async throws -> StoppedSession {
+        struct Body: Encodable { let endedAt: String? }
         struct Response: Decodable {
             let stopped: ActiveSession?
             let candidates: [MatchCandidate]?
         }
-        let response: Response = try await send(path: "/mobile/tracking/stop", method: "POST")
+        let response: Response = try await send(
+            path: "/mobile/tracking/stop", method: "POST",
+            body: Body(endedAt: endedAt.map(ISO8601.string(from:)))
+        )
         return StoppedSession(stopped: response.stopped, candidates: response.candidates ?? [])
     }
 
@@ -196,6 +246,18 @@ public final class APIClient {
             path: "/mobile/tracking/extend", method: "POST", body: Body(durationMinutes: durationMinutes)
         )
         return response.active
+    }
+
+    // MARK: Voice
+
+    /// One dictated instruction, carried out on the server. The wrist only says the words: what
+    /// they mean is worked out where the tools that can act on this account live.
+    public func sendVoiceCommand(text: String, timeZone: String = TimeZone.current.identifier) async throws -> VoiceReply {
+        struct Body: Encodable {
+            let text: String
+            let timeZone: String
+        }
+        return try await send(path: "/mobile/watch/voice", method: "POST", body: Body(text: text, timeZone: timeZone))
     }
 
     // MARK: Calendars

@@ -46,13 +46,35 @@ enum WatchPreview {
                         targetHours: 10, actualHours: 7
                     ),
                 ],
-                nextEvent: NextEvent(
+                nextEvent: sampleEvents(now).first,
+                active: nil,
+                upcoming: sampleEvents(now)
+            )
+        }
+
+        /// A day and a half of made-up calendar, so the upcoming list has day headings to draw and
+        /// a block already running to show the "now" row against.
+        private static func sampleEvents(_ now: Date) -> [NextEvent] {
+            [
+                NextEvent(
                     id: "e1", calendarId: "c1", title: "Design review",
                     start: now.addingTimeInterval(35 * 60), end: now.addingTimeInterval(95 * 60),
-                    inProgress: false, categoryColor: "#38BDF8", categoryIcon: "users"
+                    inProgress: false, categoryId: "2", categoryName: "Meetings",
+                    categoryColor: "#38BDF8", categoryIcon: "users"
                 ),
-                active: nil
-            )
+                NextEvent(
+                    id: "e2", calendarId: "c1", title: "Write the release notes",
+                    start: now.addingTimeInterval(3 * 3600), end: now.addingTimeInterval(5 * 3600),
+                    inProgress: false, categoryId: "1", categoryName: "Deep work",
+                    categoryColor: "#7C5CFF", categoryIcon: "brain"
+                ),
+                NextEvent(
+                    id: "e3", calendarId: "c1", title: "Swim",
+                    start: now.addingTimeInterval(26 * 3600), end: now.addingTimeInterval(27 * 3600),
+                    inProgress: false, categoryId: "3", categoryName: "Sport",
+                    categoryColor: "#34D399", categoryIcon: "dumbbell"
+                ),
+            ]
         }
     #else
         static let isEnabled = false

@@ -32,6 +32,11 @@ final class SessionController {
     private(set) var isBusy = false
     var errorMessage: String?
 
+    /// True while the running timer is the watch's own — started with no signal, so nothing else
+    /// knows about it yet. It is not an error state: the session runs, ticks and ends exactly as
+    /// any other, and is written to the calendar as one finished block once there is a connection.
+    private(set) var isLocal = false
+
     /// Set when a stop comes back with something to ask, cleared by answering it either way.
     var pendingMatch: MatchPrompt?
 
@@ -48,9 +53,24 @@ final class SessionController {
     /// simply doesn't tick.
     private var ticks = TrackingPlan(minutes: 0, ticks: .off)
 
+    /// The title a locally-run session's block should carry, and the event it was run for. Kept
+    /// beside the session because the write that finally records it happens long after the screen
+    /// that knew any of this has gone.
+    private var localTitle: String?
+    private var localEvent: (id: String, calendarId: String)?
+
     init(active: ActiveSession? = nil) {
         self.active = active
         self.confirmed = active
+        // A session started out of range has to survive the app being killed: a watch is put down
+        // mid-run and picked up an hour later more often than it is watched.
+        if active == nil, let stored = LocalSession.load() {
+            self.active = stored.session
+            isLocal = true
+            ticks = stored.ticks
+            localTitle = stored.title
+            localEvent = stored.eventId.flatMap { id in stored.calendarId.map { (id, $0) } }
+        }
     }
 
     var isRunning: Bool { active != nil }
@@ -72,6 +92,12 @@ final class SessionController {
     /// taken either way, since nothing else is racing for it.
     func apply(summary: WatchSummary) {
         week = summary
+        // A session the server has never heard of is not contradicted by the server not mentioning
+        // it. Only the write that records it ends it.
+        if isLocal {
+            publish()
+            return
+        }
         // Sample data never carries a session, so a preview run keeps whatever it started itself.
         if !isBusy, !(WatchPreview.isEnabled && active != nil) {
             confirmed = summary.active
@@ -102,6 +128,8 @@ final class SessionController {
             plannedEndAt: durationMinutes.map { Date().addingTimeInterval(TimeInterval($0 * 60)) }
         )
         active = placeholder
+        localTitle = title
+        localEvent = nil
         TrackingAlarm.playConfirmation()
         await perform {
             try await APIClient.shared.startTracking(
@@ -140,6 +168,8 @@ final class SessionController {
             plannedEndAt: Date().addingTimeInterval(TimeInterval(plan.minutes * 60))
         )
         active = placeholder
+        localTitle = event.title
+        localEvent = (event.id, event.calendarId)
         TrackingAlarm.playConfirmation()
         await perform {
             try await APIClient.shared.startTracking(
@@ -158,21 +188,52 @@ final class SessionController {
     /// which is left in `pendingMatch` for the screen to ask, since the controller outlives it and
     /// the stop may have been waited out with the wrist down.
     func stop(alerting: Bool = false) async {
-        guard active != nil else { return }
+        guard let ending = active else { return }
+        let endedAt = Date()
+        let wasLocal = isLocal
+        let title = localTitle
+        let event = localEvent
         ticks = TrackingPlan(minutes: 0, ticks: .off)
         active = nil
+        isLocal = false
+        localTitle = nil
+        localEvent = nil
         stopWatchingForEnd()
         if alerting { TrackingAlarm.playCompletion() } else { TrackingAlarm.playConfirmation() }
+
+        // A session the server never heard of is told as one finished block rather than as a start
+        // it has already missed. The queue sends it now if there is a signal and the next time
+        // there is one if there isn't, so this path is the same whether the network came back a
+        // minute ago or hasn't yet.
+        if wasLocal {
+            publish()
+            PendingWrites.shared.enqueue(
+                .logged(
+                    id: UUID(), categoryId: ending.categoryId, startedAt: ending.startedAt,
+                    endedAt: endedAt, title: title, eventId: event?.id, calendarId: event?.calendarId
+                )
+            )
+            await PendingWrites.shared.flush()
+            return
+        }
+
         isBusy = true
         errorMessage = nil
         defer { isBusy = false }
         do {
-            let result = try await APIClient.shared.stopTracking()
+            let result = try await APIClient.shared.stopTracking(at: endedAt)
             confirm(nil)
             if let stopped = result.stopped, !result.candidates.isEmpty {
                 pendingMatch = MatchPrompt(session: stopped, candidates: result.candidates)
             }
         } catch {
+            // Out of range, the session is still over: it ended when the finger said it did, and
+            // the queue carries that moment so the hours don't grow while the watch is away.
+            if isOfflineFailure(error) {
+                confirm(nil)
+                PendingWrites.shared.enqueue(.stopped(id: UUID(), at: endedAt))
+                return
+            }
             report(error)
             // A rollback to `confirmed` normally undoes the optimistic edit, but here that would
             // hand the end watcher the same (already past) `plannedEndAt` it just fired on, so it
@@ -203,7 +264,13 @@ final class SessionController {
                 sessionId: prompt.session.id, calendarId: candidate.calendarId, eventId: candidate.id
             )
         } catch {
-            report(error)
+            guard isOfflineFailure(error) else { return report(error) }
+            PendingWrites.shared.enqueue(
+                .matched(
+                    id: UUID(), sessionId: prompt.session.id,
+                    calendarId: candidate.calendarId, eventId: candidate.id
+                )
+            )
         }
     }
 
@@ -222,8 +289,16 @@ final class SessionController {
         errorMessage = nil
         defer { isBusy = false }
         do {
+            isLocal = false
             confirm(try await work())
         } catch {
+            // The whole of "a timer works out of range": the optimistic session is not rolled
+            // back, it is kept as the watch's own and recorded when the stop can be sent.
+            if isOfflineFailure(error) {
+                isLocal = active != nil
+                publish()
+                return
+            }
             report(error)
             active = confirmed
             publish()
@@ -288,6 +363,18 @@ final class SessionController {
     /// refresh to confirm it. Before any summary has arrived the week already in the blob is left
     /// where it is, so a session started on a cold launch doesn't blank the complication's ring.
     private func publish() {
+        // Written on every change rather than only at the start, because the plan and the ticks
+        // can move under a running session and what comes back after a relaunch has to be the
+        // session as it stands, not as it was begun.
+        LocalSession.save(
+            isLocal && active != nil
+                ? LocalSession.Stored(
+                    session: active!, ticks: ticks, title: localTitle,
+                    eventId: localEvent?.id, calendarId: localEvent?.calendarId
+                )
+                : nil
+        )
+
         let base = week.map(WatchSnapshot.init(summary:)) ?? WatchSharedState.load()
         let snapshot = WatchSnapshot(
             categories: base?.categories ?? [],
