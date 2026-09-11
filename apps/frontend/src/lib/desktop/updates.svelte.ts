@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { check } from "@tauri-apps/plugin-updater";
+import { buildInfo } from "$lib/core/build-info";
 import * as persist from "$lib/core/persist";
 import { isDesktop } from "./platform";
 import { report } from "./report";
@@ -22,6 +23,9 @@ type UpdateStage = "idle" | "checking" | "downloading" | "ready";
 /** The device keeps when it last heard from the manifest, so a fresh launch can say so. */
 const CHECKED_AT_KEY = "updates:checkedAt";
 
+/** And what the manifest said the newest version was, so "this is the latest" survives a relaunch. */
+const LATEST_KEY = "updates:latest";
+
 /**
  * The macOS app, keeping itself current.
  *
@@ -43,6 +47,12 @@ class DesktopUpdates {
   progress = $state<number | null>(null);
   /** When the manifest last answered, whatever it said. Null until it has, ever, on this device. */
   checkedAt = $state<number | null>(persist.readSetting<number>(CHECKED_AT_KEY) ?? null);
+  /**
+   * The newest version the manifest has named. Equal to the running one when the check found
+   * nothing — which is the only way the app can say "this is the latest" rather than leaving a
+   * silent check looking like one that never happened.
+   */
+  latest = $state<string | null>(persist.readSetting<string>(LATEST_KEY) ?? null);
 
   #timer: ReturnType<typeof setInterval> | null = null;
   #first: ReturnType<typeof setTimeout> | null = null;
@@ -72,6 +82,8 @@ class DesktopUpdates {
       const update = await check();
       this.checkedAt = Date.now();
       persist.writeSetting(CHECKED_AT_KEY, this.checkedAt);
+      this.latest = update?.version ?? buildInfo.version;
+      persist.writeSetting(LATEST_KEY, this.latest);
       if (!update) {
         this.stage = "idle";
         return;
@@ -102,6 +114,11 @@ class DesktopUpdates {
       this.progress = null;
       report("The update check failed", e);
     }
+  }
+
+  /** Whether the last answer said the bundle on disk is already the newest one. */
+  get isLatest() {
+    return this.stage === "idle" && this.latest !== null && this.latest === buildInfo.version;
   }
 
   /** Quit and come back on the version just installed. */

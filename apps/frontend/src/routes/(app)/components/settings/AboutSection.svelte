@@ -6,7 +6,7 @@
   import { isDesktop, isNativeShell } from "$lib/desktop/platform";
   import { desktopUpdates } from "$lib/desktop/updates.svelte";
   import { APP_STORE_URL } from "$lib/mobile/platform";
-  import { Download, ExternalLink, Info, RefreshCw, RotateCcw } from "lucide-svelte";
+  import { Check, Download, ExternalLink, Info, RefreshCw, RotateCcw } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
 
   /**
@@ -25,20 +25,27 @@
     void desktopDownload.ensure();
   });
 
+  const latest = $derived(desktopUpdates.isLatest);
+
   const checked = $derived.by(() => {
     switch (desktopUpdates.stage) {
       case "ready":
-        return `${desktopUpdates.installed} ready`;
+        return `${desktopUpdates.installed} ready — restart to use it`;
       case "checking":
         return "Checking…";
       case "downloading":
         return desktopUpdates.progress === null ? "Downloading…" : `Downloading ${Math.round(desktopUpdates.progress * 100)}%`;
     }
     const at = desktopUpdates.checkedAt;
-    if (at === null) return "Not checked yet";
+    if (at === null) return "Not checked for updates yet";
     const date = new Date(at);
     const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
     const day = date.toDateString() === new Date().toDateString() ? "today" : date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    // A check that found nothing used to read as a check that never happened, so the answer is
+    // said out loud and the timestamp is what backs it up.
+    const when = `checked ${day} at ${time}`;
+    if (latest) return `Up to date · ${when}`;
+    if (desktopUpdates.latest) return `${desktopUpdates.latest} available · ${when}`;
     return `Checked ${day} at ${time}`;
   });
 
@@ -49,22 +56,26 @@
   <SettingRow icon={Info} label="Balance" note={facts} flat>
     {#if isDesktop}
       <Button
-        label={ready ? "Restart" : "Check now"}
-        title={ready ? "Quit and come back on the new version" : "Ask for a newer version now"}
+        label={ready ? "Restart" : latest ? "Up to date" : "Check now"}
+        title={ready
+          ? "Quit and come back on the new version"
+          : latest
+            ? `Version ${buildInfo.version} is the newest there is — ask again`
+            : "Ask for a newer version now"}
         variant="outline"
         size="sm"
         disabled={busy}
         onclick={() => void (ready ? desktopUpdates.restart() : desktopUpdates.check())}
       >
         {#snippet icon()}
-          {#if ready}<RotateCcw size={14} />{:else}<RefreshCw size={14} class={busy ? "animate-spin" : ""} />{/if}
+          {#if ready}<RotateCcw size={14} />{:else if latest}<Check size={14} />{:else}<RefreshCw size={14} class={busy ? "animate-spin" : ""} />{/if}
         {/snippet}
       </Button>
     {/if}
     {#if !isNativeShell}
       <!-- A link, not a button: `download` is what keeps the DMG out of a new tab. -->
       <Button
-        label="Mac"
+        label={build ? `Mac ${build.version}` : "Mac"}
         href={DESKTOP_DOWNLOAD_URL}
         download
         title={build ? `Balance for Mac · ${build.version} · ${build.arch} · ${desktopDownload.size}` : "Balance for Mac"}
