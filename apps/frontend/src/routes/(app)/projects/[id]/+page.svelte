@@ -5,12 +5,13 @@
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { ProjectStatus } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
-  import { Plus, Trash2 } from "lucide-svelte";
+  import { CircleDot, Clock, Plus, Trash2 } from "lucide-svelte";
   import {
     Breadcrumb,
     FieldsPanel,
     MembersRow,
     NotionLinkRow,
+    PropertyRow,
     SubProjects,
     TaskBoard,
     TaskInspector,
@@ -98,18 +99,22 @@
             </div>
           </div>
 
-          <div class="w-full shrink-0 space-y-1 md:w-72">
-            <div class="flex items-center justify-between gap-2 px-1">
-              <span class="t-micro text-fg-muted">Hours a week</span>
+          <div class="w-full shrink-0 space-y-0.5 md:w-72">
+            <PropertyRow label="Hours a week">
+              {#snippet icon()}
+                <span class="flex size-6 items-center justify-center"><Clock size={13} /></span>
+              {/snippet}
               <NumberField
                 value={project.hoursPerWeek}
                 unit="h"
                 ariaLabel="Hours a week"
                 onchange={(hoursPerWeek) => data.update(project.id, { hoursPerWeek })}
               />
-            </div>
-            <div class="flex items-center justify-between gap-2 px-1">
-              <span class="t-micro text-fg-muted">Status</span>
+            </PropertyRow>
+            <PropertyRow label="Status">
+              {#snippet icon()}
+                <span class="flex size-6 items-center justify-center"><CircleDot size={13} /></span>
+              {/snippet}
               <Select
                 variant="bare"
                 label="Status"
@@ -117,7 +122,7 @@
                 options={STATUSES}
                 onchange={(status) => data.setStatus(project, status)}
               />
-            </div>
+            </PropertyRow>
             <NotionLinkRow {project} />
             <FieldsPanel {project} />
           </div>

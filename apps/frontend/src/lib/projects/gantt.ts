@@ -4,46 +4,75 @@ export interface Span {
   readonly end: string;
 }
 
-/** One column of the grid behind the bars: a week, named by the month it starts in. */
-export interface Column {
+/** How far apart two days are drawn. The name is what the control offers to zoom to. */
+export interface Scale {
+  readonly key: ScaleKey;
+  readonly label: string;
+  readonly dayWidth: number;
+  /** What one column of the lower header row covers. */
+  readonly tick: "day" | "week" | "month";
+  /** Whether a day column has room to say which weekday it is. */
+  readonly weekdays: boolean;
+}
+
+export type ScaleKey = "week" | "month" | "quarter" | "year";
+
+/** One column of the header: a day, a week, a month or a year, placed like a bar. */
+export interface Tick {
   readonly key: string;
   readonly label: string;
-  readonly leftPercent: number;
-  readonly widthPercent: number;
+  readonly left: number;
+  readonly width: number;
+  readonly weekend: boolean;
+  readonly today: boolean;
 }
 
-export interface Bar {
-  readonly leftPercent: number;
-  readonly widthPercent: number;
+/** Where a bar sits, and whether it runs off either end of what is drawn. */
+export interface Placement {
+  readonly left: number;
+  readonly width: number;
+  readonly clippedStart: boolean;
+  readonly clippedEnd: boolean;
 }
+
+/** What a pointer is doing to a bar: carrying the whole of it, or one of its two edges. */
+export type DragMode = "move" | "start" | "end";
 
 const MS_PER_DAY = 86_400_000;
-/** A timeline shorter than this says nothing about where anything sits. */
-const MIN_DAYS = 21;
-const PAD_DAYS = 3;
 const DAYS_PER_WEEK = 7;
+/** A window narrower than a screen has nothing to scroll and nothing to say either side of now. */
+const MIN_WINDOW_PX = 1600;
+/** A bar of one day at the year scale is three pixels, which nobody can hit. */
+const MIN_BAR_PX = 6;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export const SCALES: readonly Scale[] = [
+  { key: "week", label: "Week", dayWidth: 52, tick: "day", weekdays: true },
+  { key: "month", label: "Month", dayWidth: 26, tick: "day", weekdays: false },
+  { key: "quarter", label: "Quarter", dayWidth: 9, tick: "week", weekdays: false },
+  { key: "year", label: "Year", dayWidth: 3.2, tick: "month", weekdays: false },
+];
+
+export const DEFAULT_SCALE: ScaleKey = "month";
+
+export function scaleOf(key: ScaleKey): Scale {
+  return SCALES.find((scale) => scale.key === key) ?? SCALES[1];
+}
 
 export function addDays(day: string, count: number): string {
-  return new Date(Date.parse(`${day}T00:00:00Z`) + count * MS_PER_DAY).toISOString().slice(0, 10);
+  return new Date(dateOf(day).getTime() + count * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
 /** How many days from `from` to `to`, so the same day is zero and tomorrow is one. */
 export function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / MS_PER_DAY);
+  return Math.round((dateOf(to).getTime() - dateOf(from).getTime()) / MS_PER_DAY);
 }
 
 /** The smallest run of days covering all of them, or null when there are none. */
 export function unionOf(spans: readonly (Span | null)[]): Span | null {
   const known = spans.filter((span): span is Span => span !== null);
   return known.length === 0 ? null : coveringOf(known);
-}
-
-function coveringOf(spans: readonly [Span, ...Span[]] | readonly Span[]): Span {
-  return spans.reduce((covering, span) => ({
-    start: span.start < covering.start ? span.start : covering.start,
-    end: span.end > covering.end ? span.end : covering.end,
-  }));
 }
 
 /**
@@ -63,46 +92,147 @@ export function spanOf<
 }
 
 /**
- * The window the grid draws: everything dated, today, and a few days either side so a bar never
- * touches the edge. An empty plan still gets three weeks, since a grid with no width is a line.
+ * The run of days the grid can be scrolled across: everything dated and today, widened to whole
+ * months so a header column is never half a month, and then to at least a screenful so there is
+ * somewhere to scroll and room either side of now to drag something into.
  */
-export function boundsOf(spans: readonly (Span | null)[], today: string): Span {
+export function windowOf(spans: readonly (Span | null)[], today: string, scale: Scale): Span {
   const known = spans.filter((span): span is Span => span !== null);
   const union = coveringOf([{ start: today, end: today }, ...known]);
-  const start = addDays(union.start, -PAD_DAYS);
-  const end = addDays(union.end, PAD_DAYS);
+  const start = monthStart(union.start);
+  const end = monthEnd(union.end);
+  const needed = Math.ceil(MIN_WINDOW_PX / scale.dayWidth);
   const days = daysBetween(start, end) + 1;
-  return { start, end: days < MIN_DAYS ? addDays(start, MIN_DAYS - 1) : end };
+  return days >= needed ? { start, end } : { start, end: monthEnd(addDays(end, needed - days)) };
 }
 
-/** Where a bar sits in the window, as the two percentages a style needs. */
-export function barOf(span: Span, bounds: Span): Bar {
-  const total = daysBetween(bounds.start, bounds.end) + 1;
-  const from = Math.max(0, daysBetween(bounds.start, span.start));
-  const to = Math.min(total, daysBetween(bounds.start, span.end) + 1);
-  return { leftPercent: (from / total) * 100, widthPercent: (Math.max(to - from, 1) / total) * 100 };
+export function widthOf(window: Span, scale: Scale): number {
+  return (daysBetween(window.start, window.end) + 1) * scale.dayWidth;
 }
 
-/** The weekly columns behind the bars, the first one clipped to where the window starts. */
-export function columnsOf(bounds: Span): Column[] {
-  const total = daysBetween(bounds.start, bounds.end) + 1;
-  const columns: Column[] = [];
-  for (let offset = 0; offset < total; offset += DAYS_PER_WEEK) {
-    const day = addDays(bounds.start, offset);
-    const width = Math.min(DAYS_PER_WEEK, total - offset);
-    columns.push({
-      key: day,
-      label: labelFor(day, offset === 0),
-      leftPercent: (offset / total) * 100,
-      widthPercent: (width / total) * 100,
-    });
+/** Where a day's column starts, in pixels from the left of the window. */
+export function offsetOf(day: string, window: Span, scale: Scale): number {
+  return daysBetween(window.start, day) * scale.dayWidth;
+}
+
+/** Which day a pointer is over — the inverse of `offsetOf`, clamped to what is drawn. */
+export function dayAt(x: number, window: Span, scale: Scale): string {
+  const total = daysBetween(window.start, window.end);
+  return addDays(window.start, Math.min(Math.max(Math.floor(x / scale.dayWidth), 0), total));
+}
+
+/** Where a bar sits in the window, clipped to it, saying which ends it was clipped at. */
+export function placeOf(span: Span, window: Span, scale: Scale): Placement {
+  const total = daysBetween(window.start, window.end) + 1;
+  const from = daysBetween(window.start, span.start);
+  const to = daysBetween(window.start, span.end) + 1;
+  const left = Math.max(from, 0);
+  const right = Math.min(to, total);
+  return {
+    left: left * scale.dayWidth,
+    width: Math.max((right - left) * scale.dayWidth, MIN_BAR_PX),
+    clippedStart: from < 0,
+    clippedEnd: to > total,
+  };
+}
+
+/** What a bar becomes after a pointer has carried it, or one of its edges, so many days. */
+export function dragged(span: Span, mode: DragMode, days: number): Span {
+  if (mode === "move") return { start: addDays(span.start, days), end: addDays(span.end, days) };
+  if (mode === "start") {
+    const start = addDays(span.start, days);
+    return { start: start > span.end ? span.end : start, end: span.end };
   }
-  return columns;
+  const end = addDays(span.end, days);
+  return { start: span.start, end: end < span.start ? span.start : end };
 }
 
-/** A column says its month when it opens one, and its day of the month otherwise. */
-function labelFor(day: string, first: boolean) {
-  const date = new Date(`${day}T00:00:00Z`);
-  const month = MONTHS[date.getUTCMonth()];
-  return first || date.getUTCDate() <= DAYS_PER_WEEK ? `${month} ${date.getUTCDate()}` : `${date.getUTCDate()}`;
+/** The lower header row, and the lines behind the bars: one column per day, week or month. */
+export function ticksOf(window: Span, scale: Scale, today: string): Tick[] {
+  const total = daysBetween(window.start, window.end) + 1;
+  const ticks: Tick[] = [];
+  let offset = 0;
+  while (offset < total) {
+    const day = addDays(window.start, offset);
+    const next = nextOffset(window, scale, offset, total);
+    const weekday = dateOf(day).getUTCDay();
+    ticks.push({
+      key: day,
+      label: tickLabel(day, scale),
+      left: offset * scale.dayWidth,
+      width: (next - offset) * scale.dayWidth,
+      weekend: scale.tick === "day" && (weekday === 0 || weekday === 6),
+      today: scale.tick === "day" && day === today,
+    });
+    offset = next;
+  }
+  return ticks;
+}
+
+/** The upper header row: the month each stretch of columns belongs to, or the year at that scale. */
+export function periodsOf(window: Span, scale: Scale): Tick[] {
+  const periods: Tick[] = [];
+  let day = window.start;
+  while (day <= window.end) {
+    const last = scale.tick === "month" ? yearEnd(day) : monthEnd(day);
+    const end = last < window.end ? last : window.end;
+    periods.push({
+      key: day,
+      label: periodLabel(day, scale),
+      left: offsetOf(day, window, scale),
+      width: (daysBetween(day, end) + 1) * scale.dayWidth,
+      weekend: false,
+      today: false,
+    });
+    day = addDays(end, 1);
+  }
+  return periods;
+}
+
+function nextOffset(window: Span, scale: Scale, offset: number, total: number): number {
+  const day = addDays(window.start, offset);
+  if (scale.tick === "day") return offset + 1;
+  const step = scale.tick === "week" ? DAYS_PER_WEEK - mondayIndex(day) : daysBetween(day, monthEnd(day)) + 1;
+  return Math.min(offset + step, total);
+}
+
+function tickLabel(day: string, scale: Scale): string {
+  const date = dateOf(day);
+  if (scale.tick === "month") return MONTHS[date.getUTCMonth()];
+  if (scale.tick === "week") return `${date.getUTCDate()}`;
+  return scale.weekdays ? `${WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()}` : `${date.getUTCDate()}`;
+}
+
+function periodLabel(day: string, scale: Scale): string {
+  const date = dateOf(day);
+  return scale.tick === "month" ? `${date.getUTCFullYear()}` : `${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
+function coveringOf(spans: readonly Span[]): Span {
+  return spans.reduce((covering, span) => ({
+    start: span.start < covering.start ? span.start : covering.start,
+    end: span.end > covering.end ? span.end : covering.end,
+  }));
+}
+
+function dateOf(day: string): Date {
+  return new Date(`${day}T00:00:00Z`);
+}
+
+/** Monday is nought: a week column that opens the window is the stub of one, not a whole week. */
+function mondayIndex(day: string): number {
+  return (dateOf(day).getUTCDay() + 6) % DAYS_PER_WEEK;
+}
+
+function monthStart(day: string): string {
+  return `${day.slice(0, 7)}-01`;
+}
+
+function monthEnd(day: string): string {
+  const date = dateOf(day);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+}
+
+function yearEnd(day: string): string {
+  return `${day.slice(0, 4)}-12-31`;
 }

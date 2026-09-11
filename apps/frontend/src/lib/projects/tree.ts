@@ -40,9 +40,18 @@ export function treeOf<T extends Nested>(items: readonly T[]): TreeNode<T>[] {
   return build(null, 0);
 }
 
-/** The tree read top to bottom, which is the order every list on screen draws. */
-export function rowsOf<T extends Nested>(nodes: readonly TreeNode<T>[]): Row<T>[] {
-  return nodes.flatMap((node) => [{ item: node.item, depth: node.depth }, ...rowsOf(node.children)]);
+/**
+ * The tree read top to bottom, which is the order every list on screen draws. A row named as
+ * collapsed keeps its own line and drops everything under it — folded away, not filtered out.
+ */
+export function rowsOf<T extends Nested>(
+  nodes: readonly TreeNode<T>[],
+  collapsed: ReadonlySet<string> = new Set(),
+): Row<T>[] {
+  return nodes.flatMap((node) => [
+    { item: node.item, depth: node.depth },
+    ...(collapsed.has(node.item.id) ? [] : rowsOf(node.children, collapsed)),
+  ]);
 }
 
 /** The path from the root down to one row — "ATMA / Hypocrisy / Combat", as its rows. */

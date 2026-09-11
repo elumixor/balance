@@ -1,13 +1,13 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { Dot, NotionSetup, Screen, Skeleton } from "$lib/components";
+  import { Dot, NotionMark, NotionSetup, Screen, Skeleton } from "$lib/components";
   import { synced } from "$lib/core/synced.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { rowsOf } from "$lib/projects/tree";
   import { formatHoursDecimal } from "$lib/ui/format";
   import { ConnectCancelled } from "$lib/core/oauth-connect";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
-  import { NotebookPen, Plus, RefreshCw } from "lucide-svelte";
+  import { Plus, RefreshCw } from "lucide-svelte";
   import { EmptyState, PracticeRow, ProjectRow, SphereClaimBar } from "./components";
 
   /**
@@ -126,7 +126,7 @@
 
       <div class="mt-8 flex items-center gap-1">
         <button type="button" onclick={() => void importFromNotion()} class="bare-button t-micro px-2 py-1">
-          <NotebookPen size={11} />
+          <NotionMark size={12} />
           {connecting ? "Waiting for Notion…" : data.notion?.dataSourceId ? "Notion import" : "Import from Notion"}
         </button>
         {#if data.notion?.dataSourceId}

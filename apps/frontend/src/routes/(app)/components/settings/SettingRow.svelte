@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Icon as IconType } from "lucide-svelte";
-  import type { Snippet } from "svelte";
+  import type { Component, Snippet } from "svelte";
 
   /**
    * One line of settings: a glyph, the words, and at the far end the control.
@@ -28,7 +28,8 @@
     onclick,
     children,
   }: {
-    icon?: typeof IconType;
+    /** A lucide glyph, or any small mark drawn the same way — the Notion mark, say. */
+    icon?: typeof IconType | Component<{ size?: number; class?: string }>;
     label: string;
     note?: string | Snippet;
     disabled?: boolean;

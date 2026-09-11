@@ -18,6 +18,7 @@ export { default as Dot } from "./Dot.svelte";
 export { default as Field } from "./Field.svelte";
 export { default as IconGrid } from "./IconGrid.svelte";
 export { default as MapPreview } from "./MapPreview.svelte";
+export { default as NotionMark } from "./NotionMark.svelte";
 export { default as NotionSetup } from "./NotionSetup.svelte";
 export { default as NumberField } from "./NumberField.svelte";
 export { default as Picker } from "./Picker.svelte";

@@ -395,10 +395,17 @@ adherence over the last four whole weeks.
 Projects, people, stages and tasks are all synced models (`server/lib/sync/`, one `TableStore`
 each) and live in `src/lib/core/synced.svelte.ts`, so a row is written the way a category is. The
 three pure modules are tested to 100%: `tree.ts` (nesting, breadcrumbs, and what to do about a
-cycle), `gantt.ts` (spans, the window, bars and columns) and `rollup.ts` (a stage's progress,
-counted on the leaves, because a parent is a heading over its subtasks). The screens are three ways
-to read the same tasks — a timeline, an outline and a board — and the address holds which one, so a
-reload keeps it.
+cycle), `gantt.ts` (spans, the scrolling window, where a bar and each header column sits, and
+what a drag makes of a span) and `rollup.ts` (a stage's progress, counted on the leaves, because a
+parent is a heading over its subtasks). The screens are three ways to read the same tasks — a
+timeline, an outline and a board — and the address holds which one, so a reload keeps it.
+
+The timeline is a grid that scrolls under a name column that doesn't: two header rows (months over
+days, weeks or months, depending on the zoom), a line for today, and a bar per stage and task.
+Everything on it is edited where it is read — a bar is carried to move the work and pulled by an
+edge to lengthen it, a row with no dates takes them from wherever on it is pressed — and a drag is
+one write, made when the pointer is let go, because what the row draws meanwhile is
+`timeline.svelte.ts`'s preview rather than the record.
 
 Hours are still the point. `ProjectProgressService` reads the calendar through the same
 `CalendarEventsService.resolve` as everything else and counts blocks whose mapping carries a

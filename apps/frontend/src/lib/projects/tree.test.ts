@@ -44,6 +44,14 @@ describe("rowsOf", () => {
       "0:balance",
     ]);
   });
+
+  it("keeps a folded row and drops what is under it", () => {
+    expect(rowsOf(treeOf(items), new Set(["hypocrisy"])).map((row) => row.item.id)).toEqual([
+      "atma",
+      "hypocrisy",
+      "balance",
+    ]);
+  });
 });
 
 describe("pathTo", () => {

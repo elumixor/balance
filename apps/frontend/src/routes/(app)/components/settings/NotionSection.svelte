@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { Button, NotionSetup } from "$lib/components";
+  import { Button, NotionMark, NotionSetup } from "$lib/components";
   import { ConnectCancelled } from "$lib/core/oauth-connect";
   import { store } from "$lib/core/store.svelte";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import { projectsData } from "$lib/projects/projects-data.svelte";
   import { disconnectNotion } from "$lib/projects/queries";
-  import { NotebookPen } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
@@ -67,7 +66,7 @@
 </script>
 
 <SettingsGroup title="Notion">
-  <SettingRow icon={NotebookPen} label={status?.connected ? status.workspaceName || "Notion" : "Notion"} {note}>
+  <SettingRow icon={NotionMark} label={status?.connected ? status.workspaceName || "Notion" : "Notion"} {note}>
     <div class="flex gap-2">
       <Button
         label={working ? "Waiting…" : status?.dataSourceId ? "Configure" : "Import projects"}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ComboField, Popover, Spinner } from "$lib/components";
+  import { ComboField, NotionMark, Popover, Spinner } from "$lib/components";
   import { ConnectCancelled } from "$lib/core/oauth-connect";
   import { store } from "$lib/core/store.svelte";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
@@ -7,6 +7,7 @@
   import { searchNotion } from "$lib/projects/queries";
   import type { NotionTarget, Project } from "$lib/projects/types";
   import { ExternalLink, Link2, Link2Off } from "lucide-svelte";
+  import PropertyRow from "./PropertyRow.svelte";
 
   /**
    * What this project is in Notion. A project made here can be pointed at the page it is actually
@@ -92,10 +93,12 @@
   }
 </script>
 
-<div class="flex items-center justify-between gap-2 px-1">
-    <span class="t-micro text-fg-muted">Notion</span>
+<PropertyRow label="Notion">
+  {#snippet icon()}
+    <span class="flex size-6 items-center justify-center"><NotionMark size={13} /></span>
+  {/snippet}
 
-    {#if working}
+  {#if working}
       <span class="flex items-center gap-1.5 px-2 text-fg-faint"><Spinner size={12} /><span class="t-micro">Reading…</span></span>
     {:else if linked}
       <span class="flex items-center gap-1">
@@ -144,5 +147,5 @@
           </div>
         {/snippet}
       </Popover>
-    {/if}
-</div>
+  {/if}
+</PropertyRow>

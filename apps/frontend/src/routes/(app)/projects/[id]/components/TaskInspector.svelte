@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { CardRow, DateField, Field, NumberField, Select, Textarea } from "$lib/components";
+  import { CardRow, DateField, Field, NotionMark, NumberField, Select, Textarea } from "$lib/components";
   import { people } from "$lib/core/synced.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { Task, TaskPriority, TaskStatus } from "$lib/projects/types";
-  import { AlignLeft, CalendarRange, CircleDot, ExternalLink, Flag, Hourglass, Layers, Trash2, UserRound, X } from "lucide-svelte";
+  import { AlignLeft, CalendarRange, CircleDot, Flag, Hourglass, Layers, Trash2, UserRound, X } from "lucide-svelte";
 
   /**
    * One task, opened in place under the row that opens it — a panel rather than a dialog, so the
@@ -155,7 +155,7 @@
         rel="noreferrer"
         class="t-micro flex items-center gap-1.5 text-fg-faint underline-offset-2 hover:underline"
       >
-        <ExternalLink size={11} />
+        <NotionMark size={11} />
         Open in Notion
       </a>
     {:else}

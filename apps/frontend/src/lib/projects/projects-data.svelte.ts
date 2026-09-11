@@ -94,8 +94,8 @@ class ProjectsData {
   }
 
   /** The tasks of one stage, top to bottom, each with the depth its indent is drawn from. */
-  taskRowsOf(projectId: string, stageId: string | null) {
-    return rowsOf(treeOf(this.tasksOf(projectId).filter((task) => task.stageId === stageId)));
+  taskRowsOf(projectId: string, stageId: string | null, collapsed?: ReadonlySet<string>) {
+    return rowsOf(treeOf(this.tasksOf(projectId).filter((task) => task.stageId === stageId)), collapsed);
   }
 
   completionOf(projectId: string, stageId: string | null) {

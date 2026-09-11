@@ -1,16 +1,35 @@
 <script lang="ts">
-  import { barOf, boundsOf, columnsOf, spanOf } from "$lib/projects/gantt";
+  import { Field, Select } from "$lib/components";
+  import {
+    addDays,
+    dayAt,
+    offsetOf,
+    SCALES,
+    unionOf,
+    type ScaleKey,
+    type Span,
+    spanOf,
+    ticksOf,
+    widthOf,
+    windowOf,
+  } from "$lib/projects/gantt";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
-  import type { Stage, Task } from "$lib/projects/types";
+  import { NAME_WIDTH, ROW_HEIGHT, TimelineDrag, TimelineScale } from "$lib/projects/timeline.svelte";
+  import type { Person, Stage, Task } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
-  import { Plus } from "lucide-svelte";
-  import TaskBar from "./TaskBar.svelte";
+  import { ChevronLeft, ChevronRight, ChevronDown, Plus, Trash2 } from "lucide-svelte";
+  import { SvelteSet } from "svelte/reactivity";
+  import { tick } from "svelte";
+  import TimelineBar from "./TimelineBar.svelte";
+  import TimelineHeader from "./TimelineHeader.svelte";
 
   /**
-   * The plan as it sits in time: a band per stage across the top, and under it every task as a
-   * bar on the same scale, subtasks indented inside their parent's run. The window covers
-   * everything dated and today, so a project nobody has put a date on still draws a grid — and
-   * the line for today is the only strong mark on it.
+   * The plan as it sits in time. A band per stage across the grid, every task as a bar under it on
+   * the same scale, and the names beside them in a column that stays put while the days scroll.
+   *
+   * Everything is edited where it is read: a bar is carried to move the work and pulled by an edge
+   * to lengthen it, a name is typed in place, and a task with no dates yet takes them from
+   * wherever on its own row it is pressed.
    */
   let {
     projectId,
@@ -19,112 +38,295 @@
     onselect,
   }: { projectId: string; color?: string; selectedId: string | null; onselect: (id: string | null) => void } = $props();
 
+  /** What a task is given when its dates are set by pressing its empty row. */
+  const NEW_TASK_DAYS = 5;
+  /** How much of a screenful the arrows move. */
+  const NUDGE = 0.75;
+
+  const scale = new TimelineScale();
+  const drag = new TimelineDrag();
+  const collapsed = new SvelteSet<string>();
+
+  let scroller = $state<HTMLDivElement | null>(null);
+  let hover = $state<{ id: string; day: string } | null>(null);
+  let landed = false;
+
   const stages = $derived(data.stagesOf(projectId));
   const tasks = $derived(data.tasksOf(projectId));
-  const bounds = $derived(
-    boundsOf(
-      tasks.map((task) => spanOf(task.id, tasks)),
-      data.today,
-    ),
-  );
-  const columns = $derived(columnsOf(bounds));
-  const today = $derived(barOf({ start: data.today, end: data.today }, bounds));
-  const loose = $derived(data.taskRowsOf(projectId, null));
+  const spans = $derived(tasks.map((task) => spanOf(task.id, tasks)));
+  const bounds = $derived(windowOf(spans, data.today, scale.value));
+  const width = $derived(widthOf(bounds, scale.value));
+  const columns = $derived(ticksOf(bounds, scale.value, data.today));
+  const todayLeft = $derived(offsetOf(data.today, bounds, scale.value));
+  const loose = $derived(data.taskRowsOf(projectId, null, collapsed));
 
-  /** A stage's own dates if it has them, and otherwise the run of the tasks that name it. */
-  function stageSpan(stage: Stage) {
-    if (stage.startsOn) return { start: stage.startsOn, end: stage.endsOn ?? stage.startsOn };
-    const own = tasks.filter((task) => task.stageId === stage.id).map((task) => spanOf(task.id, tasks));
-    const known = own.filter((span) => span !== null);
-    if (known.length === 0) return null;
-    return {
-      start: known.reduce((first, span) => (span.start < first ? span.start : first), known[0].start),
-      end: known.reduce((last, span) => (span.end > last ? span.end : last), known[0].end),
-    };
+  // Opening the screen lands on now: a plan two years long opened at its start says nothing.
+  $effect(() => {
+    if (landed || !scroller) return;
+    landed = true;
+    center(data.today, "instant");
+  });
+
+  function center(day: string, behavior: ScrollBehavior = "smooth") {
+    if (!scroller) return;
+    const visible = scroller.clientWidth - NAME_WIDTH;
+    scroller.scrollTo({ left: offsetOf(day, bounds, scale.value) - visible / 2, behavior });
   }
 
-  function add(stage: Stage | null) {
-    const created = data.addTask(projectId, stage?.id ?? null);
-    onselect(created.id);
+  function nudge(direction: 1 | -1) {
+    scroller?.scrollBy({ left: direction * (scroller.clientWidth - NAME_WIDTH) * NUDGE, behavior: "smooth" });
+  }
+
+  /** Zooming keeps whatever was in the middle of the screen in the middle of it. */
+  async function zoom(key: ScaleKey) {
+    const middle = scroller ? dayAt(scroller.scrollLeft + (scroller.clientWidth - NAME_WIDTH) / 2, bounds, scale.value) : data.today;
+    scale.set(key);
+    await tick();
+    center(middle, "instant");
+  }
+
+  const peopleOn = (task: Task) =>
+    task.assigneeIds.map((id) => data.personById.get(id)).filter((one): one is Person => Boolean(one));
+
+  const hasChildren = (id: string) => tasks.some((task) => task.parentId === id);
+
+  /** A stage's own dates if it has them, and otherwise the run of the tasks that name it. */
+  function stageSpan(stage: Stage): Span | null {
+    if (stage.startsOn) return { start: stage.startsOn, end: stage.endsOn ?? stage.startsOn };
+    return unionOf(tasks.filter((task) => task.stageId === stage.id).map((task) => spanOf(task.id, tasks)));
+  }
+
+  function dayFrom(event: PointerEvent | MouseEvent, element: HTMLElement) {
+    return dayAt(event.clientX - element.getBoundingClientRect().left, bounds, scale.value);
+  }
+
+  function schedule(task: Task, day: string) {
+    data.updateTask(task.id, { startsOn: day, endsOn: addDays(day, NEW_TASK_DAYS - 1) });
+    onselect(task.id);
+  }
+
+  function add(stageId: string | null, parentId: string | null = null) {
+    onselect(data.addTask(projectId, stageId, parentId).id);
+  }
+
+  function fold(id: string) {
+    if (collapsed.has(id)) collapsed.delete(id);
+    else collapsed.add(id);
   }
 </script>
 
-<div class="rounded-lg border border-line bg-surface">
-  <div class="relative">
-    <!-- The grid: one hairline a week, and today's own line over it. -->
-    <div class="pointer-events-none absolute inset-0">
-      {#each columns as column, index (column.key)}
-        {#if index > 0}
-          <div class="absolute inset-y-0 border-l border-line" style="left:{column.leftPercent}%"></div>
-        {/if}
-      {/each}
-      <div class="absolute inset-y-0 w-px bg-ink/25" style="left:{today.leftPercent}%"></div>
-    </div>
+{#snippet nameCell(children: import("svelte").Snippet, depth = 0)}
+  <div
+    class="sticky left-0 z-10 flex shrink-0 items-center gap-1 border-r border-line bg-surface pr-2"
+    style="width:{NAME_WIDTH}px;padding-left:{6 + depth * 14}px"
+  >
+    {@render children()}
+  </div>
+{/snippet}
 
-    <div class="relative h-6 border-b border-line">
-      {#each columns as column (column.key)}
-        <span
-          class="t-data-micro absolute top-1 truncate pl-1.5 text-fg-faint"
-          style="left:{column.leftPercent}%;width:{column.widthPercent}%"
+{#snippet taskRow(task: Task, depth: number)}
+  {@const span = spanOf(task.id, tasks)}
+  {@const own = Boolean(task.startsOn)}
+  {@const finished = task.status === "done" || task.status === "dropped"}
+  <div class="group flex" style="height:{ROW_HEIGHT}px">
+    {#snippet name()}
+      {#if hasChildren(task.id)}
+        <button
+          type="button"
+          onclick={() => fold(task.id)}
+          aria-label={collapsed.has(task.id) ? "Show subtasks" : "Hide subtasks"}
+          class="bare-button size-5"
         >
-          {column.label}
-        </span>
-      {/each}
-    </div>
+          {#if collapsed.has(task.id)}<ChevronRight size={12} />{:else}<ChevronDown size={12} />{/if}
+        </button>
+      {:else}
+        <span class="size-5 shrink-0"></span>
+      {/if}
+      <Field
+        value={task.title}
+        variant="bare"
+        placeholder="Untitled task"
+        ariaLabel="Task title"
+        oninput={(title) => data.updateTask(task.id, { title })}
+        class="field-sm {finished ? 'text-fg-faint line-through' : ''}"
+      />
+      <button
+        type="button"
+        onclick={() => add(task.stageId, task.id)}
+        aria-label="Add subtask"
+        class="bare-button size-5 opacity-0 group-hover:opacity-100"
+      >
+        <Plus size={12} />
+      </button>
+    {/snippet}
+    {@render nameCell(name, depth)}
 
-    <div class="relative space-y-1 px-1.5 py-2">
-      {#each stages as stage (stage.id)}
-        {@const span = stageSpan(stage)}
-        {@const completion = data.completionOf(projectId, stage.id)}
-        {@const bar = span ? barOf(span, bounds) : null}
-        <div class="relative h-6">
-          <div
-            class="absolute inset-y-0.5 flex items-center justify-between gap-2 rounded-sm border border-line-strong bg-surface-alt px-2"
-            style={bar ? `left:${bar.leftPercent}%;width:${bar.widthPercent}%` : "left:0;width:100%"}
+    <div
+      class="relative"
+      style="width:{width}px"
+      role="presentation"
+      onpointermove={(event) => {
+        if (!span) hover = { id: task.id, day: dayFrom(event, event.currentTarget) };
+      }}
+      onpointerleave={() => (hover = null)}
+    >
+      {#if span}
+        <TimelineBar
+          id={task.id}
+          {span}
+          window={bounds}
+          scale={scale.value}
+          {drag}
+          {color}
+          tone={Math.max(0.3, 0.9 - depth * 0.2)}
+          label={task.title || "Untitled task"}
+          people={peopleOn(task)}
+          faded={finished}
+          selected={task.id === selectedId}
+          movable={own}
+          onselect={() => onselect(task.id === selectedId ? null : task.id)}
+          oncommit={(next) => data.updateTask(task.id, { startsOn: next.start, endsOn: next.end })}
+          onjump={(day) => center(day)}
+        />
+      {:else}
+        <button
+          type="button"
+          onclick={(event) => schedule(task, dayFrom(event, event.currentTarget))}
+          class="absolute inset-0 w-full cursor-copy"
+          aria-label="Give {task.title || 'this task'} dates"
+        ></button>
+        {#if hover?.id === task.id}
+          <span
+            class="t-micro pointer-events-none absolute inset-y-1 flex items-center rounded-sm border border-dashed border-line-strong px-1.5 text-fg-faint"
+            style="left:{offsetOf(hover.day, bounds, scale.value)}px;width:{NEW_TASK_DAYS * scale.value.dayWidth}px"
           >
-            <span class="t-micro truncate text-fg-muted">{stage.name || "Stage"}</span>
-            {#if completion.total > 0}
-              <span class="t-data-micro shrink-0 text-fg-faint">
-                {Math.round(completion.share * 100)}%
-              </span>
-            {/if}
-          </div>
+            Set dates
+          </span>
+        {/if}
+      {/if}
+    </div>
+  </div>
+{/snippet}
+
+<div class="rounded-lg border border-line bg-surface">
+  <div class="flex items-center justify-end gap-1 border-b border-line px-2 py-1.5">
+    <Select
+      variant="bare"
+      label="Zoom"
+      width={140}
+      value={scale.key}
+      options={SCALES.map((one) => ({ value: one.key, label: one.label }))}
+      onchange={(key) => void zoom(key)}
+    />
+    <button type="button" onclick={() => nudge(-1)} aria-label="Earlier" class="bare-button size-7">
+      <ChevronLeft size={14} />
+    </button>
+    <button type="button" onclick={() => center(data.today)} class="bare-button t-micro px-2 py-1">Today</button>
+    <button type="button" onclick={() => nudge(1)} aria-label="Later" class="bare-button size-7">
+      <ChevronRight size={14} />
+    </button>
+  </div>
+
+  <div bind:this={scroller} class="relative overflow-x-auto overscroll-x-contain">
+    <div class="w-max min-w-full">
+      <TimelineHeader window={bounds} scale={scale.value} today={data.today} {width} />
+
+      <div class="relative">
+        <!-- The grid behind everything: a line a column, weekends shaded, and today's own mark. -->
+        <div class="pointer-events-none absolute inset-y-0 z-0" style="left:{NAME_WIDTH}px;width:{width}px">
+          {#each columns as column (column.key)}
+            <div
+              class="absolute inset-y-0 border-l border-line/70 {column.weekend ? 'bg-surface-alt/60' : ''}"
+              style="left:{column.left}px;width:{column.width}px"
+            ></div>
+          {/each}
+          <div class="absolute inset-y-0 w-px bg-ink/50" style="left:{todayLeft}px"></div>
         </div>
 
-        {#each data.taskRowsOf(projectId, stage.id) as row (row.item.id)}
-          <TaskBar
-            task={row.item}
-            depth={row.depth}
-            {bounds}
-            {tasks}
-            {color}
-            selected={row.item.id === selectedId}
-            onselect={() => onselect(row.item.id === selectedId ? null : row.item.id)}
-          />
-        {/each}
+        <div class="relative z-10 py-1">
+          {#each stages as stage (stage.id)}
+            {@const span = stageSpan(stage)}
+            {@const completion = data.completionOf(projectId, stage.id)}
+            <div class="group flex" style="height:{ROW_HEIGHT}px">
+              {#snippet stageName()}
+                <Field
+                  value={stage.name}
+                  variant="bare"
+                  placeholder="Stage"
+                  ariaLabel="Stage name"
+                  oninput={(name) => data.updateStage(stage.id, { name })}
+                  class="field-sm t-label"
+                />
+                <button
+                  type="button"
+                  onclick={() => data.removeStage(stage)}
+                  aria-label="Remove stage"
+                  class="bare-button size-5 opacity-0 group-hover:opacity-100 hover:text-danger"
+                >
+                  <Trash2 size={11} />
+                </button>
+              {/snippet}
+              {@render nameCell(stageName)}
 
-        <button type="button" onclick={() => add(stage)} class="bare-button t-micro px-1.5 py-0.5">
-          <Plus size={11} />
-          Task in {stage.name || "stage"}
-        </button>
-      {/each}
+              <div class="relative" style="width:{width}px">
+                {#if span}
+                  <TimelineBar
+                    id={stage.id}
+                    {span}
+                    window={bounds}
+                    scale={scale.value}
+                    {drag}
+                    {color}
+                    band
+                    label={stage.name || "Stage"}
+                    movable={Boolean(stage.startsOn)}
+                    oncommit={(next) => data.updateStage(stage.id, { startsOn: next.start, endsOn: next.end })}
+                    onjump={(day) => center(day)}
+                  >
+                    {#snippet trailing()}
+                      {#if completion.total > 0}
+                        <span class="t-data-micro shrink-0 text-fg-faint">
+                          {Math.round(completion.share * 100)}%
+                        </span>
+                      {/if}
+                    {/snippet}
+                  </TimelineBar>
+                {/if}
+              </div>
+            </div>
 
-      {#each loose as row (row.item.id)}
-        <TaskBar
-          task={row.item}
-          depth={row.depth}
-          {bounds}
-          {tasks}
-          {color}
-          selected={row.item.id === selectedId}
-          onselect={() => onselect(row.item.id === selectedId ? null : row.item.id)}
-        />
-      {/each}
+            {#each data.taskRowsOf(projectId, stage.id, collapsed) as row (row.item.id)}
+              {@render taskRow(row.item, row.depth)}
+            {/each}
 
-      <button type="button" onclick={() => add(null)} class="bare-button t-micro px-1.5 py-0.5">
-        <Plus size={11} />
-        Task
-      </button>
+            <div class="flex" style="height:{ROW_HEIGHT}px">
+              {#snippet addInStage()}
+                <button type="button" onclick={() => add(stage.id)} class="bare-button t-micro px-1.5 py-0.5">
+                  <Plus size={11} />
+                  Task
+                </button>
+              {/snippet}
+              {@render nameCell(addInStage)}
+              <div style="width:{width}px"></div>
+            </div>
+          {/each}
+
+          {#each loose as row (row.item.id)}
+            {@render taskRow(row.item, row.depth)}
+          {/each}
+
+          <div class="flex" style="height:{ROW_HEIGHT}px">
+            {#snippet addLoose()}
+              <button type="button" onclick={() => add(null)} class="bare-button t-micro px-1.5 py-0.5">
+                <Plus size={11} />
+                Task
+              </button>
+            {/snippet}
+            {@render nameCell(addLoose)}
+            <div style="width:{width}px"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
