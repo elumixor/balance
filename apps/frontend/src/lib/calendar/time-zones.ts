@@ -54,7 +54,10 @@ export function offsetLabel(zone: string, at: Date): string {
       .map((part) => part.value)
       .join("");
     // "GMT+02:00" reads better without the zero minutes, and "GMT+2" is what people write.
-    return name.replace(/([+-])0?(\d+):00$/, "$1$2").replace(/([+-])0?(\d+):(\d+)$/, "$1$2:$3");
+    const label = name.replace(/([+-])0?(\d+):00$/, "$1$2").replace(/([+-])0?(\d+):(\d+)$/, "$1$2:$3");
+    // Newer runtimes answer "GMT+00:00" for UTC where they used to answer "GMT"; nobody writes
+    // "GMT+0".
+    return /^GMT[+-]0$/.test(label) ? "GMT" : label;
   } catch {
     return "GMT";
   }
