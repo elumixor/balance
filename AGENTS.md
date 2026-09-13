@@ -408,11 +408,13 @@ each) and live in `src/lib/core/synced.svelte.ts`, so a row is written the way a
 three pure modules are tested to 100%: `tree.ts` (nesting, breadcrumbs, and what to do about a
 cycle), `gantt.ts` (spans, the scrolling window, where a bar and each header column sits, and
 what a drag makes of a span) and `rollup.ts` (a stage's progress, counted on the leaves, because a
-parent is a heading over its subtasks). The screens are three ways to read the same tasks — a
-timeline, an outline and a board — and the address holds which one, so a reload keeps it.
+parent is a heading over its subtasks). A project's tasks are read one way — the timeline — since
+a list and a board of the same rows were two more places to keep saying the same thing.
 
 The timeline is a grid that scrolls under a name column that doesn't: two header rows (months over
-days, weeks or months, depending on the zoom), a line for today, and a bar per stage and task.
+days, weeks or months, depending on the zoom slider), a line for today, and a bar per task. The
+stages share one band row above them, each across the days it covers, with its edges carried down
+the grid — a stage is a stretch of the plan, not a lane of its own.
 Everything on it is edited where it is read — a bar is carried to move the work and pulled by an
 edge to lengthen it, a row with no dates takes them from wherever on it is pressed — and a drag is
 one write, made when the pointer is let go, because what the row draws meanwhile is

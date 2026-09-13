@@ -93,9 +93,9 @@ class ProjectsData {
     return tasks.all.filter((task) => task.projectId === projectId);
   }
 
-  /** The tasks of one stage, top to bottom, each with the depth its indent is drawn from. */
-  taskRowsOf(projectId: string, stageId: string | null, collapsed?: ReadonlySet<string>) {
-    return rowsOf(treeOf(this.tasksOf(projectId).filter((task) => task.stageId === stageId)), collapsed);
+  /** Every task of a project, top to bottom, each with the depth its indent is drawn from. */
+  taskRowsOf(projectId: string, collapsed?: ReadonlySet<string>) {
+    return rowsOf(treeOf(this.tasksOf(projectId)), collapsed);
   }
 
   completionOf(projectId: string, stageId: string | null) {

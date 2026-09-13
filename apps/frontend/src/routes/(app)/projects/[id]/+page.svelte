@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Field, NumberField, ProjectCover, Segmented, Select, Skeleton, Textarea } from "$lib/components";
+  import { Field, NumberField, ProjectCover, Select, Skeleton, Textarea } from "$lib/components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { ProjectStatus } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
-  import { CircleDot, Clock, Plus, Trash2 } from "lucide-svelte";
+  import { CircleDot, Clock, Trash2 } from "lucide-svelte";
   import {
     Breadcrumb,
     FieldsPanel,
@@ -13,17 +13,14 @@
     NotionLinkRow,
     PropertyRow,
     SubProjects,
-    TaskBoard,
     TaskInspector,
-    TaskList,
     TaskTimeline,
   } from "./components";
   import { ShellSlot } from "../../components";
 
   /**
    * One project, open: what it is and what it says about itself at the top, and under that the
-   * work itself in whichever of the three shapes answers the question being asked — time, order,
-   * or where things stand.
+   * plan itself.
    *
    * The view takes the whole of the window below the header, edge to edge and with no card around
    * it: a timeline is a plan somebody reads across, and a measure down the middle of the screen is
@@ -37,14 +34,6 @@
   const card = $derived(project ? data.cardOf(project) : null);
   const color = $derived(card?.category?.color ?? restColor);
   const path = $derived(data.pathOf(id));
-
-  type View = "timeline" | "list" | "board";
-  const view = $derived((page.url.searchParams.get("view") as View | null) ?? "timeline");
-  const VIEWS = $derived<{ value: View; label: string; href: string }[]>([
-    { value: "timeline", label: "Timeline", href: `/projects/${id}` },
-    { value: "list", label: "List", href: `/projects/${id}?view=list` },
-    { value: "board", label: "Board", href: `/projects/${id}?view=board` },
-  ]);
 
   const STATUSES: { value: ProjectStatus; label: string }[] = [
     { value: "active", label: "Active" },
@@ -151,28 +140,8 @@
       </div>
     </header>
 
-    <div class="flex shrink-0 items-center justify-between gap-3 border-y border-line px-5 md:px-8">
-      <Segmented options={VIEWS} value={view} />
-      <button type="button" onclick={() => data.addStage(project.id, "")} class="bare-button t-micro px-1.5 py-1">
-        <Plus size={11} />
-        Stage
-      </button>
-    </div>
-
     <div class="min-h-0 flex-1">
-      {#if view === "timeline"}
-        <TaskTimeline projectId={project.id} {color} {selectedId} onselect={(next) => (selectedId = next)} />
-      {:else}
-        <div class="h-full overflow-y-auto px-5 py-4 md:px-8">
-          <div class="mx-auto max-w-5xl">
-            {#if view === "list"}
-              <TaskList projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
-            {:else}
-              <TaskBoard projectId={project.id} {selectedId} onselect={(next) => (selectedId = next)} />
-            {/if}
-          </div>
-        </div>
-      {/if}
+      <TaskTimeline projectId={project.id} {color} {selectedId} onselect={(next) => (selectedId = next)} />
     </div>
 
     {#if selected}
