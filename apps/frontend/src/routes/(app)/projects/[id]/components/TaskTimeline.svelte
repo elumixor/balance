@@ -115,6 +115,8 @@
   }
 </script>
 
+{#snippet nothing()}{/snippet}
+
 {#snippet nameCell(children: import("svelte").Snippet, depth = 0)}
   <div
     class="sticky left-0 z-10 flex shrink-0 items-center gap-1 border-r border-line bg-surface pr-2"
@@ -228,10 +230,13 @@
   </div>
 
   <div bind:this={scroller} class="relative min-h-0 flex-1 overflow-auto overscroll-x-contain">
-    <div class="w-max min-w-full">
+    <!-- The grid is as tall as the window whether or not there are rows to fill it: a plan with
+         two tasks in it is still a plan, and days that stop halfway down the screen read as a
+         page that failed to load. -->
+    <div class="flex min-h-full w-max min-w-full flex-col">
       <TimelineHeader window={bounds} scale={scale.value} today={data.today} {width} />
 
-      <div class="relative">
+      <div class="relative min-h-0 flex-1">
         <!-- The grid behind everything: a line a column, weekends shaded, and today's own mark. -->
         <div class="pointer-events-none absolute inset-y-0 z-0" style="left:{NAME_WIDTH}px;width:{width}px">
           {#each columns as column (column.key)}
@@ -243,7 +248,7 @@
           <div class="absolute inset-y-0 w-px bg-ink/50" style="left:{todayLeft}px"></div>
         </div>
 
-        <div class="relative z-10 py-1">
+        <div class="relative z-10 flex h-full flex-col py-1">
           {#each stages as stage (stage.id)}
             {@const span = stageSpan(stage)}
             {@const completion = data.completionOf(projectId, stage.id)}
@@ -323,6 +328,13 @@
               </button>
             {/snippet}
             {@render nameCell(addLoose)}
+            <div style="width:{width}px"></div>
+          </div>
+
+          <!-- What is left of the window under the last row: the names keep their edge and the days
+               keep their lines all the way down. -->
+          <div class="flex min-h-0 flex-1">
+            {@render nameCell(nothing)}
             <div style="width:{width}px"></div>
           </div>
         </div>
