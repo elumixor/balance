@@ -88,6 +88,52 @@ const purposeSchema = {
 /** A sphere is written as the whole of the block's weights; the buffer takes whatever is left. */
 const weightsOf = (categoryId?: string) => (categoryId ? [{ categoryId, weightPercent: 100 }] : undefined);
 
+/**
+ * A guest is an address, and optionally an optional one. A model is given both spellings because
+ * it usually has only an address to hand, and writing `["a@b.com"]` should not need an object.
+ */
+const guestSchema = z.union([
+  z.string().trim().min(3),
+  z.object({ email: z.string().trim().min(3), optional: z.boolean().optional() }),
+]);
+
+const guestsOf = (guests?: readonly z.infer<typeof guestSchema>[]) =>
+  guests?.map((g) =>
+    typeof g === "string" ? { email: g, optional: false } : { email: g.email, optional: g.optional ?? false },
+  );
+
+const GUESTS_DESCRIPTION =
+  "Email addresses to invite. Google sends each of them the invitation as the event is written.";
+
+/**
+ * Google replaces a guest list rather than merging into it, so adding somebody means reading the
+ * event first and writing everyone back — the organizer included, or handing the event over is
+ * what the write would mean.
+ */
+async function withGuests(
+  service: CalendarEventsService,
+  calendarId: string,
+  eventId: string,
+  added: readonly z.infer<typeof guestSchema>[],
+) {
+  const event = await service.get(calendarId, eventId);
+  const current = event.attendees.flatMap((a) =>
+    a.email && !a.resource ? [{ email: a.email, optional: a.optional }] : [],
+  );
+  const known = new Set(current.map((a) => a.email.toLowerCase()));
+  const organizer = event.organizer?.email;
+  if (organizer && !known.has(organizer.toLowerCase())) {
+    current.unshift({ email: organizer, optional: false });
+    known.add(organizer.toLowerCase());
+  }
+  for (const guest of guestsOf(added) ?? []) {
+    if (known.has(guest.email.toLowerCase())) continue;
+    known.add(guest.email.toLowerCase());
+    current.push(guest);
+  }
+  return current;
+}
+
 export const mcpTools: McpTool[] = [
   tool({
     name: "list_spheres",
@@ -153,6 +199,12 @@ export const mcpTools: McpTool[] = [
           projectId: e.mapping?.projectId ?? null,
           movable: e.movable,
           seriesId: e.seriesId ?? null,
+          organizer: e.organizer?.email ?? null,
+          // The addresses, because `update_event`'s `attendees` replaces the whole list: adding
+          // somebody means writing back everyone who was already on it.
+          attendees: e.attendees
+            .filter((a) => !a.resource && a.email)
+            .map((a) => ({ email: a.email, name: a.name, response: a.response, optional: a.optional })),
         })),
       };
     },
@@ -162,8 +214,9 @@ export const mcpTools: McpTool[] = [
     name: "create_event",
     title: "Create a calendar block",
     description:
-      "Writes a real event to the calendar, categorised in the same breath. Times are instants, " +
-      "so say them with an offset — a naked local time means UTC.",
+      "Writes a real event to the calendar, categorised in the same breath, and invites whoever is " +
+      "named in `attendees`. Times are instants, so say them with an offset — a naked local time " +
+      "means UTC.",
     readOnly: false,
     inputSchema: {
       title: z.string().trim().min(1),
@@ -173,6 +226,7 @@ export const mcpTools: McpTool[] = [
       location: z.string().optional(),
       allDay: z.boolean().optional(),
       calendarId: z.string().optional().describe("Defaults to the calendar new blocks land in."),
+      attendees: z.array(guestSchema).optional().describe(GUESTS_DESCRIPTION),
       ...purposeSchema,
     },
     async run(args, user) {
@@ -180,6 +234,7 @@ export const mcpTools: McpTool[] = [
       const created = await new CalendarEventsService(user.id).create({
         ...args,
         weights: weightsOf(args.categoryId),
+        attendees: guestsOf(args.attendees),
         start,
         end,
       });
@@ -187,6 +242,7 @@ export const mcpTools: McpTool[] = [
         id: created.id,
         calendarId: qualifyCalendarId(created.accountId, created.calendarId),
         title: created.title,
+        attendees: created.attendees.flatMap((a) => (a.email ? [a.email] : [])),
       };
     },
   }),
@@ -195,8 +251,8 @@ export const mcpTools: McpTool[] = [
     name: "update_event",
     title: "Move or retitle a block",
     description:
-      "Changes an event that is already on the calendar. Only what is given is changed. An event " +
-      "whose `movable` is false takes no time or title change.",
+      "Changes an event that is already on the calendar, including who is coming. Only what is given " +
+      "is changed. An event whose `movable` is false takes no time or title change.",
     readOnly: false,
     inputSchema: {
       id: z.string().min(1).describe("The event id from `list_events`."),
@@ -207,21 +263,37 @@ export const mcpTools: McpTool[] = [
       start: z.string().optional(),
       end: z.string().optional(),
       timeZone: z.string().optional(),
+      addAttendees: z
+        .array(guestSchema)
+        .optional()
+        .describe(`Guests to add, keeping everyone already invited. ${GUESTS_DESCRIPTION}`),
+      attendees: z
+        .array(guestSchema)
+        .optional()
+        .describe(
+          `The whole guest list, replacing the event's own — whoever is left out is uninvited. Prefer \`addAttendees\` to invite somebody. ${GUESTS_DESCRIPTION}`,
+        ),
     },
     async run(args, user) {
-      const updated = await new CalendarEventsService(user.id).update(args.calendarId, args.id, {
+      const service = new CalendarEventsService(user.id);
+      const attendees = args.addAttendees?.length
+        ? await withGuests(service, args.calendarId, args.id, args.addAttendees)
+        : guestsOf(args.attendees);
+      const updated = await service.update(args.calendarId, args.id, {
         title: args.title,
         description: args.description,
         location: args.location,
         start: args.start ? parseInstant(args.start, "start") : undefined,
         end: args.end ? parseInstant(args.end, "end") : undefined,
         timeZone: args.timeZone,
+        attendees,
       });
       return {
         id: updated.id,
         title: updated.title,
         start: updated.start.toISOString(),
         end: updated.end.toISOString(),
+        attendees: updated.attendees.flatMap((a) => (a.email ? [a.email] : [])),
       };
     },
   }),

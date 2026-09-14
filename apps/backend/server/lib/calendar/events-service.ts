@@ -10,6 +10,7 @@ import { projectPrefs } from "./prefs-service";
 import { calendarConnections } from "./registry";
 import { isSeriesStart, remainingRule, splitPointOf, truncateRule } from "./series-split";
 import {
+  type AttendeeInput,
   type CalendarProvider,
   type EventTimer,
   type ExternalEvent,
@@ -72,6 +73,8 @@ export interface CreateEventOptions {
   description?: string;
   location?: string;
   allDay?: boolean;
+  /** Who else is coming. Naming anyone here sends them the invitation as the event is written. */
+  attendees?: readonly AttendeeInput[];
 }
 
 /**
@@ -182,6 +185,7 @@ export class CalendarEventsService {
       start: input.start,
       end: input.end,
       allDay: input.allDay,
+      attendees: input.attendees,
     });
 
     const weights = input.weights?.length ? input.weights : undefined;

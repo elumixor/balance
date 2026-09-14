@@ -63,7 +63,10 @@ export class GoogleCalendarProvider implements CalendarProvider {
 
   async createEvent(input: CreateEventInput): Promise<ExternalEvent> {
     const zone = input.timeZone === undefined ? {} : { timeZone: input.timeZone };
-    const created = await this.#request.send<GoogleEvent>(`/calendars/${encode(input.calendarId)}/events`, {
+    // A guest list nobody is told about is a list of people who never heard about the meeting, so
+    // a create that names guests asks Google to send the invitation the same way an edit does.
+    const notify = input.attendees?.length ? "?sendUpdates=all" : "";
+    const created = await this.#request.send<GoogleEvent>(`/calendars/${encode(input.calendarId)}/events${notify}`, {
       method: "POST",
       body: {
         summary: input.title,
