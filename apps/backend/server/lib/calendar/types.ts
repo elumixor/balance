@@ -106,6 +106,8 @@ export interface CreateEventInput {
   readonly recurrence?: readonly string[];
   readonly reminders?: readonly EventReminder[];
   readonly attendees?: readonly AttendeeInput[];
+  /** `"create"` asks Google for a Meet link as the event is written. */
+  readonly conference?: ConferenceInput;
 }
 
 /** Someone on the guest list, as the card writes them: an address, and whether they're optional. */

@@ -12,6 +12,7 @@ import { isSeriesStart, remainingRule, splitPointOf, truncateRule } from "./seri
 import {
   type AttendeeInput,
   type CalendarProvider,
+  type ConferenceInput,
   type EventTimer,
   type ExternalEvent,
   type MappingScope,
@@ -75,6 +76,8 @@ export interface CreateEventOptions {
   allDay?: boolean;
   /** Who else is coming. Naming anyone here sends them the invitation as the event is written. */
   attendees?: readonly AttendeeInput[];
+  /** `"create"` gives the new event a Meet link of its own. */
+  conference?: ConferenceInput;
 }
 
 /**
@@ -186,6 +189,7 @@ export class CalendarEventsService {
       end: input.end,
       allDay: input.allDay,
       attendees: input.attendees,
+      conference: input.conference,
     });
 
     const weights = input.weights?.length ? input.weights : undefined;

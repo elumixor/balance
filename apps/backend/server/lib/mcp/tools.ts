@@ -194,6 +194,7 @@ export const mcpTools: McpTool[] = [
           allDay: e.allDay,
           hours: e.countsTowardHours ? hours(e.start, e.end) : 0,
           location: e.location ?? null,
+          conferenceUrl: e.conferenceUrl,
           activity: e.mapping?.activityName ?? null,
           weights: e.weights,
           projectId: e.mapping?.projectId ?? null,
@@ -214,9 +215,9 @@ export const mcpTools: McpTool[] = [
     name: "create_event",
     title: "Create a calendar block",
     description:
-      "Writes a real event to the calendar, categorised in the same breath, and invites whoever is " +
-      "named in `attendees`. Times are instants, so say them with an offset — a naked local time " +
-      "means UTC.",
+      "Writes a real event to the calendar, categorised in the same breath: invites whoever is " +
+      "named in `attendees`, and gives it a Google Meet link when `meet` is true. Times are " +
+      "instants, so say them with an offset — a naked local time means UTC.",
     readOnly: false,
     inputSchema: {
       title: z.string().trim().min(1),
@@ -227,6 +228,7 @@ export const mcpTools: McpTool[] = [
       allDay: z.boolean().optional(),
       calendarId: z.string().optional().describe("Defaults to the calendar new blocks land in."),
       attendees: z.array(guestSchema).optional().describe(GUESTS_DESCRIPTION),
+      meet: z.boolean().optional().describe("Give the event a Google Meet link of its own."),
       ...purposeSchema,
     },
     async run(args, user) {
@@ -235,6 +237,7 @@ export const mcpTools: McpTool[] = [
         ...args,
         weights: weightsOf(args.categoryId),
         attendees: guestsOf(args.attendees),
+        conference: args.meet ? "create" : undefined,
         start,
         end,
       });
@@ -243,6 +246,7 @@ export const mcpTools: McpTool[] = [
         calendarId: qualifyCalendarId(created.accountId, created.calendarId),
         title: created.title,
         attendees: created.attendees.flatMap((a) => (a.email ? [a.email] : [])),
+        conferenceUrl: created.conferenceUrl,
       };
     },
   }),
@@ -251,8 +255,9 @@ export const mcpTools: McpTool[] = [
     name: "update_event",
     title: "Move or retitle a block",
     description:
-      "Changes an event that is already on the calendar, including who is coming. Only what is given " +
-      "is changed. An event whose `movable` is false takes no time or title change.",
+      "Changes an event that is already on the calendar, including who is coming and whether it has " +
+      "a Google Meet call. Only what is given is changed. An event whose `movable` is false takes " +
+      "no time or title change.",
     readOnly: false,
     inputSchema: {
       id: z.string().min(1).describe("The event id from `list_events`."),
@@ -273,6 +278,7 @@ export const mcpTools: McpTool[] = [
         .describe(
           `The whole guest list, replacing the event's own — whoever is left out is uninvited. Prefer \`addAttendees\` to invite somebody. ${GUESTS_DESCRIPTION}`,
         ),
+      meet: z.boolean().optional().describe("True adds a Google Meet link, false takes the call off."),
     },
     async run(args, user) {
       const service = new CalendarEventsService(user.id);
@@ -287,6 +293,7 @@ export const mcpTools: McpTool[] = [
         end: args.end ? parseInstant(args.end, "end") : undefined,
         timeZone: args.timeZone,
         attendees,
+        conference: args.meet === undefined ? undefined : args.meet ? "create" : "remove",
       });
       return {
         id: updated.id,
@@ -294,6 +301,7 @@ export const mcpTools: McpTool[] = [
         start: updated.start.toISOString(),
         end: updated.end.toISOString(),
         attendees: updated.attendees.flatMap((a) => (a.email ? [a.email] : [])),
+        conferenceUrl: updated.conferenceUrl,
       };
     },
   }),
