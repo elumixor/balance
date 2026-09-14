@@ -478,6 +478,7 @@ function attachMappings(
             source: mapping.source,
             hidden: mapping.hidden,
             endLocation: mapping.endLocation,
+            notes: mapping.notes,
           }
         : null,
       weights: mapping?.weights ?? [],

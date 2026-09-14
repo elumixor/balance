@@ -77,6 +77,13 @@ the caller has, the screen's weeks or the agenda's this-week-and-next, and the u
 in before any move. Journeys are asked about for events that have already happened too, with the
 server asking for a typical one rather than a bus that has left.
 
+An event's description belongs to everyone invited to it — Google puts it in the invitation — so
+what one person wants to remember about a meeting has nowhere on the calendar to go. Private
+notes are the app's own record instead: `notes` on the mapping, beside `endLocation`, drawn as the
+card's last section and open even on an invitation nothing else about can be changed.
+`EventMappingService.annotate` is how a write that isn't about what the hour counts as reaches a
+block that counts as nothing — it becomes buffer time first, the same rule the card follows.
+
 Two consequences worth knowing before changing anything here. "Not connected" and "the grant
 expired" are states the screens render, returned as 200 with `connected` / `needsReconnect` — never
 a 401, which the frontend reads as a dead Clerk session and bounces to sign-in. And every write

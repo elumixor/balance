@@ -93,6 +93,12 @@ export const eventMappings = pgTable(
      * where you were. The app's own record, so it works on an invitation you can't edit.
      */
     endLocation: text("end_location"),
+    /**
+     * What the person wants to remember about this meeting, kept here rather than in the event's
+     * own notes — a calendar description is part of the invitation, so every guest reads it. A
+     * series mapping's notes stand for every occurrence until one writes its own.
+     */
+    notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

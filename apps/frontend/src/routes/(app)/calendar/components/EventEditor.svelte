@@ -21,13 +21,14 @@
   import { EventDraft, samePreview } from "$lib/calendar/event-draft.svelte";
   import { fromRecurrence, NEVER, toRRule } from "$lib/calendar/recurrence";
   import type { CalendarEvent, MappingScope } from "$lib/calendar/types";
-  import { AlignLeft, FolderKanban, MapPin, Sparkles, Timer, Trash2, Users, Video, X } from "lucide-svelte";
+  import { AlignLeft, FolderKanban, MapPin, NotebookPen, Sparkles, Timer, Trash2, Users, Video, X } from "lucide-svelte";
   import { untrack } from "svelte";
   import CardSettings, { type CardSection } from "./CardSettings.svelte";
   import DescriptionSection from "./DescriptionSection.svelte";
   import EditorFooter from "./EditorFooter.svelte";
   import EditorHeader from "./EditorHeader.svelte";
   import MeetingSection from "./MeetingSection.svelte";
+  import PrivateNotesSection from "./PrivateNotesSection.svelte";
   import RemindersSection from "./RemindersSection.svelte";
   import TimeSection from "./TimeSection.svelte";
 
@@ -64,12 +65,14 @@
     { id: "participants", label: "Participants", icon: Users },
     { id: "location", label: "Location", icon: MapPin },
     { id: "description", label: "Description", icon: AlignLeft },
+    { id: "notes", label: "Private notes", icon: NotebookPen },
   ];
 
   const data = calendarData;
   const draft = new EventDraft({
     becameId: (id) => data.becameId(id),
     editEvent: (target, fields) => data.editEvent(target, fields),
+    tagEvent: (target, fields) => data.tagEvent(target, fields),
     report: (title, error) => diagnostics.report("Calendar", error, { title }),
   });
 
@@ -294,6 +297,14 @@
 
   {#if shown("description")}
     <DescriptionSection {event} {draft} {meeting} {accountEmail} onopen={(url) => void open(url)} />
+  {/if}
+
+  <!--
+    Not gated on `editable`: the notes are this app's own, so a block somebody else booked — the
+    one most worth preparing for — takes them like any other. Only an all-day row has no card.
+  -->
+  {#if shown("notes")}
+    <PrivateNotesSection {draft} editable={!event.allDay} />
   {/if}
 
   <EditorFooter {event} />

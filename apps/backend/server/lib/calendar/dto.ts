@@ -82,6 +82,8 @@ export class CalendarEventDTO {
   readonly hidden: string[] | null;
   /** Where you are once it is over, or null when it leaves you where you were. */
   readonly endLocation: string | null;
+  /** The person's own notes about it — this app's record, never written to the calendar. */
+  readonly notes: string | null;
   /** What that feed observed for this occurrence, in its own shape; null until the device syncs. */
   readonly record: Record<string, unknown> | null;
   readonly location: string | null;
@@ -125,6 +127,7 @@ export class CalendarEventDTO {
     this.source = e.mapping?.source ?? null;
     this.hidden = e.mapping?.hidden ?? null;
     this.endLocation = e.mapping?.endLocation ?? null;
+    this.notes = e.mapping?.notes ?? null;
     this.record = e.record;
     this.location = e.location;
     this.conferenceUrl = e.conferenceUrl;

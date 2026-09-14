@@ -50,6 +50,11 @@ export interface CalendarEvent {
    * next journey starts, see `$lib/travel/whereabouts.ts`. Null when it leaves you where you were.
    */
   endLocation: string | null;
+  /**
+   * The person's own notes about it, kept by this app and never written to the calendar — a
+   * description is part of the invitation, so every guest reads it. Null when nothing is written.
+   */
+  notes: string | null;
   /** What that feed observed for this occurrence, in the feed's own shape; null until a device syncs. */
   record: Record<string, unknown> | null;
   /** Where it is, as the invitation spells it — an address, a room, or sometimes a link. */
@@ -88,6 +93,7 @@ export const NOT_A_MEETING = {
   source: null,
   hidden: null,
   endLocation: null,
+  notes: null,
   record: null,
   location: null,
   conferenceUrl: null,
@@ -108,6 +114,7 @@ export const NOT_A_MEETING = {
   | "source"
   | "hidden"
   | "endLocation"
+  | "notes"
   | "record"
   | "location"
   | "conferenceUrl"

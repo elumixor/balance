@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "~/db";
 import { eventMappings, eventMappingWeights } from "~/db/schema";
+import { bufferCategoryService } from "~/lib/categories/buffer";
 import { ActivityService, type ActivityWeightInput } from "~/lib/categories/service";
 import { ApiError } from "~/lib/http/api-error";
 import { eventCache } from "./event-cache";
@@ -25,6 +26,8 @@ export interface MappingPurpose {
   readonly hidden: string[] | null;
   /** Where the person is once the event is over — see the schema. */
   readonly endLocation: string | null;
+  /** The person's own notes about the event, which no guest of it can see. */
+  readonly notes: string | null;
 }
 
 export interface MappingInput extends MappingKey, Partial<MappingPurpose> {
@@ -74,6 +77,7 @@ export class EventMappingService {
       source: input.source ?? null,
       hidden: input.hidden ?? null,
       endLocation: input.endLocation ?? null,
+      notes: input.notes ?? null,
     };
     const [mapping] = await db
       .insert(eventMappings)
@@ -97,6 +101,7 @@ export class EventMappingService {
           ...(input.source === undefined ? {} : { source: values.source }),
           ...(input.hidden === undefined ? {} : { hidden: values.hidden }),
           ...(input.endLocation === undefined ? {} : { endLocation: values.endLocation }),
+          ...(input.notes === undefined ? {} : { notes: values.notes }),
         },
       })
       .returning();
@@ -159,6 +164,7 @@ export class EventMappingService {
       source: source.source,
       hidden: source.hidden,
       endLocation: source.endLocation,
+      notes: source.notes,
     });
   }
 
@@ -202,6 +208,21 @@ export class EventMappingService {
         ),
       );
     eventCache.invalidate(this.userId);
+  }
+
+  /**
+   * A write about an event that isn't about what it counts as — a private note, the place it
+   * ends at. Those live on the mapping, so an event without one is first given one: whatever it
+   * already counts as stands, and a block that counted as nothing becomes buffer time, the same
+   * place an hour nobody planned already lands.
+   */
+  async annotate(key: MappingKey, fields: Partial<MappingPurpose>): Promise<ResolvedMapping> {
+    const existing = await db.query.eventMappings.findFirst({ where: this.whereKey(key), with: { weights: true } });
+    const weights = existing?.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })) ?? [];
+    if (existing?.activityId) return this.upsert({ ...key, ...fields, activityId: existing.activityId });
+    if (weights.length > 0) return this.upsert({ ...key, ...fields, weights });
+    const buffer = await bufferCategoryService.ensure(this.userId);
+    return this.upsert({ ...key, ...fields, weights: [{ categoryId: buffer.id, weightPercent: 100 }] });
   }
 
   async remove(key: MappingKey): Promise<void> {
@@ -249,6 +270,7 @@ export class EventMappingService {
     source: string | null;
     hidden: string[] | null;
     endLocation: string | null;
+    notes: string | null;
     activity: { name: string; weights: { categoryId: string; weightPercent: number }[] } | null;
     weights: { categoryId: string; weightPercent: number }[];
   }): ResolvedMapping {
@@ -266,6 +288,7 @@ export class EventMappingService {
       source: row.source,
       hidden: row.hidden,
       endLocation: row.endLocation,
+      notes: row.notes,
       weights: weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
     };
   }

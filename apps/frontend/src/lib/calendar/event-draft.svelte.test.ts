@@ -29,9 +29,10 @@ function event(extra: Partial<CalendarEvent> = {}): CalendarEvent {
 }
 
 /** A calendar that remembers what it was asked and can be made to refuse. */
-function calendar(overrides: Partial<Pick<DraftCalendar, "editEvent" | "becameId">> = {}) {
+function calendar(overrides: Partial<Pick<DraftCalendar, "editEvent" | "becameId" | "tagEvent">> = {}) {
   return {
     editEvent: vi.fn(overrides.editEvent ?? (async () => undefined)),
+    tagEvent: vi.fn(overrides.tagEvent ?? (async () => undefined)),
     report: vi.fn(),
     becameId: vi.fn(overrides.becameId ?? (() => null)),
   } satisfies DraftCalendar;
@@ -125,6 +126,63 @@ describe("EventDraft", () => {
     draft.to = "10:00";
     draft.flush();
     expect(cal.editEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes private notes on their own path, and not to the calendar", () => {
+    const cal = calendar();
+    const draft = new EventDraft(cal);
+    draft.load(event({ notes: "Ask about the budget" }));
+    expect(draft.privateNotes).toBe("Ask about the budget");
+    draft.privateNotes = "  Ask about the budget, then the timeline  ";
+    draft.queuePrivate();
+    draft.queuePrivate();
+    vi.advanceTimersByTime(SAVE_DELAY_MS);
+    expect(cal.editEvent).not.toHaveBeenCalled();
+    expect(cal.tagEvent).toHaveBeenCalledTimes(1);
+    expect(cal.tagEvent.mock.calls[0][1]).toEqual({ notes: "Ask about the budget, then the timeline" });
+    // Nothing has moved since, so the flush the card closes with costs no second write.
+    draft.flush();
+    expect(cal.tagEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes notes on an event nothing else here can change, and clears them when emptied", () => {
+    const cal = calendar();
+    const draft = new EventDraft(cal);
+    draft.load(event({ movable: false, notes: "Their new head of ops" }));
+    expect(draft.editable).toBe(false);
+    draft.privateNotes = "";
+    draft.queuePrivate();
+    // The card closes before the pause is up: what was typed still belongs to the person.
+    draft.flush();
+    expect(cal.tagEvent).toHaveBeenCalledWith(expect.anything(), { notes: null });
+  });
+
+  it("drops notes typed on an event that has just been deleted", () => {
+    const cal = calendar();
+    const draft = new EventDraft(cal);
+    draft.load(event());
+    draft.privateNotes = "Never sent";
+    draft.queuePrivate();
+    draft.discard();
+    vi.runAllTimers();
+    draft.flush();
+    expect(cal.tagEvent).not.toHaveBeenCalled();
+  });
+
+  it("puts the saved notes back on revert, and writes nothing before a load", () => {
+    const cal = calendar();
+    const draft = new EventDraft(cal);
+    draft.load(event({ notes: "Saved" }));
+    draft.privateNotes = "Half-typed";
+    draft.queuePrivate();
+    draft.revert();
+    vi.runAllTimers();
+    expect(cal.tagEvent).not.toHaveBeenCalled();
+    expect(draft.privateNotes).toBe("Saved");
+    const empty = new EventDraft(cal);
+    empty.privateNotes = "Nothing is open";
+    empty.flush();
+    expect(cal.tagEvent).not.toHaveBeenCalled();
   });
 
   it("reads a time the way it was typed rather than only as HH:MM", () => {

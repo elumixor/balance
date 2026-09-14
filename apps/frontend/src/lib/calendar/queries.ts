@@ -115,6 +115,8 @@ export const saveEventMapping = (input: {
   hidden?: string[] | null;
   /** Where you are once it is over. Absent leaves it alone; null clears it. */
   endLocation?: string | null;
+  /** Your own notes about it, which the calendar never sees. Absent leaves them; null clears. */
+  notes?: string | null;
 }) => callApi(api.calendar.mappings.$post(input));
 
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>

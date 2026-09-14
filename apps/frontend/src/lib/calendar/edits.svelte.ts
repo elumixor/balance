@@ -113,9 +113,11 @@ export class CalendarEdits {
       categories.all.find((c) => c.isBuffer)?.id;
     const choice = existing?.choice ?? (sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null);
     if (!choice) return;
-    // Which sections a card folds away is how it's drawn, not what the hour was — not a step.
-    const onlyFolds = Object.keys(purpose).every((key) => key === "hidden");
-    await this.mapEvent(event, scope, choice, merged, !onlyFolds);
+    // How the card is drawn, and what you wrote down about the meeting, are neither of them what
+    // the hour was — and a textarea has an undo of its own — so neither is a step.
+    const notAnEdit = new Set(["hidden", "notes"]);
+    const onlyDrawing = Object.keys(purpose).every((key) => notAnEdit.has(key));
+    await this.mapEvent(event, scope, choice, merged, !onlyDrawing);
   }
 
   /** Context-menu duplicate: a new event with the same fields, placed right after the original. */

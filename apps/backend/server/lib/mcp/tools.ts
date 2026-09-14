@@ -64,6 +64,22 @@ const rangeSchema = {
 };
 
 const DEFAULT_RANGE_DAYS = 7;
+/** The same ceiling the app's own notes field has. */
+const MAX_NOTES_LENGTH = 10_000;
+
+const NOTES_DESCRIPTION =
+  "Your own notes about the meeting, kept in Balance and never written to the calendar, so no " +
+  "guest of the event can read them.";
+
+/** Notes ride on this app's record of the event, one occurrence at a time — see `set_notes`. */
+function writeNotes(user: DbUser, qualifiedCalendarId: string, eventId: string, notes: string | null) {
+  return new EventMappingService(user.id)
+    .annotate(
+      { calendarId: splitCalendarId(qualifiedCalendarId).calendarId, externalEventId: eventId, scope: "instance" },
+      { notes },
+    )
+    .then((mapping) => mapping.notes);
+}
 const MS_PER_DAY = 86_400_000;
 const MS_PER_HOUR = 3_600_000;
 
@@ -195,6 +211,8 @@ export const mcpTools: McpTool[] = [
           hours: e.countsTowardHours ? hours(e.start, e.end) : 0,
           location: e.location ?? null,
           conferenceUrl: e.conferenceUrl,
+          // This app's own record of the meeting, which no guest of it can see.
+          notes: e.mapping?.notes ?? null,
           activity: e.mapping?.activityName ?? null,
           weights: e.weights,
           projectId: e.mapping?.projectId ?? null,
@@ -216,8 +234,9 @@ export const mcpTools: McpTool[] = [
     title: "Create a calendar block",
     description:
       "Writes a real event to the calendar, categorised in the same breath: invites whoever is " +
-      "named in `attendees`, and gives it a Google Meet link when `meet` is true. Times are " +
-      "instants, so say them with an offset — a naked local time means UTC.",
+      "named in `attendees`, gives it a Google Meet link when `meet` is true, and keeps `notes` " +
+      "where only you can read them. Times are instants, so say them with an offset — a naked " +
+      "local time means UTC.",
     readOnly: false,
     inputSchema: {
       title: z.string().trim().min(1),
@@ -229,6 +248,7 @@ export const mcpTools: McpTool[] = [
       calendarId: z.string().optional().describe("Defaults to the calendar new blocks land in."),
       attendees: z.array(guestSchema).optional().describe(GUESTS_DESCRIPTION),
       meet: z.boolean().optional().describe("Give the event a Google Meet link of its own."),
+      notes: z.string().max(MAX_NOTES_LENGTH).optional().describe(NOTES_DESCRIPTION),
       ...purposeSchema,
     },
     async run(args, user) {
@@ -241,12 +261,15 @@ export const mcpTools: McpTool[] = [
         start,
         end,
       });
+      const calendarId = qualifyCalendarId(created.accountId, created.calendarId);
+      const notes = args.notes === undefined ? null : await writeNotes(user, calendarId, created.id, args.notes);
       return {
         id: created.id,
-        calendarId: qualifyCalendarId(created.accountId, created.calendarId),
+        calendarId,
         title: created.title,
         attendees: created.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: created.conferenceUrl,
+        notes,
       };
     },
   }),
@@ -255,9 +278,9 @@ export const mcpTools: McpTool[] = [
     name: "update_event",
     title: "Move or retitle a block",
     description:
-      "Changes an event that is already on the calendar, including who is coming and whether it has " +
-      "a Google Meet call. Only what is given is changed. An event whose `movable` is false takes " +
-      "no time or title change.",
+      "Changes an event that is already on the calendar, including who is coming, whether it has a " +
+      "Google Meet call, and your own private notes about it. Only what is given is changed. An " +
+      "event whose `movable` is false takes no time or title change — but still takes notes.",
     readOnly: false,
     inputSchema: {
       id: z.string().min(1).describe("The event id from `list_events`."),
@@ -279,6 +302,12 @@ export const mcpTools: McpTool[] = [
           `The whole guest list, replacing the event's own — whoever is left out is uninvited. Prefer \`addAttendees\` to invite somebody. ${GUESTS_DESCRIPTION}`,
         ),
       meet: z.boolean().optional().describe("True adds a Google Meet link, false takes the call off."),
+      notes: z
+        .string()
+        .max(MAX_NOTES_LENGTH)
+        .nullable()
+        .optional()
+        .describe(`${NOTES_DESCRIPTION} Null clears them; use \`set_notes\` to write them on a whole series.`),
     },
     async run(args, user) {
       const service = new CalendarEventsService(user.id);
@@ -295,6 +324,7 @@ export const mcpTools: McpTool[] = [
         attendees,
         conference: args.meet === undefined ? undefined : args.meet ? "create" : "remove",
       });
+      const notes = args.notes === undefined ? null : await writeNotes(user, args.calendarId, args.id, args.notes);
       return {
         id: updated.id,
         title: updated.title,
@@ -302,6 +332,7 @@ export const mcpTools: McpTool[] = [
         end: updated.end.toISOString(),
         attendees: updated.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: updated.conferenceUrl,
+        notes,
       };
     },
   }),
@@ -354,6 +385,33 @@ export const mcpTools: McpTool[] = [
         taskId: args.taskId ?? null,
       });
       return { mapping };
+    },
+  }),
+
+  tool({
+    name: "set_notes",
+    title: "Write private notes on an event",
+    description:
+      "The person's own notes about a meeting — what to prepare, what was said, what to do next. " +
+      "They are kept in Balance and never written to the calendar, so no guest of the event can " +
+      "read them. Passing null clears them. `scope: series` writes them once for every occurrence.",
+    readOnly: false,
+    inputSchema: {
+      id: z.string().min(1).describe("The event id from `list_events`."),
+      calendarId: z.string().min(1),
+      scope: z.enum(["instance", "series"]).default("instance"),
+      notes: z.string().max(MAX_NOTES_LENGTH).nullable().describe("The whole note, replacing whatever was there."),
+    },
+    async run(args, user) {
+      const mapping = await new EventMappingService(user.id).annotate(
+        {
+          calendarId: splitCalendarId(args.calendarId).calendarId,
+          externalEventId: args.id,
+          scope: args.scope,
+        },
+        { notes: args.notes },
+      );
+      return { notes: mapping.notes };
     },
   }),
 

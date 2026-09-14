@@ -8,6 +8,8 @@ const MAX_HIDDEN_SECTIONS = 20;
 const MAX_SECTION_ID_LENGTH = 40;
 /** Room for a full postal address as Maps spells it. */
 const MAX_END_LOCATION_LENGTH = 500;
+/** Long enough for a page of preparation, short enough that nobody writes a document in it. */
+const MAX_NOTES_LENGTH = 10_000;
 
 export default authed(
   {
@@ -29,6 +31,8 @@ export default authed(
       hidden: z.array(z.string().max(MAX_SECTION_ID_LENGTH)).max(MAX_HIDDEN_SECTIONS).nullable().optional(),
       /** Where the person is once it is over. Absent leaves it alone; null clears it. */
       endLocation: z.string().trim().min(1).max(MAX_END_LOCATION_LENGTH).nullable().optional(),
+      /** The person's own notes, which the calendar never sees. Absent leaves them; null clears. */
+      notes: z.string().max(MAX_NOTES_LENGTH).nullable().optional(),
       /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
       timer: z
         .union([

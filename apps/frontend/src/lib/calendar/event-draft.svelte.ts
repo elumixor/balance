@@ -27,6 +27,8 @@ export interface DraftCalendar {
   /** The event a draft turned into, for whatever was open on it — null for any other id. */
   becameId(id: string): string | null;
   editEvent(event: CalendarEvent, fields: EventFields): Promise<unknown>;
+  /** The app's own record of the event — where the private notes live. */
+  tagEvent(event: CalendarEvent, fields: { notes: string | null }): Promise<unknown>;
   /** A sentence for the card in the corner, with what actually failed behind it. */
   report(title: string, error: unknown): void;
 }
@@ -37,6 +39,8 @@ interface Saved {
   readonly notes: string;
   readonly start: number;
   readonly end: number;
+  /** The private notes, which are saved on their own — see `queuePrivate`. */
+  readonly privateNotes: string;
 }
 
 export function samePreview(a: EventPreview | null, b: EventPreview | null) {
@@ -54,6 +58,11 @@ export function samePreview(a: EventPreview | null, b: EventPreview | null) {
 export class EventDraft {
   title = $state("");
   notes = $state("");
+  /**
+   * What only the person sees. It is not part of the event the calendar holds, so it is written
+   * separately from everything else here: an invitation nobody can move still takes notes.
+   */
+  privateNotes = $state("");
   date = $state("");
   from = $state("");
   to = $state("");
@@ -67,7 +76,8 @@ export class EventDraft {
 
   #event = $state.raw<CalendarEvent | null>(null);
   #timer: ReturnType<typeof setTimeout> | null = null;
-  #saved: Saved = { title: "", notes: "", start: 0, end: 0 };
+  #privateTimer: ReturnType<typeof setTimeout> | null = null;
+  #saved: Saved = { title: "", notes: "", start: 0, end: 0, privateNotes: "" };
   #loaded = "";
   /** A deleted event must not be written back by the pending edit the card is unmounting with. */
   #deleted = false;
@@ -111,6 +121,7 @@ export class EventDraft {
     this.previewTo = null;
     this.title = event.title;
     this.notes = event.description ?? "";
+    this.privateNotes = event.notes ?? "";
     this.date = formatDateInput(new Date(event.start));
     this.from = formatClock(new Date(event.start));
     this.to = formatClock(new Date(event.end));
@@ -119,6 +130,7 @@ export class EventDraft {
       notes: event.description ?? "",
       start: new Date(event.start).getTime(),
       end: new Date(event.end).getTime(),
+      privateNotes: event.notes ?? "",
     };
     return true;
   }
@@ -138,6 +150,12 @@ export class EventDraft {
     this.#timer = setTimeout(() => this.#commit(), SAVE_DELAY_MS);
   }
 
+  /** The private notes take the same pause as everything else, down their own path. */
+  queuePrivate() {
+    if (this.#privateTimer) clearTimeout(this.#privateTimer);
+    this.#privateTimer = setTimeout(() => this.#commitPrivate(), SAVE_DELAY_MS);
+  }
+
   /**
    * A pending edit still belongs to the user: it goes now rather than after the delay. A time
    * settled on after the delay has already run out — the one the failed half-typed write left
@@ -147,16 +165,22 @@ export class EventDraft {
     if (this.#deleted) return;
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = null;
+    if (this.#privateTimer) clearTimeout(this.#privateTimer);
+    this.#privateTimer = null;
     this.#commit();
+    this.#commitPrivate();
   }
 
   /** Whatever has been typed since the last write is dropped: the fields go back to what was saved. */
   revert() {
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = null;
+    if (this.#privateTimer) clearTimeout(this.#privateTimer);
+    this.#privateTimer = null;
     const saved = this.#saved;
     this.title = saved.title;
     this.notes = saved.notes;
+    this.privateNotes = saved.privateNotes;
     this.date = formatDateInput(new Date(saved.start));
     this.from = formatClock(new Date(saved.start));
     this.to = formatClock(new Date(saved.end));
@@ -167,6 +191,8 @@ export class EventDraft {
     this.#deleted = true;
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = null;
+    if (this.#privateTimer) clearTimeout(this.#privateTimer);
+    this.#privateTimer = null;
   }
 
   /** Adds a line to the notes and writes it at once — a pasted call link has nothing more to type. */
@@ -182,6 +208,21 @@ export class EventDraft {
     } catch (e) {
       this.#calendar.report(title, e);
     }
+  }
+
+  /**
+   * The notes the calendar never sees. They ride on this app's own record of the event rather
+   * than the event, so an invitation that can't be moved — or a block somebody else booked —
+   * still takes them, and an empty box clears the record rather than saving a blank line.
+   */
+  #commitPrivate() {
+    this.#privateTimer = null;
+    const event = this.#event;
+    if (!event || this.#deleted) return;
+    const next = this.privateNotes.trim();
+    if (next === this.#saved.privateNotes) return;
+    this.#saved = { ...this.#saved, privateNotes: next };
+    void this.write("Your notes weren’t saved", this.#calendar.tagEvent(event, { notes: next || null }));
   }
 
   /** Writes only what actually moved; an unparseable time is said once and left alone. */
@@ -211,7 +252,7 @@ export class EventDraft {
     }
     // The write draws itself on the grid before it asks the server, so nothing here waits on the
     // network to look done — only the error, if one comes back, arrives late.
-    this.#saved = next;
+    this.#saved = { ...next, privateNotes: this.#saved.privateNotes };
     void this.write(
       "The edit wasn’t saved",
       this.#calendar.editEvent(event, {
