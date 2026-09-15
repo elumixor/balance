@@ -262,14 +262,16 @@ export const mcpTools: McpTool[] = [
         end,
       });
       const calendarId = qualifyCalendarId(created.accountId, created.calendarId);
-      const notes = args.notes === undefined ? null : await writeNotes(user, calendarId, created.id, args.notes);
+      // Said back only when it was asked for: a null here would read as "there are none".
+      const notes =
+        args.notes === undefined ? {} : { notes: await writeNotes(user, calendarId, created.id, args.notes) };
       return {
         id: created.id,
         calendarId,
         title: created.title,
         attendees: created.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: created.conferenceUrl,
-        notes,
+        ...notes,
       };
     },
   }),
@@ -324,7 +326,8 @@ export const mcpTools: McpTool[] = [
         attendees,
         conference: args.meet === undefined ? undefined : args.meet ? "create" : "remove",
       });
-      const notes = args.notes === undefined ? null : await writeNotes(user, args.calendarId, args.id, args.notes);
+      const notes =
+        args.notes === undefined ? {} : { notes: await writeNotes(user, args.calendarId, args.id, args.notes) };
       return {
         id: updated.id,
         title: updated.title,
@@ -332,7 +335,7 @@ export const mcpTools: McpTool[] = [
         end: updated.end.toISOString(),
         attendees: updated.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: updated.conferenceUrl,
-        notes,
+        ...notes,
       };
     },
   }),
