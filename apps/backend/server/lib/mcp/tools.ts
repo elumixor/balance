@@ -6,6 +6,7 @@ import type { DbUser } from "~/lib/auth/service";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { qualifyCalendarId, splitCalendarId } from "~/lib/calendar/ids";
 import { EventMappingService } from "~/lib/calendar/mappings-service";
+import type { ConferenceInput } from "~/lib/calendar/types";
 import { CategoryService } from "~/lib/categories/service";
 import { parseInstant, parseInstantRange } from "~/lib/http/schemas";
 import { dayIn } from "~/lib/planning/days";
@@ -67,9 +68,33 @@ const DEFAULT_RANGE_DAYS = 7;
 /** The same ceiling the app's own notes field has. */
 const MAX_NOTES_LENGTH = 10_000;
 
+/**
+ * A call the model already has a link to — a Zoom or Teams room somebody pasted. Written into the
+ * event's own conference block rather than its notes, so every guest's calendar draws a join
+ * button for it the way it does for a Meet.
+ */
+const callSchema = z.object({
+  url: z.string().url().describe("The join URL."),
+  name: z.string().optional().describe('What to call it — "Zoom Meeting".'),
+  meetingCode: z.string().optional().describe("The meeting id as its provider writes it."),
+  notes: z.string().max(1024).optional().describe("A passcode or a dial-in, if the link needs one."),
+});
+
+const CALL_DESCRIPTION =
+  "A call that already exists elsewhere, by its join link — use it for Zoom, Teams or anything " +
+  "Google cannot make itself. `meet` makes a Google Meet instead; the two are the same slot, so " +
+  "pass one or the other.";
+
 const NOTES_DESCRIPTION =
   "Your own notes about the meeting, kept in Balance and never written to the calendar, so no " +
   "guest of the event can read them.";
+
+/** One slot, three answers: Google's own call, somebody else's, or none. */
+function conferenceOf(args: { meet?: boolean; call?: z.infer<typeof callSchema> }): ConferenceInput | undefined {
+  if (args.call) return args.call;
+  if (args.meet === undefined) return undefined;
+  return args.meet ? "create" : "remove";
+}
 
 /** Notes ride on this app's record of the event, one occurrence at a time — see `set_notes`. */
 function writeNotes(user: DbUser, qualifiedCalendarId: string, eventId: string, notes: string | null) {
@@ -248,6 +273,7 @@ export const mcpTools: McpTool[] = [
       calendarId: z.string().optional().describe("Defaults to the calendar new blocks land in."),
       attendees: z.array(guestSchema).optional().describe(GUESTS_DESCRIPTION),
       meet: z.boolean().optional().describe("Give the event a Google Meet link of its own."),
+      call: callSchema.optional().describe(CALL_DESCRIPTION),
       notes: z.string().max(MAX_NOTES_LENGTH).optional().describe(NOTES_DESCRIPTION),
       ...purposeSchema,
     },
@@ -257,7 +283,7 @@ export const mcpTools: McpTool[] = [
         ...args,
         weights: weightsOf(args.categoryId),
         attendees: guestsOf(args.attendees),
-        conference: args.meet ? "create" : undefined,
+        conference: conferenceOf(args),
         start,
         end,
       });
@@ -304,6 +330,7 @@ export const mcpTools: McpTool[] = [
           `The whole guest list, replacing the event's own — whoever is left out is uninvited. Prefer \`addAttendees\` to invite somebody. ${GUESTS_DESCRIPTION}`,
         ),
       meet: z.boolean().optional().describe("True adds a Google Meet link, false takes the call off."),
+      call: callSchema.optional().describe(`${CALL_DESCRIPTION} It replaces whatever call is on the event.`),
       notes: z
         .string()
         .max(MAX_NOTES_LENGTH)
@@ -324,7 +351,7 @@ export const mcpTools: McpTool[] = [
         end: args.end ? parseInstant(args.end, "end") : undefined,
         timeZone: args.timeZone,
         attendees,
-        conference: args.meet === undefined ? undefined : args.meet ? "create" : "remove",
+        conference: conferenceOf(args),
       });
       const notes =
         args.notes === undefined ? {} : { notes: await writeNotes(user, args.calendarId, args.id, args.notes) };

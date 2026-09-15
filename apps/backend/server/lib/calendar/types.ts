@@ -116,8 +116,24 @@ export interface AttendeeInput {
   readonly optional?: boolean;
 }
 
-/** Add the provider's own call, or take it off. A link to someone else's call lives in the notes. */
-export type ConferenceInput = "create" | "remove";
+/**
+ * What the event's call should be: Google's own, none at all, or somebody else's — a Zoom or
+ * Teams link, written as the conference block Google draws a join button from rather than as a
+ * line in the notes, so every guest's calendar shows it the way it shows a Meet.
+ */
+export type ConferenceInput = "create" | "remove" | ExternalConference;
+
+/** A call that already exists somewhere else, as the calendar is asked to hold it. */
+export interface ExternalConference {
+  /** Where the call is: the join URL, which is the one field a guest actually uses. */
+  readonly url: string;
+  /** What to call it — "Zoom Meeting". Shown beside the link on every calendar that draws it. */
+  readonly name?: string;
+  /** The meeting id as its provider writes it, shown under the link. */
+  readonly meetingCode?: string;
+  /** Anything a guest needs that the link doesn't carry: a passcode, a dial-in. */
+  readonly notes?: string;
+}
 
 export interface UpdateEventInput {
   readonly title?: string;

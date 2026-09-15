@@ -6,13 +6,15 @@
   /**
    * How you get into the call. With one on the event: its name, a copy, a Join. Without: the
    * two ways of putting one there — the calendar makes a Meet, or a link to somebody else's call
-   * is pasted in, which lands in the notes where the card already reads links from.
+   * is pasted in, which is written as the event's own conferencing block so that every guest's
+   * calendar draws a join button for it too.
    */
   let {
     meeting,
     conferenceName,
     joinUrl,
     editable,
+    hasCall,
     onjoin,
     oncreate,
     onremove,
@@ -22,6 +24,8 @@
     conferenceName: string | null;
     joinUrl: string | null;
     editable: boolean;
+    /** Whether the call is the event's own block — a link only written in the notes isn't. */
+    hasCall: boolean;
     onjoin: (url: string) => void;
     oncreate: () => void;
     onremove: () => void;
@@ -55,7 +59,7 @@
     >
       Join
     </button>
-    {#if editable && join.provider === "meet"}
+    {#if editable && hasCall}
       <button
         type="button"
         aria-label="Remove the call"
@@ -102,7 +106,7 @@
         }}
       />
       <PopoverItem
-        label="Paste a link…"
+        label="Paste a Zoom or Teams link…"
         onclick={() => {
           pasting = true;
           close();

@@ -67,8 +67,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
     // a create that names guests asks Google to send the invitation the same way an edit does.
     const params = new URLSearchParams();
     if (input.attendees?.length) params.set("sendUpdates", "all");
-    // Google mints a Meet link only for a request that says which version of that block it sends.
-    if (input.conference === "create") params.set("conferenceDataVersion", "1");
+    // Google takes a conference — one it makes, or one it is handed — only from a request that
+    // says which version of that block it is sending.
+    if (input.conference) params.set("conferenceDataVersion", "1");
     const query = params.size > 0 ? `?${params}` : "";
     const created = await this.#request.send<GoogleEvent>(`/calendars/${encode(input.calendarId)}/events${query}`, {
       method: "POST",
@@ -89,7 +90,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
         ...(input.attendees === undefined
           ? {}
           : { attendees: input.attendees.map((a) => ({ email: a.email, optional: a.optional === true })) }),
-        ...(input.conference === "create" ? { conferenceData: conferenceBlock(input.conference) } : {}),
+        ...(input.conference === undefined || input.conference === "remove"
+          ? {}
+          : { conferenceData: conferenceBlock(input.conference) }),
       },
     });
     return toExternalEvent(created, await this.#calendar(input.calendarId));

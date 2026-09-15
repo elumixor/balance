@@ -1,7 +1,7 @@
 <script lang="ts">
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import type { EventDraft } from "$lib/calendar/event-draft.svelte";
-  import { asGoogleAccount, hasAddress, type Meeting } from "$lib/calendar/meeting";
+  import { asGoogleAccount, callFrom, hasAddress, type Meeting } from "$lib/calendar/meeting";
   import type { CalendarEvent } from "$lib/calendar/types";
   import ConferencingRow from "./ConferencingRow.svelte";
   import EndPlaceRow from "./EndPlaceRow.svelte";
@@ -81,6 +81,18 @@
     void draft.write("The call wasn’t removed", data.patchEvent(event, { conference: "remove" }, { conference: "create" }));
   }
 
+  /**
+   * A Zoom or Teams link becomes the event's own call rather than a line in the notes: it is
+   * written into the conferencing block every calendar draws a join button from, so the people
+   * invited see it where they look for it. Undo puts back whatever call was there before.
+   */
+  function pasteCall(url: string) {
+    const was = event.conferenceUrl
+      ? { url: event.conferenceUrl, name: event.conferenceName ?? "Video call" }
+      : ("remove" as const);
+    void draft.write("The call wasn’t saved", data.patchEvent(event, { conference: callFrom(url) }, { conference: was }));
+  }
+
 </script>
 
 <div class="border-t border-line px-2 py-1.5">
@@ -93,7 +105,8 @@
       onjoin={onopen}
       oncreate={addCall}
       onremove={removeCall}
-      onpaste={(url) => draft.append(url)}
+      onpaste={pasteCall}
+      hasCall={Boolean(event.conferenceUrl)}
     />
   {/if}
   {#if participants}

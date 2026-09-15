@@ -121,6 +121,11 @@ export function drawnWith(event: CalendarEvent, patch: EventPatch): CalendarEven
     // The rule shows on the card at once; the occurrences it makes or takes away land with the refetch.
     ...(patch.recurrence === undefined ? {} : { recurrence: patch.recurrence.length ? [...patch.recurrence] : null }),
     ...(patch.conference === "remove" ? { conferenceUrl: null, conferenceName: null } : {}),
+    // A pasted call is drawn as the card will show it before the calendar has answered; a Meet
+    // can't be, since only Google knows the link it is about to mint.
+    ...(typeof patch.conference === "object"
+      ? { conferenceUrl: patch.conference.url, conferenceName: patch.conference.name }
+      : {}),
     ...(patch.attendees === undefined
       ? {}
       : {

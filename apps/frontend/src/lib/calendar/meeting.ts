@@ -15,6 +15,12 @@ export interface MeetingLink {
   readonly label: string;
 }
 
+/** A call that exists somewhere else already, as the calendar is asked to hold it. */
+export interface ExternalCall {
+  readonly url: string;
+  readonly name: string;
+}
+
 export interface Meeting {
   /** The one link that means "you are in the room". Null when the event isn't a call. */
   readonly join: (MeetingLink & { provider: MeetingProvider }) | null;
@@ -91,6 +97,16 @@ export function partsOf(text: string): NotePart[] {
 export function hasAddress(event: MeetingSource) {
   const place = placeOf(event.location);
   return place !== null && ADDRESSY.test(place);
+}
+
+/**
+ * A pasted link as the calendar should keep it: its provider's name beside it, so every guest's
+ * calendar draws "Zoom Meeting" and a join button rather than a bare URL in somebody's notes.
+ */
+export function callFrom(url: string): ExternalCall {
+  const known = PROVIDERS.find((candidate) => candidate.pattern.test(url));
+  if (known) return { url, name: known.provider === "meet" ? known.label : `${known.label} Meeting` };
+  return { url, name: siteOf(url) };
 }
 
 function asJoin(url: string) {

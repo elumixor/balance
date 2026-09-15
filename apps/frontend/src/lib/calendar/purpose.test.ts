@@ -148,6 +148,13 @@ describe("drawnWith", () => {
     });
   });
 
+  it("draws a pasted call before the calendar has answered", () => {
+    const drawn = drawnWith(event(), {
+      conference: { url: "https://us02web.zoom.us/j/123", name: "Zoom Meeting" },
+    });
+    expect(drawn).toMatchObject({ conferenceUrl: "https://us02web.zoom.us/j/123", conferenceName: "Zoom Meeting" });
+  });
+
   it("moves times, zone, reminders and the rule at once", () => {
     const reminders = [{ method: "popup" as const, minutes: 10 }];
     const drawn = drawnWith(event(), {

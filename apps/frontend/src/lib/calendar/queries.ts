@@ -9,6 +9,7 @@ import type {
 } from "$lib/calendar/types";
 import { api, apiGet, callApi } from "$lib/core/api";
 import type { ActivityWeight } from "$lib/core/records";
+import type { ExternalCall } from "./meeting";
 
 export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => r as CalendarPrefs);
 
@@ -53,7 +54,8 @@ export interface EventPatch {
   /** The whole guest list; whoever is left off is uninvited. */
   attendees?: { email: string; optional?: boolean }[];
   /** Add the calendar's own call, or take the call off. */
-  conference?: "create" | "remove";
+  /** Google's own call, none at all, or somebody else's by its join link. */
+  conference?: "create" | "remove" | ExternalCall;
 }
 
 export const updateCalendarEvent = (

@@ -77,6 +77,13 @@ the caller has, the screen's weeks or the agenda's this-week-and-next, and the u
 in before any move. Journeys are asked about for events that have already happened too, with the
 server asking for a typical one rather than a bus that has left.
 
+A call is one slot with three answers: Google's own Meet (`conference: "create"`), none
+(`"remove"`), or somebody else's by its join link — a Zoom or Teams room written into the event's
+`conferenceData` as an `addOn` solution rather than pasted into the notes, so every guest's
+calendar draws the same join button for it. Google mints only its own; anything else has to
+arrive as a link, which is what the card's "Paste a Zoom or Teams link…" and the MCP `call`
+argument both do. Minting a Zoom room needs a Zoom app of ours, which does not exist yet.
+
 An event's description belongs to everyone invited to it — Google puts it in the invitation — so
 what one person wants to remember about a meeting has nowhere on the calendar to go. Private
 notes are the app's own record instead: `notes` on the mapping, beside `endLocation`, drawn as the

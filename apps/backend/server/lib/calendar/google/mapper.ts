@@ -31,7 +31,23 @@ export function calendarDate(at: Date) {
  */
 export function conferenceBlock(conference: ConferenceInput) {
   if (conference === "remove") return null;
-  return { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } };
+  if (conference === "create")
+    return { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } };
+  // Somebody else's call, handed to Google whole: a solution and its one video entry point is
+  // what a calendar needs to draw a join button, and `addOn` is how a call Google didn't make
+  // says so. There is at most one video entry point in a conference, which is all this holds.
+  return {
+    conferenceSolution: { key: { type: "addOn" }, name: conference.name ?? "Video call", iconUri: undefined },
+    entryPoints: [
+      {
+        entryPointType: "video",
+        uri: conference.url,
+        label: conference.name ?? conference.url,
+        ...(conference.meetingCode === undefined ? {} : { meetingCode: conference.meetingCode }),
+      },
+    ],
+    ...(conference.notes === undefined ? {} : { notes: conference.notes }),
+  };
 }
 
 /**

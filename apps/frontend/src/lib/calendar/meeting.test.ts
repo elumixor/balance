@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { asGoogleAccount, hasAddress, meetingOf, partsOf } from "./meeting";
+import { asGoogleAccount, callFrom, hasAddress, meetingOf, partsOf } from "./meeting";
+
+describe("callFrom", () => {
+  it("names the provider a pasted link belongs to", () => {
+    expect(callFrom("https://us02web.zoom.us/j/81234567890?pwd=x")).toEqual({
+      url: "https://us02web.zoom.us/j/81234567890?pwd=x",
+      name: "Zoom Meeting",
+    });
+    expect(callFrom("https://teams.microsoft.com/l/meetup-join/19%3ameeting").name).toBe("Teams Meeting");
+    expect(callFrom("https://meet.google.com/abc-defg-hij").name).toBe("Google Meet");
+  });
+
+  it("falls back to the site for a call nothing here recognises", () => {
+    expect(callFrom("https://www.whereby.com/room").name).toBe("whereby.com");
+    expect(callFrom("not a url").name).toBe("Link");
+  });
+});
 
 describe("meetingOf", () => {
   it("takes the conferencing block the calendar gives outright", () => {

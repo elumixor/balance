@@ -10,6 +10,10 @@ const MAX_REMINDERS = 5;
 const MAX_ATTENDEES = 100;
 const MAX_RRULE_LINES = 4;
 const MAX_RRULE_LENGTH = 400;
+/** A join link with its query string, the name beside it, and whatever a guest still needs. */
+const MAX_CALL_URL_LENGTH = 2000;
+const MAX_CALL_NAME_LENGTH = 100;
+const MAX_CALL_NOTES_LENGTH = 1024;
 
 export default authed(
   {
@@ -40,7 +44,18 @@ export default authed(
         )
         .max(MAX_ATTENDEES)
         .optional(),
-      conference: z.enum(["create", "remove"]).optional(),
+      /** Google's own call, none at all, or somebody else's by its join link. */
+      conference: z
+        .union([
+          z.enum(["create", "remove"]),
+          z.object({
+            url: z.string().url().max(MAX_CALL_URL_LENGTH),
+            name: z.string().max(MAX_CALL_NAME_LENGTH).optional(),
+            meetingCode: z.string().max(MAX_CALL_NAME_LENGTH).optional(),
+            notes: z.string().max(MAX_CALL_NOTES_LENGTH).optional(),
+          }),
+        ])
+        .optional(),
       // Present only when the caller means the whole series, not just this occurrence.
       seriesId: z.string().optional(),
       seriesScope: z.enum(["all", "following"]).optional(),
