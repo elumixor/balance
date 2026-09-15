@@ -16,6 +16,7 @@ vi.mock("$lib/calendar/queries", () => ({
     events: [],
   }),
   getCalendarPrefs: async () => ({ accounts: [], visibleCalendarIds: [] }),
+  getZoomStatus: async () => ({ available: false, connected: false, needsReconnect: false, accountEmail: "" }),
 }));
 vi.mock("$lib/integrations/queries", () => ({ getIntegrations: async () => [] }));
 vi.mock("$lib/account/queries", () => ({ getPreferences: async () => ({}) }));

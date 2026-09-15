@@ -107,7 +107,7 @@ export interface CreateEventInput {
   readonly reminders?: readonly EventReminder[];
   readonly attendees?: readonly AttendeeInput[];
   /** `"create"` asks Google for a Meet link as the event is written. */
-  readonly conference?: ConferenceInput;
+  readonly conference?: ProviderConference;
 }
 
 /** Someone on the guest list, as the card writes them: an address, and whether they're optional. */
@@ -117,11 +117,16 @@ export interface AttendeeInput {
 }
 
 /**
- * What the event's call should be: Google's own, none at all, or somebody else's — a Zoom or
- * Teams link, written as the conference block Google draws a join button from rather than as a
- * line in the notes, so every guest's calendar shows it the way it shows a Meet.
+ * What the event's call should be: Google's own Meet, a room made in the connected Zoom account,
+ * none at all, or somebody else's call by its join link — written as the conference block Google
+ * draws a join button from rather than as a line in the notes, so every guest's calendar shows it
+ * the way it shows a Meet. `"zoom"` is resolved to one of those links before the calendar sees
+ * it: Google mints nothing but its own.
  */
-export type ConferenceInput = "create" | "remove" | ExternalConference;
+export type ConferenceInput = ProviderConference | "zoom";
+
+/** What a calendar can actually be asked for: its own call, none, or one made somewhere else. */
+export type ProviderConference = "create" | "remove" | ExternalConference;
 
 /** A call that already exists somewhere else, as the calendar is asked to hold it. */
 export interface ExternalConference {
@@ -151,7 +156,7 @@ export interface UpdateEventInput {
   readonly reminders?: readonly EventReminder[];
   /** The whole guest list, replacing the event's own. Whoever is dropped is uninvited. */
   readonly attendees?: readonly AttendeeInput[];
-  readonly conference?: ConferenceInput;
+  readonly conference?: ProviderConference;
 }
 
 /** What a calendar integration has to be able to do. Google today, Notion later. */

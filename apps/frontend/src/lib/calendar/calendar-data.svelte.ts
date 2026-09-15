@@ -1,3 +1,4 @@
+import { oauthConnect } from "$lib/core/oauth-connect";
 import type { ActivityWeight } from "$lib/core/records";
 import { calendarWeek, store } from "$lib/core/store.svelte";
 import { projects, synced } from "$lib/core/synced.svelte";
@@ -8,6 +9,7 @@ import { CalendarDrag, type DragHost, type DragSource, dropMoves } from "./drag.
 import { CalendarEdits } from "./edits.svelte";
 import { instantAt, SIDE_WEEKS, STRIP_DAYS, STRIP_WEEKS } from "./geometry";
 import type { Answer } from "./purpose";
+import { startZoomConnect } from "./queries";
 import { CalendarSelection } from "./selection.svelte";
 import { CalendarSeries } from "./series.svelte";
 import type { CalendarEvent, SeriesScope } from "./types";
@@ -544,6 +546,26 @@ export function accountEmailOf(calendarId: string) {
   if (!prefs) return null;
   const account = (prefs.accounts ?? []).find((a) => a.calendars.some((c) => c.id === calendarId));
   return account?.email ?? null;
+}
+
+/**
+ * A Zoom account, connected if it isn't already — pressed for at the moment it is wanted rather
+ * than sent somebody off to Settings first, the same rule the Notion entry points are under.
+ * False when the deployment has no Zoom app at all, or the person walked away from the consent
+ * screen, in which case nothing else should happen either.
+ */
+export async function ensureZoom() {
+  await store.zoom.ensure();
+  if (!store.zoom.value?.available) return false;
+  if (store.zoom.value.connected && !store.zoom.value.needsReconnect) return true;
+  await oauthConnect({
+    start: (mode, origin) => startZoomConnect(mode, origin),
+    poll: async () => {
+      await store.zoom.refresh();
+      return Boolean(store.zoom.value?.connected && !store.zoom.value.needsReconnect);
+    },
+  });
+  return Boolean(store.zoom.value?.connected && !store.zoom.value.needsReconnect);
 }
 
 /** The caches for the three weeks drawn from `start`, made if the store hasn't got them yet. */

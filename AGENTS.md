@@ -82,7 +82,14 @@ A call is one slot with three answers: Google's own Meet (`conference: "create"`
 `conferenceData` as an `addOn` solution rather than pasted into the notes, so every guest's
 calendar draws the same join button for it. Google mints only its own; anything else has to
 arrive as a link, which is what the card's "Paste a Zoom or Teams link…" and the MCP `call`
-argument both do. Minting a Zoom room needs a Zoom app of ours, which does not exist yet.
+argument both do. Minting a Zoom room is `conference: "zoom"`, which is not something a calendar can be asked for:
+`server/lib/zoom/` makes the room first — a per-user OAuth grant in `zoom_connections`, encrypted
+with the calendar's own cipher, refresh token rotated on every renewal — and what reaches Google
+is the link it answered with. The three `ZOOM_*` keys are the one optional part of `env.ts`,
+because they are a feature's switch rather than its settings; without them every screen still
+boots and says Zoom isn't set up. Nothing sends anybody to Settings first: the card's Zoom option
+asks for the grant at the moment it is pressed (`ensureZoom`), the same errand-free rule the
+Notion entry points follow.
 
 An event's description belongs to everyone invited to it — Google puts it in the invitation — so
 what one person wants to remember about a meeting has nowhere on the calendar to go. Private

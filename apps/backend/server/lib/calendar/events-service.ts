@@ -4,6 +4,7 @@ import { activities } from "~/db/schema";
 import type { ActivityWeightInput } from "~/lib/categories/service";
 import { NotFoundError } from "~/lib/http/api-error";
 import { type IntegrationRecord, IntegrationRecordService } from "~/lib/integrations/records-service";
+import { ZoomService } from "~/lib/zoom/service";
 import { eventCache } from "./event-cache";
 import { EventMappingService, type MappingPurpose, type ResolvedMapping } from "./mappings-service";
 import { projectPrefs } from "./prefs-service";
@@ -17,6 +18,7 @@ import {
   type ExternalEvent,
   type MappingScope,
   PRIMARY_CALENDAR_ID,
+  type ProviderConference,
   type SelfResponse,
   type SeriesScope,
   type UpdateEventInput,
@@ -78,6 +80,20 @@ export interface CreateEventOptions {
   attendees?: readonly AttendeeInput[];
   /** `"create"` gives the new event a Meet link of its own. */
   conference?: ConferenceInput;
+}
+
+/**
+ * An edit as a screen makes it: everything the calendar takes, plus `conference: "zoom"`, which
+ * is a room to be made rather than something a calendar can be asked for.
+ */
+export type EventUpdate = Omit<UpdateEventInput, "conference"> & { readonly conference?: ConferenceInput };
+
+/** What a Zoom room is booked against: the meeting it is for, as the write will leave it. */
+interface ZoomTimes {
+  readonly title: string;
+  readonly start: Date;
+  readonly end: Date;
+  readonly timeZone: string | undefined;
 }
 
 /**
@@ -189,7 +205,12 @@ export class CalendarEventsService {
       end: input.end,
       allDay: input.allDay,
       attendees: input.attendees,
-      conference: input.conference,
+      conference: await this.#resolveConference(input.conference, () => ({
+        title,
+        start: input.start,
+        end: input.end,
+        timeZone: undefined,
+      })),
     });
 
     const weights = input.weights?.length ? input.weights : undefined;
@@ -212,6 +233,31 @@ export class CalendarEventsService {
       source: input.source ?? null,
     });
     return { ...attachMappings([{ ...created, calendarId }], [mapping])[0], accountId: connection.accountId };
+  }
+
+  /**
+   * `"zoom"` is not something a calendar can be asked for: Google mints its own call and nothing
+   * else. A room is made in the connected Zoom account first, and what reaches the calendar is
+   * the link it answered with — which is the same shape as a link somebody pasted.
+   */
+  async #resolveConference(
+    conference: ConferenceInput | undefined,
+    meeting: () => Promise<ZoomTimes> | ZoomTimes,
+  ): Promise<ProviderConference | undefined> {
+    if (conference !== "zoom") return conference;
+    const { title, start, end, timeZone } = await meeting();
+    const room = await new ZoomService(this.userId).createMeeting({
+      topic: title,
+      start,
+      minutes: Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000)),
+      timeZone,
+    });
+    return {
+      url: room.joinUrl,
+      name: "Zoom Meeting",
+      meetingCode: room.meetingCode,
+      ...(room.passcode ? { notes: `Passcode: ${room.passcode}` } : {}),
+    };
   }
 
   /** One event by id, with what it counts as — for a timer pointed at something already planned. */
@@ -237,7 +283,7 @@ export class CalendarEventsService {
   async update(
     qualifiedCalendarId: string,
     eventId: string,
-    patch: UpdateEventInput,
+    patch: EventUpdate,
     series?: SeriesEdit,
   ): Promise<ResolvedEvent> {
     const { connection, calendarId } = await targetFor(this.userId, qualifiedCalendarId);
@@ -268,8 +314,19 @@ export class CalendarEventsService {
     }
     const targetId = series ? series.seriesId : eventId;
     const targetPatch = series ? await this.#seriesPatch(connection.provider, calendarId, patch, series) : patch;
+    // A room is booked for the meeting it is for, so an edit that asks for one and says nothing
+    // else reads the event first rather than inventing a time to book.
+    const conference = await this.#resolveConference(targetPatch.conference, async () => {
+      const current = await connection.provider.getEvent(calendarId, targetId);
+      return {
+        title: targetPatch.title ?? current.title,
+        start: targetPatch.start ?? current.start,
+        end: targetPatch.end ?? current.end,
+        timeZone: targetPatch.timeZone ?? current.timeZone ?? undefined,
+      };
+    });
 
-    const updated = await connection.provider.updateEvent(calendarId, targetId, targetPatch);
+    const updated = await connection.provider.updateEvent(calendarId, targetId, { ...targetPatch, conference });
     if (targetPatch.recurrence !== undefined) {
       // The event keeps its id across the change but is now the master of a series, or a one-off
       // again — and its mapping has to say which, or the occurrences count as nothing.
@@ -287,9 +344,9 @@ export class CalendarEventsService {
   async #seriesPatch(
     provider: { getEvent(calendarId: string, eventId: string): Promise<ExternalEvent> },
     calendarId: string,
-    patch: UpdateEventInput,
+    patch: EventUpdate,
     series: SeriesEdit,
-  ): Promise<UpdateEventInput> {
+  ): Promise<EventUpdate> {
     const { start, end, ...rest } = patch;
     const moved =
       start &&

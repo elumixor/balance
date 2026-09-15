@@ -85,6 +85,24 @@ already has every table the baseline migration creates and `db:migrate` would fa
 `bunx drizzle-kit push`, then insert the baseline's hash into `drizzle.__drizzle_migrations` so it
 counts as applied. A database created from scratch needs none of this — `db:migrate` builds it.
 
+### Connecting Zoom
+
+Optional, and the only integration that is. Google's calendar mints Google Meet and nothing else,
+so a Zoom room has to be made in Zoom and its link handed to the calendar. That needs a Zoom
+OAuth app — **User-managed**, scopes `meeting:write:meeting` and `meeting:delete:meeting`, with
+`https://<deployment>/mobile/zoom/callback` as the redirect URL — and its three keys:
+
+```
+ZOOM_OAUTH_CLIENT_ID=
+ZOOM_OAUTH_CLIENT_SECRET=
+ZOOM_OAUTH_REDIRECT_URI=http://localhost:3100/mobile/zoom/callback
+```
+
+They are the one part of `env.ts` that is optional, because they are a feature's switch rather
+than its settings: without them the app answers "Zoom isn't set up here", every other screen boots,
+and a Zoom link can still be pasted onto an event by hand. With them, each person connects their
+own Zoom account from the event card the first time they ask for a room.
+
 ### Connecting Google Calendar
 
 The OAuth client is a **web** client (the iOS sign-in client has no secret and can't do a

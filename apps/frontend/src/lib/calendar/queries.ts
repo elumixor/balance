@@ -54,8 +54,8 @@ export interface EventPatch {
   /** The whole guest list; whoever is left off is uninvited. */
   attendees?: { email: string; optional?: boolean }[];
   /** Add the calendar's own call, or take the call off. */
-  /** Google's own call, none at all, or somebody else's by its join link. */
-  conference?: "create" | "remove" | ExternalCall;
+  /** Google's own call, a room made in Zoom, none at all, or somebody else's by its join link. */
+  conference?: "create" | "remove" | "zoom" | ExternalCall;
 }
 
 export const updateCalendarEvent = (
@@ -120,6 +120,21 @@ export const saveEventMapping = (input: {
   /** Your own notes about it, which the calendar never sees. Absent leaves them; null clears. */
   notes?: string | null;
 }) => callApi(api.calendar.mappings.$post(input));
+
+/** Whether this deployment offers Zoom at all, and whether this account has connected it. */
+export interface ZoomStatus {
+  available: boolean;
+  connected: boolean;
+  needsReconnect: boolean;
+  accountEmail: string;
+}
+
+export const getZoomStatus = () => apiGet<ZoomStatus>("/zoom/status");
+
+export const startZoomConnect = (mode: "app" | "web", origin: string) =>
+  callApi(api.zoom.start.$post({ mode, origin })).then((r) => r.url);
+
+export const disconnectZoom = () => callApi(api.zoom.disconnect.$post({})) as Promise<void>;
 
 export const removeEventMapping = (input: { calendarId: string; externalEventId: string; scope: MappingScope }) =>
   callApi(api.calendar.mappings.$delete(input));

@@ -15,6 +15,7 @@ import { PreferencesService } from "~/lib/preferences/service";
 import { ProjectProgressService } from "~/lib/projects/progress-service";
 import { StatsService } from "~/lib/stats/stats-service";
 import { TrackingSessionsService } from "~/lib/tracking/sessions-service";
+import { ZoomService } from "~/lib/zoom/service";
 
 /**
  * What an assistant can do with the account, as tools.
@@ -80,6 +81,10 @@ const callSchema = z.object({
   notes: z.string().max(1024).optional().describe("A passcode or a dial-in, if the link needs one."),
 });
 
+const ZOOM_DESCRIPTION =
+  "Make a real Zoom room for this meeting in the connected Zoom account and put its link on the " +
+  "event. Needs Zoom connected in Settings; `get_conferencing` says whether it is.";
+
 const CALL_DESCRIPTION =
   "A call that already exists elsewhere, by its join link — use it for Zoom, Teams or anything " +
   "Google cannot make itself. `meet` makes a Google Meet instead; the two are the same slot, so " +
@@ -89,9 +94,14 @@ const NOTES_DESCRIPTION =
   "Your own notes about the meeting, kept in Balance and never written to the calendar, so no " +
   "guest of the event can read them.";
 
-/** One slot, three answers: Google's own call, somebody else's, or none. */
-function conferenceOf(args: { meet?: boolean; call?: z.infer<typeof callSchema> }): ConferenceInput | undefined {
+/** One slot, four answers: Google's own call, a room made in Zoom, somebody else's, or none. */
+function conferenceOf(args: {
+  meet?: boolean;
+  zoom?: boolean;
+  call?: z.infer<typeof callSchema>;
+}): ConferenceInput | undefined {
   if (args.call) return args.call;
+  if (args.zoom) return "zoom";
   if (args.meet === undefined) return undefined;
   return args.meet ? "create" : "remove";
 }
@@ -273,6 +283,7 @@ export const mcpTools: McpTool[] = [
       calendarId: z.string().optional().describe("Defaults to the calendar new blocks land in."),
       attendees: z.array(guestSchema).optional().describe(GUESTS_DESCRIPTION),
       meet: z.boolean().optional().describe("Give the event a Google Meet link of its own."),
+      zoom: z.boolean().optional().describe(ZOOM_DESCRIPTION),
       call: callSchema.optional().describe(CALL_DESCRIPTION),
       notes: z.string().max(MAX_NOTES_LENGTH).optional().describe(NOTES_DESCRIPTION),
       ...purposeSchema,
@@ -330,6 +341,7 @@ export const mcpTools: McpTool[] = [
           `The whole guest list, replacing the event's own — whoever is left out is uninvited. Prefer \`addAttendees\` to invite somebody. ${GUESTS_DESCRIPTION}`,
         ),
       meet: z.boolean().optional().describe("True adds a Google Meet link, false takes the call off."),
+      zoom: z.boolean().optional().describe(`${ZOOM_DESCRIPTION} It replaces whatever call is on the event.`),
       call: callSchema.optional().describe(`${CALL_DESCRIPTION} It replaces whatever call is on the event.`),
       notes: z
         .string()
@@ -415,6 +427,33 @@ export const mcpTools: McpTool[] = [
         taskId: args.taskId ?? null,
       });
       return { mapping };
+    },
+  }),
+
+  tool({
+    name: "get_conferencing",
+    title: "What calls can be made",
+    description:
+      "Which kinds of call this account can put on an event: a Google Meet always, a Zoom room " +
+      "only once Zoom is connected. Read it before offering to make one.",
+    inputSchema: {},
+    async run(_args, user) {
+      const zoom = await new ZoomService(user.id).status();
+      return {
+        meet: true,
+        zoom: zoom.available && zoom.connected && !zoom.needsReconnect,
+        zoomAccount: zoom.accountEmail || null,
+        // What to say when somebody asks for a Zoom room and there isn't one to be had.
+        zoomUnavailableBecause: zoom.available
+          ? zoom.connected
+            ? zoom.needsReconnect
+              ? "the Zoom connection expired and has to be made again in Settings"
+              : null
+            : "Zoom isn't connected yet — connect it in Settings"
+          : "this deployment has no Zoom app set up",
+        // Any other call can still be put on an event by its link, with `call`.
+        pasteAnyLink: true,
+      };
     },
   }),
 

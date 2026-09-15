@@ -134,6 +134,13 @@
       "when": 1789375819423,
       "tag": "0018_quiet_abomination",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789493473509,
+      "tag": "0019_flimsy_phalanx",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { calendarData } from "$lib/calendar/calendar-data.svelte";
+  import { calendarData, ensureZoom } from "$lib/calendar/calendar-data.svelte";
+  import { store } from "$lib/core/store.svelte";
   import type { EventDraft } from "$lib/calendar/event-draft.svelte";
   import { asGoogleAccount, callFrom, hasAddress, type Meeting } from "$lib/calendar/meeting";
   import type { CalendarEvent } from "$lib/calendar/types";
@@ -33,6 +34,12 @@
   } = $props();
 
   const data = calendarData;
+
+  /**
+   * Whether making a Zoom room is worth offering: only a deployment with a Zoom app of its own
+   * can, and until somebody has connected an account the offer is the thing that connects it.
+   */
+  const zoomOffer = $derived(store.zoom.value?.available ?? false);
 
   const editable = $derived(draft.editable);
   /** The link the Join button actually opens, pointed at the account that was invited. */
@@ -73,6 +80,16 @@
     void draft.write("The organizer wasn’t changed", data.moveEventToCalendar(event, calendarId));
   }
 
+  /**
+   * A Zoom room, made in the connected account. Nothing asks anybody to go and connect Zoom
+   * first: the grant is asked for at the moment it is needed and the room is made straight
+   * after, which is the same errand-free rule the Notion entry points are under.
+   */
+  async function addZoomCall() {
+    if (!(await ensureZoom())) return;
+    void draft.write("The Zoom room wasn’t made", data.patchEvent(event, { conference: "zoom" }, { conference: "remove" }));
+  }
+
   function addCall() {
     void draft.write("The call wasn’t added", data.patchEvent(event, { conference: "create" }, { conference: "remove" }));
   }
@@ -104,6 +121,8 @@
       {editable}
       onjoin={onopen}
       oncreate={addCall}
+      onzoom={() => void addZoomCall()}
+      zoom={zoomOffer}
       onremove={removeCall}
       onpaste={pasteCall}
       hasCall={Boolean(event.conferenceUrl)}

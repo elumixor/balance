@@ -5,8 +5,9 @@ import { z } from "zod";
  *
  * Every key is required: a deployment with one missing fails here, at start-up, with the names
  * of what is missing — not on the first request that happens to need it, hours later, as a
- * `fetch` to `undefined` or a cipher built on an empty key. The one exception is `DEV_AUTH_EMAIL`,
- * which is a switch rather than a setting and is ignored in production regardless.
+ * `fetch` to `undefined` or a cipher built on an empty key. The exceptions are `DEV_AUTH_EMAIL`,
+ * which is a switch rather than a setting and is ignored in production regardless, and the three
+ * `ZOOM_*` keys, which are the switch for an integration a deployment is allowed not to have.
  *
  * The `VERCEL*` and `NODE_ENV` keys are the platform's own and arrive on their own; they are
  * parsed here so that `process.env` is read in exactly one file.
@@ -25,6 +26,15 @@ const schema = z.object({
   NOTION_OAUTH_CLIENT_ID: z.string().min(1),
   NOTION_OAUTH_CLIENT_SECRET: z.string().min(1),
   NOTION_OAUTH_REDIRECT_URI: z.url(),
+  /**
+   * Zoom is the one integration a deployment can be without: these three say whether minting a
+   * Zoom room is offered at all, so they are a feature's switch rather than its settings. Absent,
+   * the app answers "Zoom isn't set up here" and everything else still boots — which is the whole
+   * point of checking configuration at start-up.
+   */
+  ZOOM_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  ZOOM_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  ZOOM_OAUTH_REDIRECT_URI: z.url().optional(),
   /** The audience a native Google sign-in's id token has to name — the iOS OAuth client. */
   GOOGLE_IOS_CLIENT_ID: z.string().min(1),
   /** The audience a native Sign in with Apple token has to name. */

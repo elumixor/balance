@@ -1,4 +1,4 @@
-import type { ConferenceInput, ExternalEvent, SelfResponse } from "~/lib/calendar/types";
+import type { ExternalEvent, ProviderConference, SelfResponse } from "~/lib/calendar/types";
 import { UpstreamError } from "~/lib/http/api-error";
 import type { GoogleEvent, GoogleEventDateTime } from "./api-types";
 import { zonedDateToInstant } from "./zoned-date";
@@ -29,7 +29,7 @@ export function calendarDate(at: Date) {
  * What the conferencing block is patched to. A request with a fresh id is how Google is asked
  * to make a Meet; null takes whatever call there is off the event.
  */
-export function conferenceBlock(conference: ConferenceInput) {
+export function conferenceBlock(conference: ProviderConference) {
   if (conference === "remove") return null;
   if (conference === "create")
     return { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } };

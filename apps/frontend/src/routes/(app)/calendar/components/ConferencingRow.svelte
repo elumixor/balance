@@ -15,8 +15,10 @@
     joinUrl,
     editable,
     hasCall,
+    zoom,
     onjoin,
     oncreate,
+    onzoom,
     onremove,
     onpaste,
   }: {
@@ -26,8 +28,11 @@
     editable: boolean;
     /** Whether the call is the event's own block — a link only written in the notes isn't. */
     hasCall: boolean;
+    /** Whether a Zoom room can be made here — see the section. */
+    zoom: boolean;
     onjoin: (url: string) => void;
     oncreate: () => void;
+    onzoom: () => void;
     onremove: () => void;
     onpaste: (url: string) => void;
   } = $props();
@@ -105,6 +110,15 @@
           close();
         }}
       />
+      {#if zoom}
+        <PopoverItem
+          label="Zoom"
+          onclick={() => {
+            onzoom();
+            close();
+          }}
+        />
+      {/if}
       <PopoverItem
         label="Paste a Zoom or Teams link…"
         onclick={() => {

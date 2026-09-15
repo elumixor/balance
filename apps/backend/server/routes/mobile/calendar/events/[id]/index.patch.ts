@@ -44,10 +44,10 @@ export default authed(
         )
         .max(MAX_ATTENDEES)
         .optional(),
-      /** Google's own call, none at all, or somebody else's by its join link. */
+      /** Google's own call, a room made in Zoom, none at all, or somebody else's by its link. */
       conference: z
         .union([
-          z.enum(["create", "remove"]),
+          z.enum(["create", "remove", "zoom"]),
           z.object({
             url: z.string().url().max(MAX_CALL_URL_LENGTH),
             name: z.string().max(MAX_CALL_NAME_LENGTH).optional(),

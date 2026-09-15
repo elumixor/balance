@@ -8,3 +8,4 @@ export * from "./projects";
 export * from "./sync";
 export * from "./tracking";
 export * from "./users";
+export * from "./zoom";

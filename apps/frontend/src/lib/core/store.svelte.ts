@@ -2,7 +2,7 @@ import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { getPreferences } from "$lib/account/queries";
 import { weekKey, weekRange } from "$lib/calendar/dates";
-import { getCalendarPrefs, getCalendarWeek } from "$lib/calendar/queries";
+import { getCalendarPrefs, getCalendarWeek, getZoomStatus } from "$lib/calendar/queries";
 import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
 import { getIntegrations } from "$lib/integrations/queries";
 import { listMcpKeys } from "$lib/mcp/queries";
@@ -27,6 +27,8 @@ export const store = {
   preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences", "Settings"),
   /** Not kept on the device: a list of keys is worth one request when the panel is opened. */
   mcpKeys: new Cached(listMcpKeys, "Couldn't load your assistant keys.", undefined, "Assistants"),
+  /** Whether a Zoom account is connected, so the card can offer to make a room in it. */
+  zoom: new Cached(getZoomStatus, "Couldn't check your Zoom connection.", "zoom", "Calendars"),
   /** Whether a Notion workspace is mirrored, and what the last run of it did. */
   notion: new Cached(getNotionStatus, "Couldn't check your Notion connection.", "notion", "Projects"),
   /**
