@@ -82,6 +82,17 @@ export interface EventAttendee extends EventPerson {
   readonly resource: boolean;
 }
 
+/**
+ * Somebody the account already knows: met on a shared event, or written down in its address book.
+ * Only an address and a name, because that is all a guest list takes.
+ */
+export interface ExternalPerson {
+  readonly email: string;
+  readonly name: string | null;
+  /** The last event they were on, or null for an address-book entry nothing has been shared with. */
+  readonly lastSeen: Date | null;
+}
+
 export interface EventReminder {
   readonly method: "popup" | "email";
   readonly minutes: number;
@@ -177,4 +188,8 @@ export interface CalendarProvider {
   countInstances(calendarId: string, seriesId: string, upTo: number): Promise<number>;
   /** Answers an invitation as the signed-in user. */
   respondToEvent(calendarId: string, eventId: string, response: SelfResponse): Promise<ExternalEvent>;
+  /** Everyone on the guest lists of these calendars over a span — the people, not the events. */
+  listPeople(calendarIds: readonly string[], from: Date, to: Date): Promise<ExternalPerson[]>;
+  /** The account's own address book, when the grant covers reading it. Empty when it doesn't. */
+  listContacts(): Promise<ExternalPerson[]>;
 }

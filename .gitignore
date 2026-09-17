@@ -56,3 +56,6 @@ dist/
 
 # SwiftPM build products
 .build/
+
+# Playwright MCP scratch output
+.playwright-mcp/

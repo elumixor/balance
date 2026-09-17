@@ -2,6 +2,7 @@ import { decodeJwt } from "jose";
 import { ProviderNeedsReconnectError } from "~/lib/calendar/errors";
 import { env } from "~/lib/env";
 import { UpstreamError } from "~/lib/http/api-error";
+import { CONTACTS_SCOPE, OTHER_CONTACTS_SCOPE } from "./people";
 
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -9,13 +10,17 @@ const REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke";
 
 /**
  * Deliberately narrower than the blanket `calendar` scope: reading and writing events, plus the
- * calendar list, is everything the app does. Both are sensitive scopes, neither is restricted.
+ * calendar list, is everything the app does to a calendar. The two contacts scopes are read-only
+ * and exist for one field — the guest list suggesting people instead of waiting to be typed into.
+ * A grant made before they were asked for keeps working; it just suggests from past events alone.
  */
 const SCOPES = [
   "openid",
   "email",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+  CONTACTS_SCOPE,
+  OTHER_CONTACTS_SCOPE,
 ];
 
 export interface TokenSet {

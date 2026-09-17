@@ -23,7 +23,7 @@ export async function calendarConnections(userId: string): Promise<CalendarConne
   const rows = await accounts.list(GOOGLE);
   return rows.map((account) => ({
     accountId: account.id,
-    provider: new GoogleCalendarProvider(accounts, account.id),
+    provider: new GoogleCalendarProvider(accounts, account.id, account.scopes),
     account,
     accounts,
   }));

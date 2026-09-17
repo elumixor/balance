@@ -54,7 +54,13 @@ screen and `/mobile/stats` both go through it, so they can't disagree about a we
 
 An event carries more than its hours — where it is, how to join it, who else is coming, and when
 it wants to remind you — and an invitation can be answered from the app, which writes the reply
-back to the calendar everyone else reads. Travel times are separate and never stored:
+back to the calendar everyone else reads. Nobody types an address to invite a stranger, so the
+guest field suggests instead of waiting: `CalendarContactsService` is a directory of everyone the
+account already knows — the guest lists of the last four months, which any grant this app has ever
+made can read, plus the account's own contacts and the addresses Google keeps from sent mail, which
+need a scope only a grant made since has (`google/people.ts`, silent when it is missing). It is one
+Google pass per ten minutes and one request per session; `$lib/calendar/contacts.ts` does the
+ranking on the device, so a keystroke costs nothing. Travel times are separate and never stored:
 `server/lib/travel/` asks the Google Routes API on demand, and answers `{ available: false }` when
 there is nowhere to leave from, so every screen has to cope with having no journeys. The
 same key (`GOOGLE_MAPS_API_KEY`) suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the

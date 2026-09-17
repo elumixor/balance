@@ -33,6 +33,7 @@ export default defineConfig({
         "src/lib/core/cache.svelte.ts",
         "src/lib/ui/colors.ts",
         "src/lib/calendar/clock-text.ts",
+        "src/lib/calendar/contacts.ts",
         "src/lib/calendar/dates.ts",
         "src/lib/calendar/event-draft.svelte.ts",
         "src/lib/ui/format.ts",

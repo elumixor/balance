@@ -9,12 +9,19 @@ import type {
 } from "$lib/calendar/types";
 import { api, apiGet, callApi } from "$lib/core/api";
 import type { ActivityWeight } from "$lib/core/records";
+import type { KnownPerson } from "./contacts";
 import type { ExternalCall } from "./meeting";
 
 export const getCalendarPrefs = () => callApi(api.calendar.calendars.$get()).then((r) => r as CalendarPrefs);
 
 export const updateCalendarPrefs = (input: { visibleCalendarIds?: string[]; writeCalendarId?: string }) =>
   callApi(api.calendar.prefs.$patch(input));
+
+/**
+ * Everyone the account already knows an address for, for the guest field to suggest from. One
+ * request a session: the filtering as somebody types happens on the device, in `contacts.ts`.
+ */
+export const getCalendarContacts = () => callApi(api.calendar.contacts.$get()).then((r) => r.people as KnownPerson[]);
 
 /** Query params, so the raw helper — the generated client still doesn't wire them. */
 export const getCalendarWeek = (from: string, to: string) => apiGet<CalendarWeek>("/calendar/events", { from, to });

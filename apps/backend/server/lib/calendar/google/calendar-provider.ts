@@ -4,12 +4,14 @@ import type {
   CalendarRef,
   CreateEventInput,
   ExternalEvent,
+  ExternalPerson,
   SelfResponse,
   UpdateEventInput,
 } from "~/lib/calendar/types";
 import { ConflictError } from "~/lib/http/api-error";
 import type { GoogleAttendee, GoogleCalendarListEntry, GoogleEvent, GoogleEventsResponse } from "./api-types";
 import { type CalendarContext, calendarDate, conferenceBlock, isReadOnlyRole, toExternalEvent } from "./mapper";
+import { GooglePeople, hasContactsScope } from "./people";
 import { GoogleRequest } from "./request";
 
 const PAGE_SIZE = 250;
@@ -30,16 +32,26 @@ const EVENT_FIELDS = `nextPageToken,timeZone,accessRole,items(${ITEM_FIELDS})`;
 const SINGLE_EVENT_FIELDS = ITEM_FIELDS;
 const CALENDAR_LIST_FIELDS = "items(id,summary,summaryOverride,backgroundColor,primary,timeZone,accessRole)";
 
+/** A guest list and the day it was on: everything a suggestion needs, and nothing a grid does. */
+const PEOPLE_FIELDS =
+  "nextPageToken,items(start(date,dateTime),organizer(email,displayName,self),attendees(email,displayName,self,resource))";
+/** Enough of a history to know who somebody actually meets, without paging through a year of it. */
+const PEOPLE_PAGES = 2;
+
 const encode = encodeURIComponent;
 
 export class GoogleCalendarProvider implements CalendarProvider {
   readonly name = "google";
   readonly #request: GoogleRequest;
+  readonly #people: GooglePeople;
+  readonly #scopes: string | null;
   /** One calendar's zone and role per provider instance: a write asks about it once, not per call. */
   readonly #calendars = new Map<string, Promise<CalendarContext>>();
 
-  constructor(accounts: ProviderAccountService, accountId: string) {
+  constructor(accounts: ProviderAccountService, accountId: string, scopes: string | null = null) {
     this.#request = new GoogleRequest(accounts, accountId, this.name);
+    this.#people = new GooglePeople(accounts, accountId);
+    this.#scopes = scopes;
   }
 
   async listCalendars(): Promise<CalendarRef[]> {
@@ -280,6 +292,52 @@ export class GoogleCalendarProvider implements CalendarProvider {
     const rules = new Map<string, GoogleEvent>();
     for (const page of pages) for (const item of page.items ?? []) if (item.recurrence) rules.set(item.id, item);
     return rules;
+  }
+
+  /**
+   * Who has been on these calendars lately. One page-limited pass per calendar, asking only for
+   * the guest lists: a span this long can hold thousands of events, and nothing here needs more
+   * than the names on them. Rooms, projectors and your own line are left out — a resource is not
+   * somebody you invite by typing their name, and neither are you.
+   */
+  async listPeople(calendarIds: readonly string[], from: Date, to: Date): Promise<ExternalPerson[]> {
+    const perCalendar = await Promise.all(calendarIds.map((id) => this.#calendarPeople(id, from, to)));
+    return perCalendar.flat();
+  }
+
+  async listContacts(): Promise<ExternalPerson[]> {
+    if (!hasContactsScope(this.#scopes)) return [];
+    return this.#people.list();
+  }
+
+  async #calendarPeople(calendarId: string, from: Date, to: Date): Promise<ExternalPerson[]> {
+    const people: ExternalPerson[] = [];
+    let pageToken: string | undefined;
+    for (let page = 0; page < PEOPLE_PAGES; page++) {
+      const query = new URLSearchParams({
+        timeMin: from.toISOString(),
+        timeMax: to.toISOString(),
+        singleEvents: "true",
+        orderBy: "startTime",
+        showDeleted: "false",
+        maxResults: String(PAGE_SIZE),
+        fields: PEOPLE_FIELDS,
+        ...(pageToken ? { pageToken } : {}),
+      });
+      const answer = await this.#request.send<GoogleEventsResponse>(`/calendars/${encode(calendarId)}/events?${query}`);
+      for (const item of answer.items ?? []) {
+        const day = item.start?.dateTime ?? item.start?.date;
+        const lastSeen = day ? new Date(day) : null;
+        const onIt: GoogleAttendee[] = [...(item.organizer ? [item.organizer] : []), ...(item.attendees ?? [])];
+        for (const person of onIt) {
+          if (!person.email || person.self || person.resource) continue;
+          people.push({ email: person.email, name: person.displayName ?? null, lastSeen });
+        }
+      }
+      pageToken = answer.nextPageToken;
+      if (!pageToken) break;
+    }
+    return people;
   }
 
   /** Google expands the series itself; asking for two is enough to know whether it is still one. */
