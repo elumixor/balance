@@ -8,7 +8,13 @@
    * A stack, a query, a status line: worth having when somebody is fixing it, worth nothing on
    * screen. Every place that shows a failure says one short sentence and puts the rest behind this.
    */
-  let { text, label = "Copy details", size = 15 }: { text: () => string; label?: string; size?: number } = $props();
+  let {
+    text,
+    label = "Copy details",
+    size = 15,
+    /** How much room around the glyph — a guest line wants less than a failure card. */
+    class: klass = "p-1.5",
+  }: { text: () => string; label?: string; size?: number; class?: string } = $props();
 
   /** How long the tick stays before the button offers to copy again. */
   const CONFIRM_MS = 1500;
@@ -32,7 +38,7 @@
 
 <button
   type="button"
-  class="press-sm shrink-0 rounded-md p-1.5 text-fg-faint hover:text-fg"
+  class="press-sm shrink-0 rounded-md text-fg-faint hover:text-fg {klass}"
   aria-label={copied ? "Copied" : label}
   title={copied ? "Copied" : label}
   onclick={() => void copy()}
