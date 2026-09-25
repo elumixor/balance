@@ -16,7 +16,9 @@
    */
   let { person }: { person: Person } = $props();
 
+  // svelte-ignore state_referenced_locally — the initial value on purpose; the effects below follow the record.
   let name = $state(person.name);
+  // svelte-ignore state_referenced_locally
   let email = $state(person.email ?? "");
   let editing = $state<"name" | "email" | null>(null);
 
