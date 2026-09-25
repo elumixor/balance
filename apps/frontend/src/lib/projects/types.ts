@@ -29,14 +29,6 @@ export interface Project {
   notionUrl: string | null;
 }
 
-/** Somebody a project is shared with, or a task is assigned to. Never an account. */
-export interface Person {
-  id: string;
-  name: string;
-  email: string | null;
-  color: string;
-}
-
 /** A band across a project's timeline. With no dates of its own it spans the tasks in it. */
 export interface Stage {
   id: string;

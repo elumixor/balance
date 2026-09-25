@@ -14,7 +14,8 @@
   } from "$lib/projects/gantt";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { NAME_WIDTH, ROW_HEIGHT, TimelineDrag, TimelineScale } from "$lib/projects/timeline.svelte";
-  import type { Person, Stage, Task } from "$lib/projects/types";
+  import type { Person } from "$lib/people/types";
+  import type { Stage, Task } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
   import { CalendarDays, ChevronDown, ChevronRight, Plus, ZoomIn, ZoomOut } from "lucide-svelte";
   import { tick } from "svelte";

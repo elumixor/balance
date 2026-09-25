@@ -172,6 +172,7 @@ import type { Category } from "$lib/core/records";
 <div
   role="button"
   tabindex={ghost ? -1 : 0}
+  data-event-id={ghost ? undefined : event.id}
   bind:clientWidth={boxWidth}
   bind:clientHeight={boxHeight}
   aria-label="{label}, {formatClock(new Date(event.start))}"

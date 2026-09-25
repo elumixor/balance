@@ -1,9 +1,7 @@
 <script lang="ts">
-  import { CardRow, Dot, Tooltip } from "$lib/components";
-  import ComboField, { type ComboOption } from "$lib/components/ComboField.svelte";
-  import { type KnownPerson, suggestPeople } from "$lib/calendar/contacts";
+  import { CardRow, Dot, PersonField, Tooltip } from "$lib/components";
   import type { EventAttendee, EventResponse } from "$lib/calendar/types";
-  import { store } from "$lib/core/store.svelte";
+  import type { Person } from "$lib/people/types";
   import { Crown, Plus, Users, X } from "lucide-svelte";
   import type { Snippet } from "svelte";
   import OrganizerPicker from "./OrganizerPicker.svelte";
@@ -12,9 +10,8 @@
    * Who else is coming, and what they said. A line per guest with a dot for their answer, the
    * organizer first; an address typed under the list invites one more, and the cross beside a
    * guest uninvites them — both only on an event you organize, since a guest list is the
-   * organizer's to keep. What is typed there is answered by everyone the account already knows —
-   * met on a recent event, or in its address book — so a colleague is a keystroke and a pick
-   * rather than an address spelled out from memory; a stranger is still simply typed in full.
+   * organizer's to keep. The field under the list is the app's one person field: everyone the
+   * account knows, by name or address, and a stranger typed in full joins the list for next time.
    */
   let {
     attendees,
@@ -49,27 +46,9 @@
   };
 
   let adding = $state(false);
-  let email = $state("");
   let expanded = $state(false);
 
-  // The directory is fetched once a session, not once a card: opening the field on an answer that
-  // hasn't arrived yet is the one state a suggestion list can't usefully have.
-  $effect(() => {
-    if (editable) void store.contacts.ensure();
-  });
-
-  const known = $derived(store.contacts.value ?? []);
   const invited = $derived(attendees.flatMap((a) => (a.email ? [a.email] : [])));
-  const suggestions = $derived(
-    suggestPeople(known, email, invited).map(
-      (person): ComboOption<KnownPerson> => ({
-        key: person.email,
-        label: person.name ?? person.email,
-        hint: person.name ? person.email : undefined,
-        value: person,
-      }),
-    ),
-  );
 
   const guests = $derived(attendees.filter((a) => !organizer || !sameAs(a, organizer)));
   const listed = $derived(expanded ? guests : guests.slice(0, SHOWN));
@@ -86,11 +65,9 @@
   /** Everyone with an address, as the calendar takes a list — rooms and the nameless have none. */
   const list = () => attendees.flatMap((a) => (a.email ? [{ email: a.email, optional: a.optional }] : []));
 
-  function invite(typed: string) {
-    const address = typed.trim();
-    email = "";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) return;
-    if (attendees.some((a) => a.email?.toLowerCase() === address.toLowerCase())) return;
+  function invite(person: Person) {
+    const address = person.email;
+    if (!address || attendees.some((a) => a.email?.toLowerCase() === address.toLowerCase())) return;
     onchange([...list(), { email: address }]);
   }
 
@@ -101,37 +78,16 @@
 </script>
 
 {#snippet inviteField()}
-  <!-- Blur closes the field, and a pick doesn't blur it: the list keeps focus where it is, so
+  <!-- Leaving the field closes it, and a pick doesn't: the list keeps focus where it is, so
        several people can be invited one after another without reopening anything. -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="min-w-0 flex-1"
-    onfocusout={(e) => {
-      if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-      invite(email);
-      adding = false;
-    }}
-    onkeydown={(e) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      email = "";
-      adding = false;
-    }}
-  >
-    <ComboField
-      bind:value={email}
-      options={suggestions}
-      autofocus
-      variant="bare"
-      width="anchor"
-      placeholder="Invite by email"
-      ariaLabel="Invite by email"
-      onpick={(option) => {
-        invite(option.value.email);
-      }}
-      onfree={(text) => invite(text)}
-    />
-  </div>
+  <PersonField
+    taken={invited}
+    emailOnly
+    autofocus
+    placeholder="Invite by name or email"
+    onpick={invite}
+    ondone={() => (adding = false)}
+  />
 {/snippet}
 
 {#if empty && !editable}

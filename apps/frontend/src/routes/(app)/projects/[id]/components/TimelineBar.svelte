@@ -2,7 +2,7 @@
   import { Avatars } from "$lib/components";
   import { type DragMode, placeOf, type Scale, type Span } from "$lib/projects/gantt";
   import type { TimelineDrag } from "$lib/projects/timeline.svelte";
-  import type { Person } from "$lib/projects/types";
+  import type { Person } from "$lib/people/types";
   import { ChevronLeft, ChevronRight } from "lucide-svelte";
 
   /**

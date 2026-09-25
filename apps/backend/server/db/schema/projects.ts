@@ -16,9 +16,9 @@ import { categories } from "./categories";
 import { users } from "./users";
 
 /**
- * Somebody a project is shared with, or a task is assigned to. A person is a name and a colour
- * here and nothing more: the app never writes to them, invites them or knows their account —
- * the avatars on a project are who else is in it, and the dot on a task is whose it is.
+ * Somebody the account knows: invited to its events, sharing its projects, assigned its tasks. A
+ * person is a name, an address, a colour and a face — never an account of their own. The list is
+ * seeded from the guest lists of recent events, so it is full before anybody is asked to type.
  */
 export const people = pgTable("people", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -29,6 +29,8 @@ export const people = pgTable("people", {
   email: text("email"),
   /** A hex colour for the avatar, so a face nobody uploaded still reads as one person. */
   color: text("color").notNull().default("#8b8b8b"),
+  /** A face: a small data URL uploaded here, or the address of the picture Google keeps for them. */
+  avatar: text("avatar"),
   /** The Notion person page this mirrors, when the workspace is connected. */
   notionPageId: text("notion_page_id"),
   archived: boolean("archived").notNull().default(false),

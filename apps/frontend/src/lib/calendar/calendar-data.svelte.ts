@@ -1,3 +1,4 @@
+import { tick } from "svelte";
 import { oauthConnect } from "$lib/core/oauth-connect";
 import type { ActivityWeight } from "$lib/core/records";
 import { calendarWeek, store } from "$lib/core/store.svelte";
@@ -329,6 +330,21 @@ class CalendarData {
   /** The month grid jumps straight to whichever week a tapped date falls in. */
   goToDate(date: Date) {
     this.#jumpTo(date);
+  }
+
+  /**
+   * A hit from the palette: the week it is on, and its card open beside its block. The block only
+   * exists once the week has arrived and been drawn, so the card waits for both; a hit the week
+   * no longer holds — deleted since the search — opens nothing, and the week is still the answer.
+   */
+  async openEvent(id: string, at: Date) {
+    this.#jumpTo(at);
+    await this.ensureWeeks();
+    await tick();
+    const event = this.events.find((one) => one.id === id);
+    if (!event) return;
+    const block = document.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(id)}"]`);
+    this.select(event, block?.getBoundingClientRect() ?? null);
   }
 
   /**

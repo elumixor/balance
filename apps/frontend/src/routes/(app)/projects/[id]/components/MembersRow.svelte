@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { Avatars, Field, Popover } from "$lib/components";
-  import { people } from "$lib/core/synced.svelte";
+  import { Avatar, Avatars, PersonField, Popover } from "$lib/components";
+  import type { Person } from "$lib/people/types";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
-  import type { Person, Project } from "$lib/projects/types";
-  import { UserRoundPlus } from "lucide-svelte";
+  import type { Project } from "$lib/projects/types";
+  import { UserRoundPlus, X } from "lucide-svelte";
 
   /**
-   * Who has this project — the faces under its name, and the list they are chosen from. The way in
+   * Who has this project — the faces under its name, and the panel they are chosen in. The way in
    * is one more circle at the end of the row wearing a person rather than a bare plus, so a row
-   * with nobody on it yet still says what it is asking for.
+   * with nobody on it yet still says what it is asking for. Inside, the members already on it
+   * each with a cross, and under them the app's one person field: everyone the account knows,
+   * by name or address, and a name nobody matches becomes somebody new.
    */
   let { project }: { project: Project } = $props();
 
@@ -16,18 +18,12 @@
     project.memberIds.map((id) => data.personById.get(id)).filter((one): one is Person => Boolean(one)),
   );
 
-  let name = $state("");
-
-  function add() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const created = data.createPerson(trimmed);
-    data.toggleMember(project, created.id);
-    name = "";
+  function add(person: Person) {
+    if (!project.memberIds.includes(person.id)) data.toggleMember(project, person.id);
   }
 </script>
 
-<Popover width={240}>
+<Popover width={260}>
   {#snippet trigger(toggle)}
     <button
       type="button"
@@ -46,28 +42,25 @@
   {/snippet}
 
   {#snippet content()}
-    <div class="space-y-1 p-1">
-      {#each people.all as person (person.id)}
-        {@const on = project.memberIds.includes(person.id)}
-        <button
-          type="button"
-          onclick={() => data.toggleMember(project, person.id)}
-          class="press hoverable flex w-full items-center gap-2 rounded-md px-2 py-1 text-left"
-        >
-          <span class="size-2.5 rounded-full" style="background:{person.color}"></span>
-          <span class="t-micro flex-1 truncate {on ? 'text-fg' : 'text-fg-muted'}">{person.name}</span>
-          {#if on}<span class="t-micro text-fg-faint">on</span>{/if}
-        </button>
+    <div class="space-y-0.5 p-1">
+      {#each members as person (person.id)}
+        <div class="group flex items-center gap-2 rounded-md px-2 py-1">
+          <Avatar {person} size={18} />
+          <span class="t-micro min-w-0 flex-1 truncate text-fg">{person.name}</span>
+          <button
+            type="button"
+            aria-label="Remove {person.name}"
+            onclick={() => data.toggleMember(project, person.id)}
+            class="press-sm shrink-0 rounded p-0.5 text-fg-faint opacity-0 group-hover:opacity-100 hover:text-fg
+              focus-visible:opacity-100"
+          >
+            <X size={12} />
+          </button>
+        </div>
       {/each}
-      <Field
-        bind:value={name}
-        variant="bare-sm"
-        placeholder="Add someone"
-        ariaLabel="Add someone"
-        onkeydown={(e) => {
-          if (e.key === "Enter") add();
-        }}
-      />
+      <div class="px-1">
+        <PersonField taken={project.memberIds} placeholder="Add someone" autofocus onpick={add} />
+      </div>
     </div>
   {/snippet}
 </Popover>

@@ -1,3 +1,4 @@
+export { default as CommandPalette } from "./CommandPalette.svelte";
 export { default as IcsDropZone } from "./IcsDropZone.svelte";
 export { default as ImportIcsDialog } from "./ImportIcsDialog.svelte";
 export { default as ImportPlacesDialog } from "./ImportPlacesDialog.svelte";

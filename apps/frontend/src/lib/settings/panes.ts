@@ -1,8 +1,16 @@
 import type { Icon as IconType } from "lucide-svelte";
-import { Bell, Bot, CalendarDays, Globe, MapPin, Plug, UserRound } from "lucide-svelte";
+import { Bell, Bot, CalendarDays, Globe, MapPin, Plug, UserRound, Users } from "lucide-svelte";
 
 /** The sections of the settings panel, in the order they are laid out and the rail lists them. */
-export type Pane = "general" | "notifications" | "places" | "zones" | "calendars" | "integrations" | "assistants";
+export type Pane =
+  | "general"
+  | "notifications"
+  | "people"
+  | "places"
+  | "zones"
+  | "calendars"
+  | "integrations"
+  | "assistants";
 
 interface PaneInfo {
   value: Pane;
@@ -24,6 +32,12 @@ export const PANES: PaneInfo[] = [
     label: "Notifications",
     icon: Bell,
     keywords: "planning sessions evening morning week reminders remind events leave sound minutes before",
+  },
+  {
+    value: "people",
+    label: "People",
+    icon: Users,
+    keywords: "contacts guests members assignees avatar picture face name email address colleagues team",
   },
   {
     value: "places",

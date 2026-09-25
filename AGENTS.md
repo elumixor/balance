@@ -55,12 +55,11 @@ screen and `/mobile/stats` both go through it, so they can't disagree about a we
 An event carries more than its hours — where it is, how to join it, who else is coming, and when
 it wants to remind you — and an invitation can be answered from the app, which writes the reply
 back to the calendar everyone else reads. Nobody types an address to invite a stranger, so the
-guest field suggests instead of waiting: `CalendarContactsService` is a directory of everyone the
-account already knows — the guest lists of the last four months, which any grant this app has ever
-made can read, plus the account's own contacts and the addresses Google keeps from sent mail, which
-need a scope only a grant made since has (`google/people.ts`, silent when it is missing). It is one
-Google pass per ten minutes and one request per session; `$lib/calendar/contacts.ts` does the
-ranking on the device, so a keystroke costs nothing. Travel times are separate and never stored:
+guest field is the app's own `PersonField` over the people list (see below), and
+`CalendarContactsService` is what fills that list: everyone on the guest lists of the last four
+months, which any grant this app has ever made can read, plus the account's own contacts and the
+addresses Google keeps from sent mail, which need a scope only a grant made since has
+(`google/people.ts`, silent when it is missing). It is one Google pass per ten minutes. Travel times are separate and never stored:
 `server/lib/travel/` asks the Google Routes API on demand, and answers `{ available: false }` when
 there is nowhere to leave from, so every screen has to cope with having no journeys. The
 same key (`GOOGLE_MAPS_API_KEY`) suggests addresses as they are typed (`travel/places.ts`), so a saved place holds the
@@ -410,6 +409,41 @@ And an API address that isn't the API is now said out loud. A native shell serve
 `index.html` and a 200 — data-shaped nothing that used to be parsed as a week. `vite.config.ts`
 gives a native build the deployed address when nothing else says otherwise, and `core/env.ts`
 refuses to make requests at all when the address it has can't be one.
+
+## People are one list, and every field that names one is the same field
+
+`people` is the account's own list of everyone it knows — a name, an address, a colour and a
+face — and the rows are synced records like a category. Nobody types the list in: on every
+launch `POST /mobile/people/seed` reads the guest lists of the last four months of events
+(`server/lib/people/service.ts`, over `CalendarContactsService`) and adds a row for anyone met who
+isn't there, named the way the address book spells them or read off the address
+(`name.ts`, tested), with the address book's picture or a Gravatar where either exists. The
+address book itself is not seeded — a thousand "other contacts" would bury the twenty who
+matter — but it is what a name and a face are looked up in (`/mobile/people/lookup`, the wand
+in settings).
+
+On the device `$lib/people/directory.svelte.ts` is the one way in: `ensure(typed)` finds the row
+for an address or a name and makes one otherwise, so a stranger invited from the event card is
+offered on the next task. `PersonField` is the only component that names a person — the guest
+field, a project's members, a task's assignees — and `suggest.ts` (pure, tested) is its ranking:
+the start of a word of the name or of the address first, whoever is already on the list left out.
+A face is `Avatar` everywhere it is drawn, initials on a colour until there is a picture, and an
+uploaded one is shrunk to a 128px JPEG data URL on the device (`avatar.ts`) so it travels as a
+record rather than a file. Settings → People is where a name is corrected, a picture dropped on a
+face, and a person the calendar never met is added.
+
+## ⌘K finds anything
+
+`$lib/search/` is the palette: `items.ts` (pure, tested) ranks rows of one shape from every
+source — the screens, the settings sections, the projects, their tasks, the people — and
+`palette.svelte.ts` builds them from what the device already holds, so every keystroke answers
+at once. Only the calendar is asked, after a pause and from two letters on:
+`GET /mobile/calendar/search` is Google's own full-text search over the visible calendars
+(`CalendarSearchService`, a year either way, a dozen hits nearest today first), returning rows to
+jump to rather than resolved events. A hit opens as `/calendar?event=<id>&at=<instant>`, which
+`calendarData.openEvent` turns into the week and the card beside its block; a task opens as
+`/projects/<id>?task=<id>`. `isSearchKey` is ⌘K everywhere, a text field included; the strip has a
+button and the phone's menu a row for the same box.
 
 ## Projects are the layer between a sphere's hours and Tuesday 9:00
 

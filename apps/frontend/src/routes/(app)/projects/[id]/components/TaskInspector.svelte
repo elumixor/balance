@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { CardRow, DateField, Field, NotionMark, NumberField, Select, Textarea } from "$lib/components";
-  import { people } from "$lib/core/synced.svelte";
+  import { Avatar, CardRow, DateField, Field, NotionMark, NumberField, PersonField, Select, Textarea } from "$lib/components";
+  import type { Person } from "$lib/people/types";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { Task, TaskPriority, TaskStatus } from "$lib/projects/types";
   import { AlignLeft, CalendarRange, CircleDot, Flag, Hourglass, Layers, Trash2, UserRound, X } from "lucide-svelte";
@@ -27,6 +27,9 @@
     { value: "critical", label: "Critical" },
   ];
 
+  const assignees = $derived(
+    task.assigneeIds.map((id) => data.personById.get(id)).filter((one): one is Person => Boolean(one)),
+  );
   const stages = $derived(data.stagesOf(task.projectId));
   const stageOptions = $derived([
     { value: "", label: "No stage" },
@@ -83,26 +86,29 @@
     {/if}
   </CardRow>
 
-  <CardRow icon={UserRound} set={task.assigneeIds.length > 0}>
-    <div class="flex flex-wrap gap-1">
-      {#each people.all as person (person.id)}
-        {@const on = task.assigneeIds.includes(person.id)}
-        <button
-          type="button"
-          onclick={() =>
-            data.updateTask(task.id, {
-              assigneeIds: on ? task.assigneeIds.filter((id) => id !== person.id) : [...task.assigneeIds, person.id],
-            })}
-          class="press t-micro flex items-center gap-1.5 rounded-full border px-2 py-0.5
-            {on ? 'border-ink text-fg' : 'border-line text-fg-faint'}"
-        >
-          <span class="size-2 rounded-full" style="background:{person.color}"></span>
-          {person.name}
-        </button>
+  <!-- Whose it is: a chip per assignee, and the app's one person field to add another. -->
+  <CardRow icon={UserRound} set={task.assigneeIds.length > 0} align="start">
+    <div class="min-w-0 flex-1 space-y-1 py-1">
+      {#each assignees as person (person.id)}
+        <div class="group flex items-center gap-2">
+          <Avatar {person} size={18} />
+          <span class="t-label min-w-0 flex-1 truncate text-fg">{person.name}</span>
+          <button
+            type="button"
+            aria-label="Unassign {person.name}"
+            onclick={() => data.updateTask(task.id, { assigneeIds: task.assigneeIds.filter((id) => id !== person.id) })}
+            class="press-sm shrink-0 rounded p-0.5 text-fg-faint opacity-0 group-hover:opacity-100 hover:text-fg
+              focus-visible:opacity-100"
+          >
+            <X size={12} />
+          </button>
+        </div>
       {/each}
-      {#if people.all.length === 0}
-        <span class="t-micro px-1 text-fg-faint">Nobody yet — people arrive with a mirrored workspace.</span>
-      {/if}
+      <PersonField
+        taken={task.assigneeIds}
+        placeholder={assignees.length > 0 ? "Add someone" : "Assign to"}
+        onpick={(person) => data.updateTask(task.id, { assigneeIds: [...task.assigneeIds, person.id] })}
+      />
     </div>
   </CardRow>
 

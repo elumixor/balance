@@ -2,13 +2,14 @@ import { oauthConnect } from "$lib/core/oauth-connect";
 import type { Category } from "$lib/core/records";
 import { invalidate, store } from "$lib/core/store.svelte";
 import { categories, people, practices, projects, stages, synced, syncStatus, tasks } from "$lib/core/synced.svelte";
+import type { Person } from "$lib/people/types";
 import { localDay } from "$lib/planning/zone";
 import { clock } from "$lib/platform/clock.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { linkProjectToNotion, startNotionConnect, syncNotion, unlinkProjectFromNotion } from "./queries";
 import { completionOf } from "./rollup";
 import { descendantsOf, pathTo, rowsOf, treeOf } from "./tree";
-import type { Person, Project, ProjectField, ProjectStatus, Stage, Task } from "./types";
+import type { Project, ProjectField, ProjectStatus, Stage, Task } from "./types";
 
 /** How long after the last keystroke an edit burst counts as finished — one press of undo. */
 const BURST_MS = 700;
@@ -269,11 +270,6 @@ class ProjectsData {
       ? project.memberIds.filter((id) => id !== personId)
       : [...project.memberIds, personId];
     projects.update(project.id, { memberIds });
-  }
-
-  createPerson(name: string) {
-    this.#closeBurst();
-    return people.create({ name, email: null, color: "#8b8b8b" });
   }
 
   addStage(projectId: string, name: string) {

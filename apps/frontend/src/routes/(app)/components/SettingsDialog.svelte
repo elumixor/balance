@@ -4,7 +4,7 @@
   import { auth } from "$lib/account/auth.svelte";
   import { telemetry } from "$lib/platform/telemetry";
   import { CalendarsSection } from "$lib/calendar/components";
-  import { AboutSection, AssistantsPane, IntegrationsPane, NotificationsPane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
+  import { AboutSection, AssistantsPane, IntegrationsPane, NotificationsPane, PeoplePane, PlacesPane, ProfilePane, SettingsGroup, SettingsNav, TimeZonesPane } from "./settings";
   import { type Pane, PANES } from "$lib/settings";
   import { preferences } from "$lib/account/preferences.svelte";
   import { settings } from "$lib/settings";
@@ -107,6 +107,8 @@
             <ProfilePane onsignout={() => void signOut()} />
           {:else if pane.value === "notifications"}
             <NotificationsPane />
+          {:else if pane.value === "people"}
+            <PeoplePane />
           {:else if pane.value === "places"}
             <PlacesPane />
           {:else if pane.value === "zones"}

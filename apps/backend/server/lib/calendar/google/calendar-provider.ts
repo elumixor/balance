@@ -255,6 +255,44 @@ export class GoogleCalendarProvider implements CalendarProvider {
     });
   }
 
+  /**
+   * Google's own full-text search over a calendar, one page per calendar: a palette wants the
+   * first handful of hits, not the year. Series are left as occurrences with no rule attached —
+   * a search result is something to jump to, and the week it lands in reads the rule for itself.
+   */
+  async searchEvents(
+    calendarIds: readonly string[],
+    text: string,
+    from: Date,
+    to: Date,
+    limit: number,
+  ): Promise<ExternalEvent[]> {
+    const perCalendar = await Promise.all(
+      calendarIds.map(async (calendarId) => {
+        const query = new URLSearchParams({
+          q: text,
+          timeMin: from.toISOString(),
+          timeMax: to.toISOString(),
+          singleEvents: "true",
+          orderBy: "startTime",
+          showDeleted: "false",
+          maxResults: String(limit),
+          fields: EVENT_FIELDS,
+        });
+        const page = await this.#request.send<GoogleEventsResponse>(`/calendars/${encode(calendarId)}/events?${query}`);
+        const calendar: CalendarContext = {
+          id: calendarId,
+          timeZone: page.timeZone,
+          readOnly: isReadOnlyRole(page.accessRole),
+        };
+        return (page.items ?? [])
+          .filter((item) => !(item.eventType && IGNORED_EVENT_TYPES.has(item.eventType)))
+          .map((item) => toExternalEvent(item, calendar));
+      }),
+    );
+    return perCalendar.flat();
+  }
+
   async #pages(calendarId: string, params: Record<string, string>): Promise<GoogleEventsResponse[]> {
     const pages: GoogleEventsResponse[] = [];
     let pageToken: string | undefined;
@@ -331,7 +369,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
         const onIt: GoogleAttendee[] = [...(item.organizer ? [item.organizer] : []), ...(item.attendees ?? [])];
         for (const person of onIt) {
           if (!person.email || person.self || person.resource) continue;
-          people.push({ email: person.email, name: person.displayName ?? null, lastSeen });
+          people.push({ email: person.email, name: person.displayName ?? null, lastSeen, photo: null });
         }
       }
       pageToken = answer.nextPageToken;

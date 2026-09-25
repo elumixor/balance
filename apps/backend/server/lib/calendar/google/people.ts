@@ -31,6 +31,7 @@ interface PeopleResponse {
 interface GooglePerson {
   names?: { displayName?: string }[];
   emailAddresses?: { value?: string }[];
+  photos?: { url?: string; default?: boolean }[];
 }
 
 /**
@@ -48,8 +49,11 @@ export class GooglePeople {
 
   async list(): Promise<ExternalPerson[]> {
     const [saved, seen] = await Promise.all([
-      this.#fetch(`/people/me/connections?personFields=names,emailAddresses&pageSize=${PAGE_SIZE}`, "connections"),
-      this.#fetch(`/otherContacts?readMask=names,emailAddresses&pageSize=${PAGE_SIZE}`, "otherContacts"),
+      this.#fetch(
+        `/people/me/connections?personFields=names,emailAddresses,photos&pageSize=${PAGE_SIZE}`,
+        "connections",
+      ),
+      this.#fetch(`/otherContacts?readMask=names,emailAddresses,photos&pageSize=${PAGE_SIZE}`, "otherContacts"),
     ]);
     return [...saved, ...seen];
   }
@@ -70,5 +74,7 @@ export class GooglePeople {
 function toPerson(person: GooglePerson): ExternalPerson[] {
   const email = person.emailAddresses?.[0]?.value;
   if (!email) return [];
-  return [{ email, name: person.names?.[0]?.displayName ?? null, lastSeen: null }];
+  // Google's own silhouette is flagged `default`; only a real picture is worth carrying over.
+  const photo = person.photos?.find((one) => one.url && !one.default)?.url ?? null;
+  return [{ email, name: person.names?.[0]?.displayName ?? null, lastSeen: null, photo }];
 }

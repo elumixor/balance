@@ -4,6 +4,8 @@
   import { isDesktop } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { shellSlots } from "$lib/nav/shell-slots.svelte";
+  import { palette } from "$lib/search";
+  import { Search } from "lucide-svelte";
 
   /**
    * The wide-screen strip. Everything that isn't the current screen's own controls fits on one
@@ -59,6 +61,17 @@
       </a>
     </Tooltip>
   {/each}
+
+  <Tooltip label="Search" hotkey="⌘K">
+    <button
+      type="button"
+      aria-label="Search"
+      onclick={() => palette.show()}
+      class="press-sm hoverable flex size-[22px] items-center justify-center rounded-md text-fg-muted"
+    >
+      <Search size={14} />
+    </button>
+  </Tooltip>
 
   {#if shellSlots.where}
     <div class="ml-1 flex min-w-0 items-center">{@render shellSlots.where()}</div>

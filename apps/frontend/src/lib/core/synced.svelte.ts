@@ -1,6 +1,7 @@
 import { model, type Signals, type SyncedStorage, syncedClient } from "@elumixor/synced/client";
 import type { SyncResponse } from "@elumixor/synced/protocol";
-import type { Person, Practice, Project, Stage, Task } from "$lib/projects/types";
+import type { Person } from "$lib/people/types";
+import type { Practice, Project, Stage, Task } from "$lib/projects/types";
 import { api, callApi } from "./api";
 import type { Activity, Category } from "./records";
 
@@ -38,7 +39,7 @@ const runes: Signals = { state: <T>(initial: T) => new Cell(initial) };
  * projects had members would reach the screens as one with no `memberIds` at all — and a `.map`
  * on it takes every effect in the app down with it.
  */
-const PREFIX = "balance:synced:v2";
+const PREFIX = "balance:synced:v3";
 
 /**
  * The device's copy. `localStorage` rather than Capacitor's `Preferences` because it answers

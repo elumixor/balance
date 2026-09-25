@@ -45,10 +45,11 @@
   let selectedId = $state<string | null>(null);
   const selected = $derived(selectedId ? (data.tasksOf(id).find((task) => task.id === selectedId) ?? null) : null);
 
-  // A task selected on one project has nothing to say on the next one.
+  // A task selected on one project has nothing to say on the next one — unless the way in named
+  // one (`?task=`, from the palette), in which case that is the task to open on.
   $effect(() => {
     void id;
-    selectedId = null;
+    selectedId = page.url.searchParams.get("task");
   });
 
   async function remove() {

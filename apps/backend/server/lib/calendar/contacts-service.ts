@@ -30,6 +30,8 @@ export interface KnownPerson {
   readonly lastSeen: Date | null;
   /** Whether the address book has them, which is what makes a name worth trusting over a guest line. */
   readonly contact: boolean;
+  /** The address book's picture of them, when it has one. */
+  readonly photo: string | null;
 }
 
 /**
@@ -100,6 +102,7 @@ function record(known: Map<string, Mutable>, own: Set<string>, person: ExternalP
       count: contact ? 0 : 1,
       lastSeen: person.lastSeen,
       contact,
+      photo: person.photo,
     });
     return;
   }
@@ -108,6 +111,7 @@ function record(known: Map<string, Mutable>, own: Set<string>, person: ExternalP
   // calendar sends. The book wins, and between two guest lines the first name seen stands.
   if (person.name?.trim() && (contact || !existing.name)) existing.name = person.name.trim();
   existing.contact ||= contact;
+  existing.photo ??= person.photo;
   if (person.lastSeen && (!existing.lastSeen || person.lastSeen > existing.lastSeen)) {
     existing.lastSeen = person.lastSeen;
   }

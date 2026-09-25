@@ -5,6 +5,7 @@
   import { ConnectGoogle } from "$lib/calendar/components";
   import { Button, Divider, Popover, StarBadge } from "$lib/components";
   import { categories } from "$lib/core/synced.svelte";
+  import { palette } from "$lib/search";
   import { settings } from "$lib/settings";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -54,6 +55,18 @@
     if (!day) return;
     const [year, month, date] = day.split("-").map(Number);
     untrack(() => data.goToDate(new Date(year, month - 1, date - (viewport.md ? 0 : 1))));
+  });
+
+  // `?event=<id>&at=<instant>` is a hit from the palette: the week it is on, with its card open.
+  // The parameters are taken off the address once used, so a reload is the week and not the jump.
+  $effect(() => {
+    const id = page.url.searchParams.get("event");
+    const at = page.url.searchParams.get("at");
+    if (!id || !at) return;
+    untrack(() => {
+      void data.openEvent(id, new Date(at));
+      void goto("/calendar", { replaceState: true, keepFocus: true, noScroll: true });
+    });
   });
 
   const plan = $derived(categories.all);
@@ -156,6 +169,15 @@
                 onclick={() => {
                   close();
                   void goto("/session");
+                }}
+              />
+              <Button
+                label="Search"
+                size="sm"
+                variant="outline"
+                onclick={() => {
+                  close();
+                  palette.show();
                 }}
               />
               <Button

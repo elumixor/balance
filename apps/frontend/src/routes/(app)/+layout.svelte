@@ -3,6 +3,7 @@
   import { auth } from "$lib/account/auth.svelte";
   import { AppLoading } from "$lib/components";
   import {
+    CommandPalette,
     IcsDropZone,
     ImportIcsDialog,
     ImportPlacesDialog,
@@ -12,7 +13,9 @@
     SideNav,
     TabBar,
   } from "./components";
-  import { isBareKey, isRefreshKey, isSettingsKey } from "$lib/platform/keys";
+  import { isBareKey, isRefreshKey, isSearchKey, isSettingsKey } from "$lib/platform/keys";
+  import { palette } from "$lib/search";
+  import { peopleDirectory } from "$lib/people/directory.svelte";
   import { syncStatus } from "$lib/core/synced.svelte";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { clock } from "$lib/platform/clock.svelte";
@@ -54,7 +57,9 @@
       if (userId) adoptUser(userId);
       // Everything reported from here on belongs to an account rather than to a browser.
       telemetry.identify(userId, auth.email);
-      warmStore().catch((e) => diagnostics.report("Loading", e, { title: "Couldn’t load your data", retry: warmStore }));
+      warmStore()
+        .then(() => peopleDirectory.seed())
+        .catch((e) => diagnostics.report("Loading", e, { title: "Couldn’t load your data", retry: warmStore }));
     });
   });
 
@@ -82,11 +87,15 @@
   });
 
   /**
-   * The shell's own keys: a letter each for the two screens, and the settings combination (see
-   * `SETTINGS_HOTKEY`). Bare letters only outside a text field — `c` is Calendar everywhere
+   * The shell's own keys: ⌘K for the palette, a letter each for the screens, and the settings
+   * combination (see `SETTINGS_HOTKEY`). Bare letters only outside a text field — `c` is Calendar everywhere
    * except in the box where somebody is naming an event.
    */
   function onkeydown(e: KeyboardEvent) {
+    if (isSearchKey(e)) {
+      e.preventDefault();
+      return palette.toggle();
+    }
     if (isSettingsKey(e)) {
       e.preventDefault();
       return settings.toggle();
@@ -162,6 +171,8 @@
   <!-- Above the shell rather than inside the rail: the hotkey opens it from any screen, and on a
        phone there is no rail for it to hang off at all. -->
   <SettingsDialog />
+  <!-- ⌘K, from any screen: the one box that finds anything and goes there. -->
+  <CommandPalette />
   <!-- A file shared into the app can arrive on any screen, so the sheet that reads it lives here
        with the settings panel rather than on the calendar. -->
   <ImportIcsDialog />

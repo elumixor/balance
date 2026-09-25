@@ -91,6 +91,8 @@ export interface ExternalPerson {
   readonly name: string | null;
   /** The last event they were on, or null for an address-book entry nothing has been shared with. */
   readonly lastSeen: Date | null;
+  /** The picture the address book keeps for them, when it keeps one. */
+  readonly photo: string | null;
 }
 
 export interface EventReminder {
@@ -175,6 +177,14 @@ export interface CalendarProvider {
   readonly name: string;
   listCalendars(): Promise<CalendarRef[]>;
   listEvents(calendarIds: readonly string[], from: Date, to: Date): Promise<ExternalEvent[]>;
+  /** The events whose words — title, notes, place, guests — hold the text, newest first, capped. */
+  searchEvents(
+    calendarIds: readonly string[],
+    text: string,
+    from: Date,
+    to: Date,
+    limit: number,
+  ): Promise<ExternalEvent[]>;
   getEvent(calendarId: string, eventId: string): Promise<ExternalEvent>;
   createEvent(input: CreateEventInput): Promise<ExternalEvent>;
   updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent>;

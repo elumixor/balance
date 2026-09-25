@@ -42,6 +42,14 @@ export function isRefreshKey(event: KeyboardEvent) {
   return !modified || isNativeShell;
 }
 
+/**
+ * ⌘K opens the palette from anywhere, a text field included: the palette is where somebody goes
+ * to leave what they were doing, and a field that swallowed the key would keep them there.
+ */
+export function isSearchKey(event: KeyboardEvent) {
+  return (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k";
+}
+
 /** True for a plain keypress — a shortcut that means something else once a modifier is held. */
 export function isBareKey(event: KeyboardEvent) {
   return !event.metaKey && !event.ctrlKey && !event.altKey && !isTyping(event.target);

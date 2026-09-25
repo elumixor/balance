@@ -1,12 +1,11 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "~/db";
 import { people, type TaskStatus, tasks } from "~/db/schema";
+import { colorFor } from "~/lib/people/color";
 import type { NotionClient, NotionPage } from "./client";
 import { resolveTaskFields, type TaskFields } from "./data-source";
 import { dateOf, plainText, priorityOf, relationIds, selectName, taskStatus } from "./map";
 
-/** Avatar colours, picked by the person's own id so the same face is the same colour everywhere. */
-const COLORS = ["#e8b931", "#4f9dde", "#7bc86c", "#d97ec4", "#e0725b", "#8f7bd8"];
 /** A row edited within a second of what Notion reported is the sync's own write coming back. */
 const SKEW_MS = 1000;
 
@@ -169,9 +168,4 @@ function propertiesOf(row: typeof tasks.$inferSelect, fields: TaskFields) {
 /** The board's own word for where the task is — its stored label when that column still exists. */
 function columnFor(status: TaskStatus, fields: TaskFields) {
   return fields.columns[status] ?? null;
-}
-
-function colorFor(key: string) {
-  const sum = [...key].reduce((total, char) => total + char.charCodeAt(0), 0);
-  return COLORS[sum % COLORS.length] as string;
 }

@@ -2,7 +2,7 @@ import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { getPreferences } from "$lib/account/queries";
 import { weekKey, weekRange } from "$lib/calendar/dates";
-import { getCalendarContacts, getCalendarPrefs, getCalendarWeek, getZoomStatus } from "$lib/calendar/queries";
+import { getCalendarPrefs, getCalendarWeek, getZoomStatus } from "$lib/calendar/queries";
 import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
 import { getIntegrations } from "$lib/integrations/queries";
 import { listMcpKeys } from "$lib/mcp/queries";
@@ -27,12 +27,6 @@ export const store = {
   preferences: new Cached(getPreferences, "Couldn't load your settings.", "preferences", "Settings"),
   /** Not kept on the device: a list of keys is worth one request when the panel is opened. */
   mcpKeys: new Cached(listMcpKeys, "Couldn't load your assistant keys.", undefined, "Assistants"),
-  /**
-   * Everyone the account knows an address for, so the guest field suggests rather than waits.
-   * Kept on the device: a directory that arrives after the field is opened is a field with no
-   * suggestions, which is the only state it can't be allowed to have.
-   */
-  contacts: new Cached(getCalendarContacts, "Couldn't load the people you know.", "contacts", "Calendars"),
   /** Whether a Zoom account is connected, so the card can offer to make a room in it. */
   zoom: new Cached(getZoomStatus, "Couldn't check your Zoom connection.", "zoom", "Calendars"),
   /** Whether a Notion workspace is mirrored, and what the last run of it did. */
