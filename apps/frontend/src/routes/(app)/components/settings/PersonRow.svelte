@@ -14,13 +14,19 @@
    * queue, and the record comes back trimmed and re-rendered — which, bound straight to the
    * field, ate the space somebody had just typed between a first name and a last.
    */
-  let { person }: { person: Person } = $props();
+  let { person, onediting }: { person: Person; onediting?: (editing: boolean) => void } = $props();
 
   // svelte-ignore state_referenced_locally — the initial value on purpose; the effects below follow the record.
   let name = $state(person.name);
   // svelte-ignore state_referenced_locally
   let email = $state(person.email ?? "");
   let editing = $state<"name" | "email" | null>(null);
+
+  // The list above keeps its order while a row is being typed into: a name that walks down the
+  // list on every letter is a name that walks out from under the caret.
+  $effect(() => {
+    onediting?.(editing !== null);
+  });
 
   // A record that moved under the row — a lookup landing, an undo — replaces the draft, unless
   // the draft is the thing being typed.

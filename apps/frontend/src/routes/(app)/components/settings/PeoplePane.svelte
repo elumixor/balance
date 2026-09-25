@@ -2,6 +2,7 @@
   import { Field } from "$lib/components";
   import { peopleDirectory } from "$lib/people/directory.svelte";
   import { Plus, Search } from "lucide-svelte";
+  import { untrack } from "svelte";
   import PersonRow from "./PersonRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
@@ -12,10 +13,30 @@
    */
   let query = $state("");
   let adding = $state("");
+  /** The row whose field has the caret, while it does. */
+  let editingId = $state<string | null>(null);
+  /** The order the rows were last sorted into — held still while one of them is being typed into. */
+  let order = $state<string[]>([]);
+
+  const byId = $derived(new Map(peopleDirectory.all.map((person) => [person.id, person])));
+
+  // Alphabetical, re-sorted only between edits: a renamed row keeps its place until the field is
+  // left, and a row added meanwhile goes on the end rather than reshuffling everything.
+  $effect(() => {
+    const sorted = peopleDirectory.all.toSorted((a, b) => a.name.localeCompare(b.name)).map((person) => person.id);
+    if (editingId === null) {
+      order = sorted;
+      return;
+    }
+    // Untracked: the effect writes the order, and reading its own result back would loop it.
+    const kept = untrack(() => order).filter((id) => byId.has(id));
+    const known = new Set(kept);
+    order = [...kept, ...sorted.filter((id) => !known.has(id))];
+  });
 
   const people = $derived.by(() => {
     const needle = query.trim().toLowerCase();
-    const all = peopleDirectory.all.toSorted((a, b) => a.name.localeCompare(b.name));
+    const all = order.flatMap((id) => byId.get(id) ?? []);
     if (!needle) return all;
     return all.filter((p) => p.name.toLowerCase().includes(needle) || p.email?.toLowerCase().includes(needle));
   });
@@ -37,7 +58,7 @@
     {/if}
 
     {#each people as person (person.id)}
-      <PersonRow {person} />
+      <PersonRow {person} onediting={(editing) => (editingId = editing ? person.id : editingId === person.id ? null : editingId)} />
     {:else}
       <p class="t-micro px-1.5 py-2 text-fg-faint">
         {query ? "Nobody by that name." : "Nobody yet. People arrive from your events, or are added here."}
