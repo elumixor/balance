@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
-import { NotSignedInError } from "./api";
-import { Cached } from "./cache.svelte";
+import { ApiClientError, NotSignedInError } from "./api";
+import { Cached, RETRY_DELAY_MS } from "./cache.svelte";
 import * as persist from "./persist";
 
 /** A fetcher whose answers the test hands out one at a time. */
@@ -171,6 +171,47 @@ describe("failure", () => {
     calls[2].resolve("rows");
     await third;
     expect(cached.error).toBeNull();
+  });
+});
+
+describe("a request that never arrived", () => {
+  it("is asked once more after a pause, and the second answer is the answer", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new ApiClientError("Can't reach the server"))
+      .mockResolvedValueOnce("rows");
+    const cached = new Cached(fetcher, "nope");
+    const load = cached.ensure();
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS - 1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await load;
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(cached.value).toBe("rows");
+    expect(diagnostics.problems).toHaveLength(0);
+    vi.useRealTimers();
+  });
+
+  it("counts as a failure only when the second request is lost too", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn<() => Promise<string>>().mockRejectedValue(new ApiClientError("Can't reach the server"));
+    const cached = new Cached(fetcher, "Couldn't load that week.");
+    const load = cached.ensure();
+    await vi.advanceTimersByTimeAsync(RETRY_DELAY_MS);
+    await load;
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(cached.error).toBe("Can't reach the server");
+    expect(diagnostics.problems).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("does not ask again when the server answered no", async () => {
+    const fetcher = vi.fn<() => Promise<string>>().mockRejectedValue(new ApiClientError("Forbidden", 403));
+    const cached = new Cached(fetcher, "nope");
+    await cached.ensure();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(cached.error).toBe("Forbidden");
   });
 });
 

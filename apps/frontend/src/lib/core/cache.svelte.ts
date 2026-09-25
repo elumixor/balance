@@ -1,6 +1,21 @@
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
-import { NotSignedInError } from "./api";
+import { ApiClientError, NotSignedInError } from "./api";
 import * as persist from "./persist";
+
+/**
+ * How long a request that never reached the server waits before it is made again.
+ *
+ * The Mac is a login item: its five-minute check fires as the lid closes and is aborted twenty
+ * seconds of wall clock later, which is the moment the lid opens again — before Wi-Fi is back.
+ * A request that was refused is a fact; one that was lost in transit is asked once more, with
+ * enough of a pause for the network to come up, and only then counts as a failure.
+ */
+export const RETRY_DELAY_MS = 5_000;
+
+/** Never reached the server — offline, DNS, aborted mid-sleep — as opposed to being told no. */
+function neverArrived(e: unknown) {
+  return e instanceof ApiClientError && !(e instanceof NotSignedInError) && e.status === undefined;
+}
 
 /**
  * One fetch per thing per app session, and one copy of it kept on the device.
@@ -80,7 +95,7 @@ export class Cached<T> {
     this.loading = true;
     const generation = this.#generation;
     try {
-      this.set(await this.fetcher());
+      this.set(await this.#ask());
       // Invalidated while this was in flight: the value is newer than what was on screen, and
       // still older than the write that came in behind it.
       if (generation !== this.#generation) this.#stale = true;
@@ -97,6 +112,17 @@ export class Cached<T> {
       });
     } finally {
       this.loading = false;
+    }
+  }
+
+  /** The fetcher, asked a second time when the first request was lost rather than refused. */
+  async #ask() {
+    try {
+      return await this.fetcher();
+    } catch (e) {
+      if (!neverArrived(e)) throw e;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      return await this.fetcher();
     }
   }
 
