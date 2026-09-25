@@ -1,10 +1,11 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import type { ActivityWeight } from "$lib/core/records";
-import { applyCalendarEvent, invalidate } from "$lib/core/store.svelte";
+import { applyCalendarEvent, invalidate, store } from "$lib/core/store.svelte";
 import { activities, categories, practices, projects } from "$lib/core/synced.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import type { DragSource } from "./drag.svelte";
 import { CalendarHistory, type HistoryStep } from "./history.svelte";
+import { selfOrganizer } from "./meeting";
 import {
   type Answer,
   answered,
@@ -404,9 +405,10 @@ export class CalendarEdits {
   async create(source: DragSource | null, title: string, start: Date, end: Date, openAt: DOMRect | null = null) {
     const activityId = source?.activityId ?? null;
     const activity = activities.all.find((a) => a.id === activityId) ?? null;
+    const calendarId = this.#host.week.value?.writeCalendarId ?? "";
     const draft: CalendarEvent = {
       id: this.#writes.draftId(),
-      calendarId: this.#host.week.value?.writeCalendarId ?? "",
+      calendarId,
       seriesId: null,
       seriesStart: null,
       title,
@@ -425,6 +427,8 @@ export class CalendarEdits {
       activityName: activity?.name ?? null,
       weights: activity?.weights ?? source?.weights ?? [],
       ...NOT_A_MEETING,
+      // What the calendar will answer with, so the card's guest line doesn't appear a beat later.
+      organizer: selfOrganizer(store.calendars.value, calendarId),
       projectId: source?.projectId ?? null,
       taskId: source?.taskId ?? null,
     };

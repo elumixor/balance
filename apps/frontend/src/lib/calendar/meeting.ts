@@ -7,12 +7,35 @@
  * read back out of the text the same way a person reads them out of it.
  */
 
+import type { CalendarPrefs, EventAttendee } from "./types";
+
 export type MeetingProvider = "meet" | "zoom" | "teams" | "webex" | "other";
 
 export interface MeetingLink {
   readonly url: string;
   /** What the button says: "Google Meet", "Zoom", or the site's own name. */
   readonly label: string;
+}
+
+/**
+ * Who Google will say organizes an event made on this calendar: the calendar itself. A shared
+ * calendar is named after itself and addressed by its id; a primary one is the account's own
+ * address, and Google gives it no display name. Drawn on a draft so the card doesn't fill the
+ * organizer in a beat later, when the calendar answers. Null when the calendar isn't known.
+ */
+export function selfOrganizer(prefs: CalendarPrefs | undefined, calendarId: string): EventAttendee | null {
+  for (const account of prefs?.accounts ?? []) {
+    const calendar = account.calendars.find((c) => c.id === calendarId);
+    if (!calendar) continue;
+    return {
+      email: calendar.primary ? account.email : calendar.id,
+      name: calendar.primary ? null : calendar.name,
+      self: true,
+      response: "accepted",
+      optional: false,
+    };
+  }
+  return null;
 }
 
 /** A call that exists somewhere else already, as the calendar is asked to hold it. */

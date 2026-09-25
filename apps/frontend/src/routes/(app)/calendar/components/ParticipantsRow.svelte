@@ -92,7 +92,7 @@
 </script>
 
 {#snippet face(attendee: EventAttendee)}
-  <span class="shrink-0 rounded-full ring-2" style="--tw-ring-color:{RESPONSE_COLORS[attendee.response]}">
+  <span class="inline-flex shrink-0 rounded-full ring-2" style="--tw-ring-color:{RESPONSE_COLORS[attendee.response]}">
     <Avatar person={personOf(attendee)} size={18} />
   </span>
 {/snippet}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { asGoogleAccount, callFrom, hasAddress, meetingOf, partsOf } from "./meeting";
+import { asGoogleAccount, callFrom, hasAddress, meetingOf, partsOf, selfOrganizer } from "./meeting";
+import type { CalendarPrefs } from "./types";
 
 describe("callFrom", () => {
   it("names the provider a pasted link belongs to", () => {
@@ -142,5 +143,51 @@ describe("partsOf", () => {
     expect(partsOf("https://example.com/x")).toEqual([
       { link: { url: "https://example.com/x", label: "example.com" } },
     ]);
+  });
+});
+
+describe("selfOrganizer", () => {
+  const prefs: CalendarPrefs = {
+    connected: true,
+    needsReconnect: false,
+    visibleCalendarIds: [],
+    writeCalendarId: "me@example.com",
+    accounts: [
+      {
+        accountId: "a",
+        email: "me@example.com",
+        needsReconnect: false,
+        calendars: [
+          { id: "me@example.com", accountId: "a", name: "Me", color: null, primary: true, readOnly: false },
+          {
+            id: "abc@group.calendar.google.com",
+            accountId: "a",
+            name: "Routine",
+            color: null,
+            primary: false,
+            readOnly: false,
+          },
+        ],
+      },
+    ],
+  };
+
+  it("names a shared calendar after itself, addressed by its id", () => {
+    expect(selfOrganizer(prefs, "abc@group.calendar.google.com")).toEqual({
+      email: "abc@group.calendar.google.com",
+      name: "Routine",
+      self: true,
+      response: "accepted",
+      optional: false,
+    });
+  });
+
+  it("gives a primary calendar the account's address and no name, as Google does", () => {
+    expect(selfOrganizer(prefs, "me@example.com")).toMatchObject({ email: "me@example.com", name: null, self: true });
+  });
+
+  it("answers nothing for a calendar it has never heard of, or before the calendars have loaded", () => {
+    expect(selfOrganizer(prefs, "nobody")).toBeNull();
+    expect(selfOrganizer(undefined, "me@example.com")).toBeNull();
   });
 });
