@@ -19,7 +19,7 @@ export const categorySchema = z.object({
   icon: z.string().trim().min(1),
   targetHoursPerWeek: z.number().min(0).max(168),
   /** Server-owned: the buffer is made and maintained here, never by a client. */
-  isBuffer: z.boolean().default(false),
+  isBuffer: z.boolean(),
 });
 
 export type SyncedCategory = z.infer<typeof categorySchema>;

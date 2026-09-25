@@ -3,14 +3,33 @@
   import { imageFileIn } from "$lib/people/avatar";
   import { peopleDirectory } from "$lib/people/directory.svelte";
   import type { Person } from "$lib/people/types";
-  import { Sparkles, Trash2 } from "lucide-svelte";
+  import { CloudDownload, Trash2 } from "lucide-svelte";
 
   /**
    * One person on the list, every part of them editable where it is drawn: the face is a button
    * that opens a file picker and a target a picture can be dropped on, the name and the address
-   * are fields, and the wand asks the address book and Gravatar for whatever they know.
+   * are fields, and the cloud asks Google's address book and Gravatar for whatever they know.
+   *
+   * What is typed is held here until the field is left. Every keystroke is written through the
+   * queue, and the record comes back trimmed and re-rendered — which, bound straight to the
+   * field, ate the space somebody had just typed between a first name and a last.
    */
   let { person }: { person: Person } = $props();
+
+  let name = $state(person.name);
+  let email = $state(person.email ?? "");
+  let editing = $state<"name" | "email" | null>(null);
+
+  // A record that moved under the row — a lookup landing, an undo — replaces the draft, unless
+  // the draft is the thing being typed.
+  $effect(() => {
+    const given = person.name;
+    if (editing !== "name") name = given;
+  });
+  $effect(() => {
+    const given = person.email ?? "";
+    if (editing !== "email") email = given;
+  });
 
   let picker = $state<HTMLInputElement>();
   let over = $state(false);
@@ -34,7 +53,7 @@
   async function lookUp() {
     looking = true;
     try {
-      await peopleDirectory.lookup(person.id);
+      await peopleDirectory.lookup(person.id, true);
     } finally {
       looking = false;
     }
@@ -62,34 +81,38 @@
 
   <div class="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
     <Field
-      value={person.name}
+      bind:value={name}
       variant="bare"
       placeholder="Name"
       ariaLabel="Name"
       autocapitalize="sentences"
-      oninput={(name) => peopleDirectory.update(person.id, { name })}
+      onfocus={() => (editing = "name")}
+      onblur={() => (editing = null)}
+      oninput={(typed) => peopleDirectory.update(person.id, { name: typed })}
       class="sm:w-5/12"
     />
     <Field
-      value={person.email ?? ""}
+      bind:value={email}
       variant="bare"
       placeholder="Email"
       ariaLabel="Email"
       inputmode="email"
-      oninput={(email) => peopleDirectory.update(person.id, { email: email.trim() || null })}
+      onfocus={() => (editing = "email")}
+      onblur={() => (editing = null)}
+      oninput={(typed) => peopleDirectory.update(person.id, { email: typed.trim() || null })}
       class="text-fg-muted"
     />
   </div>
 
-  <Tooltip label="Fill in from the email">
+  <Tooltip label="Fetch name and picture from Google">
     <button
       type="button"
-      aria-label="Look up {person.name}'s name and picture"
+      aria-label="Fetch {person.name}'s name and picture from Google"
       disabled={!person.email || looking}
       onclick={() => void lookUp()}
       class="bare-button size-7 disabled:opacity-30 {looking ? 'animate-pulse' : ''}"
     >
-      <Sparkles size={14} />
+      <CloudDownload size={14} />
     </button>
   </Tooltip>
   <Tooltip label="Remove">

@@ -70,16 +70,20 @@ class PeopleDirectory {
     return created;
   }
 
-  /** Asks the address book and Gravatar about a row's address, and writes back what they knew. */
-  async lookup(id: string) {
+  /**
+   * Asks Google's address book and Gravatar about a row's address, and writes back what they
+   * knew. Run by itself after an address is typed, it fills only what is still a guess — a name
+   * somebody wrote here is theirs to keep; pressed on purpose, it replaces the name and the face.
+   */
+  async lookup(id: string, replace = false) {
     const person = this.byId(id);
     if (!person?.email) return;
     try {
       const found = await lookupPerson(person.email);
       const patch: Partial<Person> = {};
-      // A name somebody typed here is theirs to keep; only the guess made off the address is replaced.
-      if (person.name === person.email.split("@")[0] || !person.name.trim()) patch.name = found.name;
-      if (found.avatar && !person.avatar) patch.avatar = found.avatar;
+      const guessed = person.name === person.email.split("@")[0] || !person.name.trim();
+      if (replace || guessed) patch.name = found.name;
+      if (found.avatar && (replace || !person.avatar)) patch.avatar = found.avatar;
       if (Object.keys(patch).length > 0) people.update(id, patch);
     } catch (error) {
       diagnostics.report("People", error, { title: `Couldn't look up ${person.email}` });

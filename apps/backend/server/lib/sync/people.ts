@@ -7,9 +7,9 @@ import { defined, TableStore } from "./table-store";
 export const personSchema = z.object({
   id: z.uuid(),
   name: z.string().trim(),
-  email: z.string().trim().nullable().default(null),
-  color: z.string().trim().min(1).default("#8b8b8b"),
-  avatar: z.string().nullable().default(null),
+  email: z.string().trim().nullable(),
+  color: z.string().trim().min(1),
+  avatar: z.string().nullable(),
 });
 
 export type SyncedPerson = z.infer<typeof personSchema>;

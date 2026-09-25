@@ -12,6 +12,9 @@
     oninput,
     /** For a field whose keys mean something to the row it sits in — Enter to commit, Escape to back out. */
     onkeydown,
+    /** For a row that holds a draft while the field is being typed into, and writes it back after. */
+    onfocus,
+    onblur,
     placeholder,
     type = "text",
     inputmode,
@@ -26,6 +29,8 @@
     element?: HTMLInputElement | null;
     oninput?: (value: string) => void;
     onkeydown?: (e: KeyboardEvent) => void;
+    onfocus?: () => void;
+    onblur?: () => void;
     placeholder?: string;
     type?: "text" | "password";
     inputmode?: "numeric" | "decimal" | "email";
@@ -43,6 +48,8 @@
   bind:value
   oninput={(e) => oninput?.(e.currentTarget.value)}
   {onkeydown}
+  {onfocus}
+  {onblur}
   {placeholder}
   {type}
   {inputmode}

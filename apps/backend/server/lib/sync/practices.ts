@@ -7,8 +7,8 @@ export const practiceSchema = z.object({
   id: z.uuid(),
   categoryId: z.uuid(),
   name: z.string().trim(),
-  unit: z.enum(["times", "hours"]).default("times"),
-  targetPerWeek: z.number().min(0).max(168).default(7),
+  unit: z.enum(["times", "hours"]),
+  targetPerWeek: z.number().min(0).max(168),
 });
 
 export type SyncedPractice = z.infer<typeof practiceSchema>;

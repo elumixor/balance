@@ -7,10 +7,10 @@ export const projectStatusSchema = z.enum(["active", "paused", "done", "dropped"
 
 const fieldSchema = z.object({
   id: z.string().min(1),
-  icon: z.string().trim().default("circle"),
+  icon: z.string().trim(),
   label: z.string().trim(),
-  type: z.enum(["text", "date", "number", "url"]).default("text"),
-  value: z.string().default(""),
+  type: z.enum(["text", "date", "number", "url"]),
+  value: z.string(),
 });
 
 /**
@@ -19,17 +19,17 @@ const fieldSchema = z.object({
  */
 export const projectSchema = z.object({
   id: z.uuid(),
-  parentId: z.uuid().nullable().default(null),
+  parentId: z.uuid().nullable(),
   categoryId: z.uuid(),
   name: z.string().trim(),
-  description: z.string().default(""),
-  icon: z.string().trim().nullable().default(null),
-  status: projectStatusSchema.default("active"),
-  hoursPerWeek: z.number().min(0).max(168).default(0),
-  fields: z.array(fieldSchema).default([]),
-  memberIds: z.array(z.uuid()).default([]),
-  ordinal: z.number().int().default(0),
-  notionUrl: z.string().nullable().default(null),
+  description: z.string(),
+  icon: z.string().trim().nullable(),
+  status: projectStatusSchema,
+  hoursPerWeek: z.number().min(0).max(168),
+  fields: z.array(fieldSchema),
+  memberIds: z.array(z.uuid()),
+  ordinal: z.number().int(),
+  notionUrl: z.string().nullable(),
 });
 
 export type SyncedProject = z.infer<typeof projectSchema>;

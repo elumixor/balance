@@ -10,8 +10,8 @@ export const stageSchema = z.object({
   projectId: z.uuid(),
   name: z.string().trim(),
   ordinal: z.number().int(),
-  startsOn: dayField.nullable().default(null),
-  endsOn: dayField.nullable().default(null),
+  startsOn: dayField.nullable(),
+  endsOn: dayField.nullable(),
 });
 
 export type SyncedStage = z.infer<typeof stageSchema>;
