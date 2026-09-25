@@ -23,6 +23,18 @@ import type { CalendarSeries } from "./series.svelte";
 import { type CalendarEvent, type CalendarWeek, type MappingScope, NOT_A_MEETING, type SeriesScope } from "./types";
 import type { CalendarWrites } from "./writes.svelte";
 
+/** The event as the calendar answered it, with the edits made to it while it was a draft on top. */
+function withEdits(event: CalendarEvent, edits: EventFields | undefined): CalendarEvent {
+  if (!edits) return event;
+  return {
+    ...event,
+    title: edits.title,
+    description: edits.description,
+    start: edits.start.toISOString(),
+    end: edits.end.toISOString(),
+  };
+}
+
 /** How many drafts remember what they became before the lot is dropped. */
 const BECAME_LIMIT = 200;
 
@@ -50,6 +62,8 @@ export class CalendarEdits {
    * it's still the same block rather than a different event that happened to appear.
    */
   readonly #became = new Map<string, string>();
+  /** The other way round: every id the calendar has given to a block that was drawn first. */
+  readonly #wasDraft = new Set<string>();
   /**
    * Edits made to a block while it was still a draft. There's nothing to write them against until
    * the calendar answers, so they're kept and sent as one write the moment it does.
@@ -70,6 +84,11 @@ export class CalendarEdits {
   /** The event a draft turned into, for whatever was open on it — null for any other id. */
   becameId(id: string) {
     return this.#became.get(id) ?? null;
+  }
+
+  /** Whether the event with this id was on the grid as a draft first — see `create`. */
+  wasDraft(id: string) {
+    return this.#wasDraft.has(id);
   }
 
   async mapEvent(
@@ -431,13 +450,20 @@ export class CalendarEdits {
         });
         // Written before the refetch that takes the draft off the grid, so nothing open on the
         // draft is ever left looking at a block that isn't there — see `CalendarData.selected`.
-        if (this.#became.size > BECAME_LIMIT) this.#became.clear();
+        if (this.#became.size > BECAME_LIMIT) {
+          this.#became.clear();
+          this.#wasDraft.clear();
+        }
         this.#became.set(draft.id, event.id);
+        this.#wasDraft.add(event.id);
         await Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
         return event;
       },
       { id: draft.id, event: draft },
-      (event) => applyCalendarEvent(event, draft.id),
+      // What was typed into the draft meanwhile goes into the week with the calendar's answer,
+      // not after it: the write that carries it is queued next, and the block must not read the
+      // server's empty name in between.
+      (event) => applyCalendarEvent(withEdits(event, this.#draftEdits.get(draft.id)), draft.id),
     );
     if (!created) {
       // Nothing was made, so there's nothing to have open — the error says why.

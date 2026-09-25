@@ -159,8 +159,14 @@ export class CalendarDrag {
   #autoscroll: number | null = null;
   /** Where the press on empty grid landed, so a release that travelled isn't read as a tap. */
   #pressAt: { x: number; y: number } | null = null;
-  /** The last tap on empty grid, which the next one is measured against — see `tapEmpty`. */
+  /** The last tap on empty grid, which the next one is measured against — see `#tapEmpty`. */
   #lastTap: { x: number; y: number; at: number } | null = null;
+  /**
+   * A block being drawn over empty grid: the slot the press landed on, which the block always
+   * covers however far the pointer travels, and where the press was on screen — until it has
+   * moved, the block stays the default hour. See `#beginDraw`.
+   */
+  #draw: { anchorMinutes: number; x: number; y: number; moved: boolean } | null = null;
   readonly #host: DragHost;
   readonly #selection: CalendarSelection;
 
@@ -232,6 +238,22 @@ export class CalendarDrag {
     this.#autoscrollNear(e.clientY);
     if (drag.kind === "move") drag.copy = e.altKey;
 
+    // A block being drawn: the pressed slot stays covered, and the block grows from it toward
+    // the pointer, either way — up makes it start earlier, down makes it end later. Nothing moves
+    // until the pointer has, so a double click that stays put still makes the default hour.
+    const draw = this.#draw;
+    if (drag.kind === "create" && draw) {
+      if (!draw.moved && Math.hypot(e.clientX - draw.x, e.clientY - draw.y) < DRAG_THRESHOLD_PX) return;
+      draw.moved = true;
+      const edge = pointerToEdge(box, e, this.#host.stripStart, drag.day, 0);
+      const anchor = draw.anchorMinutes;
+      drag.startMinutes = Math.min(anchor, edge.minutes);
+      drag.endMinutes = Math.max(anchor + SNAP_MINUTES, edge.minutes);
+      drag.freeStartMinutes = Math.min(anchor, edge.rawMinutes);
+      drag.freeEndMinutes = Math.max(anchor + SNAP_MINUTES, edge.rawMinutes);
+      return;
+    }
+
     // An edge follows the pointer into whatever column it's over, counted from the block's own
     // start day, so dragging sideways as well as down grows the block across midnight.
     if (drag.kind === "resize" || drag.kind === "resize-start") {
@@ -271,11 +293,13 @@ export class CalendarDrag {
    * loose from its series on purpose, so the usual after-the-fact "apply to the series?" offer is
    * skipped rather than asked and declined.
    */
-  endDrag(e?: { metaKey: boolean; ctrlKey: boolean }) {
+  endDrag(e?: { metaKey: boolean; ctrlKey: boolean; clientX?: number; clientY?: number }) {
     this.#cancelPending();
     this.#stopAutoscroll();
     const drag = this.state;
+    const draw = this.#draw;
     this.state = null;
+    this.#draw = null;
     if (!drag) return;
 
     const start = instantAt(drag.day, drag.startMinutes);
@@ -283,7 +307,12 @@ export class CalendarDrag {
     const detach = Boolean(e?.metaKey || e?.ctrlKey);
 
     if (drag.kind === "create" && drag.source) void this.#host.create(drag.source, drag.title, start, end);
-    else if (drag.event && drag.copy) void this.#host.copyEvents(dropMoves(drag, start, end));
+    else if (drag.kind === "create") {
+      // Drawn by hand and untitled: the card opens beside where the pointer let go, with the
+      // cursor in the name — see `#beginDraw`.
+      const at = new DOMRect(e?.clientX ?? draw?.x ?? 0, e?.clientY ?? draw?.y ?? 0, 0, 0);
+      void this.#host.create(null, "", start, end, at);
+    } else if (drag.event && drag.copy) void this.#host.copyEvents(dropMoves(drag, start, end));
     else if (drag.event && drag.others.length > 0) void this.#host.retimeEvents(dropMoves(drag, start, end));
     else if (drag.event) void this.#host.retimeEvent(drag.event, start, end, detach);
   }
@@ -300,13 +329,28 @@ export class CalendarDrag {
     if ((e.target as Element | null)?.closest("[data-event]")) return;
     const box = this.columnsEl?.getBoundingClientRect();
     if (!box) return;
+    e.preventDefault();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+
+    // The second press of a double click: the block starts here and now, and the pointer sets
+    // its length until it lets go — see `#beginDraw`. The tap that would have opened an hour on
+    // release is spent.
+    const last = this.#lastTap;
+    if (
+      last &&
+      Date.now() - last.at <= DOUBLE_TAP_MS &&
+      Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX
+    ) {
+      this.#lastTap = null;
+      this.#pressAt = null;
+      this.#beginDraw(e);
+      return;
+    }
     const at = pointerToPoint(box, e);
 
-    e.preventDefault();
     this.#selection.deselect();
     if (!e.shiftKey) this.#selection.clearPicked();
     this.#pickedBeforeMarquee = new Set(this.#selection.picked);
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     this.marquee = {
       fromDay: at.dayIndex,
       fromMinutes: at.minutes,
@@ -316,6 +360,7 @@ export class CalendarDrag {
   }
 
   moveMarquee(e: PointerEvent) {
+    if (this.#draw) return this.moveDrag(e);
     const marquee = this.marquee;
     const box = this.columnsEl?.getBoundingClientRect();
     if (!marquee || !box) return;
@@ -325,8 +370,65 @@ export class CalendarDrag {
     this.#gather(marquee);
   }
 
-  endMarquee() {
+  /**
+   * The press on empty grid let go: a box drawn is done gathering, a block drawn is made, and a
+   * press that did neither is a tap — see `#tapEmpty`. Without the event it was cancelled, and
+   * a block half drawn is still made where it stood.
+   */
+  endMarquee(e?: PointerEvent) {
     this.marquee = null;
+    if (this.#draw) return this.endDrag(e);
+    if (e) this.#tapEmpty(e);
+  }
+
+  /**
+   * A Mac trackpad pressed hard on empty grid — the same as a double click there: the block
+   * starts under the finger and follows it until it lifts. WebKit only; nothing else fires it.
+   * The press itself has already begun a box, and captured the pointer, so what follows lands
+   * here without asking again.
+   */
+  forcePress(e: MouseEvent) {
+    if (this.state || !this.#host.connected) return;
+    if ((e.target as Element | null)?.closest("[data-event]")) return;
+    this.marquee = null;
+    this.#lastTap = null;
+    this.#pressAt = null;
+    this.#beginDraw(e);
+  }
+
+  /**
+   * Starts a block under the pointer: the slot pressed as its start, the default hour as its
+   * length until the pointer travels, and then whatever the pointer says — see `moveDrag`. What
+   * lets go is the block, untitled, opened to be named.
+   */
+  #beginDraw(e: { clientX: number; clientY: number }) {
+    if (!this.#host.connected) return;
+    const box = this.columnsEl?.getBoundingClientRect();
+    if (!box) return;
+    const at = pointerToPoint(box, e);
+    const dayIndex = clamp(Math.floor(at.dayIndex), 0, STRIP_DAYS - 1);
+    const day = addDays(this.#host.stripStart, dayIndex);
+    const minutes = clamp(snapMinutes(at.minutes), 0, MINUTES_PER_DAY - SNAP_MINUTES);
+
+    this.#selection.deselect();
+    this.#selection.clearPicked();
+    this.#draw = { anchorMinutes: minutes, x: e.clientX, y: e.clientY, moved: false };
+    this.state = {
+      kind: "create",
+      title: "",
+      weights: [],
+      activityId: null,
+      source: null,
+      event: null,
+      copy: false,
+      others: [],
+      day,
+      startMinutes: minutes,
+      endMinutes: minutes + DEFAULT_EVENT_MINUTES,
+      freeStartMinutes: minutes,
+      freeEndMinutes: minutes + DEFAULT_EVENT_MINUTES,
+      freeDayIndex: dayIndex,
+    };
   }
 
   /**
@@ -338,16 +440,19 @@ export class CalendarDrag {
     this.#cancelPending();
     this.#stopAutoscroll();
     this.#pressAt = null;
+    this.#draw = null;
     this.state = null;
     this.marquee = null;
   }
 
   /**
    * Two quick taps on empty grid make an hour there and open it — the way onto the week that
-   * doesn't start at the palette. A press that travelled was a drag or a scroll of the week, and
-   * one that landed on a block belongs to that block.
+   * doesn't start at the palette. With a mouse the second press is caught on the way down and
+   * draws the block instead (`beginMarquee`), so this is the finger's path. A press that
+   * travelled was a drag or a scroll of the week, and one that landed on a block belongs to that
+   * block.
    */
-  tapEmpty(e: PointerEvent) {
+  #tapEmpty(e: PointerEvent) {
     const press = this.#pressAt;
     this.#pressAt = null;
     if (!press || this.state || !this.#host.connected) return;

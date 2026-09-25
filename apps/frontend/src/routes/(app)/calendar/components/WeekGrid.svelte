@@ -102,7 +102,8 @@
    * drag — and never again, so scrolling back over a week costs no animation.
    */
   function appear(node: Element, { id }: { id: string }) {
-    const first = !seen.has(id);
+    // A draft getting its real id is the same block under a new key, not a block arriving.
+    const first = !seen.has(id) && !data.wasDraft(id);
     seen.add(id);
     return first && !theme.reduceMotion ? fade(node, { duration: 150 }) : {};
   }
@@ -148,6 +149,22 @@
   $effect(() => timeScale.fit(scroll.viewHeight - headerPx));
 
   $effect(() => timeScale.start());
+
+  // A hard press on a Mac trackpad draws a block the way a double click does. WebKit's own
+  // events, so they are wired by name rather than as attributes; the first one is cancelled to
+  // keep the system's Look Up panel off the grid.
+  $effect(() => {
+    const el = data.columnsEl;
+    if (!el) return;
+    const willBegin = (e: Event) => e.preventDefault();
+    const down = (e: Event) => data.forcePress(e as MouseEvent);
+    el.addEventListener("webkitmouseforcewillbegin", willBegin);
+    el.addEventListener("webkitmouseforcedown", down);
+    return () => {
+      el.removeEventListener("webkitmouseforcewillbegin", willBegin);
+      el.removeEventListener("webkitmouseforcedown", down);
+    };
+  });
 </script>
 
 <div class="relative h-full">
@@ -200,10 +217,7 @@
           bind:this={data.columnsEl}
           onpointerdown={(e) => data.beginMarquee(e)}
           onpointermove={(e) => data.moveMarquee(e)}
-          onpointerup={(e) => {
-            data.endMarquee();
-            data.tapEmpty(e);
-          }}
+          onpointerup={(e) => data.endMarquee(e)}
           onpointercancel={() => data.endMarquee()}
           class="relative grid"
           style="grid-template-columns:{columns};height:{24 * hourPx}px;background-image:{gridImage}"

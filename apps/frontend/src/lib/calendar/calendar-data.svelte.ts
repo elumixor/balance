@@ -453,7 +453,7 @@ class CalendarData {
     this.#drag.setDragCopy(copy);
   }
 
-  endDrag(e?: { metaKey: boolean; ctrlKey: boolean }) {
+  endDrag(e?: { metaKey: boolean; ctrlKey: boolean; clientX?: number; clientY?: number }) {
     this.#drag.endDrag(e);
   }
 
@@ -465,16 +465,16 @@ class CalendarData {
     this.#drag.moveMarquee(e);
   }
 
-  endMarquee() {
-    this.#drag.endMarquee();
+  endMarquee(e?: PointerEvent) {
+    this.#drag.endMarquee(e);
+  }
+
+  forcePress(e: MouseEvent) {
+    this.#drag.forcePress(e);
   }
 
   abortGesture() {
     this.#drag.abortGesture();
-  }
-
-  tapEmpty(e: PointerEvent) {
-    this.#drag.tapEmpty(e);
   }
 
   // --- writes ----------------------------------------------------------------
@@ -487,6 +487,11 @@ class CalendarData {
   /** The event a draft turned into, for whatever was open on it — null for any other id. */
   becameId(id: string) {
     return this.#edits.becameId(id);
+  }
+
+  /** Whether the event was on the grid as a draft before the calendar gave it this id. */
+  wasDraft(id: string) {
+    return this.#edits.wasDraft(id);
   }
 
   /**
