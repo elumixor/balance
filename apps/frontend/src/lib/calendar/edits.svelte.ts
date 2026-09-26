@@ -131,7 +131,12 @@ export class CalendarEdits {
       projects.all.find((p) => p.id === merged.projectId)?.categoryId ??
       practices.all.find((p) => p.id === merged.practiceId)?.categoryId ??
       categories.all.find((c) => c.isBuffer)?.id;
-    const choice = existing?.choice ?? (sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null);
+    const own = sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null;
+    // Picking a project moves the hour to that project's sphere: a project's hours have to land
+    // on its own ring, and the sphere a block wore before was only ever a guess about what it was
+    // for. A write that names no project — a task, a note — leaves the sphere alone.
+    const picked = Boolean(purpose.projectId || purpose.practiceId);
+    const choice = picked ? own : (existing?.choice ?? own);
     if (!choice) return;
     // How the card is drawn, and what you wrote down about the meeting, are neither of them what
     // the hour was — and a textarea has an undo of its own — so neither is a step.
