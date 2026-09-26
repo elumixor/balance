@@ -258,18 +258,6 @@ public final class APIClient {
         return response.active
     }
 
-    // MARK: Voice
-
-    /// One dictated instruction, carried out on the server. The wrist only says the words: what
-    /// they mean is worked out where the tools that can act on this account live.
-    public func sendVoiceCommand(text: String, timeZone: String = TimeZone.current.identifier) async throws -> VoiceReply {
-        struct Body: Encodable {
-            let text: String
-            let timeZone: String
-        }
-        return try await send(path: "/mobile/watch/voice", method: "POST", body: Body(text: text, timeZone: timeZone))
-    }
-
     // MARK: Calendars
 
     public func fetchCalendars() async throws -> CalendarsResponse {

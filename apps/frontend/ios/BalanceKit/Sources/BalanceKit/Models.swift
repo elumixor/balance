@@ -303,22 +303,6 @@ public struct CalendarsResponse: Codable, Sendable {
     }
 }
 
-/// What one spoken instruction did. `changed` is the whole reason the reply carries anything
-/// besides words: it says whether the week on the wrist is now out of date.
-public struct VoiceReply: Codable, Sendable {
-    public let reply: String
-    public let changed: Bool
-    /// Which tools the assistant reached for, in order. Shown nowhere — kept because "it said it
-    /// moved something and nothing moved" is otherwise unanswerable from a watch.
-    public let used: [String]
-
-    public init(reply: String, changed: Bool, used: [String] = []) {
-        self.reply = reply
-        self.changed = changed
-        self.used = used
-    }
-}
-
 /// Whether a failure is the network being away rather than the server refusing.
 ///
 /// The distinction is the whole of offline behaviour on the watch: a refusal is something to show

@@ -1,5 +1,5 @@
 import { createGateway } from "@ai-sdk/gateway";
-import { generateObject, generateText, stepCountIs, type ToolSet } from "ai";
+import { generateObject } from "ai";
 import type { z } from "zod";
 import { env } from "~/lib/env";
 import { captureError } from "~/lib/telemetry";
@@ -27,24 +27,3 @@ export async function ask<T>(options: { schema: z.ZodType<T>; system: string; pr
   }
 }
 
-/**
- * The same model, asked to *do* something rather than to propose one: it is handed tools and runs
- * until it has an answer in words. Used by the watch's voice mode, where the person said a
- * sentence and expects the calendar to have moved by the time they lower their wrist.
- *
- * A failure here is not silent the way `ask`'s is — a spoken instruction that changed nothing has
- * to say so — so this throws, and the route turns it into an answer.
- */
-export async function converse(options: {
-  system: string;
-  prompt: string;
-  tools: ToolSet;
-  maxSteps: number;
-}): Promise<{ text: string; toolsUsed: string[] }> {
-  const { system, prompt, tools, maxSteps } = options;
-  const result = await generateText({ model, system, prompt, tools, stopWhen: stepCountIs(maxSteps) });
-  return {
-    text: result.text.trim(),
-    toolsUsed: result.steps.flatMap((step) => step.toolCalls.map((call) => call.toolName)),
-  };
-}

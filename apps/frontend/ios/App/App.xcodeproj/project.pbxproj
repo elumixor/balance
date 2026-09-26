@@ -22,7 +22,6 @@
 		2B80D83A5D1821EFF2ADF831 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = B0C6DDFC20C890F54BCF546E /* ClerkKit */; };
 		2EE7064F2751B5D962B98253 /* BalanceWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BF8B2AC60D94222A366680 /* BalanceWidget.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
-		30F8D40618FC8C932B9BBDA0 /* VoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CCA51E0A636170F659DD31A /* VoiceView.swift */; };
 		34A720C90B5A4157CCDD333B /* BalanceKit in Frameworks */ = {isa = PBXBuildFile; productRef = 314C56927728D0738458FF6A /* BalanceKit */; };
 		35291E9F95AE7BCA4960737A /* WatchPairing.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFC7FD9B078059E4899D6650 /* WatchPairing.swift */; };
 		3C526DA4D8491DF24DD526EA /* NotSignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D630451A996A2F307A15D9 /* NotSignedInView.swift */; };
@@ -332,7 +331,6 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		56BF8B2AC60D94222A366680 /* BalanceWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BalanceWidget.swift; path = ../../WatchWidget/BalanceWidget.swift; sourceTree = "<group>"; };
-		5CCA51E0A636170F659DD31A /* VoiceView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = VoiceView.swift; path = ../../WatchApp/VoiceView.swift; sourceTree = "<group>"; };
 		5D12B23C1F99B98B9228A016 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = ../../WatchApp/Assets.xcassets; sourceTree = "<group>"; };
 		605DC963E17EAC9A36617A25 /* CategoryWheel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryWheel.swift; path = ../../WatchApp/CategoryWheel.swift; sourceTree = "<group>"; };
 		6401E87D473E5CC78C0A30B4 /* OfflineWrites.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = OfflineWrites.swift; path = ../../WatchApp/OfflineWrites.swift; sourceTree = "<group>"; };
@@ -500,7 +498,6 @@
 				6A8246868148AE2C7AD1EE81 /* SessionController.swift */,
 				6C9E6EF82D7D74FCCFA00D5B /* TrackingAlarm.swift */,
 				77392978390FF86E0EA9441B /* DaysView.swift */,
-				5CCA51E0A636170F659DD31A /* VoiceView.swift */,
 				DFC7FD9B078059E4899D6650 /* WatchPairing.swift */,
 				FA7F46843536EC52578EA5D8 /* WatchPreview.swift */,
 				D8D0F8FFEA3E019AAD48EB2C /* WatchSummaryModel.swift */,
@@ -714,7 +711,6 @@
 				85B9B1D12D52AD6B0F831CF3 /* SessionController.swift in Sources */,
 				91952164D9DA5395D44A14DF /* TrackingAlarm.swift in Sources */,
 				BB8C25F8D19C15A8C5ACF46F /* DaysView.swift in Sources */,
-				30F8D40618FC8C932B9BBDA0 /* VoiceView.swift in Sources */,
 				35291E9F95AE7BCA4960737A /* WatchPairing.swift in Sources */,
 				1E3537EA034070CB75B50CC3 /* WatchPreview.swift in Sources */,
 				5490739BDA2027300E686D2D /* WatchSummaryModel.swift in Sources */,

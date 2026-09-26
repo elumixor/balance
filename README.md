@@ -227,11 +227,6 @@ knew about carries the moment it was stopped, so the hours never grow while the 
 waits, refused and it is dropped with the reason on screen, because a record that can never succeed
 would otherwise block every one behind it.
 
-The mic in the corner is the one input a wrist has that can carry a sentence. `POST
-/mobile/watch/voice` hands the dictated words to the same MCP tools an assistant gets
-(`server/lib/watch/voice-service.ts`), so the calendar is read and changed by the services rather
-than by anything the watch has its own copy of, and the reply is one sentence written to be heard.
-
 Every screen goes through `SessionController`, the single answer to "what is running", and the week
 plus the running session are written to the `group.com.elumixor.balance` App Group as a
 `WatchSnapshot` — the widget reads that blob and never makes a call of its own. The entitlements
