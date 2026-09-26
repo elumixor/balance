@@ -170,8 +170,9 @@ laptop.
   `--hidden`, so the menu bar and the reminders run without a window. The session it draws from
   survives a relaunch because the Mac holds a device grant in a file (`grant.rs`), the same
   mechanism iOS has in Capacitor Preferences: what clerk-js leaves behind in the webview does not
-  survive, which is why a login-item launch used to have nothing to show. The reminder card can't
-  become the key window, which is what keeps a dismiss from bringing the hidden main window back.
+  survive, which is why a login-item launch used to have nothing to show. The reminder card is a
+  non-activating `NSPanel` (`tauri-nspanel`), so a click on it never makes Balance the active app
+  — which is what used to bring the hidden main window back and eat the first click.
   `target/` and `gen/` are generated; the rest is committed.
 - `apps/frontend/ios/` is a committed Xcode project, and holds everything Apple: `App/WatchApp`,
   `App/WatchWidget`, the `BalanceKit` package they share, and `fastlane/`. The watch app and widget

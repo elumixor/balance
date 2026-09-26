@@ -6,11 +6,11 @@
 //! arrives in the URL: the window that computed the reminder already knows the answer, and a
 //! second webview asking the server again would be a second, slower copy of it.
 //!
-//! It floats above other windows and follows you across Spaces, and it never takes the keyboard:
-//! the card can't become the key window, so pressing Join or the cross is a click on a notification,
-//! not a switch to Balance. Bringing the app forward after the card is gone was how the main window
-//! used to reappear on a dismiss — AppKit hands key status to the next window it can find, and a
-//! hidden window will do.
+//! It floats above other windows and follows you across Spaces, and it is a notification, not a
+//! window of Balance: a non-activating `NSPanel` that can never become key. A click on Join or
+//! the cross lands on the button it was aimed at, the first time, without Balance becoming the
+//! active app — which is what used to bring the hidden main window forward and swallow the first
+//! click as "activate", so every button had to be pressed twice.
 
 use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 
@@ -21,6 +21,17 @@ pub const WINDOW_LABEL: &str = "reminder";
 const SIZE: (f64, f64) = (380.0, 200.0);
 /// The gap to the screen's corner, in points — the same breathing room a notification leaves.
 const MARGIN: f64 = 16.0;
+
+#[cfg(target_os = "macos")]
+tauri_nspanel::tauri_panel! {
+    panel!(ReminderPanel {
+        config: {
+            can_become_key_window: false,
+            can_become_main_window: false,
+            is_floating_panel: true
+        }
+    })
+}
 
 /// Shows the card, replacing whatever it was showing before.
 ///
@@ -36,7 +47,7 @@ pub fn show_reminder(app: AppHandle, payload: String) -> Result<(), String> {
             .navigate(url.parse().map_err(|_| "bad reminder URL")?)
             .map_err(|e| e.to_string())?;
         place(&app, &window);
-        window.show().map_err(|e| e.to_string())?;
+        present(&app, &window)?;
         return Ok(());
     }
 
@@ -60,50 +71,28 @@ pub fn show_reminder(app: AppHandle, payload: String) -> Result<(), String> {
     .visible(false)
     .focused(false)
     .focusable(false)
+    // The window is never key, so without this WebKit would spend the first click on nothing.
+    .accept_first_mouse(true)
     .visible_on_all_workspaces(true)
     .build()
     .map_err(|e| e.to_string())?;
 
     place(&app, &window);
-    float(&window);
-    window.show().map_err(|e| e.to_string())?;
-    Ok(())
+    float(&app, &window)
 }
 
 /// Dismissed, or acted on. Destroyed rather than closed: the app turns a close request into a
 /// hide so the main window survives, and a hidden card would come back showing a stale reminder.
-///
-/// Clicking the card made Balance the active app, and with the card gone there is nothing of
-/// Balance left to look at — so the activation goes back to whatever was being worked on, the
-/// same way a notification banner leaves things.
 #[tauri::command]
 pub fn close_reminder(app: AppHandle) -> Result<(), String> {
-    let main_visible = app
-        .get_webview_window("main")
-        .and_then(|window| window.is_visible().ok())
-        .unwrap_or(false);
-    if !main_visible {
-        deactivate(&app);
-    }
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
-        window.destroy().map_err(|e| e.to_string())?;
-    }
-    Ok(())
+    app.clone()
+        .run_on_main_thread(move || {
+            if let Some(window) = as_window(&app) {
+                let _ = window.destroy();
+            }
+        })
+        .map_err(|e| e.to_string())
 }
-
-#[cfg(target_os = "macos")]
-fn deactivate(app: &AppHandle) {
-    let _ = app.run_on_main_thread(|| {
-        use objc2_app_kit::NSApplication;
-        let Some(mtm) = objc2::MainThreadMarker::new() else {
-            return;
-        };
-        NSApplication::sharedApplication(mtm).deactivate();
-    });
-}
-
-#[cfg(not(target_os = "macos"))]
-fn deactivate(_app: &AppHandle) {}
 
 /// The card asks for the height its content came out at — see `src/routes/reminder/+page.svelte`.
 #[tauri::command]
@@ -135,29 +124,72 @@ fn place(app: &AppHandle, window: &tauri::WebviewWindow) {
     let _ = window.set_position(PhysicalPosition::new(x, y));
 }
 
+/// Makes the window a panel that never activates the app, and shows it.
+///
 /// Tauri's always-on-top is only the floating level, which sits under a full-screen app — the one
 /// place a reminder matters most. Raised to the level the menu bar's own status windows use, and
-/// told it may join every Space, including a full-screen one.
+/// told it may join every Space, including a full-screen one. `NonactivatingPanel` is the part
+/// that keeps a click on the card from making Balance the active app.
 #[cfg(target_os = "macos")]
-fn float(window: &tauri::WebviewWindow) {
-    use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+fn float(app: &AppHandle, window: &tauri::WebviewWindow) -> Result<(), String> {
+    use tauri_nspanel::{objc2_app_kit, WebviewWindowExt};
 
     let window = window.clone();
-    let _ = window.clone().run_on_main_thread(move || {
-        let Ok(handle) = window.ns_window() else {
+    app.run_on_main_thread(move || {
+        let Ok(panel) = window.to_panel::<ReminderPanel>() else {
             return;
         };
-        // Tauri hands out the `NSWindow` as an opaque pointer, and it is only sound to look at
-        // from here — the main thread, while the window it belongs to is still alive.
-        let ns_window: &NSWindow = unsafe { &*handle.cast::<NSWindow>() };
-        ns_window.setLevel(objc2_app_kit::NSStatusWindowLevel);
-        ns_window.setCollectionBehavior(
-            NSWindowCollectionBehavior::CanJoinAllSpaces
-                | NSWindowCollectionBehavior::FullScreenAuxiliary
-                | NSWindowCollectionBehavior::Stationary,
+        let _ = panel.add_style_mask(objc2_app_kit::NSWindowStyleMask::NonactivatingPanel);
+        panel.set_level(objc2_app_kit::NSStatusWindowLevel as i64);
+        panel.set_collection_behavior(
+            objc2_app_kit::NSWindowCollectionBehavior::CanJoinAllSpaces
+                | objc2_app_kit::NSWindowCollectionBehavior::FullScreenAuxiliary
+                | objc2_app_kit::NSWindowCollectionBehavior::Stationary,
         );
-    });
+        // Hover states in the webview, while the app behind the card is somebody else's.
+        panel.set_accepts_mouse_moved_events(true);
+        panel.show();
+    })
+    .map_err(|e| e.to_string())
 }
 
 #[cfg(not(target_os = "macos"))]
-fn float(_window: &tauri::WebviewWindow) {}
+fn float(_app: &AppHandle, window: &tauri::WebviewWindow) -> Result<(), String> {
+    window.show().map_err(|e| e.to_string())
+}
+
+/// Brought to the front without being made key — `orderFrontRegardless`, the way a notification
+/// banner appears over whatever is being worked on.
+#[cfg(target_os = "macos")]
+fn present(app: &AppHandle, window: &tauri::WebviewWindow) -> Result<(), String> {
+    use tauri_nspanel::ManagerExt;
+
+    let Ok(panel) = app.get_webview_panel(WINDOW_LABEL) else {
+        return window.show().map_err(|e| e.to_string());
+    };
+    app.run_on_main_thread(move || panel.show())
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn present(_app: &AppHandle, window: &tauri::WebviewWindow) -> Result<(), String> {
+    window.show().map_err(|e| e.to_string())
+}
+
+/// The card as a Tauri window again, so Tauri's own teardown owns what it built. The panel is
+/// only ever a costume over Tauri's window, and destroying it while it is still wearing one is
+/// two owners releasing the same object.
+#[cfg(target_os = "macos")]
+fn as_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
+    use tauri_nspanel::ManagerExt;
+
+    match app.get_webview_panel(WINDOW_LABEL) {
+        Ok(panel) => panel.to_window(),
+        Err(_) => app.get_webview_window(WINDOW_LABEL),
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn as_window(app: &AppHandle) -> Option<tauri::WebviewWindow> {
+    app.get_webview_window(WINDOW_LABEL)
+}

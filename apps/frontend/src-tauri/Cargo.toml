@@ -32,6 +32,9 @@ tokio = { version = "1", features = ["time"] }
 # Unpinned minors on purpose: these are the versions tao and wry already resolve to, and a second
 # objc2 in the binary would mean a second registration of the same Objective-C classes.
 [target.'cfg(target_os = "macos")'.dependencies]
+# Turns the reminder card's window into a non-activating `NSPanel`: a click on it stays a click on
+# a notification rather than a switch to Balance. Built on the same objc2 as the rest of this list.
+tauri-nspanel = "2.1.0"
 # One call: the uid the login item's `launchd` domain is named after (`gui/501`).
 libc = "0.2"
 objc2 = "0.6"
