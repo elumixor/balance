@@ -1,43 +1,39 @@
 import SwiftUI
 import BalanceKit
 
-/// The calendar, a day at a time.
+/// The calendar as one list that never ends.
 ///
-/// One page per day, stacked vertically, so the crown does what it does everywhere on the watch:
-/// it scrolls the day's events and, past the last one, turns to the next day. The stack has no end
-/// either way — it grows as the crown nears an edge — because "what did I have on Tuesday" and
-/// "what is on next Friday" are the same question.
+/// Days follow each other in a single scroll, so the crown does what it does everywhere on the
+/// watch; the list grows at either end as it is neared, because "what did I have on Tuesday" and
+/// "what is on next Friday" are the same question. The day at the top is named in a header that
+/// stays put — "Today", "This Friday" — with its date beside it.
 ///
-/// The pages are fetched a week at a time and kept for as long as the screen is open. Out of range,
-/// the days the summary already covers are drawn from it, and the rest say so.
+/// Days are fetched a week at a time and kept for as long as the screen is open. Out of range, the
+/// days the summary already covers are drawn from it, and the rest say so.
 struct DaysView: View {
-    /// What the summary already knows, so the first page is drawn before any request lands and a
-    /// wrist with no signal still has the fortnight ahead.
+    /// What the summary already knows, so today is drawn before any request lands and a wrist with
+    /// no signal still has the fortnight ahead.
     let seed: [NextEvent]
 
     @Environment(WatchRouter.self) private var router
     @State private var model = DayEventsModel()
-    @State private var selection = 0
-    @State private var range = -Self.growBy...Self.growBy * 2
+    @State private var offsets = Array(-Self.growBy...Self.growBy * 3)
+    /// The day at the top of the list. Bound to the scroll position, which is also what keeps the
+    /// visible day still when earlier days are added above it.
+    @State private var topDay: Int? = 0
 
-    /// How many days the stack grows by when the crown gets close to an edge.
+    /// How many days the list grows by when an end comes near.
     private static let growBy = 14
-    private static let edgeMargin = 3
+    private static let edgeMargin = 4
+    /// How far away today may be for the way back to be one animated scroll. Further than this the
+    /// list first lands a few days short, where nothing has to be laid out on the way, and glides
+    /// the rest — a long animated scroll through a lazy list is what stutters.
+    private static let glideDays = 4
 
     var body: some View {
-        TabView(selection: $selection) {
-            ForEach(Array(range), id: \.self) { offset in
-                DayPage(
-                    day: model.day(at: offset),
-                    events: model.events(at: offset),
-                    state: model.state(at: offset)
-                )
-                .tag(offset)
-            }
+        ScrollViewReader { proxy in
+            list.onAppear { proxy.scrollTo(topDay ?? 0, anchor: .top) }
         }
-        .tabViewStyle(.verticalPage)
-        .navigationTitle(DayPage.heading(for: model.day(at: selection)))
-        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -47,11 +43,9 @@ struct DaysView: View {
                     Image(systemName: "timer")
                 }
             }
-            if selection != 0 {
+            if (topDay ?? 0) != 0 {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        withAnimation { selection = 0 }
-                    } label: {
+                    Button(action: backToToday) {
                         Image(systemName: "arrow.uturn.backward")
                     }
                 }
@@ -59,18 +53,58 @@ struct DaysView: View {
         }
         .navigationDestination(for: NextEvent.self) { EventDetailView(event: $0) }
         .onAppear { model.seed(seed) }
-        .task(id: selection) {
-            grow(around: selection)
-            await model.load(around: selection)
+    }
+
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 10) {
+                ForEach(offsets, id: \.self) { offset in
+                    DaySection(
+                        day: model.day(at: offset),
+                        events: model.events(at: offset),
+                        state: model.state(at: offset),
+                        // The pinned header above already says this day's name.
+                        hidesHeader: offset == (topDay ?? 0)
+                    )
+                    .id(offset)
+                    .onAppear { reached(offset) }
+                }
+            }
+            .scrollTargetLayout()
+            .padding(.horizontal, 2)
+            .padding(.bottom, 12)
+        }
+        .scrollPosition(id: $topDay, anchor: .top)
+        .overlay(alignment: .top) {
+            DayHeader(day: model.day(at: topDay ?? 0))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(.black)
+                .animation(nil, value: topDay)
         }
     }
 
-    private func grow(around offset: Int) {
-        if offset - range.lowerBound < Self.edgeMargin {
-            range = (range.lowerBound - Self.growBy)...range.upperBound
+    private func reached(_ offset: Int) {
+        Task { await model.load(around: offset) }
+        guard let first = offsets.first, let last = offsets.last else { return }
+        if offset - first < Self.edgeMargin {
+            offsets.insert(contentsOf: (first - Self.growBy)..<first, at: 0)
         }
-        if range.upperBound - offset < Self.edgeMargin {
-            range = range.lowerBound...(range.upperBound + Self.growBy)
+        if last - offset < Self.edgeMargin {
+            offsets.append(contentsOf: (last + 1)...(last + Self.growBy))
+        }
+    }
+
+    private func backToToday() {
+        let from = topDay ?? 0
+        if abs(from) > Self.glideDays {
+            var jump = Transaction()
+            jump.disablesAnimations = true
+            withTransaction(jump) { topDay = from > 0 ? Self.glideDays : -Self.glideDays }
+        }
+        Task { @MainActor in
+            withAnimation(.snappy(duration: 0.35)) { topDay = 0 }
         }
     }
 }
@@ -110,8 +144,8 @@ final class DayEventsModel {
         byDay = Dictionary(grouping: events) { calendar.startOfDay(for: $0.start) }
     }
 
-    /// The week holding `offset`, and the one beside it the crown is heading towards, so turning
-    /// the page past a week's edge rarely waits.
+    /// The week holding `offset`, and the one beside it the crown is heading towards, so scrolling
+    /// past a week's edge rarely waits.
     func load(around offset: Int) async {
         let week = Self.week(of: offset)
         let dayInWeek = offset - week * Self.daysPerWeek
@@ -151,37 +185,84 @@ final class DayEventsModel {
     }
 }
 
-/// One day: its name, then its events, then nothing — the crown carries on to the next page.
-private struct DayPage: View {
+/// A day's name the way it is talked about — "Today", "This Friday", "Next Monday" — and then its
+/// date, quieter.
+private struct DayHeader: View {
+    let day: Date
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Text(Self.relativeName(for: day))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Calendar.current.isDateInToday(day) ? Color.accentColor : .primary)
+            Text(Self.date(for: day))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+        .lineLimit(1)
+    }
+
+    private static func date(for day: Date) -> String {
+        let sameYear = Calendar.current.isDate(day, equalTo: .now, toGranularity: .year)
+        return sameYear
+            ? day.formatted(.dateTime.day().month(.abbreviated))
+            : day.formatted(.dateTime.day().month(.abbreviated).year())
+    }
+
+    /// Weeks begin on Monday here, as they do everywhere else in the app.
+    static func relativeName(for day: Date) -> String {
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2
+        let today = calendar.startOfDay(for: .now)
+        let distance = calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: day)).day ?? 0
+        let weekday = day.formatted(.dateTime.weekday(.wide))
+        switch distance {
+        case 0: return "Today"
+        case 1: return "Tomorrow"
+        case -1: return "Yesterday"
+        default: break
+        }
+        guard let thisWeek = calendar.dateInterval(of: .weekOfYear, for: today),
+              let dayWeek = calendar.dateInterval(of: .weekOfYear, for: day)
+        else { return weekday }
+        let weeks = calendar.dateComponents([.weekOfYear], from: thisWeek.start, to: dayWeek.start).weekOfYear ?? 0
+        switch weeks {
+        case 0: return "This \(weekday)"
+        case 1: return "Next \(weekday)"
+        case -1: return "Last \(weekday)"
+        default: return weekday
+        }
+    }
+}
+
+/// One day in the list: its header, then its events, or a quiet line saying there are none.
+private struct DaySection: View {
     let day: Date
     let events: [NextEvent]
     let state: DayEventsModel.State
+    let hidesHeader: Bool
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            DayHeader(day: day)
+                .padding(.horizontal, 4)
+                .opacity(hidesHeader ? 0 : 1)
 
-                if events.isEmpty {
-                    Text(emptyText)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    ForEach(events) { event in
-                        NavigationLink(value: event) {
-                            EventRow(event: event)
-                        }
-                        .buttonStyle(.plain)
+            if events.isEmpty {
+                Text(emptyText)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 4)
+            } else {
+                ForEach(events) { event in
+                    NavigationLink(value: event) {
+                        EventRow(event: event)
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyText: String {
@@ -191,16 +272,6 @@ private struct DayPage: View {
         case .offline: return "No connection"
         case .failed: return "Couldn't load this day"
         }
-    }
-
-    /// "Today", "Tomorrow" and "Yesterday" before anything else, because those are the days anybody
-    /// is actually looking for; the rest say their weekday, which is how a week is talked about.
-    static func heading(for day: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return "Today" }
-        if calendar.isDateInTomorrow(day) { return "Tomorrow" }
-        if calendar.isDateInYesterday(day) { return "Yesterday" }
-        return day.formatted(.dateTime.weekday(.wide))
     }
 }
 

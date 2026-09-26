@@ -91,10 +91,8 @@ struct ContentView: View {
                                 Image(systemName: "xmark")
                             }
                         } else if phase == .idle {
-                            // The one thing on this watch that takes a sentence rather than a
-                            // gesture, and the only place a block can be moved from the wrist.
-                            NavigationLink(value: Route.voice) {
-                                Image(systemName: "mic.fill")
+                            NavigationLink(value: Route.days) {
+                                Image(systemName: "calendar")
                             }
                         }
                     }
@@ -114,7 +112,6 @@ struct ContentView: View {
                     switch route {
                     case .calendar: CalendarSettingsView()
                     case .days: DaysView(seed: summary.events)
-                    case .voice: VoiceView { await reload() }
                     }
                 }
         }
@@ -180,7 +177,7 @@ struct ContentView: View {
 
     /// How much of the screen's bottom the band keeps for itself, in every phase, so the ring above
     /// it is the same size whatever is down there.
-    private static let bandHeight: CGFloat = 30
+    private static let bandHeight: CGFloat = 34
 
     // MARK: - The ring
 
@@ -390,7 +387,6 @@ struct ContentView: View {
 private enum Route: Hashable {
     case calendar
     case days
-    case voice
 }
 
 /// The one action under the ring, sitting in the screen's bottom margin with enough shadow under it
@@ -440,13 +436,11 @@ private struct MeasuredSizeKey: PreferenceKey {
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
 }
 
-/// The bottom band: the next thing on the calendar, its title on one line and how far away it is on
-/// the next, wearing the glyph of whatever category it counts towards so the band says what kind of
-/// thing is coming without being read. It keeps its height when there is nothing coming, so the ring
-/// above it does not shift as events pass.
-///
-/// It sits in the screen's bottom safe area on purpose: watchOS keeps a generous margin there for
-/// the home gesture, and a line this quiet can live in it without being in the way.
+/// The bottom band: the next thing on the calendar as a pill across the screen — its title and how
+/// far away it is, right-aligned against the glyph of whatever category it counts towards, so the
+/// band says what kind of thing is coming without being read. While it is on, its bottom edge fills
+/// with how much of it has gone. It keeps its height when there is nothing coming, so the ring above
+/// it does not shift as events pass.
 private struct NextEventLine: View {
     let event: NextEvent?
     /// Whether the week behind this line came off the disk rather than off the wire. Said with a
@@ -454,44 +448,75 @@ private struct NextEventLine: View {
     var isStale = false
 
     var body: some View {
-        Group {
-            if let event {
-                VStack(spacing: 1) {
-                    HStack(spacing: 4) {
-                        Image(systemName: glyph(for: event))
-                            .font(.system(size: 10))
-                            .foregroundStyle(tint(for: event))
-                        Text(event.title)
-                            .lineLimit(1)
-                    }
-                    HStack(spacing: 3) {
-                        if isStale {
-                            Image(systemName: "cloud.slash")
-                                .font(.system(size: 8))
-                        }
-                        timing(for: event)
-                    }
-                    .foregroundStyle(.secondary)
+        if let event {
+            // Every 15 seconds is plenty for a bar a couple of points tall; the countdown text keeps
+            // itself current through `.relative`.
+            TimelineView(.periodic(from: .now, by: 15)) { context in
+                pill(for: event, now: context.date)
+            }
+        } else {
+            Color.clear
+        }
+    }
+
+    private func pill(for event: NextEvent, now: Date) -> some View {
+        let tint = tint(for: event)
+        let progress = progress(of: event, at: now)
+        return HStack(spacing: 6) {
+            VStack(alignment: .trailing, spacing: 0) {
+                Text(event.title)
+                    .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
+                HStack(spacing: 3) {
+                    if isStale {
+                        Image(systemName: "cloud.slash")
+                            .font(.system(size: 8))
+                    }
+                    timing(for: event, now: now)
                 }
-                .font(.caption2)
-                .minimumScaleFactor(0.7)
-                .ringButtonShadow()
-            } else {
-                // Still the way into the calendar when nothing is coming up.
-                Label("Calendar", systemImage: "calendar")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .ringButtonShadow()
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .minimumScaleFactor(0.7)
+
+            Image(systemName: glyph(for: event, now: now))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 18)
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white.opacity(0.12))
+        .overlay(alignment: .bottom) {
+            if let progress {
+                GeometryReader { proxy in
+                    Rectangle()
+                        .fill(tint)
+                        .frame(width: proxy.size.width * progress)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                }
+                .frame(height: 2.5)
+                .animation(.linear(duration: 0.3), value: progress)
             }
         }
-        .padding(.bottom, -6)
+        .clipShape(Capsule())
+        .padding(.horizontal, 6)
+        .ringButtonShadow()
+    }
+
+    /// How much of it has gone, while it is on and has a length to measure against.
+    private func progress(of event: NextEvent, at now: Date) -> Double? {
+        guard event.start <= now, event.end > now, event.end > event.start else { return nil }
+        return now.timeIntervalSince(event.start) / event.end.timeIntervalSince(event.start)
     }
 
     /// The category's glyph when the event counts towards one, and the calendar's own otherwise —
     /// an unmapped event is exactly the one the watch knows nothing else about.
-    private func glyph(for event: NextEvent) -> String {
-        guard let icon = event.categoryIcon else { return event.inProgress ? "record.circle" : "calendar" }
+    private func glyph(for event: NextEvent, now: Date) -> String {
+        guard let icon = event.categoryIcon else { return event.start <= now ? "record.circle" : "calendar" }
         return Icons.symbol(for: icon)
     }
 
@@ -505,8 +530,8 @@ private struct NextEventLine: View {
     ///
     /// `.relative` keeps counting down without this view being redrawn, which matters on a screen
     /// the system stops updating the moment the wrist drops.
-    private func timing(for event: NextEvent) -> Text {
-        guard event.inProgress else { return Text("in ") + Text(event.start, style: .relative) }
+    private func timing(for event: NextEvent, now: Date) -> Text {
+        guard event.start <= now else { return Text("in ") + Text(event.start, style: .relative) }
         guard event.end > event.start else { return Text("now") }
         return Text(event.end, style: .relative) + Text(" left")
     }
