@@ -437,7 +437,7 @@ private struct MeasuredSizeKey: PreferenceKey {
 }
 
 /// The bottom band: the next thing on the calendar as a pill across the screen — its title and how
-/// far away it is, right-aligned against the glyph of whatever category it counts towards, so the
+/// far away it is on the left, the glyph on the right of whatever category it counts towards, so the
 /// band says what kind of thing is coming without being read. While it is on, its bottom edge fills
 /// with how much of it has gone. It keeps its height when there is nothing coming, so the ring above
 /// it does not shift as events pass.
@@ -463,7 +463,7 @@ private struct NextEventLine: View {
         let tint = tint(for: event)
         let progress = progress(of: event, at: now)
         return HStack(spacing: 6) {
-            VStack(alignment: .trailing, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(event.title)
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
@@ -478,7 +478,7 @@ private struct NextEventLine: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .minimumScaleFactor(0.7)
 
             Image(systemName: glyph(for: event, now: now))
