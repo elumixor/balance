@@ -1,7 +1,9 @@
 <script lang="ts">
   import { Avatar, CardRow, CopyButton, PersonField, Tooltip } from "$lib/components";
   import type { EventAttendee, EventResponse } from "$lib/calendar/types";
+  import { preferences } from "$lib/account/preferences.svelte";
   import { peopleDirectory } from "$lib/people/directory.svelte";
+  import { store } from "$lib/core/store.svelte";
   import type { Person } from "$lib/people/types";
   import { Crown, Plus, Users, X } from "lucide-svelte";
   import type { Snippet } from "svelte";
@@ -63,13 +65,23 @@
 
   const nameOf = (attendee: EventAttendee) => personOf(attendee).name;
 
-  /** A face for the line: the people list's row for the address, or the guest as the calendar sends them. */
+  /** The name given in settings to the connected account this address belongs to, if it is one. */
+  function ownAlias(email: string | null): string | null {
+    if (!email) return null;
+    const account = (store.calendars.value?.accounts ?? []).find((a) => a.email?.toLowerCase() === email.toLowerCase());
+    return account ? preferences.aliasOf(account.accountId).trim() || null : null;
+  }
+
+  /**
+   * A face for the line: the people list's row for the address, or the guest as the calendar
+   * sends them. One of your own accounts goes by the name settings gave it.
+   */
   function personOf(attendee: EventAttendee): Person {
     const known = attendee.email ? peopleDirectory.byEmail(attendee.email) : null;
     if (known) return known;
     return {
       id: attendee.email ?? attendee.name ?? "guest",
-      name: attendee.name ?? attendee.email ?? "Guest",
+      name: ownAlias(attendee.email) ?? attendee.name ?? attendee.email ?? "Guest",
       email: attendee.email,
       color: "#8b8b8b",
       avatar: null,

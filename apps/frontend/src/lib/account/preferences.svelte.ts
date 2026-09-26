@@ -2,6 +2,7 @@ import { newId } from "$lib/core/ids";
 import { store } from "$lib/core/store.svelte";
 import { deviceTimeZone } from "$lib/planning/zone";
 import {
+  type AccountsPrefs,
   type CardPrefs,
   DEFAULT_PREFERENCES,
   type IntegrationsPrefs,
@@ -41,6 +42,7 @@ interface PreferencesPatch {
   zones?: Partial<ZonesPrefs>;
   card?: Partial<CardPrefs>;
   integrations?: Partial<IntegrationsPrefs>;
+  accounts?: Partial<AccountsPrefs>;
 }
 
 class Preferences {
@@ -57,6 +59,15 @@ class Preferences {
 
   get travel(): TravelPrefs {
     return this.#value.travel;
+  }
+
+  /** What a connected account is called here, or empty when it goes by its address. */
+  aliasOf(accountId: string): string {
+    return this.#value.accounts.aliases[accountId] ?? "";
+  }
+
+  setAlias(accountId: string, alias: string) {
+    this.#apply({ accounts: { aliases: { [accountId]: alias } } });
   }
 
   get sessions(): SessionsPrefs {
@@ -213,6 +224,7 @@ class Preferences {
       zones: { ...current.zones, ...patch.zones },
       card: { ...current.card, ...patch.card },
       integrations: { synced: { ...current.integrations.synced, ...patch.integrations?.synced } },
+      accounts: { aliases: { ...current.accounts.aliases, ...patch.accounts?.aliases } },
     });
 
     this.#pending = {
@@ -222,6 +234,7 @@ class Preferences {
       zones: { ...this.#pending.zones, ...patch.zones },
       card: { ...this.#pending.card, ...patch.card },
       integrations: { synced: { ...this.#pending.integrations?.synced, ...patch.integrations?.synced } },
+      accounts: { aliases: { ...this.#pending.accounts?.aliases, ...patch.accounts?.aliases } },
     };
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = setTimeout(() => this.flush(), SAVE_DELAY_MS);

@@ -32,6 +32,7 @@ export default defineConfig({
       include: [
         "src/lib/core/cache.svelte.ts",
         "src/lib/ui/colors.ts",
+        "src/lib/calendar/account-names.ts",
         "src/lib/calendar/clock-text.ts",
         "src/lib/people/suggest.ts",
         "src/lib/search/items.ts",

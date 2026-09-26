@@ -95,6 +95,11 @@ export interface IntegrationsPrefs {
   synced: Record<string, string>;
 }
 
+/** What each connected calendar account is called here, by its id — "Work", "Personal". */
+export interface AccountsPrefs {
+  aliases: Record<string, string>;
+}
+
 export interface StoredPreferences {
   reminders: RemindersPrefs;
   travel: TravelPrefs;
@@ -102,6 +107,7 @@ export interface StoredPreferences {
   zones: ZonesPrefs;
   card: CardPrefs;
   integrations: IntegrationsPrefs;
+  accounts: AccountsPrefs;
 }
 
 /** The same answer the server would give an account that has never set anything. */
@@ -120,4 +126,5 @@ export const DEFAULT_PREFERENCES: StoredPreferences = {
   zones: { saved: [], columns: [] },
   card: { hidden: [] },
   integrations: { synced: {} },
+  accounts: { aliases: {} },
 };

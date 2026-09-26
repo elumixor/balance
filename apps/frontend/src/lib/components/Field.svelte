@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { focusWhenReady } from "$lib/ui/focus";
+
   /**
    * One text input. "boxed" is a form control on its own surface; "bare" sits in a row and only
    * shows its ground once you point at it, so a list of rows stays a list; "bare-sm" is the same
@@ -23,6 +25,8 @@
     align = "left",
     ariaLabel,
     autocapitalize = "off",
+    /** Takes the caret as soon as it can — for the one field a popup opens on. */
+    autofocus = false,
     class: klass = "",
   }: {
     value: string;
@@ -39,8 +43,14 @@
     align?: "left" | "center" | "right";
     ariaLabel?: string;
     autocapitalize?: "off" | "sentences";
+    autofocus?: boolean;
     class?: string;
   } = $props();
+
+  $effect(() => {
+    if (!autofocus || !element) return;
+    return focusWhenReady(element).cancel;
+  });
 </script>
 
 <input

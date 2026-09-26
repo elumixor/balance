@@ -4,7 +4,9 @@
   import { invalidate, store } from "$lib/core/store.svelte";
   import type { CalendarRef } from "$lib/calendar/types";
   import { Eye, EyeOff, Plus } from "lucide-svelte";
-  import { Spinner } from "$lib/components";
+  import { Field, Spinner } from "$lib/components";
+  import { preferences } from "$lib/account/preferences.svelte";
+  import { accountHint, accountLabel } from "$lib/calendar/account-names";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { connectGoogle } from "$lib/calendar/connect";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
@@ -12,6 +14,9 @@
   /**
    * Every connected account, grouped by the address it's signed in as, and which of their
    * calendars are drawn and which one new events land in.
+   *
+   * On the settings page each account's heading is a field: the name it goes by here — "Work",
+   * "Personal" — typed over its address, and offered everywhere the account is picked from.
    *
    * Its own component because it is asked for from two places that share nothing else: the rail,
    * beside the week it filters, and settings, where connecting an account belongs. One copy means
@@ -87,10 +92,29 @@
 {:else}
   <div class="space-y-3">
     {#each accounts as account (account.accountId)}
+      {@const alias = preferences.aliasOf(account.accountId)}
       <div>
-        <div class="t-micro truncate pb-1 text-fg-faint {page ? 'px-1.5' : 'px-2'}">
-          {account.email ?? "Unknown account"}{account.needsReconnect ? " — reconnect" : ""}
-        </div>
+        {#if page}
+          <div class="flex items-center gap-2 pb-1 pl-1.5">
+            <Field
+              value={alias}
+              variant="bare"
+              placeholder={account.email ?? "Name this account"}
+              ariaLabel="Name for {account.email ?? 'this account'}"
+              autocapitalize="sentences"
+              oninput={(typed) => preferences.setAlias(account.accountId, typed)}
+              class="t-label! max-w-56"
+            />
+            {#if accountHint(account, alias)}
+              <span class="t-micro min-w-0 truncate text-fg-faint">{account.email}</span>
+            {/if}
+            {#if account.needsReconnect}<span class="t-micro shrink-0 text-caution">reconnect</span>{/if}
+          </div>
+        {:else}
+          <div class="t-micro truncate px-2 pb-1 text-fg-faint">
+            {accountLabel(account, alias)}{account.needsReconnect ? " — reconnect" : ""}
+          </div>
+        {/if}
         <div class="flex flex-col gap-0.5">
           {#each account.calendars as calendar (calendar.id)}
             {@const shown = isVisible(calendar)}

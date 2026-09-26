@@ -56,15 +56,20 @@ export class PreferencesService {
   }
 }
 
+/** A section that is one map: the stored map with the patch's keys written over it. */
+function mergedMap(key: Section, field: string, entries: Record<string, string>): SQL {
+  const stored = sql`coalesce(${userPreferences.data} -> ${key}, '{}'::jsonb)`;
+  const map = sql`coalesce(${stored} -> ${field}, '{}'::jsonb) || ${JSON.stringify(entries)}::jsonb`;
+  return sql`jsonb_build_object(${key}::text, jsonb_build_object(${field}::text, ${map}))`;
+}
+
 /** `{ section: stored || patch }`, ready to be `||`-ed onto the row. */
 function mergedSection(key: Section, patch: PreferencesPatch): SQL {
   const stored = sql`coalesce(${userPreferences.data} -> ${key}, '{}'::jsonb)`;
   // One feed's stamp at a time: a phone writing sleep must not forget another device's feed, so
   // the map inside is merged too rather than replaced with the one key the patch carries.
-  if (key === "integrations") {
-    const synced = JSON.stringify(patch.integrations?.synced ?? {});
-    const map = sql`coalesce(${stored} -> 'synced', '{}'::jsonb) || ${synced}::jsonb`;
-    return sql`jsonb_build_object(${key}::text, jsonb_build_object('synced', ${map}))`;
-  }
+  if (key === "integrations") return mergedMap(key, "synced", patch.integrations?.synced ?? {});
+  // The same for the names of accounts: renaming one must not forget the others.
+  if (key === "accounts") return mergedMap(key, "aliases", patch.accounts?.aliases ?? {});
   return sql`jsonb_build_object(${key}::text, ${stored} || ${JSON.stringify(patch[key])}::jsonb)`;
 }

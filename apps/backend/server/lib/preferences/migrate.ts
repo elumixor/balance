@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  accountsSchema,
   cardSchema,
   integrationsSchema,
   type Preferences,
@@ -24,6 +25,7 @@ const DEFAULTS: Preferences = {
   zones: { saved: [], columns: [] },
   card: { hidden: [] },
   integrations: { synced: {} },
+  accounts: { aliases: {} },
 };
 
 /**
@@ -43,6 +45,7 @@ const storedSchema = z.object({
   zones: zonesSchema.partial().optional(),
   card: cardSchema.partial().optional(),
   integrations: integrationsSchema.partial().optional(),
+  accounts: accountsSchema.partial().optional(),
 });
 
 const HOME_ID = "home";
@@ -70,5 +73,6 @@ export function merge(stored: unknown): Preferences {
     zones: { ...DEFAULTS.zones, ...value.zones },
     card: { ...DEFAULTS.card, ...value.card },
     integrations: { ...DEFAULTS.integrations, ...value.integrations },
+    accounts: { ...DEFAULTS.accounts, ...value.accounts },
   };
 }

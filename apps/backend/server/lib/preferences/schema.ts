@@ -102,6 +102,15 @@ export const integrationsSchema = z.object({
   synced: z.record(z.string().max(80), z.string().datetime()),
 });
 
+/**
+ * What each connected calendar account is called here — "Work", "Personal" — by the account's own
+ * id. The address is what Google knows it by; the name is what a person does, and what they type
+ * to pick it.
+ */
+export const accountsSchema = z.object({
+  aliases: z.record(z.string().max(80), z.string().trim().max(60)),
+});
+
 const preferencesSchema = z.object({
   reminders: remindersSchema,
   travel: travelSchema,
@@ -109,6 +118,7 @@ const preferencesSchema = z.object({
   zones: zonesSchema,
   card: cardSchema,
   integrations: integrationsSchema,
+  accounts: accountsSchema,
 });
 export type Preferences = z.infer<typeof preferencesSchema>;
 
@@ -120,5 +130,6 @@ export const preferencesPatchFields = {
   zones: zonesSchema.partial().optional(),
   card: cardSchema.partial().optional(),
   integrations: integrationsSchema.partial().optional(),
+  accounts: accountsSchema.partial().optional(),
 };
 export type PreferencesPatch = z.infer<z.ZodObject<typeof preferencesPatchFields>>;

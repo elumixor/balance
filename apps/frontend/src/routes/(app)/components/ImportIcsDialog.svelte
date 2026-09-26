@@ -7,6 +7,8 @@
   import type { IcsEvent } from "$lib/calendar/ics";
   import { icsImport } from "$lib/calendar/ics-import.svelte";
   import { store } from "$lib/core/store.svelte";
+  import { preferences } from "$lib/account/preferences.svelte";
+  import { accountLabel } from "$lib/calendar/account-names";
   import { categories } from "$lib/core/synced.svelte";
   import type { Category } from "$lib/core/records";
   import type { Snippet } from "svelte";
@@ -178,7 +180,7 @@
               {#snippet content(close)}
                 {#each byAccount as group (group.account.accountId)}
                   <div class="t-micro truncate px-3 pt-2 pb-1 text-fg-faint">
-                    {group.account.email ?? "Unknown account"}
+                    {accountLabel(group.account, preferences.aliasOf(group.account.accountId))}
                   </div>
                   {#each group.calendars as calendar (calendar.id)}
                     <PopoverItem
