@@ -336,3 +336,16 @@ public func isOfflineFailure(_ error: Error) -> Bool {
         return false
     }
 }
+
+/// Every timed event between two local midnights, for the watch's day pager.
+public struct DayEvents: Codable, Sendable {
+    public let connected: Bool
+    public let needsReconnect: Bool
+    public let events: [NextEvent]
+
+    public init(connected: Bool, needsReconnect: Bool, events: [NextEvent]) {
+        self.connected = connected
+        self.needsReconnect = needsReconnect
+        self.events = events
+    }
+}

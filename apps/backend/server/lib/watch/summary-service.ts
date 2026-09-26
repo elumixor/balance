@@ -1,4 +1,7 @@
 import { addDays } from "date-fns";
+import { and, eq } from "drizzle-orm";
+import { db } from "~/db";
+import { categories } from "~/db/schema";
 import { CalendarEventsService, type ResolvedEvent } from "~/lib/calendar/events-service";
 import { qualifyCalendarId } from "~/lib/calendar/ids";
 import type { EventReminder } from "~/lib/calendar/types";
@@ -21,6 +24,9 @@ const LOOKAHEAD_DAYS = 14;
  */
 const UPCOMING_LIMIT = 20;
 const DAYS_PER_WEEK = 7;
+
+/** The widest window the day pager may ask for in one go — it asks a week at a time. */
+const MAX_DAYS_WINDOW = 31;
 
 /**
  * Everything a watch face draws in one round trip: how this week is going, what's next, whether a
@@ -76,6 +82,34 @@ export class WatchSummaryService {
 }
 
 /**
+ * Every timed event in a window, soonest first, for the watch's day pager. Past days included:
+ * the pager goes both ways, and yesterday is as much a question as tomorrow. The window is the
+ * caller's own midnights, for the same reason the week is.
+ */
+export class WatchDaysService {
+  constructor(private readonly userId: string) {}
+
+  async days(from: Date, to: Date, now = new Date()) {
+    if (to <= from) throw new ApiError("to must be after from");
+    if (to.getTime() - from.getTime() > MAX_DAYS_WINDOW * 24 * 60 * 60 * 1000) {
+      throw new ApiError(`At most ${MAX_DAYS_WINDOW} days at a time`);
+    }
+    const [categoryRows, resolved] = await Promise.all([
+      db.query.categories.findMany({
+        where: and(eq(categories.userId, this.userId), eq(categories.archived, false)),
+      }),
+      new CalendarEventsService(this.userId).resolve(from, to),
+    ]);
+    const events = resolved.events
+      .filter((e) => !e.allDay && e.selfResponse !== "declined" && e.status !== "cancelled")
+      .filter((e) => e.end > from && e.start < to)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .map((e) => nextEventView(e, now, categoryRows));
+    return { connected: resolved.connected, needsReconnect: resolved.needsReconnect, events };
+  }
+}
+
+/**
  * Everything still to come, soonest first. A running session has an event of its own, and the
  * screen already shows it as the timer at the top — offering it again as "what's next" would be
  * the watch telling you about itself.
@@ -89,7 +123,11 @@ function eventsAhead(events: readonly ResolvedEvent[], now: Date, activeEventId:
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
-function nextEventView(next: ResolvedEvent, now: Date, categories: readonly CategoryInput[]) {
+function nextEventView(
+  next: ResolvedEvent,
+  now: Date,
+  categories: readonly Pick<CategoryInput, "id" | "name" | "color" | "icon">[],
+) {
   // The watch wears this as the event's glyph, so it wants the one category the event is
   // mostly about rather than the split it is actually mapped to.
   const categoryId = dominantCategoryId(next.weights);
@@ -100,7 +138,7 @@ function nextEventView(next: ResolvedEvent, now: Date, categories: readonly Cate
     title: next.title,
     start: next.start.toISOString(),
     end: next.end.toISOString(),
-    inProgress: next.start <= now,
+    inProgress: next.start <= now && next.end > now,
     categoryId: category?.id ?? null,
     categoryName: category?.name ?? null,
     categoryColor: category?.color ?? null,

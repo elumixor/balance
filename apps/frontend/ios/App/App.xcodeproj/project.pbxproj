@@ -65,7 +65,7 @@
 		B43B66C7C5770D21BBD5F57B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
 		B735C249FCBF18AD62C6173A /* BalanceWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 12E1A7F7CF1A7470315E2834 /* BalanceWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BB7672EF269096B4E90F43A1 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5D2CE248DE896A6E678B01C /* Foundation.framework */; };
-		BB8C25F8D19C15A8C5ACF46F /* UpcomingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77392978390FF86E0EA9441B /* UpcomingView.swift */; };
+		BB8C25F8D19C15A8C5ACF46F /* DaysView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77392978390FF86E0EA9441B /* DaysView.swift */; };
 		C0353E1777C6D8C691DD27F9 /* DurationDial.swift in Sources */ = {isa = PBXBuildFile; fileRef = A775429ACB32E05BAB5C8F1D /* DurationDial.swift */; };
 		C239750015BF08B3C202F2BC /* EventNotificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07680A3833627A5B3E782C2 /* EventNotificationView.swift */; };
 		C253AEFC6F65AD9CAD48A3E0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CC6F825D192AE3824F4204 /* ContentView.swift */; };
@@ -341,7 +341,7 @@
 		6C9E6EF82D7D74FCCFA00D5B /* TrackingAlarm.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrackingAlarm.swift; path = ../../WatchApp/TrackingAlarm.swift; sourceTree = "<group>"; };
 		6EBE1A06F1C65507D39DB25F /* CategoryFocusReadout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryFocusReadout.swift; path = ../../WatchApp/CategoryFocusReadout.swift; sourceTree = "<group>"; };
 		74E999913608EF1537CA6231 /* BalanceWatchWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; name = BalanceWatchWidget.entitlements; path = ../../WatchWidget/BalanceWatchWidget.entitlements; sourceTree = "<group>"; };
-		77392978390FF86E0EA9441B /* UpcomingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UpcomingView.swift; path = ../../WatchApp/UpcomingView.swift; sourceTree = "<group>"; };
+		77392978390FF86E0EA9441B /* DaysView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DaysView.swift; path = ../../WatchApp/DaysView.swift; sourceTree = "<group>"; };
 		7B787A33D18223129CA112C4 /* WatchPairing.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WatchPairing.swift; path = ../../WatchApp/WatchPairing.swift; sourceTree = "<group>"; };
 		83A055A25C69E9ED57EFA6FD /* CategoryFocusReadout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryFocusReadout.swift; path = ../../WatchApp/CategoryFocusReadout.swift; sourceTree = "<group>"; };
 		83BA2FD1878BE18BE1E42FBA /* DurationDial.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DurationDial.swift; path = ../../WatchApp/DurationDial.swift; sourceTree = "<group>"; };
@@ -499,7 +499,7 @@
 				6401E87D473E5CC78C0A30B4 /* OfflineWrites.swift */,
 				6A8246868148AE2C7AD1EE81 /* SessionController.swift */,
 				6C9E6EF82D7D74FCCFA00D5B /* TrackingAlarm.swift */,
-				77392978390FF86E0EA9441B /* UpcomingView.swift */,
+				77392978390FF86E0EA9441B /* DaysView.swift */,
 				5CCA51E0A636170F659DD31A /* VoiceView.swift */,
 				DFC7FD9B078059E4899D6650 /* WatchPairing.swift */,
 				FA7F46843536EC52578EA5D8 /* WatchPreview.swift */,
@@ -713,7 +713,7 @@
 				F6EF481D699660231826CEAB /* OfflineWrites.swift in Sources */,
 				85B9B1D12D52AD6B0F831CF3 /* SessionController.swift in Sources */,
 				91952164D9DA5395D44A14DF /* TrackingAlarm.swift in Sources */,
-				BB8C25F8D19C15A8C5ACF46F /* UpcomingView.swift in Sources */,
+				BB8C25F8D19C15A8C5ACF46F /* DaysView.swift in Sources */,
 				30F8D40618FC8C932B9BBDA0 /* VoiceView.swift in Sources */,
 				35291E9F95AE7BCA4960737A /* WatchPairing.swift in Sources */,
 				1E3537EA034070CB75B50CC3 /* WatchPreview.swift in Sources */,

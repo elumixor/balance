@@ -140,6 +140,16 @@ public final class APIClient {
         )
     }
 
+    /// Every timed event between `from` and `to` — the caller's own midnights, so a day is the day
+    /// where the wrist is rather than where the server runs.
+    public func fetchDays(from: Date, to: Date) async throws -> DayEvents {
+        try await send(
+            path: "/mobile/watch/days",
+            method: "GET",
+            query: ["from": ISO8601.string(from: from), "to": ISO8601.string(from: to)]
+        )
+    }
+
     // MARK: Tracking
 
     public func fetchCurrentSession() async throws -> ActiveSession? {

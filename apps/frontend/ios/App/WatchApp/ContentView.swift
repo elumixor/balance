@@ -113,7 +113,7 @@ struct ContentView: View {
                 .navigationDestination(for: Route.self) { route in
                     switch route {
                     case .calendar: CalendarSettingsView()
-                    case .upcoming: UpcomingView(events: summary.events, isStale: summary.isStale)
+                    case .days: DaysView(seed: summary.events)
                     case .voice: VoiceView { await reload() }
                     }
                 }
@@ -300,10 +300,11 @@ struct ContentView: View {
         case .idle:
             // What is coming up is a thing to know at a glance, not while aiming: a finger on the
             // ring is halfway through a decision, and the line below it only competes for the eye.
-            // It is also the way into the whole list — the line answers "what is next", and the
+            // It is also the way into the calendar — the line answers "what is next", and the
             // obvious next question is "and after that".
-            NavigationLink(value: Route.upcoming) {
-                NextEventLine(event: wheel.isPressing ? nil : summary.nextEvent, isStale: summary.isStale)
+            NavigationLink(value: Route.days) {
+                NextEventLine(event: summary.nextEvent, isStale: summary.isStale)
+                    .opacity(wheel.isPressing ? 0 : 1)
             }
             .buttonStyle(.plain)
             .animation(.easeOut(duration: 0.15), value: wheel.isPressing)
@@ -388,7 +389,7 @@ struct ContentView: View {
 
 private enum Route: Hashable {
     case calendar
-    case upcoming
+    case days
     case voice
 }
 
@@ -477,7 +478,11 @@ private struct NextEventLine: View {
                 .minimumScaleFactor(0.7)
                 .ringButtonShadow()
             } else {
-                Color.clear
+                // Still the way into the calendar when nothing is coming up.
+                Label("Calendar", systemImage: "calendar")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .ringButtonShadow()
             }
         }
         .padding(.bottom, -6)
