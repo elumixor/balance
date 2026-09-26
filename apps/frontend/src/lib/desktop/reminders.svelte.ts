@@ -149,7 +149,33 @@ class DesktopReminders {
       links: meeting.links.slice(0, 4),
       travel: this.#travel.get(event.id) ?? [],
     };
+    await this.#present(card);
+  }
 
+  /**
+   * A made-up reminder, shown from settings: the one way to see the card without waiting for a
+   * meeting. It has a call and a place so every button on the card is there to press.
+   */
+  preview() {
+    const start = new Date(Date.now() + 5 * 60_000);
+    const end = new Date(start.getTime() + 30 * 60_000);
+    const category = desktopAgenda.categories.values().next().value;
+    return this.#present({
+      id: "preview",
+      kind: "starts",
+      title: "Sample meeting",
+      start: start.toISOString(),
+      end: end.toISOString(),
+      color: category?.color ?? restColor,
+      icon: category?.icon ?? DEFAULT_ICON,
+      location: "Karlovo náměstí 13, Praha",
+      join: { url: "https://meet.google.com/", label: "Google Meet" },
+      links: [],
+      travel: [],
+    });
+  }
+
+  async #present(card: ReminderCard) {
     try {
       await invoke("show_reminder", { payload: encodeReminder(card) });
     } catch (e) {

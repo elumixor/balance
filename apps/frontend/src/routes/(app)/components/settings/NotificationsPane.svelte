@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Divider, NumberField, Select, TimeField } from "$lib/components";
-  import { isNativeShell } from "$lib/desktop/platform";
+  import { Button, Divider, NumberField, Select, TimeField } from "$lib/components";
+  import { isDesktop, isNativeShell } from "$lib/desktop/platform";
   import { preferences } from "$lib/account/preferences.svelte";
   import { Bell, BellRing, CalendarRange, Navigation, Sunrise, Sunset, Timer, Volume2 } from "lucide-svelte";
   import SettingRow from "./SettingRow.svelte";
@@ -31,6 +31,12 @@
 
   const sessions = $derived(preferences.sessions);
   const reminders = $derived(preferences.reminders);
+
+  /** Only the Mac draws the card, and only it has the module that draws it. */
+  async function preview() {
+    const { desktopReminders } = await import("$lib/desktop/reminders.svelte");
+    await desktopReminders.preview();
+  }
 </script>
 
 <SettingsGroup title="Notifications">
@@ -100,5 +106,10 @@
       disabled={!reminders.enabled}
       onchange={(sound) => preferences.setReminders({ sound })}
     />
+    {#if isDesktop}
+      <SettingRow icon={BellRing} label="See what a reminder looks like">
+        <Button label="Show one" variant="outline" size="sm" onclick={() => void preview()} />
+      </SettingRow>
+    {/if}
   </div>
 </SettingsGroup>
