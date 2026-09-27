@@ -17,6 +17,17 @@ function neverArrived(e: unknown) {
   return e instanceof ApiClientError && !(e instanceof NotSignedInError) && e.status === undefined;
 }
 
+/** A request, asked a second time when the first was lost rather than refused. */
+export async function askTwice<T>(request: () => Promise<T>) {
+  try {
+    return await request();
+  } catch (e) {
+    if (!neverArrived(e)) throw e;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    return await request();
+  }
+}
+
 /**
  * One fetch per thing per app session, and one copy of it kept on the device.
  *
@@ -115,15 +126,8 @@ export class Cached<T> {
     }
   }
 
-  /** The fetcher, asked a second time when the first request was lost rather than refused. */
-  async #ask() {
-    try {
-      return await this.fetcher();
-    } catch (e) {
-      if (!neverArrived(e)) throw e;
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      return await this.fetcher();
-    }
+  #ask() {
+    return askTwice(this.fetcher);
   }
 
   set(value: T) {

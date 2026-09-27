@@ -140,7 +140,7 @@ export async function apiGet<T>(path: string, query: Record<string, string | num
   const url = `${API_BASE_URL}/mobile${path}${suffix}`;
 
   const res = await authenticatedFetch(url);
-  const body = await res.text().catch(() => "");
+  const body = await readBody(res, url);
   const json = safeJsonParse(body);
 
   if (!res.ok) {
@@ -171,7 +171,7 @@ export async function postPublic<T>(path: string, body: unknown, sessionToken?: 
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
-  const text = await response.text().catch(() => "");
+  const text = await readBody(response, url);
   const json = safeJsonParse(text);
   if (!response.ok) {
     const message =
@@ -182,6 +182,21 @@ export async function postPublic<T>(path: string, body: unknown, sessionToken?: 
   }
   if (json === null || typeof json !== "object") throw new ApiClientError(notTheApi(url, text));
   return json as T;
+}
+
+/**
+ * The body, or a transport failure when it stops arriving. Headers can land and the body never
+ * follow — the Mac sleeps mid-request and the timeout aborts the stream on wake — and reading that
+ * as an empty body used to blame the API address for what was a dropped connection.
+ */
+async function readBody(response: Response, url: string) {
+  try {
+    return await response.text();
+  } catch (e) {
+    throw new ApiClientError(
+      `Can't reach the server. Check your connection and try again.\n(${url} — ${e instanceof Error ? e.message : String(e)})`,
+    );
+  }
 }
 
 /** What a non-JSON body means, said in one sentence rather than dumped. */

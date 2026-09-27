@@ -1,4 +1,5 @@
 import { untrack } from "svelte";
+import { askTwice } from "$lib/core/cache.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import { telemetry } from "$lib/platform/telemetry";
 import { getSessionSummary } from "./queries";
@@ -44,10 +45,8 @@ class SessionData {
     this.loading = true;
     this.error = null;
     try {
-      const summary = await getSessionSummary(
-        untrack(() => this.slot),
-        deviceTimeZone(),
-      );
+      const slot = untrack(() => this.slot);
+      const summary = await askTwice(() => getSessionSummary(slot, deviceTimeZone()));
       this.summary = summary;
       telemetry.event("session_loaded", { slot: summary.slot, planned: summary.target.planned });
     } catch (e) {
