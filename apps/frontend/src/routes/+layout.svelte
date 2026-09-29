@@ -51,7 +51,19 @@
     void watchdog.ping;
     watchdog.beat();
   });
+
+  /**
+   * The webview's own right-click menu — Reload, Back, Inspect Element — is a browser's, not
+   * this app's. A text field keeps it, since cut, copy and paste are what it is for there.
+   */
+  function oncontextmenu(e: MouseEvent) {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("input, textarea, [contenteditable='true']")) return;
+    e.preventDefault();
+  }
 </script>
+
+<svelte:window {oncontextmenu} />
 
 {@render children()}
 

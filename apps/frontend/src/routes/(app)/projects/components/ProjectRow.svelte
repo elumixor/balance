@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { Avatars, Dot, ProjectCover, StatusChip } from "$lib/components";
-  import type { ProjectCard } from "$lib/projects/projects-data.svelte";
+  import { goto } from "$app/navigation";
+  import { AnchoredPopup, Avatars, Dot, PopoverItem, ProjectCover, StatusChip } from "$lib/components";
+  import { projectsData, type ProjectCard } from "$lib/projects/projects-data.svelte";
+  import { ArrowUpRight, Trash2 } from "lucide-svelte";
   import { restColor } from "$lib/ui/colors";
   import { formatHoursDecimal } from "$lib/ui/format";
 
@@ -16,10 +18,29 @@
   const name = $derived(card.project.name.trim() || "Untitled project");
   const logged = $derived(card.rolledUpByWeek.at(-1) ?? 0);
   const claim = $derived(card.project.hoursPerWeek);
+
+  /** A right-click opens the row's menu at the pointer: open it, or delete it with its subtree. */
+  let menu = $state<DOMRect | null>(null);
+
+  function oncontextmenu(e: MouseEvent) {
+    e.preventDefault();
+    menu = new DOMRect(e.clientX, e.clientY, 0, 0);
+  }
+
+  function open() {
+    menu = null;
+    void goto(`/projects/${card.project.id}`);
+  }
+
+  function remove() {
+    menu = null;
+    projectsData.remove(card.project);
+  }
 </script>
 
 <a
   href="/projects/{card.project.id}"
+  {oncontextmenu}
   style="padding-left:{depth * 18}px"
   class="hoverable group flex items-center gap-2.5 rounded-md py-1.5 pr-2 {card.archived ? 'opacity-60' : ''}"
 >
@@ -49,3 +70,16 @@
     </span>
   {/if}
 </a>
+
+{#if menu}
+  <AnchoredPopup rect={menu} width={180} onclose={() => (menu = null)}>
+    <div class="py-1">
+      <PopoverItem label="Open" onclick={open}>
+        {#snippet icon()}<ArrowUpRight size={15} class="shrink-0 text-fg-faint" />{/snippet}
+      </PopoverItem>
+      <PopoverItem label="Delete project" tone="danger" onclick={remove}>
+        {#snippet icon()}<Trash2 size={15} class="shrink-0" />{/snippet}
+      </PopoverItem>
+    </div>
+  </AnchoredPopup>
+{/if}
