@@ -60,15 +60,21 @@
     return `in ${formatHoursAndMinutes(minutes / 60)}`;
   });
 
+  /** Sweeping across a row of chips is one gesture, not a buzz per chip. */
+  const HAPTIC_COOLDOWN_MS = 120;
+
   /** The button under the pointer, so a tick plays once on arrival rather than on every move. */
   let hovered: Element | null = null;
+  let lastTick = 0;
 
   /** A tick on the trackpad as the pointer lands on something pressable. */
   function feel(event: PointerEvent) {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
     if (target === hovered) return;
     hovered = target;
-    if (target) void invoke("perform_haptic");
+    if (!target || event.timeStamp - lastTick < HAPTIC_COOLDOWN_MS) return;
+    lastTick = event.timeStamp;
+    void invoke("perform_haptic");
   }
 
   function close() {
