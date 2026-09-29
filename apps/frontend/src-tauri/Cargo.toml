@@ -1,6 +1,6 @@
 [package]
 name = "balance-desktop"
-version = "1.0.2"
+version = "1.0.3"
 description = "Balance for macOS"
 authors = ["Vladyslav Yazykov"]
 edition = "2021"
@@ -42,8 +42,11 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
   "NSApplication",
+  "NSHapticFeedback",
   "NSImage",
   "NSResponder",
+  "NSTrackingArea",
+  "NSView",
   "NSWindow",
 ] }
 

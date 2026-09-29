@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { Field, NumberField } from "$lib/components";
+  import { Field, NotionLinkDialog, NotionMark, NumberField } from "$lib/components";
   import { type Draft, fromUnit, toUnit } from "$lib/planning/category-drafts.svelte";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import { rowsOf } from "$lib/projects/tree";
@@ -31,6 +31,8 @@
 
   const group = $derived(data.groups.find((one) => one.category.id === draft.id) ?? null);
   const label = $derived(draft.name || "New sphere");
+
+  let fromNotion = $state(false);
 
   async function add() {
     const created = data.create(null, draft.id);
@@ -111,6 +113,10 @@
         <Plus size={12} />
         Project
       </button>
+      <button type="button" onclick={() => (fromNotion = true)} class="bare-button t-micro h-7 px-2">
+        <NotionMark size={12} />
+        From Notion
+      </button>
       <button type="button" onclick={() => data.createPractice(draft.id)} class="bare-button t-micro h-7 px-2">
         <Repeat size={12} />
         Practice
@@ -118,3 +124,5 @@
     </div>
   </div>
 </section>
+
+<NotionLinkDialog project={null} categoryId={draft.id} open={fromNotion} onclose={() => (fromNotion = false)} />

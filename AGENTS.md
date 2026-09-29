@@ -557,11 +557,15 @@ landed (`projectsData.connectNotion()`). An errand ("connect this, then come bac
 wanted") is the thing being designed out.
 
 There are two ways in and a run does both. A project is linked to the database its tasks and
-subtasks live in from its own Notion chip (`NotionLinkDialog`, `/mobile/notion/link`): workspace,
-database, then which column is its status, its dates, its assignee and its parent task — each a row
-offering only the columns of the right type, pre-set to what `suggestTaskMapping` finds. The mapping
-is kept on the project (`notionTaskMapping`); a column that has since gone falls back to none rather
-than to a guess. Separately, the import dialog (`NotionSetup`) brings a whole database of projects
+subtasks live in from its own Notion chip, or made from one with a sphere's "From Notion"
+(`NotionLinkDialog`, `/mobile/notion/link`): dropdowns that follow each other — workspace, database,
+the saved view whose filter picks this project's rows, then which property is its status (a
+status, select or checkbox), its dates, its assignee and its parent task — each offering only
+properties of the right type, pre-set to what `suggestTaskMapping` finds. A view is how one board of
+every task feeds a project each: Notion runs the view's filter (`client.queryView`), because a view
+stores conditions in a shape the query endpoint refuses. The mapping is kept on the project by
+property id (`notionTaskMapping`), so a rename in Notion keeps it; a property that has since gone
+reads as none rather than a guess. Separately, the import dialog (`NotionSetup`) brings a whole database of projects
 in, and each imported project's task database is found under its page by walking down to the first
 one whose name says tasks (`discover.ts`). Unlinking keeps the tasks, because by then they are this
 app's records.

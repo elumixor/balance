@@ -20,6 +20,7 @@
     "allow-show-reminder",
     "allow-close-reminder",
     "allow-resize-reminder",
+    "allow-perform-haptic",
     "allow-read-device-grant",
     "allow-write-device-grant",
     "allow-clear-device-grant",

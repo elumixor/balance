@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "notion_view_id" text;

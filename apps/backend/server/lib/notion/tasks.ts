@@ -1,6 +1,14 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "~/db";
 import { type NotionTaskMapping, people, type TaskStatus, tasks } from "~/db/schema";
+
+/** Where one project's tasks are read from: a board, how its columns read, and which view. */
+export interface TaskSource {
+  readonly dataSourceId: string;
+  readonly mapping: NotionTaskMapping | null;
+  readonly viewId: string | null;
+}
+
 import { colorFor } from "~/lib/people/color";
 import type { NotionClient, NotionPage } from "./client";
 import { resolveTaskFields, type TaskFields } from "./data-source";
@@ -24,10 +32,17 @@ export class TaskSync {
     private readonly client: NotionClient,
   ) {}
 
-  async run(projectId: string, dataSourceId: string, mapping: NotionTaskMapping | null) {
-    const fields = resolveTaskFields(await this.client.dataSource(dataSourceId), mapping);
-    await this.#push(projectId, dataSourceId, fields);
-    return this.#pull(projectId, dataSourceId, fields);
+  /**
+   * A view, when one is chosen, decides which rows are this project's — one board of every task
+   * can feed a project per view — and a row that leaves the view is archived here like a deleted one.
+   */
+  async run(projectId: string, source: TaskSource) {
+    const fields = resolveTaskFields(await this.client.dataSource(source.dataSourceId), source.mapping);
+    await this.#push(projectId, source.dataSourceId, fields);
+    const pages = source.viewId
+      ? await this.client.queryView(source.viewId)
+      : await this.client.queryDataSource(source.dataSourceId);
+    return this.#pull(projectId, pages, fields);
   }
 
   async #push(projectId: string, dataSourceId: string, fields: TaskFields) {
@@ -48,8 +63,8 @@ export class TaskSync {
     }
   }
 
-  async #pull(projectId: string, dataSourceId: string, fields: TaskFields) {
-    const pages = (await this.client.queryDataSource(dataSourceId)).filter((page) => !page.in_trash && !page.archived);
+  async #pull(projectId: string, all: readonly NotionPage[], fields: TaskFields) {
+    const pages = all.filter((page) => !page.in_trash && !page.archived);
     for (const page of pages) await this.#write(projectId, page, fields);
     await this.#writeParents(projectId, pages, fields);
     await this.#archiveMissing(projectId, pages);
@@ -57,7 +72,7 @@ export class TaskSync {
   }
 
   async #write(projectId: string, page: NotionPage, fields: TaskFields) {
-    const label = selectName(property(page, fields.status));
+    const label = labelOf(property(page, fields.status), fields);
     const { startsOn, endsOn } = dateOf(property(page, fields.dates));
     const assignees = await this.#assignees(relationIds(property(page, fields.assignee)));
     const mirrored = {
@@ -155,17 +170,30 @@ function property(page: NotionPage, name: string | null) {
 
 /** What a write to Notion carries: the app's three fields, and only where the board has them. */
 function propertiesOf(row: typeof tasks.$inferSelect, fields: TaskFields) {
-  const column = columnFor(row.status, fields);
   return {
     [fields.title]: { title: [{ text: { content: row.title } }] },
-    ...(fields.status && column ? { [fields.status]: { status: { name: column } } } : {}),
+    ...(fields.status ? statusValue(row.status, fields.status, fields) : {}),
     ...(fields.dates && row.startsOn
       ? { [fields.dates]: { date: { start: row.startsOn, end: row.endsOn === row.startsOn ? null : row.endsOn } } }
       : {}),
   };
 }
 
-/** The board's own word for where the task is — its stored label when that column still exists. */
-function columnFor(status: TaskStatus, fields: TaskFields) {
-  return fields.columns[status] ?? null;
+/** A checkbox reads as the two words the app's status helpers already know. */
+const CHECKED = "Done";
+
+function labelOf(value: Record<string, unknown> | undefined, fields: TaskFields) {
+  if (fields.statusType === "checkbox") return value?.checkbox ? CHECKED : "";
+  return selectName(value);
+}
+
+/**
+ * The status as the board writes it: a tick for a checkbox, otherwise the board's own column for
+ * where the task is — and nothing when the board has no column meaning it.
+ */
+function statusValue(status: TaskStatus, name: string, fields: TaskFields) {
+  if (fields.statusType === "checkbox") return { [name]: { checkbox: status === "done" } };
+  const column = fields.columns[status];
+  if (!column || !fields.statusType) return {};
+  return { [name]: { [fields.statusType]: { name: column } } };
 }

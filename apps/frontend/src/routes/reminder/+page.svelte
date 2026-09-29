@@ -60,6 +60,23 @@
     return `in ${formatHoursAndMinutes(minutes / 60)}`;
   });
 
+  /** Sweeping across a row of chips is one gesture, not a buzz per chip. */
+  const HAPTIC_COOLDOWN_MS = 120;
+
+  /** The button under the pointer, so a tick plays once on arrival rather than on every move. */
+  let hovered: Element | null = null;
+  let lastTick = 0;
+
+  /** A tick on the trackpad as the pointer lands on something pressable. */
+  function feel(event: PointerEvent) {
+    const target = event.target instanceof Element ? event.target.closest("button") : null;
+    if (target === hovered) return;
+    hovered = target;
+    if (!target || event.timeStamp - lastTick < HAPTIC_COOLDOWN_MS) return;
+    lastTick = event.timeStamp;
+    void invoke("perform_haptic");
+  }
+
   function close() {
     void invoke("close_reminder");
   }
@@ -79,7 +96,12 @@
 
 {#if card}
   {@const Icon = card.join ? Video : MapPin}
-  <div bind:this={root} class="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 shadow-float">
+  <div
+    bind:this={root}
+    role="presentation"
+    onpointerover={feel}
+    onpointerleave={() => (hovered = null)}
+    class="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 shadow-float">
     <div class="flex items-start gap-3">
       <CategoryIcon icon={card.icon} color={card.color} size={36} />
       <div class="min-w-0 flex-1">
@@ -93,13 +115,13 @@
         <button
           type="button"
           aria-label="Join {card.join.label}"
-          class="press-sm rounded-md p-1.5"
+          class="press-sm rounded-md p-1.5 transition-colors hover:bg-surface-alt"
           onclick={() => open(card?.join?.url ?? "")}
         >
           <Video size={16} />
         </button>
       {/if}
-      <button type="button" aria-label="Dismiss" class="press-sm rounded-md p-1" onclick={close}>
+      <button type="button" aria-label="Dismiss" class="press-sm rounded-md p-1 transition-colors hover:bg-surface-alt" onclick={close}>
         <X size={16} class="text-fg-muted" />
       </button>
     </div>
@@ -119,7 +141,7 @@
           {@const ModeIcon = MODE_ICONS[leg.mode]}
           <button
             type="button"
-            class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-1"
+            class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-1 transition-colors hover:border-line-strong hover:bg-surface-alt"
             onclick={() => open(leg.url)}
           >
             <ModeIcon size={14} class="text-fg-muted" />
@@ -134,7 +156,7 @@
         {#each card.links as link (link.url)}
           <button
             type="button"
-            class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-2"
+            class="press-sm flex items-center gap-1.5 rounded-md border border-line px-2 py-2 transition-colors hover:border-line-strong hover:bg-surface-alt"
             onclick={() => open(link.url)}
           >
             <Link2 size={14} class="text-fg-muted" />

@@ -50,7 +50,12 @@ export class NotionSync {
     const tasks = new TaskSync(this.userId, this.client);
     for (const project of await this.#linked()) {
       const dataSourceId = project.notionTasksDataSourceId ?? (await this.#findTasks(project.id, project.notionPageId));
-      if (dataSourceId) this.#counts.tasks += await tasks.run(project.id, dataSourceId, project.notionTaskMapping);
+      if (dataSourceId)
+        this.#counts.tasks += await tasks.run(project.id, {
+          dataSourceId,
+          mapping: project.notionTaskMapping,
+          viewId: project.notionViewId,
+        });
     }
     this.#counts.people = tasks.peopleSeen;
     return { ...this.#counts };

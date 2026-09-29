@@ -20,6 +20,8 @@ export interface Project {
   /** The workspace its tasks are read through; null when it isn't linked to Notion. */
   notionConnectionId: string | null;
   notionTasksDataSourceId: string | null;
+  /** A saved view of that database whose filter picks this project's rows; null takes them all. */
+  notionViewId: string | null;
   /** What the linked task database calls itself. */
   notionTasksName: string | null;
   /** Which of its columns mean what; null while they are read by type and name. */
@@ -92,7 +94,7 @@ export interface NotionMapping {
   description: string | null;
 }
 
-/** Which column of a task database answers each thing the timeline draws; null for none. */
+/** Which property of a task database answers each thing the timeline draws, by Notion's id. */
 export interface NotionTaskMapping {
   status: string | null;
   dates: string | null;
@@ -101,6 +103,7 @@ export interface NotionTaskMapping {
 }
 
 export interface NotionColumn {
+  id: string;
   name: string;
   type: string;
   /** A status or select column's options, in board order. */
@@ -114,6 +117,12 @@ export interface NotionDatabase {
   url: string;
   properties: NotionColumn[];
   suggested: NotionTaskMapping;
+}
+
+/** A saved view of a database — a filter Notion runs, so one board can feed many projects. */
+export interface NotionView {
+  id: string;
+  name: string;
 }
 
 /** One granted workspace, as the account that granted it — `/mobile/notion/status`. */

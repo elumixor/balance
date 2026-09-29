@@ -19,11 +19,13 @@ interface RawProperty {
 export type ColumnNames = Partial<Record<TaskStatus, string>>;
 
 /**
- * The properties a tasks database has to have for the app to read it — as somebody mapped them
- * when linking, or found by type and then by name when nobody did.
+ * The properties a tasks database has to have for the app to read it, by their current names — as
+ * somebody mapped them when linking, or found by type and then by name when nobody did.
  */
 export interface TaskFields extends NotionTaskMapping {
   readonly title: string;
+  /** A checkbox standing in for a status reads as done or not, and is written the same way. */
+  readonly statusType: "status" | "select" | "checkbox" | null;
   readonly priority: string | null;
   /** What each of the app's statuses is called on this board, for a write going the other way. */
   readonly columns: ColumnNames;
@@ -33,7 +35,7 @@ export interface TaskFields extends NotionTaskMapping {
 
 /** Which property types can answer each part of a mapping — what the link dialog offers. */
 export const MAPPABLE_TYPES: Readonly<Record<keyof NotionTaskMapping, readonly string[]>> = {
-  status: ["status", "select"],
+  status: ["status", "select", "checkbox"],
   dates: ["date"],
   assignee: ["people", "relation"],
   parent: ["relation"],
@@ -44,10 +46,22 @@ const PARENT_NAMES = ["parent item", "parent task", "parent"];
 const PRIORITY_NAMES = ["priority", "importance"];
 
 /**
- * The mapping a board suggests by itself: the first status property, the first date, a person or
- * relation named like an assignee, and a relation that is the board's own sub-items.
+ * The mapping a board suggests by itself, as property ids: the first status property, the first
+ * date, a person or relation named like an assignee, and a relation that is the board's own
+ * sub-items. Ids rather than names, so a column renamed in Notion stays mapped.
  */
 export function suggestTaskMapping(schema: RawSchema): NotionTaskMapping {
+  const byName = suggestByName(schema);
+  const idOf = (name: string | null) => (name ? (schema.properties[name]?.id ?? name) : null);
+  return {
+    status: idOf(byName.status),
+    dates: idOf(byName.dates),
+    assignee: idOf(byName.assignee),
+    parent: idOf(byName.parent),
+  };
+}
+
+function suggestByName(schema: RawSchema): NotionTaskMapping {
   const entries = Object.entries(schema.properties);
   const byType = (type: string) => entries.filter(([, property]) => property.type === type).map(([name]) => name);
   const named = (candidates: readonly string[], types: readonly string[]) =>
@@ -67,22 +81,27 @@ export function suggestTaskMapping(schema: RawSchema): NotionTaskMapping {
 }
 
 /**
- * Everything a sync reads a board with. A chosen mapping wins, but only for a column the board
- * still has — a renamed column falls back to what the board suggests rather than reading nothing.
+ * Everything a sync reads a board with, by the names its properties have today. A chosen mapping
+ * names properties by id (or, from before ids were kept, by name), and one the board no longer
+ * has reads as none rather than as a guess.
  */
 export function resolveTaskFields(schema: RawSchema, chosen: NotionTaskMapping | null = null): TaskFields {
-  const suggested = suggestTaskMapping(schema);
-  const exists = (name: string | null) => (name && schema.properties[name] ? name : null);
-  const pick = (key: keyof NotionTaskMapping) => (chosen ? exists(chosen[key]) : suggested[key]);
   const entries = Object.entries(schema.properties);
+  const nameOf = (key: string | null) =>
+    key ? (entries.find(([name, one]) => one.id === key || name === key)?.[0] ?? null) : null;
+  const mapping = chosen ?? suggestTaskMapping(schema);
+  const pick = (key: keyof NotionTaskMapping) => nameOf(mapping[key]);
 
   const status = pick("status");
   const property = status ? schema.properties[status] : undefined;
   const groups = groupsOf(property);
+  const statusType =
+    property?.type === "status" || property?.type === "select" || property?.type === "checkbox" ? property.type : null;
 
   return {
     title: entries.find(([, one]) => one.type === "title")?.[0] ?? "Name",
     status,
+    statusType,
     dates: pick("dates"),
     assignee: pick("assignee"),
     parent: pick("parent"),

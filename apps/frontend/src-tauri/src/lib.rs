@@ -1,5 +1,6 @@
 mod dock;
 mod grant;
+mod haptic;
 mod login_item;
 mod reminder;
 mod tray;
@@ -174,6 +175,7 @@ pub fn run() {
             reminder::show_reminder,
             reminder::close_reminder,
             reminder::resize_reminder,
+            haptic::perform_haptic,
             grant::read_device_grant,
             grant::write_device_grant,
             grant::clear_device_grant,

@@ -13,8 +13,9 @@ export interface NotionMapping {
 }
 
 /**
- * Which column of a task database answers each of the things the app draws. Chosen when a project
- * is linked, from what was detected by type and name; null means the board has no such column.
+ * Which property of a task database answers each of the things the app draws, by Notion's
+ * property id so a rename in Notion keeps it. Chosen when a project is linked, from what was
+ * detected by type and name; null means the board has no such property.
  */
 export interface NotionTaskMapping {
   status: string | null;

@@ -62,6 +62,11 @@ export class NotionService {
     return (await this.#client(await this.#row(connectionId))).databases();
   }
 
+  /** A database's saved views — each a filter Notion runs, so one board can feed many projects. */
+  async views(connectionId: string, dataSourceId: string) {
+    return (await this.#client(await this.#row(connectionId))).views(dataSourceId);
+  }
+
   /**
    * The answers the import dialog collects: which database holds projects, which sphere they land
    * in, and which column is the sentence under their names. Kept together because they are asked
@@ -82,7 +87,10 @@ export class NotionService {
    * One project pointed at the database its tasks live in, with which column means what. The
    * tasks follow straight away, because a link nobody sees the result of is a link nobody trusts.
    */
-  async link(projectId: string, target: { connectionId: string; dataSourceId: string; mapping: NotionTaskMapping }) {
+  async link(
+    projectId: string,
+    target: { connectionId: string; dataSourceId: string; viewId: string | null; mapping: NotionTaskMapping },
+  ) {
     const project = await db.query.projects.findFirst({
       where: and(eq(projects.id, projectId), eq(projects.userId, this.userId)),
     });
@@ -96,6 +104,7 @@ export class NotionService {
       .set({
         notionConnectionId: target.connectionId,
         notionTasksDataSourceId: target.dataSourceId,
+        notionViewId: target.viewId,
         notionTasksName: source.title?.map((run) => run.plain_text).join("") || "Tasks",
         notionTaskMapping: target.mapping,
         notionUrl: project.notionPageId ? project.notionUrl : `https://www.notion.so/${database.replaceAll("-", "")}`,
@@ -113,6 +122,7 @@ export class NotionService {
         notionConnectionId: null,
         notionPageId: null,
         notionTasksDataSourceId: null,
+        notionViewId: null,
         notionTasksName: null,
         notionTaskMapping: null,
         notionUrl: null,

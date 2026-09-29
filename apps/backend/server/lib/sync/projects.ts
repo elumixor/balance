@@ -23,6 +23,7 @@ export const projectSchema = z.object({
   notionUrl: z.string().nullable(),
   notionConnectionId: z.uuid().nullable(),
   notionTasksDataSourceId: z.string().nullable(),
+  notionViewId: z.string().nullable(),
   notionTasksName: z.string().nullable(),
   notionTaskMapping: z
     .object({
@@ -55,6 +56,7 @@ export const projectsModel = syncedModel({
       notionUrl: row.notionUrl,
       notionConnectionId: row.notionConnectionId,
       notionTasksDataSourceId: row.notionTasksDataSourceId,
+      notionViewId: row.notionViewId,
       notionTasksName: row.notionTasksName,
       notionTaskMapping: row.notionTaskMapping,
     }),

@@ -162,6 +162,13 @@
       "when": 1790707143558,
       "tag": "0022_square_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790711561054,
+      "tag": "0023_wonderful_daimon_hellstrom",
+      "breakpoints": true
     }
   ]
 }
