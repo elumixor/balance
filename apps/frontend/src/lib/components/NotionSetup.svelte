@@ -2,8 +2,8 @@
   import Button from "./Button.svelte";
   import Dialog from "./Dialog.svelte";
   import Dot from "./Dot.svelte";
-  import NotionDatabases from "./NotionDatabases.svelte";
-  import NotionWorkspaces from "./NotionWorkspaces.svelte";
+  import LabeledField from "./LabeledField.svelte";
+  import NotionSource from "./NotionSource.svelte";
   import Select from "./Select.svelte";
   import { categories } from "$lib/core/synced.svelte";
   import { store } from "$lib/core/store.svelte";
@@ -11,6 +11,7 @@
   import { projectsData } from "$lib/projects/projects-data.svelte";
   import { configureNotion } from "$lib/projects/queries";
   import type { NotionConnection, NotionDatabase } from "$lib/projects/types";
+  import { AlignLeft, CircleDot } from "lucide-svelte";
   import { untrack } from "svelte";
 
   /**
@@ -38,6 +39,10 @@
     imported = null;
   });
 
+  function chooseId(id: string) {
+    choose(projectsData.connections.find((one) => one.id === id) ?? null);
+  }
+
   function choose(next: NotionConnection | null) {
     connection = next;
     database = null;
@@ -45,8 +50,8 @@
     description = next?.mapping.description ?? null;
   }
 
-  function pickDatabase(next: NotionDatabase) {
-    if (database && database.id !== next.id) description = null;
+  function pickDatabase(next: NotionDatabase | null) {
+    if (database && database.id !== next?.id) description = null;
     database = next;
   }
 
@@ -82,51 +87,42 @@
 </script>
 
 <Dialog title="Import projects from Notion" {open} {onclose}>
-  <section class="space-y-2">
-    <h3 class="t-micro px-2 text-fg-muted">Workspace</h3>
-    <NotionWorkspaces selected={connection?.id ?? null} onselect={choose} />
-  </section>
+  <div class="space-y-4">
+    <NotionSource
+      connectionId={connection?.id ?? null}
+      databaseId={database?.id ?? (connection?.dataSourceId || null)}
+      onconnection={chooseId}
+      ondatabase={pickDatabase}
+    />
 
-  {#if connection}
-    <section class="space-y-2">
-      <h3 class="t-micro px-2 text-fg-muted">Projects database</h3>
-      <NotionDatabases
-        connectionId={connection.id}
-        selected={database?.id ?? (connection.dataSourceId || null)}
-        onselect={pickDatabase}
-      />
-    </section>
-  {/if}
+    {#if database}
+      <LabeledField icon={CircleDot} label="Sphere their hours come from">
+        <div class="flex flex-wrap gap-1.5">
+          {#each spheres as sphere (sphere.id)}
+            <button
+              type="button"
+              aria-pressed={sphere.id === categoryId}
+              onclick={() => (categoryId = sphere.id)}
+              class="chip-outline {sphere.id === categoryId ? 'border-ink text-fg' : ''}"
+            >
+              <Dot color={sphere.color} size={7} />
+              {sphere.name || "Unnamed"}
+            </button>
+          {/each}
+        </div>
+      </LabeledField>
 
-  {#if database}
-    <section class="space-y-2">
-      <h3 class="t-micro px-2 text-fg-muted">Sphere their hours come from</h3>
-      <div class="flex flex-wrap gap-1.5 px-2">
-        {#each spheres as sphere (sphere.id)}
-          <button
-            type="button"
-            aria-pressed={sphere.id === categoryId}
-            onclick={() => (categoryId = sphere.id)}
-            class="chip-outline {sphere.id === categoryId ? 'border-ink text-fg' : ''}"
-          >
-            <Dot color={sphere.color} size={7} />
-            {sphere.name || "Unnamed"}
-          </button>
-        {/each}
-      </div>
-    </section>
-
-    <section class="flex min-h-10 items-center gap-2 px-2">
-      <span class="t-label flex-1 text-fg">Line under a project’s name</span>
-      <Select
-        label="Description column"
-        width={180}
-        value={description ?? NONE}
-        options={[{ value: NONE, label: "None" }, ...textual.map((one) => ({ value: one.name, label: one.name }))]}
-        onchange={(value) => (description = value || null)}
-      />
-    </section>
-  {/if}
+      <LabeledField icon={AlignLeft} label="Line under a project’s name">
+        <Select
+          full
+          label="Description property"
+          value={description ?? NONE}
+          options={[{ value: NONE, label: "None" }, ...textual.map((one) => ({ value: one.name, label: one.name }))]}
+          onchange={(value) => (description = value || null)}
+        />
+      </LabeledField>
+    {/if}
+  </div>
 
   <div class="flex items-center justify-between gap-3">
     <p class="t-micro text-fg-faint">{imported ?? "Tasks come from the task database under each project’s page."}</p>

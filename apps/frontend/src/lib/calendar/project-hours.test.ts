@@ -44,6 +44,7 @@ function project(partial: Partial<Project>): Project {
     notionUrl: null,
     notionConnectionId: null,
     notionTasksDataSourceId: null,
+    notionViewId: null,
     notionTasksName: null,
     notionTaskMapping: null,
     ...partial,

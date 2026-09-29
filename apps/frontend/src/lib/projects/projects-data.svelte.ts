@@ -190,8 +190,17 @@ class ProjectsData {
   }
 
   /** Point one project at the database its tasks live in, and pull what it holds straight away. */
-  async link(projectId: string, target: { connectionId: string; dataSourceId: string; mapping: NotionTaskMapping }) {
-    const answer = await linkProjectToNotion({ projectId, ...target });
+  async link(
+    projectId: string,
+    target: { connectionId: string; dataSourceId: string; viewId: string | null; mapping: NotionTaskMapping },
+  ) {
+    // A project made a moment ago may still be in the write queue, and the server refuses a link
+    // to a project it hasn't heard of; a sync that joined a round trip already out can miss it.
+    await synced.sync();
+    const answer = await linkProjectToNotion({ projectId, ...target }).catch(async () => {
+      await synced.sync();
+      return linkProjectToNotion({ projectId, ...target });
+    });
     store.notion.set(answer.status);
     await synced.sync();
     return answer.summary;
@@ -227,6 +236,7 @@ class ProjectsData {
         notionUrl: null,
         notionConnectionId: null,
         notionTasksDataSourceId: null,
+        notionViewId: null,
         notionTasksName: null,
         notionTaskMapping: null,
       }),

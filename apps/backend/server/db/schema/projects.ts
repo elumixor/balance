@@ -78,6 +78,8 @@ export const projects = pgTable("projects", {
   notionConnectionId: uuid("notion_connection_id").references(() => notionConnections.id, { onDelete: "set null" }),
   /** The Notion data source holding this project's tasks, found once or chosen, and remembered. */
   notionTasksDataSourceId: text("notion_tasks_data_source_id"),
+  /** A saved view of it whose filter decides which rows are this project's; null takes them all. */
+  notionViewId: text("notion_view_id"),
   /** What that database calls itself, for the project's header to say what it is linked to. */
   notionTasksName: text("notion_tasks_name"),
   /** Which of its columns mean what, when somebody said so; null reads them by type and name. */

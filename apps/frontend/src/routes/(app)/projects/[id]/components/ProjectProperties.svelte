@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { Dot, NotionMark, NumberField, Popover, PopoverItem } from "$lib/components";
+  import { Dot, NotionLinkDialog, NotionMark, NumberField, Popover, PopoverItem } from "$lib/components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
   import type { Project, ProjectStatus } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
   import { ChevronDown, CircleDot, Clock, ExternalLink } from "lucide-svelte";
   import MembersRow from "./MembersRow.svelte";
-  import NotionLinkDialog from "./NotionLinkDialog.svelte";
 
   /**
    * What a project is, beyond its name, as one line of chips: which sphere its hours come out of,

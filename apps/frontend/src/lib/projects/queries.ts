@@ -6,6 +6,7 @@ import type {
   NotionStatus,
   NotionSyncResult,
   NotionTaskMapping,
+  NotionView,
   Progress,
 } from "$lib/projects/types";
 
@@ -34,10 +35,14 @@ export const startNotionConnect = (mode: "app" | "web", origin: string) =>
 export const listNotionDatabases = (connectionId: string) =>
   apiGet<{ databases: NotionDatabase[] }>("/notion/databases", { connectionId }).then((r) => r.databases);
 
+export const listNotionViews = (connectionId: string, dataSourceId: string) =>
+  apiGet<{ views: NotionView[] }>("/notion/views", { connectionId, dataSourceId }).then((r) => r.views);
+
 export const linkProjectToNotion = (input: {
   projectId: string;
   connectionId: string;
   dataSourceId: string;
+  viewId: string | null;
   mapping: NotionTaskMapping;
 }) => callApi(api.notion.link.$post(input)) as Promise<NotionSyncResult>;
 

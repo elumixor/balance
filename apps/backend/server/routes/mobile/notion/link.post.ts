@@ -14,6 +14,7 @@ export default authed(
       projectId: z.uuid(),
       connectionId: z.uuid(),
       dataSourceId: z.string().trim().min(1),
+      viewId: z.string().trim().min(1).nullable().default(null),
       mapping: z.object({ status: column, dates: column, assignee: column, parent: column }),
     },
   },

@@ -65,6 +65,7 @@ describe("resolveTaskFields", () => {
     expect(fields).toEqual({
       title: "Title",
       status: null,
+      statusType: null,
       dates: null,
       assignee: null,
       parent: null,
@@ -88,6 +89,30 @@ describe("resolveTaskFields", () => {
     expect(fields.status).toBeNull();
     expect(fields.columns).toEqual({});
     expect(fields.dates).toBe("Date");
+  });
+});
+
+describe("resolveTaskFields with ids", () => {
+  it("follows a mapped property through a rename", () => {
+    const renamed = { properties: { ...schema.properties, When: schema.properties.Date } };
+    const { Date: _gone, ...properties } = renamed.properties;
+    const fields = resolveTaskFields({ properties }, { status: "s", dates: "da", assignee: null, parent: "pi" });
+    expect(fields.dates).toBe("When");
+    expect(fields.status).toBe("Status");
+    expect(fields.statusType).toBe("status");
+    expect(fields.parent).toBe("Parent item");
+  });
+
+  it("reads a checkbox as the status", () => {
+    const board = { properties: { Name: { type: "title" }, Done: { id: "x", type: "checkbox" } } };
+    const fields = resolveTaskFields(board, { status: "x", dates: null, assignee: null, parent: null });
+    expect(fields.status).toBe("Done");
+    expect(fields.statusType).toBe("checkbox");
+    expect(fields.columns).toEqual({});
+  });
+
+  it("suggests ids where the board has them", () => {
+    expect(suggestTaskMapping(schema)).toEqual({ status: "s", dates: "da", assignee: "a", parent: "pi" });
   });
 });
 
