@@ -2,34 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BalanceAPIBaseURL</key>
+	<string>https://balance-app-mauve.vercel.app</string>
 	<key>BalancePostHogHost</key>
 	<string>https://us.i.posthog.com</string>
 	<key>BalancePostHogKey</key>
 	<string>phc_qCiACLLUcNrRX3uag8yMQk3p2bMqrWnmpvvSUwBGpDDV</string>
 	<key>BalanceSentryDSN</key>
 	<string>https://79a5c3df6862f1505d874e3f213f9c5c@o4511336305328128.ingest.de.sentry.io/4512023350018128</string>
-	<key>CAPACITOR_DEBUG</key>
-	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>Balance</string>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Calendar File</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>com.apple.ical.ics</string>
-				<string>public.calendar-event</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -59,40 +43,22 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Balance reads the nights you slept so they can appear in your calendar as they happened.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Balance never writes to Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Balance uses your location to work out when to leave for an event you&#39;re travelling to.</string>
+	<string>Balance uses your location to work out when to leave for an event you're travelling to.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
-		<key>UISceneConfigurations</key>
-		<dict>
-			<key>UIWindowSceneSessionRoleApplication</key>
-			<array>
-				<dict>
-					<key>UISceneConfigurationName</key>
-					<string>Default Configuration</string>
-					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-					<key>UISceneStoryboardFile</key>
-					<string>Main</string>
-				</dict>
-			</array>
-		</dict>
 	</dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

@@ -221,12 +221,15 @@ private struct Scan {
         // "at 9", "at 7:30pm", "at 9 am" — a bare hour is only a time when "at" says so.
         if w == "at", let (clock, n) = Grammar.clock(key(i + 1), key(i + 2), bareHour: true) {
             time = clock
+            endTime = nil
             take(i, 1 + n, as: .time)
             return 1 + n
         }
         if let n = matchRange(at: i) { return n }
         if let (clock, n) = Grammar.clock(w, key(i + 1), bareHour: false) {
+            // A later time replaces an earlier range whole, end included.
             time = clock
+            endTime = nil
             take(i, n, as: .time)
             return n
         }

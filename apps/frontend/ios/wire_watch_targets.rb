@@ -5,8 +5,7 @@
 # Info.plists, signing, the BalanceKit package, dependencies and the embed (copy-files) build
 # phases. Idempotent: re-running removes and recreates the two targets cleanly.
 #
-# `npx cap add ios` only knows about the single iOS host target, so anything else on the Apple
-# side is added here. The resulting project is committed — this does not run during a build.
+# The phone app's own target is wired by `wire_native_app.rb`; the watch side is added here. The resulting project is committed — this does not run during a build.
 #
 #   cd apps/frontend/ios && ruby wire_watch_targets.rb
 require "xcodeproj"
@@ -25,21 +24,8 @@ project = Xcodeproj::Project.open(PROJ)
 app_target = project.targets.find { |t| t.name == APP_TARGET }
 raise "App target not found" unless app_target
 
-# Signing is by team for every target; `cap add ios` leaves the host target without one.
+# Signing is by team for every target.
 app_target.build_configurations.each { |c| c.build_settings["DEVELOPMENT_TEAM"] = TEAM }
-
-# The phone app's own watch-facing code. Capacitor generated the App target and knows nothing
-# about anything added to it since, so the file is named here — the plugin that carries a sign-in
-# ticket to the watch is the phone half of the watch app working at all.
-app_group = project.main_group.children.find { |c| c.display_name == APP_TARGET }
-HOST_SOURCES = ["WatchHandoffPlugin.swift", "IcsImportPlugin.swift", "HealthKitPlugin.swift"].freeze
-HOST_SOURCES.each do |name|
-  next if app_target.source_build_phase.files.any? { |f| f.file_ref&.display_name == name }
-
-  reference = app_group&.files&.find { |f| f.display_name == name } ||
-              app_group&.new_reference(File.expand_path("App/App/#{name}", __dir__))
-  app_target.add_file_references([reference]) if reference
-end
 
 # --- clean previous runs -----------------------------------------------------
 [WATCH_NAME, WIDGET_NAME].each do |name|
@@ -109,10 +95,8 @@ def ensure_package_product(project, target, package_ref, product_name)
   link_package_product(project, target, package_ref, product_name)
 end
 
-# The phone app reports its own crashes: the Swift shell runs before there is a webview to report
-# into, and `IcsImportPlugin` and `WatchHandoffPlugin` are native code the web app never sees fail.
-# `BalanceTelemetry` only, not `BalanceKit` — the rest of that package is Clerk's native SDK, and
-# this app's sign-in lives in the webview.
+# The phone app's own packages — BalanceKit, ClerkKit, Google Sign-In — are linked by
+# `wire_native_app.rb`, which owns that target.
 ensure_package_product(project, app_target, package_ref, "BalanceTelemetry")
 
 # ---------------------------------------------------------------------------
@@ -173,7 +157,10 @@ embed_ext.add_file_reference(widget.product_reference, true).settings = { "ATTRI
 
 # --- watch app embedded into the iOS app (Watch content) --------------------
 app_target.add_dependency(watch)
-embed_watch = app_target.new_copy_files_build_phase("Embed Watch Content")
+# One phase, reused: creating a new one on every run is how the target once collected nineteen.
+embed_watch = app_target.build_phases.grep(Xcodeproj::Project::Object::PBXCopyFilesBuildPhase)
+                        .find { |phase| phase.name == "Embed Watch Content" } ||
+              app_target.new_copy_files_build_phase("Embed Watch Content")
 embed_watch.symbol_dst_subfolder_spec = :products_directory
 embed_watch.dst_path = "$(CONTENTS_FOLDER_PATH)/Watch"
 embed_watch.add_file_reference(watch.product_reference, true).settings = { "ATTRIBUTES" => ["RemoveHeadersOnCopy"] }
@@ -182,8 +169,8 @@ project.save
 
 # --- schemes ----------------------------------------------------------------
 # Without shared schemes, Xcode invents one per target, and the invented scheme for an app
-# extension also builds the extension's containing app — which here means building the Capacitor
-# iOS app for watchOS, something it can never do. These build exactly one target each.
+# extension also builds the extension's containing app — which here means building the iOS app
+# for watchOS, something it can never do. These build exactly one target each.
 #
 # The host app is shared here too, and has to be: the moment this project holds any shared scheme
 # at all, Xcode stops inventing the rest, and a release build that asks for the `App` scheme by

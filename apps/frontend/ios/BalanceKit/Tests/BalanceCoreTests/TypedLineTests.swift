@@ -308,4 +308,9 @@ final class TypedLineTests: XCTestCase {
     func testLastWins() {
         XCTAssertEqual(read("x 9:00 10:00").time, .init(hour: 10, minute: 0))
     }
+
+    func testATimeAfterARangeReplacesItWhole() {
+        assertEvent(read("gym 18:00-19:00 20:00"), date(2026, 9, 30, 20), date(2026, 9, 30, 21))
+        assertEvent(read("gym 18:00-19:00 at 7am 30m"), date(2026, 9, 30, 7), date(2026, 9, 30, 7, 30))
+    }
 }
