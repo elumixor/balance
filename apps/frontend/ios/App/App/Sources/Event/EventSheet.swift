@@ -442,6 +442,7 @@ struct SpherePicker: View {
 
     var body: some View {
         let current = event.activityId == nil ? store.sphere(of: event)?.id : nil
+        ScrollViewReader { proxy in
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(store.sphereList + [store.bufferSphere].compactMap { $0 }) { sphere in
@@ -461,6 +462,7 @@ struct SpherePicker: View {
                         .background(selected ? sphere.tint : sphere.tint.opacity(0.15), in: Capsule())
                     }
                     .buttonStyle(.plain)
+                    .id(sphere.id)
                     .accessibilityIdentifier("sphere-\(sphere.name)")
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
@@ -483,6 +485,9 @@ struct SpherePicker: View {
                 }
             }
             .padding(.horizontal, 16)
+        }
+        // The sphere it counts as is scrolled into view, wherever it sits in the row.
+        .onAppear { if let current { proxy.scrollTo(current, anchor: .center) } }
         }
     }
 }

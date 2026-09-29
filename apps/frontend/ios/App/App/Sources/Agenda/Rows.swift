@@ -66,8 +66,12 @@ struct EventRow: View {
         if !items.isEmpty {
             HStack(spacing: 8) {
                 ForEach(items, id: \.self) { item in
-                    Label(item.text, systemImage: item.symbol)
-                        .labelStyle(ChipLabelStyle())
+                    HStack(spacing: 3) {
+                        Image(systemName: item.symbol)
+                            .imageScale(.small)
+                            .foregroundStyle(item.tinted ? AnyShapeStyle(sphere?.tint ?? .secondary) : AnyShapeStyle(.secondary))
+                        if !item.text.isEmpty { Text(item.text) }
+                    }
                 }
             }
             .font(.caption)
@@ -79,12 +83,13 @@ struct EventRow: View {
     private struct Chip: Hashable {
         let symbol: String
         let text: String
+        var tinted = false
     }
 
     private var chipItems: [Chip] {
         var chips: [Chip] = []
         if !event.allDay { chips.append(Chip(symbol: "clock", text: Format.duration(minutes: event.durationMinutes))) }
-        if let sphere { chips.append(Chip(symbol: "circle.fill", text: event.activityName ?? sphere.name)) }
+        if let sphere { chips.append(Chip(symbol: "circle.fill", text: event.activityName ?? sphere.name, tinted: true)) }
         if let project = event.projectId.flatMap({ store.projects[$0] }) { chips.append(Chip(symbol: "folder", text: project.name)) }
         if let location = event.location, !location.isEmpty {
             chips.append(Chip(symbol: "mappin", text: location.components(separatedBy: ",").first ?? location))
@@ -93,15 +98,6 @@ struct EventRow: View {
         if event.isRepeating { chips.append(Chip(symbol: "repeat", text: "")) }
         if event.response == "needsAction" { chips.append(Chip(symbol: "envelope", text: "Invited")) }
         return chips
-    }
-}
-
-private struct ChipLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 3) {
-            configuration.icon.imageScale(.small)
-            configuration.title
-        }
     }
 }
 
@@ -141,11 +137,12 @@ struct TaskRow: View {
                         }
                         .foregroundStyle(tint)
                     }
-                    if showDay, let day = task.day {
+                    if let day = task.day, showDay || overdue(day) {
                         HStack(spacing: 3) {
                             Image(systemName: "calendar").imageScale(.small)
                             Text(Format.day(day))
                         }
+                        .foregroundStyle(overdue(day) && !task.isDone ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                     }
                 }
                 .font(.caption)
@@ -158,6 +155,8 @@ struct TaskRow: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-\(task.title)")
     }
+
+    private func overdue(_ day: Date) -> Bool { day < Calendar.current.startOfDay(for: .now) }
 
     private var tint: Color {
         store.projects[task.projectId].flatMap { store.spheres[$0.categoryId]?.tint } ?? .primary

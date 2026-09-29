@@ -495,6 +495,7 @@ final class Store {
         if (error as? URLError)?.code == .cancelled || error is CancellationError { return }
         Telemetry.capture(error, context: title)
         let detail = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        NSLog("Balance problem: %@ — %@ (%@)", title, detail, String(describing: error))
         // One card per failure, but not the same failure stacked while the network is down.
         if problems.last?.title == title, problems.last?.detail == detail { return }
         problems.append(Problem(title: title, detail: detail))

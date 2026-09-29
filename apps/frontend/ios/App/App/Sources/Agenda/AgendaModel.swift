@@ -14,14 +14,13 @@ enum AgendaItem: Identifiable, Hashable {
 }
 
 struct AgendaSection: Identifiable, Equatable {
-    enum Kind: String { case earlier, today, tomorrow, week, later, someday }
+    enum Kind: String { case today, tomorrow, week, later, someday }
     let kind: Kind
     let items: [AgendaItem]
     var id: String { kind.rawValue }
 
     var title: String {
         switch kind {
-        case .earlier: return "Earlier"
         case .today: return "Today"
         case .tomorrow: return "Tomorrow"
         case .week: return "This week"
@@ -48,6 +47,9 @@ struct AgendaSection: Identifiable, Equatable {
 /// after, and what has no day at all.
 enum AgendaModel {
     static let horizonDays = 14
+    static let staleDays = 7
+    /// A section longer than this shows its first rows and a way to the rest.
+    static let preview = 6
 
     static func sections(
         events: [CalendarEvent], tasks: [TaskItem], projects: [String: Project], now: Date, calendar: Calendar,
@@ -61,13 +63,17 @@ enum AgendaModel {
         let weekEnd = mondays.dateInterval(of: .weekOfYear, for: today)!.end
         let horizon = calendar.date(byAdding: .day, value: horizonDays, to: today)!
 
+        // What slipped is today's to do, the way it is on paper: it heads today's list.
         func kind(of day: Date) -> AgendaSection.Kind? {
-            if day < today { return .earlier }
             if day < tomorrow { return .today }
             if day < dayAfter { return .tomorrow }
             if day < weekEnd { return .week }
             return .later
         }
+
+        let staleBefore = calendar.date(byAdding: .day, value: -staleDays, to: today)!
+        // A heading over subtasks is not itself something to do.
+        let parents = Set(tasks.compactMap(\.parentId))
 
         var buckets: [AgendaSection.Kind: [(Date, Int, AgendaItem)]] = [:]
         for event in events where !event.declined && event.end > today && event.start < horizon {
@@ -77,18 +83,19 @@ enum AgendaModel {
             buckets[k, default: []].append((event.allDay ? day : event.start, event.allDay ? 0 : 1, .event(event)))
         }
         for task in tasks {
-            guard let project = projects[task.projectId], project.isActive else { continue }
-            if let day = task.day {
+            guard let project = projects[task.projectId], project.isActive, !parents.contains(task.id) else { continue }
+            // A plan that slipped weeks ago is no longer a date; it is back to someday.
+            if let day = task.day, day >= staleBefore {
                 // Finished to-dos stay on today, and wherever they were just ticked off.
                 if task.isDone, !(day >= today && day < tomorrow), !ticked.contains(task.id) { continue }
                 let k = kind(of: day) ?? .later
-                buckets[k, default: []].append((day, 2, .task(task)))
+                buckets[k, default: []].append((max(day, today), day < today ? -1 : 2, .task(task)))
             } else if !task.isDone || ticked.contains(task.id) {
                 buckets[.someday, default: []].append((.distantFuture, task.ordinal, .task(task)))
             }
         }
 
-        let order: [AgendaSection.Kind] = [.earlier, .today, .tomorrow, .week, .later, .someday]
+        let order: [AgendaSection.Kind] = [.today, .tomorrow, .week, .later, .someday]
         return order.compactMap { k in
             let rows = (buckets[k] ?? []).sorted { a, b in
                 if k == .someday { return a.1 < b.1 }

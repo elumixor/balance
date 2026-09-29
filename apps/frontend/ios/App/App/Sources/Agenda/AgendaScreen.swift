@@ -16,6 +16,7 @@ struct AgendaScreen: View {
     @State private var flash: String?
     @AppStorage("agenda.collapsed") private var collapsedRaw = ""
     @State private var now = Date()
+    @State private var expanded: Set<String> = []
 
     private var collapsed: Set<String> {
         Set(collapsedRaw.split(separator: ",").map(String.init))
@@ -37,9 +38,21 @@ struct AgendaScreen: View {
                     ForEach(sections) { section in
                         Section {
                             if !collapsed.contains(section.id) {
-                                ForEach(section.items) { item in
+                                let long = section.items.count > AgendaModel.preview + 2 && !expanded.contains(section.id)
+                                ForEach(long ? Array(section.items.prefix(AgendaModel.preview)) : section.items) { item in
                                     row(item, in: section)
                                         .id(item.id)
+                                }
+                                if long {
+                                    Button {
+                                        withAnimation(.snappy) { _ = expanded.insert(section.id) }
+                                    } label: {
+                                        Text("Show \(section.items.count - AgendaModel.preview) more")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .padding(.leading, 64)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                                 if section.kind == .today, section.items.isEmpty {
                                     Text("Nothing yet. Type below — “gym 7pm 45m #health”.")
@@ -169,7 +182,8 @@ struct AgendaScreen: View {
 
     private func beginEdit(_ item: AgendaItem) {
         if let editing, editing != item.id, let current = currentItem(editing) { commitEdit(current, nil) }
-        editText = LineActions.text(for: item, in: store)
+        // A trailing space, so whatever is typed next is a word of its own.
+        editText = LineActions.text(for: item, in: store) + " "
         editing = item.id
         editFocused = true
         UISelectionFeedbackGenerator().selectionChanged()
@@ -185,7 +199,7 @@ struct AgendaScreen: View {
         let text = editText
         editing = nil
         editFocused = false
-        guard text != original else { return }
+        guard text.trimmingCharacters(in: .whitespaces) != original else { return }
         let line = submitted ?? LineReader.read(text, vocabulary: store.vocabulary)
         Task { await LineActions.apply(line, to: item, in: store) }
     }
