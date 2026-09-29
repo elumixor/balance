@@ -4,56 +4,37 @@
   import { store } from "$lib/core/store.svelte";
   import { diagnostics } from "$lib/platform/diagnostics.svelte";
   import { projectsData } from "$lib/projects/projects-data.svelte";
-  import { disconnectNotion } from "$lib/projects/queries";
+  import type { NotionConnection } from "$lib/projects/types";
   import SettingRow from "./SettingRow.svelte";
   import SettingsGroup from "./SettingsGroup.svelte";
 
   /**
-   * One row: whether a workspace is mirrored and when it last was. Connecting is Notion's own
-   * consent screen — the pages this app may read are the ones ticked there — and everything else
-   * is one setup dialog, because choosing a database, a sphere and what its columns mean is one
-   * decision rather than three settings.
+   * One row per Notion workspace this account has granted, saying whose login granted it and when
+   * it last synced, and one more to grant another. Granting is Notion's own consent screen — the
+   * workspace and the pages this app may read are chosen there — and importing a database of
+   * projects is one dialog, because choosing a database, a sphere and a column is one decision.
    */
-  const status = $derived(store.notion.value ?? null);
-
   let working = $state(false);
   let setup = $state(false);
 
   void store.notion.ensure();
 
-  /**
-   * One button, whatever state this is in: it asks for a grant when there isn't one and then
-   * opens the dialog that was actually wanted. Nobody is sent away to connect something first.
-   */
-  async function open() {
+  async function run(action: () => Promise<unknown>, title: string) {
     working = true;
     try {
-      if (await projectsData.ensureNotion()) setup = true;
+      await action();
     } catch (error) {
-      if (!(error instanceof ConnectCancelled))
-        diagnostics.report("Notion", error, { title: "Couldn't connect Notion" });
+      if (!(error instanceof ConnectCancelled)) diagnostics.report("Notion", error, { title });
     } finally {
       working = false;
     }
   }
 
-  async function disconnect() {
-    working = true;
-    try {
-      store.notion.set(await disconnectNotion());
-    } catch (error) {
-      diagnostics.report("Notion", error, { title: "Couldn't disconnect Notion" });
-    } finally {
-      working = false;
-    }
+  function note(connection: NotionConnection) {
+    const who = connection.accountEmail || connection.accountName;
+    const state = connection.needsReconnect ? "The connection expired." : (connection.lastError ?? when(connection.lastSyncedAt));
+    return who ? `${who} · ${state}` : state;
   }
-
-  const note = $derived.by(() => {
-    if (!status?.connected) return "Mirror the projects and tasks you already keep there.";
-    if (status.needsReconnect) return "The connection expired — importing again will renew it.";
-    if (!status.dataSourceId) return "Connected. Choose which database holds your projects.";
-    return when(status.lastSyncedAt);
-  });
 
   function when(at: string | null) {
     if (!at) return "Not synced yet.";
@@ -66,27 +47,46 @@
 </script>
 
 <SettingsGroup title="Notion">
-  <SettingRow icon={NotionMark} label={status?.connected ? status.workspaceName || "Notion" : "Notion"} {note}>
+  {#each projectsData.connections as connection (connection.id)}
+    <SettingRow icon={NotionMark} label={connection.workspaceName || "Notion"} note={note(connection)}>
+      <div class="flex gap-2">
+        {#if connection.needsReconnect}
+          <Button
+            label="Reconnect"
+            size="sm"
+            disabled={working}
+            onclick={() => void run(() => projectsData.connectNotion(), "Couldn't connect Notion")}
+          />
+        {/if}
+        <Button
+          label="Disconnect"
+          variant="outline"
+          size="sm"
+          disabled={working}
+          onclick={() => void run(() => projectsData.disconnectNotion(connection.id), "Couldn't disconnect Notion")}
+        />
+      </div>
+    </SettingRow>
+  {/each}
+
+  <SettingRow
+    icon={NotionMark}
+    label={projectsData.connections.length === 0 ? "Notion" : "Another workspace"}
+    note={projectsData.connections.length === 0 ? "Link projects to the task boards you already keep there." : undefined}
+  >
     <div class="flex gap-2">
       <Button
-        label={working ? "Waiting…" : status?.dataSourceId ? "Configure" : "Import projects"}
-        variant={status?.dataSourceId ? "outline" : "solid"}
+        label={working ? "Waiting…" : projectsData.connections.length === 0 ? "Connect" : "Add"}
+        variant="outline"
         size="sm"
         disabled={working}
-        onclick={() => void open()}
+        onclick={() => void run(() => projectsData.connectNotion(), "Couldn't connect Notion")}
       />
-      {#if status?.dataSourceId}
-        <Button label="Sync now" variant="outline" size="sm" onclick={() => void projectsData.mirror(true)} />
-      {/if}
-      {#if status?.connected}
-        <Button label="Disconnect" variant="outline" size="sm" disabled={working} onclick={() => void disconnect()} />
+      {#if projectsData.usableConnections.length > 0}
+        <Button label="Import projects" variant="outline" size="sm" onclick={() => (setup = true)} />
       {/if}
     </div>
   </SettingRow>
-
-  {#if status?.lastError}
-    <p class="t-micro px-1 text-fg-faint">{status.lastError}</p>
-  {/if}
 </SettingsGroup>
 
 <NotionSetup open={setup} onclose={() => (setup = false)} />

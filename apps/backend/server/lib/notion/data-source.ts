@@ -1,8 +1,9 @@
-import type { TaskStatus } from "~/db/schema";
+import type { NotionTaskMapping, TaskStatus } from "~/db/schema";
 import { taskStatus } from "./map";
 
 /** A data source's properties, as Notion describes them — the half of the schema this reads. */
 export interface RawSchema {
+  readonly id?: string;
   readonly properties: Record<string, RawProperty>;
 }
 
@@ -18,48 +19,85 @@ interface RawProperty {
 export type ColumnNames = Partial<Record<TaskStatus, string>>;
 
 /**
- * The handful of properties a tasks database has to have for the app to read it, found by type
- * and then by name — every board names them differently, and a database this app didn't make is
- * the normal case rather than the exception.
+ * The properties a tasks database has to have for the app to read it — as somebody mapped them
+ * when linking, or found by type and then by name when nobody did.
  */
-export interface TaskFields {
+export interface TaskFields extends NotionTaskMapping {
   readonly title: string;
-  readonly status: string | null;
-  readonly date: string | null;
   readonly priority: string | null;
-  readonly assignee: string | null;
-  readonly parent: string | null;
   /** What each of the app's statuses is called on this board, for a write going the other way. */
   readonly columns: ColumnNames;
   /** The column each status option belongs to, so a name the app has never seen still lands. */
   readonly groups: Readonly<Record<string, string>>;
 }
 
+/** Which property types can answer each part of a mapping — what the link dialog offers. */
+export const MAPPABLE_TYPES: Readonly<Record<keyof NotionTaskMapping, readonly string[]>> = {
+  status: ["status", "select"],
+  dates: ["date"],
+  assignee: ["people", "relation"],
+  parent: ["relation"],
+};
+
 const ASSIGNEE_NAMES = ["assignee", "assignees", "developer", "owner", "responsible"];
 const PARENT_NAMES = ["parent item", "parent task", "parent"];
 const PRIORITY_NAMES = ["priority", "importance"];
 
-export function resolveTaskFields(schema: RawSchema): TaskFields {
+/**
+ * The mapping a board suggests by itself: the first status property, the first date, a person or
+ * relation named like an assignee, and a relation that is the board's own sub-items.
+ */
+export function suggestTaskMapping(schema: RawSchema): NotionTaskMapping {
   const entries = Object.entries(schema.properties);
   const byType = (type: string) => entries.filter(([, property]) => property.type === type).map(([name]) => name);
   const named = (candidates: readonly string[], types: readonly string[]) =>
     entries.find(([name, property]) => types.includes(property.type) && candidates.includes(name.toLowerCase()))?.[0] ??
     null;
+  const selfRelation =
+    entries.find(
+      ([, property]) => property.type === "relation" && property.relation?.data_source_id === schema.id,
+    )?.[0] ?? null;
 
-  const status = byType("status")[0] ?? byType("select").find((name) => name.toLowerCase() === "status") ?? null;
+  return {
+    status: byType("status")[0] ?? byType("select").find((name) => name.toLowerCase() === "status") ?? null,
+    dates: byType("date")[0] ?? null,
+    assignee: named(ASSIGNEE_NAMES, MAPPABLE_TYPES.assignee) ?? byType("people")[0] ?? null,
+    parent: named(PARENT_NAMES, MAPPABLE_TYPES.parent) ?? selfRelation,
+  };
+}
+
+/**
+ * Everything a sync reads a board with. A chosen mapping wins, but only for a column the board
+ * still has — a renamed column falls back to what the board suggests rather than reading nothing.
+ */
+export function resolveTaskFields(schema: RawSchema, chosen: NotionTaskMapping | null = null): TaskFields {
+  const suggested = suggestTaskMapping(schema);
+  const exists = (name: string | null) => (name && schema.properties[name] ? name : null);
+  const pick = (key: keyof NotionTaskMapping) => (chosen ? exists(chosen[key]) : suggested[key]);
+  const entries = Object.entries(schema.properties);
+
+  const status = pick("status");
   const property = status ? schema.properties[status] : undefined;
   const groups = groupsOf(property);
 
   return {
-    title: byType("title")[0] ?? "Name",
+    title: entries.find(([, one]) => one.type === "title")?.[0] ?? "Name",
     status,
-    date: byType("date")[0] ?? null,
-    priority: named(PRIORITY_NAMES, ["select", "status"]),
-    assignee: named(ASSIGNEE_NAMES, ["relation", "people"]),
-    parent: named(PARENT_NAMES, ["relation"]),
+    dates: pick("dates"),
+    assignee: pick("assignee"),
+    parent: pick("parent"),
+    priority:
+      entries.find(
+        ([name, one]) => ["select", "status"].includes(one.type) && PRIORITY_NAMES.includes(name.toLowerCase()),
+      )?.[0] ?? null,
     columns: columnsOf(property, groups),
     groups,
   };
+}
+
+/** The options of a status or select property, in board order — what a mapped column holds. */
+export function optionsOf(property: RawProperty) {
+  return (property.status?.options ?? property.select?.options ?? []).map((option) => option.name);
 }
 
 /** Every option of a status property, said as the group it belongs to — "to_do", and so on. */
@@ -89,11 +127,10 @@ function normalizeGroup(name: string) {
  * rather than inventing an option somebody would have to clean up.
  */
 function columnsOf(property: RawProperty | undefined, groups: Record<string, string>): ColumnNames {
-  const options = property?.status?.options ?? property?.select?.options ?? [];
   const columns: ColumnNames = {};
-  for (const option of options) {
-    const status = taskStatus(option.name, groups[option.name] ?? null);
-    columns[status] ??= option.name;
+  for (const name of property ? optionsOf(property) : []) {
+    const status = taskStatus(name, groups[name] ?? null);
+    columns[status] ??= name;
   }
   return columns;
 }

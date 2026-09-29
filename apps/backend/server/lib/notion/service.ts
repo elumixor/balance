@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "~/db";
-import { type NotionMapping, notionConnections, projects } from "~/db/schema";
+import { type NotionMapping, type NotionTaskMapping, notionConnections, projects } from "~/db/schema";
 import { decryptSecret, encryptSecret } from "~/lib/calendar/crypto";
 import { ApiError, NotFoundError } from "~/lib/http/api-error";
 import { NotionAuthError, NotionClient } from "./client";
@@ -8,79 +8,68 @@ import { type NotionGrant, notionOAuth } from "./oauth";
 import { NotionSync, type SyncSummary } from "./sync";
 
 /**
- * What the settings row draws. "Not connected", "nothing chosen yet" and "the grant expired" are
- * states with a row each rather than errors — the same rule the calendar's grant is under, and for
- * the same reason: a 401 out of here would read as a dead session and bounce somebody to sign-in.
+ * One granted workspace, as every picker and the settings list draw it. "The grant expired" is a
+ * state with a row rather than an error — the same rule the calendar's grant is under, and for the
+ * same reason: a 401 out of here would read as a dead session and bounce somebody to sign-in.
  */
-export interface NotionStatus {
-  readonly connected: boolean;
-  readonly needsReconnect: boolean;
+export interface NotionConnectionStatus {
+  readonly id: string;
   readonly workspaceName: string;
-  /** The data source projects are read from, or empty while nobody has picked one. */
+  readonly workspaceIcon: string | null;
+  readonly accountName: string;
+  readonly accountEmail: string;
+  readonly needsReconnect: boolean;
+  /** The data source projects are imported from, or empty while nobody has picked one. */
   readonly dataSourceId: string;
-  /** The sphere mirrored projects land in. Empty until the setup dialog has been through. */
+  /** The sphere imported projects land in. Empty until the import dialog has been through. */
   readonly categoryId: string;
   readonly mapping: NotionMapping;
   readonly lastSyncedAt: string | null;
   readonly lastError: string | null;
 }
 
-const DISCONNECTED: NotionStatus = {
-  connected: false,
-  needsReconnect: false,
-  workspaceName: "",
-  dataSourceId: "",
-  categoryId: "",
-  mapping: { description: null, fields: [] },
-  lastSyncedAt: null,
-  lastError: null,
-};
+export interface NotionStatus {
+  readonly connections: readonly NotionConnectionStatus[];
+}
+
+type ConnectionRow = typeof notionConnections.$inferSelect;
 
 /** Renewed this long before it actually expires, so a sync never starts on a dying token. */
 const REFRESH_MARGIN_MS = 60_000;
+const EMPTY_SUMMARY: SyncSummary = { projects: 0, tasks: 0, people: 0 };
 
 export class NotionService {
   constructor(private readonly userId: string) {}
 
   async status(): Promise<NotionStatus> {
-    const row = await this.#row();
-    if (!row) return DISCONNECTED;
-    return {
-      connected: true,
-      needsReconnect: row.needsReconnect,
-      workspaceName: row.workspaceName,
-      dataSourceId: row.projectsDataSourceId ?? "",
-      categoryId: row.categoryId ?? "",
-      mapping: row.mapping,
-      lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
-      lastError: row.lastError,
-    };
+    return { connections: (await this.#rows()).map(statusOf) };
   }
 
-  /** The consent screen's URL. The app opens it in a real browser and waits for the row to change. */
+  /** The consent screen's URL. The app opens it in a real browser and waits for a row to change. */
   authUrl(state: string) {
     return notionOAuth.authUrl(state);
   }
 
-  /** What the callback does with the code Notion sent back: one grant, kept encrypted. */
+  /** What the callback does with the code Notion sent back: one grant per workspace, encrypted. */
   async complete(code: string) {
     const grant = await notionOAuth.exchangeCode(code);
     await this.#write(grant);
-    return this.status();
+    return grant;
   }
 
-  /** The databases this grant can see, for the one question left after connecting. */
-  async dataSources() {
-    return (await this.#client()).databases();
+  /** The databases one workspace's grant can see, for the link and import dialogs. */
+  async databases(connectionId: string) {
+    return (await this.#client(await this.#row(connectionId))).databases();
   }
 
   /**
-   * The answers the setup dialog collects: which database, which sphere its projects land in, and
-   * what the columns beside their names mean. Kept together because they are asked together, and
-   * because a database chosen without them would sync into nowhere.
+   * The answers the import dialog collects: which database holds projects, which sphere they land
+   * in, and which column is the sentence under their names. Kept together because they are asked
+   * together, and because a database chosen without them would import into nowhere.
    */
-  async configure(input: { dataSourceId: string; categoryId: string; mapping: NotionMapping }) {
-    await this.#stamp({
+  async configure(connectionId: string, input: { dataSourceId: string; categoryId: string; mapping: NotionMapping }) {
+    await this.#row(connectionId);
+    await this.#stamp(connectionId, {
       projectsDataSourceId: input.dataSourceId,
       categoryId: input.categoryId,
       mapping: input.mapping,
@@ -89,30 +78,27 @@ export class NotionService {
     return this.status();
   }
 
-  /** What somebody could point a project at — pages and databases by name. */
-  async search(query: string) {
-    return (await this.#client()).search(query);
-  }
-
   /**
-   * One project pointed at Notion by hand: the page it is written on, or the database its tasks
-   * live in when somebody picks that directly. The tasks follow on the next run — from the
-   * database under that page, found the same way a mirrored project's is.
+   * One project pointed at the database its tasks live in, with which column means what. The
+   * tasks follow straight away, because a link nobody sees the result of is a link nobody trusts.
    */
-  async link(projectId: string, target: { id: string; kind: "page" | "database" }) {
+  async link(projectId: string, target: { connectionId: string; dataSourceId: string; mapping: NotionTaskMapping }) {
     const project = await db.query.projects.findFirst({
       where: and(eq(projects.id, projectId), eq(projects.userId, this.userId)),
     });
     if (!project) throw new NotFoundError("That project no longer exists.");
 
-    const client = await this.#client();
-    const page = target.kind === "page" ? await client.page(target.id) : null;
+    const client = await this.#client(await this.#row(target.connectionId));
+    const source = await client.dataSource(target.dataSourceId);
+    const database = source.parent?.database_id ?? source.id;
     await db
       .update(projects)
       .set({
-        notionPageId: target.kind === "page" ? target.id : null,
-        notionTasksDataSourceId: target.kind === "database" ? target.id : null,
-        notionUrl: page?.url ?? null,
+        notionConnectionId: target.connectionId,
+        notionTasksDataSourceId: target.dataSourceId,
+        notionTasksName: source.title?.map((run) => run.plain_text).join("") || "Tasks",
+        notionTaskMapping: target.mapping,
+        notionUrl: project.notionPageId ? project.notionUrl : `https://www.notion.so/${database.replaceAll("-", "")}`,
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
@@ -123,46 +109,66 @@ export class NotionService {
   async unlink(projectId: string) {
     await db
       .update(projects)
-      .set({ notionPageId: null, notionTasksDataSourceId: null, notionUrl: null, updatedAt: new Date() })
+      .set({
+        notionConnectionId: null,
+        notionPageId: null,
+        notionTasksDataSourceId: null,
+        notionTasksName: null,
+        notionTaskMapping: null,
+        notionUrl: null,
+        updatedAt: new Date(),
+      })
       .where(and(eq(projects.id, projectId), eq(projects.userId, this.userId)));
     return this.status();
   }
 
-  async disconnect(): Promise<NotionStatus> {
-    await db.delete(notionConnections).where(eq(notionConnections.userId, this.userId));
-    return DISCONNECTED;
+  /** One workspace's grant goes; what it mirrored stays, and its projects stop being synced. */
+  async disconnect(connectionId: string) {
+    await db
+      .delete(notionConnections)
+      .where(and(eq(notionConnections.id, connectionId), eq(notionConnections.userId, this.userId)));
+    return this.status();
   }
 
   /**
-   * A run, and what it left behind. A refused grant is written down rather than thrown: the screen
-   * that asked shows the row it already has, now saying it needs reconnecting.
+   * A run over every workspace, and what they left behind. A refused grant is written down on its
+   * own row rather than thrown: the other workspaces still sync, and the screen that asked shows
+   * that one as needing a reconnect.
    */
   async sync(): Promise<{ status: NotionStatus; summary: SyncSummary | null }> {
-    const row = await this.#row();
-    if (!row) return { status: DISCONNECTED, summary: null };
+    const rows = (await this.#rows()).filter((row) => !row.needsReconnect);
+    if (rows.length === 0) return { status: await this.status(), summary: null };
 
+    const summary = { ...EMPTY_SUMMARY };
+    for (const row of rows) {
+      const counts = await this.#syncOne(row);
+      summary.projects += counts.projects;
+      summary.tasks += counts.tasks;
+      summary.people += counts.people;
+    }
+    return { status: await this.status(), summary };
+  }
+
+  async #syncOne(row: ConnectionRow): Promise<SyncSummary> {
     try {
-      const client = await this.#client();
+      const client = await this.#client(row);
       const summary = await new NotionSync(this.userId, client, {
+        connectionId: row.id,
         dataSourceId: row.projectsDataSourceId ?? null,
         categoryId: row.categoryId,
         mapping: row.mapping,
       }).run();
-      await this.#stamp({ lastSyncedAt: new Date(), lastError: null, needsReconnect: false });
-      return { status: await this.status(), summary };
+      await this.#stamp(row.id, { lastSyncedAt: new Date(), lastError: null, needsReconnect: false });
+      return summary;
     } catch (error) {
-      const needsReconnect = error instanceof NotionAuthError;
-      const lastError = error instanceof ApiError ? error.message : "Notion couldn't be read just now.";
-      await this.#stamp({ needsReconnect, lastError });
       if (!(error instanceof ApiError)) throw error;
-      return { status: await this.status(), summary: null };
+      await this.#stamp(row.id, { needsReconnect: error instanceof NotionAuthError, lastError: error.message });
+      return EMPTY_SUMMARY;
     }
   }
 
-  /** The client for this account's grant, renewed first when the token it holds is about to go. */
-  async #client() {
-    const row = await this.#row();
-    if (!row) throw new ApiError("Connect a Notion workspace first.");
+  /** The client for one workspace's grant, renewed first when the token it holds is about to go. */
+  async #client(row: ConnectionRow) {
     const stale = row.expiresAt !== null && row.expiresAt.getTime() - REFRESH_MARGIN_MS < Date.now();
     if (!stale) return new NotionClient(decryptSecret(row.token));
 
@@ -172,31 +178,61 @@ export class NotionService {
     return new NotionClient(grant.accessToken);
   }
 
+  /** A grant for a workspace already here replaces that row's; a new workspace is a new row. */
   #write(grant: NotionGrant) {
     const values = {
       token: encryptSecret(grant.accessToken),
       refreshToken: grant.refreshToken === null ? null : encryptSecret(grant.refreshToken),
       expiresAt: grant.expiresAt,
-      workspaceId: grant.workspaceId,
       workspaceName: grant.workspaceName,
+      workspaceIcon: grant.workspaceIcon,
+      // A renewal answers without the owner; the login that made the grant hasn't changed.
+      ...(grant.accountEmail ? { accountName: grant.accountName, accountEmail: grant.accountEmail } : {}),
       needsReconnect: false,
       lastError: null,
       updatedAt: new Date(),
     };
     return db
       .insert(notionConnections)
-      .values({ userId: this.userId, ...values })
-      .onConflictDoUpdate({ target: notionConnections.userId, set: values });
+      .values({ userId: this.userId, workspaceId: grant.workspaceId, ...values })
+      .onConflictDoUpdate({ target: [notionConnections.userId, notionConnections.workspaceId], set: values });
   }
 
-  #stamp(values: Partial<typeof notionConnections.$inferInsert>) {
+  #stamp(connectionId: string, values: Partial<typeof notionConnections.$inferInsert>) {
     return db
       .update(notionConnections)
       .set({ ...values, updatedAt: new Date() })
-      .where(eq(notionConnections.userId, this.userId));
+      .where(and(eq(notionConnections.id, connectionId), eq(notionConnections.userId, this.userId)));
   }
 
-  #row() {
-    return db.query.notionConnections.findFirst({ where: eq(notionConnections.userId, this.userId) });
+  async #row(connectionId: string) {
+    const row = await db.query.notionConnections.findFirst({
+      where: and(eq(notionConnections.id, connectionId), eq(notionConnections.userId, this.userId)),
+    });
+    if (!row) throw new NotFoundError("That Notion workspace isn't connected any more.");
+    return row;
   }
+
+  #rows() {
+    return db.query.notionConnections.findMany({
+      where: eq(notionConnections.userId, this.userId),
+      orderBy: (table, { asc }) => [asc(table.accountEmail), asc(table.createdAt)],
+    });
+  }
+}
+
+function statusOf(row: ConnectionRow): NotionConnectionStatus {
+  return {
+    id: row.id,
+    workspaceName: row.workspaceName,
+    workspaceIcon: row.workspaceIcon,
+    accountName: row.accountName,
+    accountEmail: row.accountEmail,
+    needsReconnect: row.needsReconnect,
+    dataSourceId: row.projectsDataSourceId ?? "",
+    categoryId: row.categoryId ?? "",
+    mapping: row.mapping,
+    lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
+    lastError: row.lastError,
+  };
 }

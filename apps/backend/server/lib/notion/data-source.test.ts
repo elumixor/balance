@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolveTaskFields } from "./data-source";
+import { resolveTaskFields, suggestTaskMapping } from "./data-source";
 
 const schema = {
   properties: {
@@ -35,7 +35,7 @@ describe("resolveTaskFields", () => {
     const fields = resolveTaskFields(schema);
     expect(fields.title).toBe("Name");
     expect(fields.status).toBe("Status");
-    expect(fields.date).toBe("Date");
+    expect(fields.dates).toBe("Date");
     expect(fields.priority).toBe("Priority");
     expect(fields.assignee).toBe("Assignee");
     expect(fields.parent).toBe("Parent item");
@@ -65,12 +65,43 @@ describe("resolveTaskFields", () => {
     expect(fields).toEqual({
       title: "Title",
       status: null,
-      date: null,
-      priority: null,
+      dates: null,
       assignee: null,
       parent: null,
+      priority: null,
       columns: {},
       groups: {},
     });
+  });
+
+  it("takes a chosen column over the one it would have found", () => {
+    const chosen = { status: "Status", dates: null, assignee: "Parent item", parent: null };
+    const fields = resolveTaskFields(schema, chosen);
+    expect(fields.dates).toBeNull();
+    expect(fields.assignee).toBe("Parent item");
+    expect(fields.parent).toBeNull();
+  });
+
+  it("falls back to nothing for a chosen column the board no longer has", () => {
+    const chosen = { status: "Stage", dates: "Date", assignee: null, parent: null };
+    const fields = resolveTaskFields(schema, chosen);
+    expect(fields.status).toBeNull();
+    expect(fields.columns).toEqual({});
+    expect(fields.dates).toBe("Date");
+  });
+});
+
+describe("suggestTaskMapping", () => {
+  it("reads the board's own sub-items relation as the parent", () => {
+    const board = {
+      id: "ds",
+      properties: {
+        Name: { type: "title" },
+        Owner: { type: "people" },
+        Blocks: { type: "relation", relation: { data_source_id: "other" } },
+        Epic: { type: "relation", relation: { data_source_id: "ds" } },
+      },
+    };
+    expect(suggestTaskMapping(board)).toEqual({ status: null, dates: null, assignee: "Owner", parent: "Epic" });
   });
 });

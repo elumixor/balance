@@ -1,4 +1,3 @@
-export { default as EmptyState } from "./EmptyState.svelte";
-export { default as PracticeRow } from "./PracticeRow.svelte";
-export { default as ProjectRow } from "./ProjectRow.svelte";
-export { default as SphereClaimBar } from "./SphereClaimBar.svelte";
+export { default as IconPicker } from "./IconPicker.svelte";
+export { default as SphereMenu } from "./SphereMenu.svelte";
+export { default as SphereSection } from "./SphereSection.svelte";

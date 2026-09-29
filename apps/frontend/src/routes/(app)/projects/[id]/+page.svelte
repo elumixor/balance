@@ -1,26 +1,16 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Field, NumberField, ProjectCover, Select, Skeleton, Textarea } from "$lib/components";
+  import { Field, ProjectCover, Skeleton, Textarea } from "$lib/components";
   import { projectsData as data } from "$lib/projects/projects-data.svelte";
-  import type { ProjectStatus } from "$lib/projects/types";
   import { restColor } from "$lib/ui/colors";
-  import { CircleDot, Clock, Trash2 } from "lucide-svelte";
-  import {
-    Breadcrumb,
-    FieldsPanel,
-    MembersRow,
-    NotionLinkRow,
-    PropertyRow,
-    SubProjects,
-    TaskInspector,
-    TaskTimeline,
-  } from "./components";
+  import { Trash2 } from "lucide-svelte";
+  import { Breadcrumb, ProjectProperties, SubProjects, TaskInspector, TaskTimeline } from "./components";
   import { ShellSlot } from "../../components";
 
   /**
-   * One project, open: what it is and what it says about itself at the top, and under that the
-   * plan itself.
+   * One project, open: its name, a line about it, a row of what it is — sphere, hours, status,
+   * people, where its tasks come from — and what sits under it; then the plan itself.
    *
    * The view takes the whole of the window below the header, edge to edge and with no card around
    * it: a timeline is a plan somebody reads across, and a measure down the middle of the screen is
@@ -34,13 +24,6 @@
   const card = $derived(project ? data.cardOf(project) : null);
   const color = $derived(card?.category?.color ?? restColor);
   const path = $derived(data.pathOf(id));
-
-  const STATUSES: { value: ProjectStatus; label: string }[] = [
-    { value: "active", label: "Active" },
-    { value: "paused", label: "Paused" },
-    { value: "done", label: "Done" },
-    { value: "dropped", label: "Dropped" },
-  ];
 
   let selectedId = $state<string | null>(null);
   const selected = $derived(selectedId ? (data.tasksOf(id).find((task) => task.id === selectedId) ?? null) : null);
@@ -64,7 +47,7 @@
   <p class="safe-top-4 p-5 text-fg-muted t-body md:p-10">That project isn’t here any more.</p>
 {:else}
   <div class="flex h-full min-h-0 flex-col">
-    <!-- On a phone the properties stack under the name, which would leave the plan no room at all;
+    <!-- On a phone the chips wrap under the name, which could leave the plan no room at all;
          there the header keeps half the window and scrolls inside it. -->
     <!-- Where this project sits goes on the shell's own line, beside the nav icons, rather than
          taking a row of the screen to say it twice. A phone has no strip, so there it stays here. -->
@@ -72,70 +55,46 @@
       <Breadcrumb {path} />
     </ShellSlot>
 
-    <header class="safe-top-4 max-h-[55dvh] shrink-0 overflow-y-auto px-5 pb-4 md:max-h-none md:px-8 md:pt-12">
-      <div class="mx-auto flex max-w-5xl flex-col gap-6 md:flex-row md:items-start md:gap-8">
-        <div class="min-w-0 flex-1 space-y-1">
-          <div class="md:hidden">
-            <Breadcrumb {path} />
-          </div>
-          <div class="flex min-w-0 items-center gap-3">
-            <ProjectCover icon={project.icon} category={card.category} />
-            <Field
-              value={project.name}
-              variant="bare"
-              placeholder="Untitled project"
-              ariaLabel="Project name"
-              oninput={(name) => data.update(project.id, { name })}
-              class="t-heading h-auto py-0.5"
-            />
-          </div>
-          <MembersRow {project} />
-          <Textarea
-            value={project.description}
-            variant="bare"
-            rows={2}
-            placeholder="What is this, in one line?"
-            ariaLabel="Description"
-            oninput={(description) => data.update(project.id, { description })}
-          />
+    <header class="safe-top-4 max-h-[55dvh] shrink-0 overflow-y-auto px-5 pb-5 md:max-h-none md:px-8 md:pt-12">
+      <div class="mx-auto max-w-5xl space-y-3">
+        <div class="md:hidden">
+          <Breadcrumb {path} />
         </div>
-
-        <div class="w-full shrink-0 space-y-4 md:w-72">
-          <div class="space-y-0.5">
-            <PropertyRow label="Hours a week">
-              {#snippet icon()}
-                <span class="flex size-6 items-center justify-center"><Clock size={13} /></span>
-              {/snippet}
-              <NumberField
-                value={project.hoursPerWeek}
-                unit="h"
-                ariaLabel="Hours a week"
-                onchange={(hoursPerWeek) => data.update(project.id, { hoursPerWeek })}
-              />
-            </PropertyRow>
-            <PropertyRow label="Status">
-              {#snippet icon()}
-                <span class="flex size-6 items-center justify-center"><CircleDot size={13} /></span>
-              {/snippet}
-              <Select
+        <!-- The cover hangs to the left of everything about the project, so the name, the line
+             under it and the chips all start on one edge: the text inside the bare fields. -->
+        <div class="flex items-start gap-3">
+          <ProjectCover icon={project.icon} category={card.category} />
+          <div class="min-w-0 flex-1 space-y-2.5">
+            <div class="flex items-center gap-2">
+              <Field
+                value={project.name}
                 variant="bare"
-                label="Status"
-                value={project.status}
-                options={STATUSES}
-                onchange={(status) => data.setStatus(project, status)}
+                placeholder="Untitled project"
+                ariaLabel="Project name"
+                oninput={(name) => data.update(project.id, { name })}
+                class="t-heading h-11 flex-1"
               />
-            </PropertyRow>
-            <NotionLinkRow {project} />
-            <FieldsPanel {project} />
-          </div>
-
-          <SubProjects {project} />
-
-          <div class="flex justify-end">
-            <button type="button" onclick={remove} class="bare-button t-micro px-1.5 py-1 hover:text-danger">
-              <Trash2 size={12} />
-              Delete project
-            </button>
+              <button
+                type="button"
+                onclick={remove}
+                aria-label="Delete project"
+                class="bare-button size-8 hover:text-danger"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+            <Textarea
+              value={project.description}
+              variant="bare"
+              rows={1}
+              placeholder="What is this, in one line?"
+              ariaLabel="Description"
+              oninput={(description) => data.update(project.id, { description })}
+            />
+            <div class="space-y-1.5 px-2">
+              <ProjectProperties {project} />
+              <SubProjects {project} />
+            </div>
           </div>
         </div>
       </div>

@@ -39,10 +39,13 @@ function project(partial: Partial<Project>): Project {
     status: "active",
     parentId: null,
     icon: null,
-    fields: [],
     memberIds: [],
     ordinal: 0,
     notionUrl: null,
+    notionConnectionId: null,
+    notionTasksDataSourceId: null,
+    notionTasksName: null,
+    notionTaskMapping: null,
     ...partial,
   };
 }

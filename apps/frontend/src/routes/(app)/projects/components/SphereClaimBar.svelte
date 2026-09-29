@@ -4,7 +4,7 @@
   /**
    * How one sphere's week is spoken for, as a strip: a segment per project that claims hours, in
    * the sphere's own colour, and what is left of the ring's hours faint at the end. It is the
-   * dial's answer flattened onto a line — the same question the planning ring asks, one level
+   * dial's answer flattened onto a line — the same question the week ring asks, one level
    * down, where the answer is "which projects" rather than "which spheres".
    */
   let { projects, hours, color }: { projects: readonly Project[]; hours: number; color: string } = $props();

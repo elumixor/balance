@@ -25,13 +25,13 @@ export default eventHandler(async (event) => {
     origin = verified.origin;
     if (!code) throw new ApiError("Notion didn't send an authorization code");
 
-    const status = await new NotionService(verified.userId).complete(code);
+    const grant = await new NotionService(verified.userId).complete(code);
     return callbackPage({
       mode,
       origin,
       back: "/projects",
       title: "Notion connected",
-      body: `Balance can now read ${status.workspaceName}. Choose the database your projects live in.`,
+      body: `Balance can now read ${grant.workspaceName}. Go back to the app to choose a database.`,
     });
   } catch (e) {
     if (!(e instanceof ApiError)) await captureError(e, { path: event.path, method: event.method });

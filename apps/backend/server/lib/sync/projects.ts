@@ -5,14 +5,6 @@ import { asNumeric, defined, numeric, TableStore } from "./table-store";
 
 export const projectStatusSchema = z.enum(["active", "paused", "done", "dropped"]);
 
-const fieldSchema = z.object({
-  id: z.string().min(1),
-  icon: z.string().trim(),
-  label: z.string().trim(),
-  type: z.enum(["text", "date", "number", "url"]),
-  value: z.string(),
-});
-
 /**
  * A project as both halves agree it looks. The Notion columns travel with it but are never taken
  * from a client write: they say where a row came from, and only a sync may answer that.
@@ -26,10 +18,20 @@ export const projectSchema = z.object({
   icon: z.string().trim().nullable(),
   status: projectStatusSchema,
   hoursPerWeek: z.number().min(0).max(168),
-  fields: z.array(fieldSchema),
   memberIds: z.array(z.uuid()),
   ordinal: z.number().int(),
   notionUrl: z.string().nullable(),
+  notionConnectionId: z.uuid().nullable(),
+  notionTasksDataSourceId: z.string().nullable(),
+  notionTasksName: z.string().nullable(),
+  notionTaskMapping: z
+    .object({
+      status: z.string().nullable(),
+      dates: z.string().nullable(),
+      assignee: z.string().nullable(),
+      parent: z.string().nullable(),
+    })
+    .nullable(),
 });
 
 export type SyncedProject = z.infer<typeof projectSchema>;
@@ -48,10 +50,13 @@ export const projectsModel = syncedModel({
       icon: row.icon,
       status: row.status,
       hoursPerWeek: Number(row.hoursPerWeek),
-      fields: row.fields,
       memberIds: row.memberIds,
       ordinal: row.ordinal,
       notionUrl: row.notionUrl,
+      notionConnectionId: row.notionConnectionId,
+      notionTasksDataSourceId: row.notionTasksDataSourceId,
+      notionTasksName: row.notionTasksName,
+      notionTaskMapping: row.notionTaskMapping,
     }),
     toRow: (userId, r) => ({
       id: r.id,
@@ -63,7 +68,6 @@ export const projectsModel = syncedModel({
       icon: r.icon,
       status: r.status,
       hoursPerWeek: asNumeric(r.hoursPerWeek),
-      fields: r.fields,
       memberIds: r.memberIds,
       ordinal: r.ordinal,
     }),
@@ -76,7 +80,6 @@ export const projectsModel = syncedModel({
         icon: p.icon,
         status: p.status,
         hoursPerWeek: numeric(p.hoursPerWeek),
-        fields: p.fields,
         memberIds: p.memberIds,
         ordinal: p.ordinal,
       }),

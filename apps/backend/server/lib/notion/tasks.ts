@@ -1,6 +1,6 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "~/db";
-import { people, type TaskStatus, tasks } from "~/db/schema";
+import { type NotionTaskMapping, people, type TaskStatus, tasks } from "~/db/schema";
 import { colorFor } from "~/lib/people/color";
 import type { NotionClient, NotionPage } from "./client";
 import { resolveTaskFields, type TaskFields } from "./data-source";
@@ -24,8 +24,8 @@ export class TaskSync {
     private readonly client: NotionClient,
   ) {}
 
-  async run(projectId: string, dataSourceId: string) {
-    const fields = resolveTaskFields(await this.client.dataSource(dataSourceId));
+  async run(projectId: string, dataSourceId: string, mapping: NotionTaskMapping | null) {
+    const fields = resolveTaskFields(await this.client.dataSource(dataSourceId), mapping);
     await this.#push(projectId, dataSourceId, fields);
     return this.#pull(projectId, dataSourceId, fields);
   }
@@ -58,7 +58,7 @@ export class TaskSync {
 
   async #write(projectId: string, page: NotionPage, fields: TaskFields) {
     const label = selectName(property(page, fields.status));
-    const { startsOn, endsOn } = dateOf(property(page, fields.date));
+    const { startsOn, endsOn } = dateOf(property(page, fields.dates));
     const assignees = await this.#assignees(relationIds(property(page, fields.assignee)));
     const mirrored = {
       title: plainText(property(page, fields.title)) || "Untitled",
@@ -159,8 +159,8 @@ function propertiesOf(row: typeof tasks.$inferSelect, fields: TaskFields) {
   return {
     [fields.title]: { title: [{ text: { content: row.title } }] },
     ...(fields.status && column ? { [fields.status]: { status: { name: column } } } : {}),
-    ...(fields.date && row.startsOn
-      ? { [fields.date]: { date: { start: row.startsOn, end: row.endsOn === row.startsOn ? null : row.endsOn } } }
+    ...(fields.dates && row.startsOn
+      ? { [fields.dates]: { date: { start: row.startsOn, end: row.endsOn === row.startsOn ? null : row.endsOn } } }
       : {}),
   };
 }

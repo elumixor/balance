@@ -1,4 +1,6 @@
+import type { NotionTaskMapping } from "~/db/schema";
 import { ApiError, UpstreamError } from "~/lib/http/api-error";
+import { optionsOf, type RawSchema, suggestTaskMapping } from "./data-source";
 
 const API = "https://api.notion.com/v1";
 /** The version this client is written against — data sources, and pages that belong to them. */
@@ -17,12 +19,23 @@ export interface NotionPage {
 
 export interface NotionDataSourceSchema {
   readonly id: string;
+  readonly title?: { plain_text: string }[];
+  readonly parent?: { database_id?: string };
   readonly properties: Record<string, { type: string; status?: { groups: NotionStatusGroup[] } }>;
 }
 
 export interface NotionStatusGroup {
   readonly name: string;
   readonly option_ids: string[];
+}
+
+/** A database as the dialogs list it: its columns, and how a task board would be read. */
+export interface NotionDatabase {
+  readonly id: string;
+  readonly name: string;
+  readonly url: string;
+  readonly properties: readonly { name: string; type: string; options: string[] }[];
+  readonly suggested: NotionTaskMapping;
 }
 
 interface Paged<T> {
@@ -55,7 +68,7 @@ export class NotionAuthError extends ApiError {
  * Everything this app asks Notion for, in one place.
  *
  * The official SDK is not used for the same reason the MCP server writes its own JSON-RPC: it
- * carries a transport and a validator of its own, and what is needed here is eight requests.
+ * carries a transport and a validator of its own, and what is needed here is a handful of requests.
  */
 export class NotionClient {
   constructor(private readonly token: string) {}
@@ -102,40 +115,34 @@ export class NotionClient {
   }
 
   /**
-   * Every database this grant can see, with its columns — the whole of what the setup dialog has
-   * to ask about, in one request rather than one per database somebody might pick.
+   * Every database this grant can see, with its columns and what each would be read as — the
+   * whole of what the link and import dialogs ask about, in one request rather than one per
+   * database somebody might pick.
    */
-  async databases() {
+  async databases(): Promise<NotionDatabase[]> {
     const answer = await this.#request<{
-      results: { id: string; title?: { plain_text: string }[]; properties?: Record<string, { type: string }> }[];
-    }>("/search", "POST", { filter: { property: "object", value: "data_source" }, page_size: 100 });
-    return answer.results.map((result) => ({
-      id: result.id,
-      name: result.title?.map((run) => run.plain_text).join("") || "Untitled",
-      properties: Object.entries(result.properties ?? {}).map(([name, property]) => ({ name, type: property.type })),
-    }));
-  }
-
-  /**
-   * Pages and databases by name, for linking one project by hand. Both kinds come back together
-   * because somebody linking a project is pointing at "Hypocrisy" without caring which it is.
-   */
-  async search(query: string) {
-    const answer = await this.#request<{
-      results: {
+      results: (RawSchema & {
         id: string;
-        object: string;
-        url?: string;
         title?: { plain_text: string }[];
-        properties?: Record<string, unknown>;
-      }[];
-    }>("/search", "POST", { ...(query ? { query } : {}), page_size: 25 });
-    return answer.results.map((result) => ({
-      id: result.id,
-      kind: result.object === "page" ? ("page" as const) : ("database" as const),
-      name: titleOf(result) || "Untitled",
-      url: result.url ?? null,
-    }));
+        parent?: { database_id?: string };
+        properties?: RawSchema["properties"];
+      })[];
+    }>("/search", "POST", { filter: { property: "object", value: "data_source" }, page_size: PAGE_SIZE });
+    return answer.results.map((result) => {
+      const schema = { id: result.id, properties: result.properties ?? {} };
+      const database = result.parent?.database_id ?? result.id;
+      return {
+        id: result.id,
+        name: result.title?.map((run) => run.plain_text).join("") || "Untitled",
+        url: `https://www.notion.so/${database.replaceAll("-", "")}`,
+        properties: Object.entries(schema.properties).map(([name, property]) => ({
+          name,
+          type: property.type,
+          options: optionsOf(property),
+        })),
+        suggested: suggestTaskMapping(schema),
+      };
+    });
   }
 
   async children(blockId: string) {
@@ -167,13 +174,4 @@ export class NotionClient {
       throw new NotionAuthError("Notion refused the token — reconnect the workspace.");
     throw new UpstreamError(`Notion answered ${response.status}: ${detail.slice(0, 200)}`);
   }
-}
-
-/** A search result's name, wherever that result keeps it — a database's own title, a page's. */
-function titleOf(result: { title?: { plain_text: string }[]; properties?: Record<string, unknown> }) {
-  if (result.title) return result.title.map((run) => run.plain_text).join("");
-  const property = Object.values(result.properties ?? {}).find(
-    (value) => (value as { type?: string }).type === "title",
-  ) as { title?: { plain_text: string }[] } | undefined;
-  return property?.title?.map((run) => run.plain_text).join("") ?? "";
 }

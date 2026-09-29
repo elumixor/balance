@@ -102,9 +102,6 @@ export const syncing = {
   get calendar() {
     return store.integrations.syncing || [...weeks.values()].some((week) => week.syncing);
   },
-  get planning() {
-    return synced.syncing;
-  },
   get projects() {
     return synced.syncing || store.progress.syncing;
   },

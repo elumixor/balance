@@ -18,14 +18,7 @@ vi.mock("$lib/integrations/queries", () => ({ getIntegrations: async () => [] })
 vi.mock("$lib/account/queries", () => ({ getPreferences: async () => ({}) }));
 vi.mock("$lib/projects/queries", () => ({
   getProjectProgress: (timeZone: string, today: string) => progress(timeZone, today),
-  getNotionStatus: async () => ({
-    connected: false,
-    needsReconnect: false,
-    workspaceName: "",
-    databaseId: "",
-    lastSyncedAt: null,
-    lastError: null,
-  }),
+  getNotionStatus: async () => ({ connections: [] }),
 }));
 const progress = vi.fn(async (_timeZone: string, _today: string) => ({
   connected: true,
@@ -301,7 +294,6 @@ describe("the session's rows", () => {
   it("says a week is being checked only behind rows already on screen", async () => {
     const cached = await loadWeek("2026-08-10", []);
     expect(syncing.calendar).toBe(false);
-    expect(syncing.planning).toBe(false);
     let release: (() => void) | undefined;
     week.mockImplementationOnce(
       (from, to) =>

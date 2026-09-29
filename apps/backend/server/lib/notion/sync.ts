@@ -4,7 +4,7 @@ import { categories, type NotionMapping, projects } from "~/db/schema";
 import { ApiError } from "~/lib/http/api-error";
 import type { NotionClient, NotionPage } from "./client";
 import { findTasksDataSource } from "./discover";
-import { fieldsOf, plainText, relationIds } from "./map";
+import { plainText, relationIds } from "./map";
 import { TaskSync } from "./tasks";
 
 export interface SyncSummary {
@@ -16,14 +16,14 @@ export interface SyncSummary {
 const PARENT_NAMES = ["parent project", "parent item", "parent"];
 
 /**
- * One run of the mirror: the projects database and, under each project it holds, the database its
- * tasks live in.
+ * One run of the mirror over one workspace: its projects database and, for each project linked
+ * through it, the database its tasks live in.
  *
  * Which half wins is a rule rather than a negotiation. **Notion owns everything it is shown** —
- * a project's name, its description, the panel of fields, which tasks exist and what they are
- * called — because that is where the work is actually written. The app owns the three things a
- * person changes while doing the work rather than while planning it: a task's status, its dates
- * and who it is for. Those go up first, so a pull can never overwrite a tap made a second ago.
+ * a project's name, its description, which tasks exist and what they are called — because that
+ * is where the work is actually written. The app owns the three things a person changes while
+ * doing the work rather than while planning it: a task's status, its dates and who it is for.
+ * Those go up first, so a pull can never overwrite a tap made a second ago.
  */
 export class NotionSync {
   #counts = { projects: 0, tasks: 0, people: 0 };
@@ -31,13 +31,18 @@ export class NotionSync {
   constructor(
     private readonly userId: string,
     private readonly client: NotionClient,
-    private readonly config: { dataSourceId: string | null; categoryId: string | null; mapping: NotionMapping },
+    private readonly config: {
+      connectionId: string;
+      dataSourceId: string | null;
+      categoryId: string | null;
+      mapping: NotionMapping;
+    },
   ) {}
 
   /**
-   * Two ways in, and a run does both. A projects database set up in settings brings its rows in
-   * as projects; a project linked to a Notion page by hand is one somebody made here and pointed
-   * at Notion afterwards. Either way what follows is the same: every linked project's tasks.
+   * Two ways in, and a run does both. A projects database chosen in the import dialog brings its
+   * rows in as projects; a project linked to a task database is one somebody made here and
+   * pointed at Notion afterwards. Either way what follows is the same: every linked project's tasks.
    */
   async run(): Promise<SyncSummary> {
     if (this.config.dataSourceId) await this.#pullProjects(this.config.dataSourceId);
@@ -45,7 +50,7 @@ export class NotionSync {
     const tasks = new TaskSync(this.userId, this.client);
     for (const project of await this.#linked()) {
       const dataSourceId = project.notionTasksDataSourceId ?? (await this.#findTasks(project.id, project.notionPageId));
-      if (dataSourceId) this.#counts.tasks += await tasks.run(project.id, dataSourceId);
+      if (dataSourceId) this.#counts.tasks += await tasks.run(project.id, dataSourceId, project.notionTaskMapping);
     }
     this.#counts.people = tasks.peopleSeen;
     return { ...this.#counts };
@@ -79,7 +84,6 @@ export class NotionSync {
       name,
       description,
       icon: page.icon?.emoji ?? null,
-      fields: this.#fieldsOf(page, titleKey?.[0]),
       notionUrl: page.url,
       notionEditedAt: new Date(page.last_edited_time),
       archived: false,
@@ -88,7 +92,13 @@ export class NotionSync {
     if (existing) {
       await db.update(projects).set(mirrored).where(eq(projects.id, existing.id));
     } else {
-      await db.insert(projects).values({ userId: this.userId, categoryId, notionPageId: page.id, ...mirrored });
+      await db.insert(projects).values({
+        userId: this.userId,
+        categoryId,
+        notionConnectionId: this.config.connectionId,
+        notionPageId: page.id,
+        ...mirrored,
+      });
     }
     this.#counts.projects += 1;
   }
@@ -100,18 +110,6 @@ export class NotionSync {
   #description(page: NotionPage) {
     const key = this.config.mapping.description;
     return key ? plainText(page.properties[key] as Record<string, unknown> | undefined) : "";
-  }
-
-  /**
-   * The panel beside the name: the columns ticked during setup, in the order Notion lists them.
-   * Ticking nothing means the app draws whatever says something, which is the sensible default
-   * for somebody who pressed straight through.
-   */
-  #fieldsOf(page: NotionPage, titleKey: string | undefined) {
-    const { fields, description } = this.config.mapping;
-    const skip = [titleKey, description].filter((one): one is string => Boolean(one));
-    const drawn = fieldsOf(page.properties, skip);
-    return fields.length === 0 ? drawn : drawn.filter((field) => fields.includes(field.label));
   }
 
   /** The second pass: a page can name a parent that had not been written when it was read. */
@@ -128,20 +126,21 @@ export class NotionSync {
 
   async #findTasks(projectId: string, notionPageId: string | null) {
     if (!notionPageId) return null;
-    const dataSourceId = await findTasksDataSource(this.client, notionPageId);
-    if (dataSourceId)
+    const found = await findTasksDataSource(this.client, notionPageId);
+    if (found)
       await db
         .update(projects)
-        .set({ notionTasksDataSourceId: dataSourceId, updatedAt: new Date() })
+        .set({ notionTasksDataSourceId: found.id, notionTasksName: found.name, updatedAt: new Date() })
         .where(eq(projects.id, projectId));
-    return dataSourceId;
+    return found?.id ?? null;
   }
 
-  /** Every project that points at something in Notion, however it came to. */
+  /** Every project that points at something in this workspace, however it came to. */
   #linked() {
     return db.query.projects.findMany({
       where: and(
         eq(projects.userId, this.userId),
+        eq(projects.notionConnectionId, this.config.connectionId),
         eq(projects.archived, false),
         or(isNotNull(projects.notionPageId), isNotNull(projects.notionTasksDataSourceId)),
       ),

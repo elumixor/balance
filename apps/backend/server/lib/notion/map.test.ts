@@ -1,7 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { dateOf, fieldsOf, plainText, priorityOf, relationIds, taskStatus } from "./map";
-
-const text = (value: string) => ({ type: "rich_text", rich_text: [{ plain_text: value }] });
+import { dateOf, plainText, priorityOf, relationIds, taskStatus } from "./map";
 
 describe("plainText", () => {
   it("joins the runs of a title", () => {
@@ -64,31 +62,5 @@ describe("priorityOf", () => {
     expect(priorityOf("Urgent")).toBe("critical");
     expect(priorityOf("normal")).toBe("medium");
     expect(priorityOf("")).toBeNull();
-  });
-});
-
-describe("fieldsOf", () => {
-  it("draws what a property says and skips what it can't", () => {
-    const fields = fieldsOf(
-      {
-        Name: { id: "t", type: "title", title: [{ plain_text: "Hypocrisy" }] },
-        "Start Date": { id: "d", type: "date", date: { start: "2024-10-12" } },
-        "Estimated Duration": { id: "n", type: "number", number: 3 },
-        Dashboard: { id: "u", type: "url", url: "https://dashboard.atmagaming.com" },
-        Tasks: { id: "r", type: "relation", relation: [{ id: "x" }] },
-        Notes: { id: "x", ...text("") },
-      },
-      ["Notes"],
-    );
-    expect(fields).toEqual([
-      { id: "d", icon: "calendar", label: "Start Date", type: "date", value: "2024-10-12" },
-      { id: "n", icon: "hash", label: "Estimated Duration", type: "number", value: "3" },
-      { id: "u", icon: "link", label: "Dashboard", type: "url", value: "https://dashboard.atmagaming.com" },
-    ]);
-  });
-
-  it("writes a range with both of its ends", () => {
-    const [field] = fieldsOf({ When: { id: "w", type: "date", date: { start: "2026-01-01", end: "2026-02-01" } } });
-    expect(field?.value).toBe("2026-01-01 → 2026-02-01");
   });
 });

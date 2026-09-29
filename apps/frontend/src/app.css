@@ -231,6 +231,21 @@ html.dark {
 }
 
 /*
+ * One property of a thing, drawn as a pressable outline in a row of them — a project's sphere,
+ * its hours, its status. Every chip in such a row is one of these, so the row reads as one line
+ * of equal heights however different the controls behind them are.
+ */
+@utility chip-outline {
+  @apply t-micro press-sm inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line px-2 text-fg-muted;
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      border-color: var(--line-strong);
+      color: var(--fg);
+    }
+  }
+}
+
+/*
  * The app's quiet button: an icon, a label, or both, on no ground of its own until it is pointed
  * at. Every corner control — a dismiss, a retry, a copy, "change all" — is one of these, so they
  * read as one control repeated rather than a handful of similar-looking ones.

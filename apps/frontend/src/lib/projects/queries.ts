@@ -5,7 +5,7 @@ import type {
   NotionMapping,
   NotionStatus,
   NotionSyncResult,
-  NotionTarget,
+  NotionTaskMapping,
   Progress,
 } from "$lib/projects/types";
 
@@ -31,23 +31,28 @@ export const getNotionStatus = () => apiGet<NotionStatus>("/notion/status");
 export const startNotionConnect = (mode: "app" | "web", origin: string) =>
   callApi(api.notion.start.$post({ mode, origin })).then((r) => r.url);
 
-export const listNotionDatabases = () =>
-  apiGet<{ databases: NotionDatabase[] }>("/notion/databases").then((r) => r.databases);
+export const listNotionDatabases = (connectionId: string) =>
+  apiGet<{ databases: NotionDatabase[] }>("/notion/databases", { connectionId }).then((r) => r.databases);
 
-/** Pages and databases by name — what a project can be pointed at. */
-export const searchNotion = (q: string) =>
-  apiGet<{ results: NotionTarget[] }>("/notion/search", { q }).then((r) => r.results);
-
-export const linkProjectToNotion = (input: { projectId: string; id: string; kind: "page" | "database" }) =>
-  callApi(api.notion.link.$post(input)) as Promise<NotionSyncResult>;
+export const linkProjectToNotion = (input: {
+  projectId: string;
+  connectionId: string;
+  dataSourceId: string;
+  mapping: NotionTaskMapping;
+}) => callApi(api.notion.link.$post(input)) as Promise<NotionSyncResult>;
 
 export const unlinkProjectFromNotion = (projectId: string) =>
   callApi(api.notion.unlink.$post({ projectId })) as Promise<NotionStatus>;
 
-export const configureNotion = (input: { dataSourceId: string; categoryId: string; mapping: NotionMapping }) =>
-  callApi(api.notion.configure.$post(input)) as Promise<NotionStatus>;
+export const configureNotion = (input: {
+  connectionId: string;
+  dataSourceId: string;
+  categoryId: string;
+  mapping: NotionMapping;
+}) => callApi(api.notion.configure.$post(input)) as Promise<NotionStatus>;
 
-export const disconnectNotion = () => callApi(api.notion.disconnect.$post({})) as Promise<NotionStatus>;
+export const disconnectNotion = (connectionId: string) =>
+  callApi(api.notion.disconnect.$post({ connectionId })) as Promise<NotionStatus>;
 
 /** One run of the mirror. Never fails for a stale grant — the status it answers with says so. */
 export const syncNotion = () => callApi(api.notion.sync.$post({})) as Promise<NotionSyncResult>;

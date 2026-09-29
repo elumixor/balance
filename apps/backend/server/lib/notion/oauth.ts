@@ -12,6 +12,9 @@ export interface NotionGrant {
   readonly expiresAt: Date | null;
   readonly workspaceId: string;
   readonly workspaceName: string;
+  readonly workspaceIcon: string | null;
+  readonly accountName: string;
+  readonly accountEmail: string;
 }
 
 interface TokenResponse {
@@ -20,6 +23,8 @@ interface TokenResponse {
   expires_in?: number | null;
   workspace_id?: string;
   workspace_name?: string | null;
+  workspace_icon?: string | null;
+  owner?: { user?: { name?: string | null; person?: { email?: string } } };
   error?: string;
   error_description?: string;
 }
@@ -75,5 +80,8 @@ async function request(body: Record<string, string>): Promise<NotionGrant> {
     expiresAt: answer.expires_in ? new Date(Date.now() + answer.expires_in * 1000) : null,
     workspaceId: answer.workspace_id ?? "",
     workspaceName: answer.workspace_name ?? "Notion",
+    workspaceIcon: answer.workspace_icon ?? null,
+    accountName: answer.owner?.user?.name ?? "",
+    accountEmail: answer.owner?.user?.person?.email ?? "",
   };
 }

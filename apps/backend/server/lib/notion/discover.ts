@@ -12,7 +12,10 @@ const MAX_VISITED = 60;
  * Notion says nothing about which of a page's databases is the one with the work in it, so the
  * name is the only signal there is — and the walk stops at the first one that answers to it.
  */
-export async function findTasksDataSource(client: NotionClient, pageId: string): Promise<string | null> {
+export async function findTasksDataSource(
+  client: NotionClient,
+  pageId: string,
+): Promise<{ id: string; name: string } | null> {
   let frontier = [pageId];
   let visited = 0;
   for (let depth = 0; depth < MAX_DEPTH && frontier.length > 0 && visited < MAX_VISITED; depth++) {
@@ -25,7 +28,7 @@ export async function findTasksDataSource(client: NotionClient, pageId: string):
       );
       if (database) {
         const [source] = (await client.database(database.id)).data_sources;
-        if (source) return source.id;
+        if (source) return { id: source.id, name: database.child_database?.title ?? source.name };
       }
       next.push(
         ...blocks.filter((block) => block.type === "child_page" && block.has_children).map((block) => block.id),

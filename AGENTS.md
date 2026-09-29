@@ -454,13 +454,19 @@ above or below. A child carries its parent's sphere, because hours have to land 
 somewhere. Everything but a name and a sphere is optional, and a project has to be creatable in ten
 seconds.
 
+Spheres and projects are one screen, `/projects`: the ring on one side is the picture of the list
+on the other, where each sphere is named, sized in hours and percent, and holds its projects and
+practices. A seam dragged on the ring and a number typed in a sphere's heading move the same hours
+(`$lib/planning/category-drafts.svelte.ts`), and a sphere's menu — split, remove — is the same from
+a slice and from its heading.
+
 Under a project: **stages**, which are bands across its timeline and hold no work of their own, and
 **tasks**, which nest the same way projects do. A task carries its days, who it is for, what board
 column it sits in and how big it is thought to be. A parent's dates are its own when it has them
 and its children's span otherwise (`gantt.ts`), so a plan can be written from the top down or from
-the bottom up. What a project says about itself beyond that — "Start Date", "Estimated Duration",
-"Dashboard" — is a list of fields it carries, and the app has no opinion about which fields those
-are. Practices are the exception that never becomes a project: something recurring, measured by
+the bottom up. A project has no list of arbitrary fields: what it says about itself is its sphere,
+its hours a week, its status, its people and its Notion link, each drawn as its own chip under the
+name (`ProjectProperties`). Practices are the exception that never becomes a project: something recurring, measured by
 adherence over the last four whole weeks.
 
 Projects, people, stages and tasks are all synced models (`server/lib/sync/`, one `TableStore`
@@ -497,27 +503,30 @@ record, and a model that answers nothing leaves every screen as it was.
 
 ## Notion is mirrored, and the rule about who wins is one line
 
-`server/lib/notion/` mirrors a Notion workspace into that layer: one database of projects and,
-under each project's own page, the database its tasks live in — found by walking down from the page
-and taking the first one whose name says tasks (`discover.ts`), then remembered on the project.
-The protocol is written out rather than pulled in, the same way `lib/mcp/` is: `client.ts` is eight
-requests against one API version, and `map.ts` and `data-source.ts` are the pure translations (both
-tested with `bun test`) — a property into a field, a column into a status, whatever a board calls
-"Ready For Test" into one of the five the app counts by.
+`server/lib/notion/` mirrors Notion workspaces into that layer. A grant is per workspace — Notion's
+consent screen is where somebody picks one, as whichever Notion login they are in — so
+`notion_connections` holds a row per workspace, named by the login that granted it, and every run
+syncs each of them. The protocol is written out rather than pulled in, the same way `lib/mcp/` is:
+`client.ts` is a handful of requests against one API version, and `map.ts` and `data-source.ts`
+are the pure translations (both tested with `bun test`) — a column into a status, whatever a board
+calls "Ready For Test" into one of the five the app counts by.
 
-Nothing here asks somebody to connect an account first. Every entry point — "Import from Notion"
-under the projects, "Link to Notion" on a project, the settings row — is pressable with no grant
-at all: `projectsData.ensureNotion()` asks for one at that moment and the action carries on by
-itself. An errand ("connect this, then come back and do what you wanted") is the thing being
-designed out.
+Nothing here asks somebody to connect an account first. Every picker of workspaces
+(`NotionWorkspaces`) ends in "Add a workspace", which opens the consent screen and selects what
+landed (`projectsData.connectNotion()`). An errand ("connect this, then come back and do what you
+wanted") is the thing being designed out.
 
-There are two ways in and a run does both. The dialog above imports a whole database of projects;
-a project made here is pointed at Notion from its own screen instead (`NotionLinkRow`,
-`/mobile/notion/link`) — at the page it is written on, or at a task database directly. Either way
-what follows is the same: every linked project's tasks, pulled from the database under its page.
-Unlinking keeps them, because by then they are this app's records.
+There are two ways in and a run does both. A project is linked to the database its tasks and
+subtasks live in from its own Notion chip (`NotionLinkDialog`, `/mobile/notion/link`): workspace,
+database, then which column is its status, its dates, its assignee and its parent task — each a row
+offering only the columns of the right type, pre-set to what `suggestTaskMapping` finds. The mapping
+is kept on the project (`notionTaskMapping`); a column that has since gone falls back to none rather
+than to a guess. Separately, the import dialog (`NotionSetup`) brings a whole database of projects
+in, and each imported project's task database is found under its page by walking down to the first
+one whose name says tasks (`discover.ts`). Unlinking keeps the tasks, because by then they are this
+app's records.
 
-**Notion owns everything it is shown**: a project's name, its description, its fields, which tasks
+**Notion owns everything it is shown**: a project's name, its description, which tasks
 exist and what they are called. The app owns the three things a person changes while doing the work
 rather than while planning it — a task's status, its dates, and who it is for — and those go up
 first, so a pull can never overwrite a tap made a second ago. A page that has gone archives its row
@@ -532,16 +541,13 @@ screen inside an embedded webview is refused. Access tokens now expire, so the r
 kept too (both encrypted with `calendar/crypto.ts`) and a run renews before it starts rather than
 failing once and reconnecting.
 
-What is left after connecting is one dialog, because it is one decision: which data source holds
-the projects, which sphere their hours come out of, and what the columns beside their names mean —
-the sentence under a name, and which columns are worth drawing. It is asked once against what the
-grant can actually see (`/mobile/notion/databases` answers each database with its columns) and
-kept on the connection, so opening it again is changing the answers rather than starting over.
-Nothing about a task database is asked: that is a different database per project, so its columns
-are found by type and name (`data-source.ts`). "Not connected", "nothing
-chosen" and "the grant expired" are states the settings row draws, returned as 200 with
-`connected` / `dataSourceId` / `needsReconnect` — never a 401, which the frontend reads as a dead
-Clerk session. The projects screen asks for a run when it opens, at most every five minutes, and
+Importing is one dialog, because it is one decision: which workspace, which data source holds
+the projects, which sphere their hours come out of, and which column is the sentence under a name.
+It is asked against what the grant can actually see (`/mobile/notion/databases?connectionId=`
+answers each database with its columns and a suggested task mapping) and kept on the connection,
+so opening it again is changing the answers rather than starting over. "The grant expired" is a
+state each workspace's row draws, returned as 200 with `needsReconnect` — never a 401, which the
+frontend reads as a dead Clerk session. The projects screen asks for a run when it opens, at most every five minutes, and
 its failure is a card in the corner: what was pulled last time is still on the device.
 
 ## Integrations hang off the events that planned them

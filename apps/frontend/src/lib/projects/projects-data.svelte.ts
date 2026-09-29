@@ -6,10 +6,16 @@ import type { Person } from "$lib/people/types";
 import { localDay } from "$lib/planning/zone";
 import { clock } from "$lib/platform/clock.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
-import { linkProjectToNotion, startNotionConnect, syncNotion, unlinkProjectFromNotion } from "./queries";
+import {
+  disconnectNotion,
+  linkProjectToNotion,
+  startNotionConnect,
+  syncNotion,
+  unlinkProjectFromNotion,
+} from "./queries";
 import { completionOf } from "./rollup";
 import { descendantsOf, pathTo, rowsOf, treeOf } from "./tree";
-import type { Project, ProjectField, ProjectStatus, Stage, Task } from "./types";
+import type { NotionConnection, NotionTaskMapping, Project, ProjectStatus, Stage, Task } from "./types";
 
 /** How long after the last keystroke an edit burst counts as finished — one press of undo. */
 const BURST_MS = 700;
@@ -49,7 +55,9 @@ class ProjectsData {
   loadError = $derived(synced.error);
   error = $derived(syncStatus.rejected);
   progress = $derived(store.progress.value ?? null);
-  notion = $derived(store.notion.value ?? null);
+  /** Every granted Notion workspace; the ones whose grant still works are `usableConnections`. */
+  connections = $derived<readonly NotionConnection[]>(store.notion.value?.connections ?? []);
+  usableConnections = $derived(this.connections.filter((connection) => !connection.needsReconnect));
 
   /** Today's key, ticking with the clock so a bar crossing midnight moves with it. */
   today = $derived(localDay(clock.now));
@@ -134,9 +142,9 @@ class ProjectsData {
    * corner rather than an empty screen: what was pulled last time is still on the device.
    */
   async mirror(force = false) {
-    // A run is worth making whenever there is a grant: a database configured in settings is one
-    // way projects arrive, and a project linked to a page by hand is the other.
-    if (!this.notion?.connected || this.notion.needsReconnect) return null;
+    // A run is worth making whenever there is a grant: a projects database chosen to import from
+    // is one way projects arrive, and a project linked to a task database by hand is the other.
+    if (this.usableConnections.length === 0) return null;
     if (!force && Date.now() - this.#syncedAt < SYNC_EVERY_MS) return null;
     this.#syncedAt = Date.now();
     try {
@@ -155,36 +163,34 @@ class ProjectsData {
   }
 
   /**
-   * A grant, if one is needed.
-   *
-   * Nothing in the app asks somebody to go and connect something first: an action that needs a
-   * connection asks for it at the moment it is pressed, and then carries on with what was
-   * actually being done. Returns whether there is one to carry on with.
+   * Another workspace, granted on Notion's own consent screen — where somebody picks which of
+   * their workspaces, as whichever Notion login they are signed in with. Resolves with the
+   * connection that landed or changed, or null when nothing did before the wait ran out.
    */
-  async ensureNotion() {
+  async connectNotion(signal?: AbortSignal) {
     await store.notion.ensure();
-    if (this.notion?.connected && !this.notion.needsReconnect) return true;
-    await this.connectNotion();
-    return Boolean(this.notion?.connected && !this.notion.needsReconnect);
-  }
-
-  /** The consent flow, and the mirror's first run the moment the grant and a database exist. */
-  connectNotion(signal?: AbortSignal) {
-    return oauthConnect(
+    const before = new Map(this.connections.map((one) => [one.id, one.needsReconnect]));
+    const landed = () => this.connections.find((one) => before.get(one.id) !== one.needsReconnect) ?? null;
+    await oauthConnect(
       {
         start: (mode, origin) => startNotionConnect(mode, origin),
         poll: async () => {
           await store.notion.refresh();
-          return Boolean(store.notion.value?.connected);
+          return landed() !== null;
         },
         landed: () => void this.mirror(true),
       },
       signal,
     );
+    return landed();
   }
 
-  /** Point one project at a Notion page or database, and pull what it holds straight away. */
-  async link(projectId: string, target: { id: string; kind: "page" | "database" }) {
+  async disconnectNotion(connectionId: string) {
+    store.notion.set(await disconnectNotion(connectionId));
+  }
+
+  /** Point one project at the database its tasks live in, and pull what it holds straight away. */
+  async link(projectId: string, target: { connectionId: string; dataSourceId: string; mapping: NotionTaskMapping }) {
     const answer = await linkProjectToNotion({ projectId, ...target });
     store.notion.set(answer.status);
     await synced.sync();
@@ -216,10 +222,13 @@ class ProjectsData {
         icon: null,
         status: "active",
         hoursPerWeek: DEFAULT_HOURS,
-        fields: [],
         memberIds: [],
         ordinal: siblings.length,
         notionUrl: null,
+        notionConnectionId: null,
+        notionTasksDataSourceId: null,
+        notionTasksName: null,
+        notionTaskMapping: null,
       }),
     );
     this.focusId = created.id;
@@ -252,16 +261,13 @@ class ProjectsData {
     return true;
   }
 
-  writeField(project: Project, field: ProjectField) {
-    const fields = project.fields.some((one) => one.id === field.id)
-      ? project.fields.map((one) => (one.id === field.id ? field : one))
-      : [...project.fields, field];
-    this.#grouped(() => projects.update(project.id, { fields }));
-  }
-
-  removeField(project: Project, id: string) {
+  /** A sphere belongs to the whole tree: moving the top of it moves everything under it. */
+  setSphere(project: Project, categoryId: string) {
     this.#closeBurst();
-    projects.update(project.id, { fields: project.fields.filter((field) => field.id !== id) });
+    synced.transaction(() => {
+      for (const one of [project, ...descendantsOf(projects.all, project.id)]) projects.update(one.id, { categoryId });
+    });
+    invalidate.projects();
   }
 
   toggleMember(project: Project, personId: string) {

@@ -2,15 +2,6 @@ export type ProjectStatus = "active" | "paused" | "done" | "dropped";
 export type TaskStatus = "todo" | "doing" | "blocked" | "done" | "dropped";
 export type TaskPriority = "low" | "medium" | "high" | "critical";
 
-/** One row of the panel beside a project's name — "Start Date", "Dashboard". */
-export interface ProjectField {
-  id: string;
-  icon: string;
-  label: string;
-  type: "text" | "date" | "number" | "url";
-  value: string;
-}
-
 /** Work with a name, under a sphere, that can hold other work. Every level is one of these. */
 export interface Project {
   id: string;
@@ -22,11 +13,17 @@ export interface Project {
   icon: string | null;
   status: ProjectStatus;
   hoursPerWeek: number;
-  fields: ProjectField[];
   memberIds: string[];
   ordinal: number;
-  /** The page this mirrors, when it came from a Notion workspace. */
+  /** Where this is in Notion — the page it was imported from, or the task database it links. */
   notionUrl: string | null;
+  /** The workspace its tasks are read through; null when it isn't linked to Notion. */
+  notionConnectionId: string | null;
+  notionTasksDataSourceId: string | null;
+  /** What the linked task database calls itself. */
+  notionTasksName: string | null;
+  /** Which of its columns mean what; null while they are read by type and name. */
+  notionTaskMapping: NotionTaskMapping | null;
 }
 
 /** A band across a project's timeline. With no dates of its own it spans the tasks in it. */
@@ -90,39 +87,55 @@ export interface Progress {
   practices: Record<string, PracticeProgress>;
 }
 
-/** What each column of the projects database means here — the setup dialog's answers. */
+/** Which column of the projects database is the sentence under a project's name. */
 export interface NotionMapping {
   description: string | null;
-  fields: string[];
 }
 
-/** One database the connected workspace can see, with the columns it holds. */
+/** Which column of a task database answers each thing the timeline draws; null for none. */
+export interface NotionTaskMapping {
+  status: string | null;
+  dates: string | null;
+  assignee: string | null;
+  parent: string | null;
+}
+
+export interface NotionColumn {
+  name: string;
+  type: string;
+  /** A status or select column's options, in board order. */
+  options: string[];
+}
+
+/** One database a workspace can see, with its columns and how it would be read as a task board. */
 export interface NotionDatabase {
   id: string;
   name: string;
-  properties: { name: string; type: string }[];
+  url: string;
+  properties: NotionColumn[];
+  suggested: NotionTaskMapping;
 }
 
-/** Something in Notion a project can be pointed at — the page it's written on, or a database. */
-export interface NotionTarget {
+/** One granted workspace, as the account that granted it — `/mobile/notion/status`. */
+export interface NotionConnection {
   id: string;
-  kind: "page" | "database";
-  name: string;
-  url: string | null;
-}
-
-/** What the settings row draws about the mirrored workspace — `/mobile/notion/status`. */
-export interface NotionStatus {
-  connected: boolean;
-  needsReconnect: boolean;
   workspaceName: string;
-  /** The data source projects are read from, or empty while nobody has picked one. */
+  /** An emoji or an image URL. */
+  workspaceIcon: string | null;
+  accountName: string;
+  accountEmail: string;
+  needsReconnect: boolean;
+  /** The data source projects are imported from, or empty while nobody has picked one. */
   dataSourceId: string;
-  /** The sphere mirrored projects land in. Empty until the setup dialog has been through. */
+  /** The sphere imported projects land in. Empty until the import dialog has been through. */
   categoryId: string;
   mapping: NotionMapping;
   lastSyncedAt: string | null;
   lastError: string | null;
+}
+
+export interface NotionStatus {
+  connections: NotionConnection[];
 }
 
 export interface NotionSyncResult {

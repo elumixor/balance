@@ -13,6 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { categories } from "./categories";
+import { type NotionTaskMapping, notionConnections } from "./notion";
 import { users } from "./users";
 
 /**
@@ -45,20 +46,6 @@ export const people = pgTable("people", {
 export type ProjectStatus = "active" | "paused" | "done" | "dropped";
 
 /**
- * One row of the panel to the right of a project's name — "Start Date", "Estimated Duration",
- * "Dashboard". The app has no opinion about which fields a project has: it draws what is here,
- * in this order, and a Notion sync writes the properties that database happens to define.
- */
-export interface ProjectField {
-  id: string;
-  /** A lucide icon name, drawn before the label. */
-  icon: string;
-  label: string;
-  type: "text" | "date" | "number" | "url";
-  value: string;
-}
-
-/**
  * Work with a name, under a sphere, that can hold other work. Nesting is the whole shape of it —
  * "ATMA / Hypocrisy / Combat" is three rows with a `parentId` each — and every level is a project
  * with the same fields, so there is no separate kind of thing for the level above or below.
@@ -82,14 +69,19 @@ export const projects = pgTable("projects", {
   status: text("status").$type<ProjectStatus>().notNull().default("active"),
   /** What it claims from its sphere. A child claims from the same hours its parent does. */
   hoursPerWeek: numeric("hours_per_week", { precision: 5, scale: 2 }).notNull().default("0"),
-  fields: jsonb("fields").$type<ProjectField[]>().notNull().default([]),
   /** Who else is in it — `people.id`s, in the order the avatars are drawn. */
   memberIds: jsonb("member_ids").$type<string[]>().notNull().default([]),
   ordinal: integer("ordinal").notNull().default(0),
   notionPageId: text("notion_page_id"),
   notionUrl: text("notion_url"),
-  /** The Notion data source holding this project's tasks, found once and remembered. */
+  /** The workspace grant this project's Notion rows are read with. */
+  notionConnectionId: uuid("notion_connection_id").references(() => notionConnections.id, { onDelete: "set null" }),
+  /** The Notion data source holding this project's tasks, found once or chosen, and remembered. */
   notionTasksDataSourceId: text("notion_tasks_data_source_id"),
+  /** What that database calls itself, for the project's header to say what it is linked to. */
+  notionTasksName: text("notion_tasks_name"),
+  /** Which of its columns mean what, when somebody said so; null reads them by type and name. */
+  notionTaskMapping: jsonb("notion_task_mapping").$type<NotionTaskMapping>(),
   /** What Notion said this page was last edited at, so a pull knows which half is newer. */
   notionEditedAt: timestamp("notion_edited_at", { withTimezone: true }),
   archived: boolean("archived").notNull().default(false),

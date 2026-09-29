@@ -6,7 +6,7 @@
   /**
    * The day as a dial: the ring the whole app is built around, sized to sit in a column, with the
    * spheres it is made of listed beside it. Read-only here — the ring that can be dragged is on
-   * the planning screen, and this one is a record.
+   * the projects screen, and this one is a record.
    */
   let { categories, hours }: { categories: readonly CategoryHours[]; hours: number } = $props();
 

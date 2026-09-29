@@ -39,7 +39,7 @@ const runes: Signals = { state: <T>(initial: T) => new Cell(initial) };
  * projects had members would reach the screens as one with no `memberIds` at all — and a `.map`
  * on it takes every effect in the app down with it.
  */
-const PREFIX = "balance:synced:v3";
+const PREFIX = "balance:synced:v4";
 
 /**
  * The device's copy. `localStorage` rather than Capacitor's `Preferences` because it answers
