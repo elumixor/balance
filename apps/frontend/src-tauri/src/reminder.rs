@@ -134,6 +134,7 @@ fn place(app: &AppHandle, window: &tauri::WebviewWindow) {
 fn float(app: &AppHandle, window: &tauri::WebviewWindow) -> Result<(), String> {
     use tauri_nspanel::{objc2_app_kit, WebviewWindowExt};
 
+    track_pointer(window)?;
     let window = window.clone();
     app.run_on_main_thread(move || {
         let Ok(panel) = window.to_panel::<ReminderPanel>() else {
@@ -146,11 +147,46 @@ fn float(app: &AppHandle, window: &tauri::WebviewWindow) -> Result<(), String> {
                 | objc2_app_kit::NSWindowCollectionBehavior::FullScreenAuxiliary
                 | objc2_app_kit::NSWindowCollectionBehavior::Stationary,
         );
-        // Hover states in the webview, while the app behind the card is somebody else's.
-        panel.set_accepts_mouse_moved_events(true);
         panel.show();
     })
     .map_err(|e| e.to_string())
+}
+
+/// Hover states on a card that is never key.
+///
+/// WebKit only follows the pointer inside the key window (`NSTrackingActiveInKeyWindow`, see
+/// `trackingAreaOptions` in WebKit's `WebViewImpl.mm`), and this panel never is one, so nothing on
+/// it ever lit up under the mouse. A second tracking area on the web view itself, active always,
+/// hands it the same moved/entered/exited events its own would — added once, since the card is
+/// one window reused, and following the view's size on its own (`InVisibleRect`).
+#[cfg(target_os = "macos")]
+fn track_pointer(window: &tauri::WebviewWindow) -> Result<(), String> {
+    window
+        .with_webview(|webview| {
+            use objc2::AnyThread;
+            use objc2_app_kit::{NSTrackingArea, NSTrackingAreaOptions, NSView};
+            use objc2_foundation::NSRect;
+
+            // Safe: `inner` is the window's live `WKWebView`, and this closure runs on the main
+            // thread while the window holds it.
+            let view = unsafe { &*webview.inner().cast::<NSView>() };
+            let options = NSTrackingAreaOptions::MouseEnteredAndExited
+                | NSTrackingAreaOptions::MouseMoved
+                | NSTrackingAreaOptions::ActiveAlways
+                | NSTrackingAreaOptions::InVisibleRect;
+            // The owner isn't retained; the view owns the area, so it outlives neither.
+            let area = unsafe {
+                NSTrackingArea::initWithRect_options_owner_userInfo(
+                    NSTrackingArea::alloc(),
+                    NSRect::ZERO,
+                    options,
+                    Some(view),
+                    None,
+                )
+            };
+            view.addTrackingArea(&area);
+        })
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(not(target_os = "macos"))]

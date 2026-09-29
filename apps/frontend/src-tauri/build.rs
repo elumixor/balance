@@ -10,6 +10,7 @@ fn main() {
             "show_reminder",
             "close_reminder",
             "resize_reminder",
+            "perform_haptic",
             "read_device_grant",
             "write_device_grant",
             "clear_device_grant",
