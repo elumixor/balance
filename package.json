@@ -56,21 +56,22 @@
         ]
       },
       "iphone": {
-        "type": "capacitor-ios",
+        "type": "xcode-sim",
         "color": "green",
         "needs": [
           "web"
         ],
         "options": {
-          "frontendDir": "apps/frontend",
           "project": "apps/frontend/ios/App/App.xcodeproj",
           "scheme": "App",
+          "sdk": "iphonesimulator",
           "bundleId": "com.elumixor.balance",
           "device": "iPhone 17 Pro",
           "derivedDataDir": "apps/frontend/ios/App/build/iphone",
-          "port": 8081,
+          "previewEnv": "BALANCE_DEV_AUTH",
           "watch": [
-            "apps/frontend/ios/App/App"
+            "apps/frontend/ios/App/App",
+            "apps/frontend/ios/BalanceKit/Sources"
           ]
         }
       },
@@ -118,11 +119,11 @@
         }
       },
       "iphone": {
-        "type": "capacitor-ios",
+        "type": "xcode",
         "options": {
-          "frontendDir": "apps/frontend",
           "project": "apps/frontend/ios/App/App.xcodeproj",
           "scheme": "App",
+          "sdk": "iphonesimulator",
           "derivedDataDir": "apps/frontend/ios/App/build/iphone"
         }
       },
@@ -156,10 +157,7 @@
         "type": "vercel"
       },
       "iphone": {
-        "type": "fastlane-ios",
-        "options": {
-          "defaultApiBaseUrl": "https://balance-app-mauve.vercel.app"
-        }
+        "command": "bun scripts/deploy-iphone.ts"
       }
     },
     "version": {

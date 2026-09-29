@@ -79,7 +79,7 @@ platform :ios do
       set_info_plist_value(path: plist, key: "CFBundleVersion", value: next_build.to_s)
     end
 
-    # What the phone shell and the watch report their own crashes to — see `Telemetry.swift`.
+    # What the phone app and the watch report their own crashes to — see `Telemetry.swift`.
     # A Sentry DSN and a PostHog project key are public identifiers, the same ones the web build
     # carries, so they are written in at release rather than committed. `fetch` raises when one
     # is missing: a build that reports to nobody is not a build worth uploading.
@@ -91,6 +91,11 @@ platform :ios do
     ["App/App/Info.plist", "App/WatchApp/Info.plist"].each do |plist|
       telemetry.each { |key, value| set_info_plist_value(path: plist, key: key, value: value) }
     end
+
+    # Which deployment the phone app talks to: the development API for a beta of `develop`,
+    # production for a release. `Session.apiBaseURL` reads it; the committed plist says production.
+    api_base_url = ENV.fetch("VITE_API_BASE_URL", "https://balance-app-mauve.vercel.app")
+    set_info_plist_value(path: "App/App/Info.plist", key: "BalanceAPIBaseURL", value: api_base_url)
 
     # Make sure the watch + widget identifiers exist before sigh runs.
     setup_watch
@@ -118,7 +123,7 @@ platform :ios do
     # successful `xcodebuild archive` + `zip` produces.
     #
     # Don't pass signing flags via xcargs either — they leak into the SPM dependency
-    # targets (Capacitor plugins, ClerkKit) which can't be signed.
+    # targets (ClerkKit, Google Sign-In) which can't be signed.
     build_app(
       project: PROJECT,
       scheme: SCHEME,

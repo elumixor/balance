@@ -1,6 +1,7 @@
 name: iOS TestFlight
 
-# The beta build of the app, shipped by the same fastlane lane a laptop runs.
+# The beta build of the native app, shipped by the same fastlane lane a laptop runs. The phone app
+# is Swift through and through, so nothing JavaScript is installed or built here.
 #
 # Merging into `develop` sends a build to TestFlight pointed at the development API, but only when
 # the merge touched something the app itself is made of — a backend-only change is already live on
@@ -34,10 +35,7 @@ jobs:
         with:
           filters: |
             app:
-              - "apps/frontend/**"
-              - "apps/backend/server/routes/**"
-              - "package.json"
-              - "bun.lock"
+              - "apps/frontend/ios/**"
               - ".github/workflows/ios-testflight.yml"
 
   testflight:
@@ -50,9 +48,8 @@ jobs:
       APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
       # A tag is a release and talks to production; everything else is a beta of `develop` and
-      # talks to the development deployment, which is where that branch's API is running.
+      # talks to the development deployment. The lane writes it into the app's Info.plist.
       VITE_API_BASE_URL: ${{ startsWith(github.ref, 'refs/tags/') && 'https://balance-app-mauve.vercel.app' || 'https://balance-app-dev.vercel.app' }}
-      VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
       VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}
@@ -63,28 +60,11 @@ jobs:
       - name: Select latest Xcode
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
           bundler-cache: true
           working-directory: apps/frontend/ios
-
-      - name: Install JS deps
-        run: bun install --frozen-lockfile
-
-      - name: Generate backend client (consumed by frontend)
-        working-directory: apps/backend
-        run: bunx nitro-client
-
-      - name: Build web bundle + sync iOS
-        working-directory: apps/frontend
-        run: |
-          bun run build
-          bunx cap sync ios
 
       - name: Write ASC API key to disk
         run: |
