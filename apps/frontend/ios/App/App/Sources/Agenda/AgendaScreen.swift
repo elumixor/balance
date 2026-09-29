@@ -8,6 +8,7 @@ struct AgendaScreen: View {
     @Environment(Router.self) private var router
 
     @State private var draft = ""
+    @State private var draftRevision = 0
     @State private var composing = false
     @State private var editing: String?
     @State private var editText = ""
@@ -25,7 +26,7 @@ struct AgendaScreen: View {
         let end = store.calendar.date(byAdding: .day, value: AgendaModel.horizonDays, to: today)!
         return AgendaModel.sections(
             events: store.events(from: today, to: end), tasks: Array(store.tasks.values),
-            projects: store.projects, now: now, calendar: store.calendar
+            projects: store.projects, now: now, calendar: store.calendar, ticked: store.ticked
         )
     }
 
@@ -211,7 +212,7 @@ struct AgendaScreen: View {
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
             LineEditor(
-                text: $draft, focused: $composing, placeholder: "Add anything — gym 7pm 45m #health",
+                text: $draft, focused: $composing, placeholder: "Add anything — gym 7pm 45m #health", revision: draftRevision,
                 defaultProject: LineActions.defaultProject(in: store),
                 onSubmit: { submit($0) }
             )
@@ -234,6 +235,7 @@ struct AgendaScreen: View {
     private func submit(_ line: TypedLine) {
         guard !line.title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         draft = ""
+        draftRevision += 1
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         Task {
             if let item = await LineActions.create(line, in: store) {

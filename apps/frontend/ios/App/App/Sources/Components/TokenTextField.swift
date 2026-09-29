@@ -13,10 +13,13 @@ struct TokenTextField: UIViewRepresentable {
     @Binding var caret: Int
     @Binding var focused: Bool
     var placeholder: String
+    /// Bumped by the owner whenever it sets `text` itself — a picked suggestion, a cleared field.
+    var revision: Int = 0
     var tokens: [TypedLine.Token]
     var tint: (TypedLine.Token) -> UIColor?
     var font: UIFont = .preferredFont(forTextStyle: .body)
-    var onSubmit: () -> Void
+    /// Handed what the view holds at that moment, not the last value SwiftUI rendered.
+    var onSubmit: (String) -> Void
     var onEscape: (() -> Void)?
 
     func makeUIView(context: Context) -> LineTextView {
@@ -37,6 +40,8 @@ struct TokenTextField: UIViewRepresentable {
         view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         view.accessibilityIdentifier = "lineField"
         view.onEscape = onEscape
+        view.text = text
+        context.coordinator.revision = revision
         return view
     }
 
@@ -44,14 +49,21 @@ struct TokenTextField: UIViewRepresentable {
         context.coordinator.parent = self
         view.placeholder = placeholder
         view.onEscape = onEscape
-        if view.text != text {
+        // Text only ever goes into the view when the owner says it changed it (`revision`):
+        // SwiftUI also hands back values the view itself emitted a keystroke ago, and writing
+        // one of those back would drop what was typed since.
+        // A bumped revision can arrive a render before the text it goes with, so it is only
+        // taken as seen once the text has actually moved.
+        if revision != context.coordinator.revision, view.text != text {
+            context.coordinator.revision = revision
             view.text = text
             view.selectedRange = NSRange(location: (text as NSString).length, length: 0)
         }
         style(view)
         view.refreshPlaceholder()
-        if focused, !view.isFirstResponder, view.window != nil {
-            DispatchQueue.main.async { view.becomeFirstResponder() }
+        view.wantsFocus = focused
+        if focused, !view.isFirstResponder {
+            view.requestFocus()
         } else if !focused, view.isFirstResponder {
             DispatchQueue.main.async { view.resignFirstResponder() }
         }
@@ -95,11 +107,14 @@ struct TokenTextField: UIViewRepresentable {
 
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
             if text == "\n" {
-                parent.onSubmit()
+                parent.text = textView.text
+                parent.onSubmit(textView.text)
                 return false
             }
             return true
         }
+
+        var revision = 0
 
         func textViewDidChange(_ textView: UITextView) {
             parent.text = textView.text
@@ -130,6 +145,23 @@ final class LineTextView: UITextView {
         didSet { placeholderLabel.text = placeholder }
     }
     var onEscape: (() -> Void)?
+    /// Asked to be focused before it was on screen; taken up the moment it is.
+    var wantsFocus = false
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if wantsFocus { requestFocus() }
+    }
+
+    /// A view that has only just been put in a list row can refuse the keyboard for a frame or
+    /// two while the row settles, so the ask is repeated briefly until it takes.
+    func requestFocus(attempt: Int = 0) {
+        guard wantsFocus, !isFirstResponder, attempt < 8 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0 : 0.06)) { [weak self] in
+            guard let self, self.wantsFocus, !self.isFirstResponder else { return }
+            if self.window == nil || !self.becomeFirstResponder() { self.requestFocus(attempt: attempt + 1) }
+        }
+    }
 
     private lazy var placeholderLabel: UILabel = {
         let label = UILabel()

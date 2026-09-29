@@ -86,7 +86,13 @@ public struct Vocabulary: Sendable {
         let key = key(typed)
         guard !key.isEmpty else { return nil }
         if let exact = entries.first(where: { Self.key($0.name) == key }) { return exact }
-        return entries.filter { Self.key($0.name).hasPrefix(key) }.min { $0.name.count < $1.name.count }
+        if let start = entries.filter({ Self.key($0.name).hasPrefix(key) }).min(by: { $0.name.count < $1.name.count }) {
+            return start
+        }
+        // Then any word of the name: `#work` finds "Deep work".
+        return entries.filter { entry in
+            entry.name.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).contains { Self.key(String($0)).hasPrefix(key) }
+        }.min { $0.name.count < $1.name.count }
     }
 }
 

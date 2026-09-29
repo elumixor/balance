@@ -212,6 +212,8 @@ final class TypedLineTests: XCTestCase {
         XCTAssertEqual(read("x #deepwork").sphereId, "work")
         XCTAssertEqual(read("x #DeepWork").sphereId, "work")
         XCTAssertEqual(read("x #rest").sphereId, "rest")
+        XCTAssertEqual(read("x #work").sphereId, "work")
+        XCTAssertEqual(read("x @combat").projectId, "hyp")
     }
 
     func testActivityIsASphereToken() {

@@ -89,7 +89,6 @@ struct DayColumn: View {
                 }
             }
         }
-        .accessibilityIdentifier("day-\(DayString.string(day))")
     }
 
     @ViewBuilder
@@ -107,13 +106,15 @@ struct DayColumn: View {
         EventBlock(event: event, compact: compact || w < 60, height: h, lifted: active != nil)
             .frame(width: max(w - 2, 4), height: h - 1)
             .overlay(alignment: .bottom) {
-                if event.movable {
+                // Only a block tall enough to hold both keeps a handle below its name.
+                if event.movable, h >= 40 {
                     Capsule()
                         .fill(.secondary.opacity(active?.kind == .resize ? 0.8 : 0))
                         .frame(width: 24, height: 4)
                         .padding(.bottom, 3)
                         .frame(maxWidth: .infinity, minHeight: 14, maxHeight: 14, alignment: .bottom)
                         .contentShape(Rectangle())
+                        .onTapGesture { router.open(event) }
                         .gesture(resizeGesture(event))
                 }
             }

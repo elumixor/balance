@@ -71,8 +71,15 @@ end
 project.build_configurations.each { |c| c.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = DEPLOYMENT_TARGET }
 
 # --- sources ----------------------------------------------------------------
-app_group.children.dup.each { |c| c.remove_from_project if c.display_name == "Sources" }
-app.source_build_phase.files.dup.each { |bf| bf.remove_from_project if bf.file_ref.nil? }
+# The old group goes whole, with the build files of every reference under it, or a re-run would
+# compile each file twice — once from a reference that no longer has a folder.
+def drop_group(group, target)
+  refs = group.recursive_children.grep(Xcodeproj::Project::Object::PBXFileReference)
+  target.source_build_phase.files.dup.each { |bf| bf.remove_from_project if refs.include?(bf.file_ref) }
+  refs.each(&:remove_from_project)
+  group.remove_from_project
+end
+app_group.children.dup.each { |c| drop_group(c, app) if c.display_name == "Sources" }
 
 def mirror(group, dir, target)
   Dir.children(dir).sort.each do |name|
@@ -120,14 +127,18 @@ if (old = project.targets.find { |t| t.name == TEST_TARGET })
   old.remove_from_project
 end
 project.main_group.children.dup.each { |c| c.remove_from_project if c.display_name == TEST_TARGET }
+project.objects.grep(Xcodeproj::Project::Object::PBXFileReference).each do |ref|
+  ref.remove_from_project if ref.parent.nil? || ref.referrers.empty?
+end
 
 tests = project.new_target(:ui_test_bundle, TEST_TARGET, :ios, DEPLOYMENT_TARGET, nil, :swift)
-test_group = project.main_group.new_group(TEST_TARGET, "App/AppUITests")
+test_group = project.main_group.new_group(TEST_TARGET, TEST_TARGET)
 tests.add_file_references(Dir[File.join(TEST_SOURCES, "*.swift")].sort.map { |f| test_group.new_reference(File.basename(f)) })
 tests.add_dependency(app)
 tests.build_configurations.each do |config|
   s = config.build_settings
   s["TEST_TARGET_NAME"] = APP_TARGET
+  s["PRODUCT_NAME"] = "$(TARGET_NAME)"
   s["PRODUCT_BUNDLE_IDENTIFIER"] = "com.elumixor.balance.uitests"
   s["DEVELOPMENT_TEAM"] = TEAM
   s["CODE_SIGN_STYLE"] = "Automatic"

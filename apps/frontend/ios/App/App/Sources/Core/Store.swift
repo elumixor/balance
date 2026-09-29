@@ -264,7 +264,11 @@ final class Store {
         enqueue(Mutation(mutationId: UUID().uuidString, kind: "update", model: "tasks", id: id, patch: .object(patch)))
     }
 
+    /// To-dos ticked off since launch stay in the list, crossed out, so a mis-tap can be undone.
+    private(set) var ticked: Set<String> = []
+
     func setDone(_ task: TaskItem, _ done: Bool) {
+        if done { ticked.insert(task.id) }
         updateTask(task.id, ["status": .string(done ? "done" : "todo"), "statusLabel": .string("")])
     }
 

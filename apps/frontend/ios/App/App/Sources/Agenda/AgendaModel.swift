@@ -50,7 +50,8 @@ enum AgendaModel {
     static let horizonDays = 14
 
     static func sections(
-        events: [CalendarEvent], tasks: [TaskItem], projects: [String: Project], now: Date, calendar: Calendar
+        events: [CalendarEvent], tasks: [TaskItem], projects: [String: Project], now: Date, calendar: Calendar,
+        ticked: Set<String> = []
     ) -> [AgendaSection] {
         let today = calendar.startOfDay(for: now)
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
@@ -78,11 +79,11 @@ enum AgendaModel {
         for task in tasks {
             guard let project = projects[task.projectId], project.isActive else { continue }
             if let day = task.day {
-                // Finished to-dos stay where they were ticked off only on today; elsewhere they go.
-                if task.isDone, !(day >= today && day < tomorrow) { continue }
+                // Finished to-dos stay on today, and wherever they were just ticked off.
+                if task.isDone, !(day >= today && day < tomorrow), !ticked.contains(task.id) { continue }
                 let k = kind(of: day) ?? .later
                 buckets[k, default: []].append((day, 2, .task(task)))
-            } else if !task.isDone {
+            } else if !task.isDone || ticked.contains(task.id) {
                 buckets[.someday, default: []].append((.distantFuture, task.ordinal, .task(task)))
             }
         }

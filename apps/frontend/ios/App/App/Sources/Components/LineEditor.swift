@@ -8,6 +8,8 @@ struct LineEditor: View {
     @Binding var text: String
     @Binding var focused: Bool
     var placeholder: String
+    /// Bumped by the owner when it sets `text` itself, as clearing it after a submit does.
+    var revision = 0
     var showPreview = true
     /// Where a task goes when the line names no project.
     var defaultProject: Project?
@@ -15,6 +17,7 @@ struct LineEditor: View {
     var onCancel: (() -> Void)?
 
     @State private var caret = 0
+    @State private var picks = 0
 
     var line: TypedLine { LineReader.read(text, vocabulary: store.vocabulary) }
 
@@ -26,9 +29,10 @@ struct LineEditor: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             TokenTextField(
-                text: $text, caret: $caret, focused: $focused, placeholder: placeholder, tokens: line.tokens,
+                text: $text, caret: $caret, focused: $focused, placeholder: placeholder,
+                revision: revision &* 10_000 &+ picks, tokens: line.tokens,
                 tint: { token in tint(token) },
-                onSubmit: { onSubmit(line) }, onEscape: onCancel
+                onSubmit: { current in onSubmit(LineReader.read(current, vocabulary: store.vocabulary)) }, onEscape: onCancel
             )
             if showPreview, !text.trimmingCharacters(in: .whitespaces).isEmpty {
                 LinePreview(line: line, defaultProject: defaultProject)
@@ -67,6 +71,7 @@ struct LineEditor: View {
         let insert = suggestion.insert + " "
         text = ns.replacingCharacters(in: word.range, with: insert)
         caret = word.range.location + (insert as NSString).length
+        picks += 1
         UISelectionFeedbackGenerator().selectionChanged()
     }
 }

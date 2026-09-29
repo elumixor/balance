@@ -32,20 +32,25 @@ public enum Suggest {
         return (ns.substring(with: range), range)
     }
 
+    static func matches(_ name: String, _ key: String) -> Bool {
+        key.isEmpty || Vocabulary.key(name).hasPrefix(key)
+            || name.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).contains { Vocabulary.key(String($0)).hasPrefix(key) }
+    }
+
     public static func items(
         for word: String, vocabulary: Vocabulary, limit: Int = 8
     ) -> [Suggestion] {
         if word.hasPrefix("#") {
             let key = Vocabulary.key(String(word.dropFirst()))
-            let spheres = vocabulary.spheres.filter { key.isEmpty || Vocabulary.key($0.name).hasPrefix(key) }
+            let spheres = vocabulary.spheres.filter { matches($0.name, key) }
                 .map { Suggestion(kind: .sphere, insert: "#" + LineWriter.tag($0.name), label: $0.name, refId: $0.id) }
-            let activities = vocabulary.activities.filter { key.isEmpty || Vocabulary.key($0.name).hasPrefix(key) }
+            let activities = vocabulary.activities.filter { matches($0.name, key) }
                 .map { Suggestion(kind: .activity, insert: "#" + LineWriter.tag($0.name), label: $0.name, refId: $0.id) }
             return Array((spheres + activities).prefix(limit))
         }
         if word.hasPrefix("@") {
             let key = Vocabulary.key(String(word.dropFirst()))
-            return Array(vocabulary.projects.filter { key.isEmpty || Vocabulary.key($0.name).hasPrefix(key) }
+            return Array(vocabulary.projects.filter { matches($0.name, key) }
                 .map { Suggestion(kind: .project, insert: "@" + LineWriter.tag($0.name), label: $0.name, refId: $0.id) }
                 .prefix(limit))
         }

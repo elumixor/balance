@@ -15,6 +15,16 @@ final class SmokeTests: XCTestCase {
         app.launch()
     }
 
+    /// What the screen looked like when a test failed, kept in the result bundle.
+    override func tearDown() {
+        if testRun?.hasSucceeded == false {
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
+        super.tearDown()
+    }
+
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
@@ -120,7 +130,7 @@ final class SmokeTests: XCTestCase {
 
     func testSettingsOpenAndClose() {
         element("settingsButton").tap()
-        XCTAssertTrue(app.staticTexts["Sample week"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         element("settingsDone").tap()
     }
 }

@@ -60,13 +60,15 @@ final class FixtureBackend: Backend {
                 invited: invited, response: invited ? "needsAction" : nil, reminders: [], timeZone: nil, recurrence: nil
             )
         }
+        // Around the current hour, so whatever time the tests run the grid opens on these blocks.
+        let h = min(max(calendar.component(.hour, from: now), 3), 19)
         events = [
-            event("e-standup", "Standup", at(0, 9, 30), at(0, 10), sphere: "s-work", call: "https://meet.google.com/abc-defg-hij"),
-            event("e-focus", "Focus block", at(0, 10), at(0, 12, 30), sphere: "s-work"),
-            event("e-lunch", "Lunch with Anna", at(0, 13), at(0, 14), sphere: nil, invited: true, location: "Café Riche"),
-            event("e-gym", "Gym", at(0, 18), at(0, 19), sphere: "s-health"),
-            event("e-review", "Design review", at(1, 11), at(1, 12), sphere: "s-work"),
-            event("e-dinner", "Dinner with family", at(1, 19), at(1, 21), sphere: "s-people"),
+            event("e-standup", "Standup", at(0, h), at(0, h, 30), sphere: "s-work", call: "https://meet.google.com/abc-defg-hij"),
+            event("e-focus", "Focus block", at(0, h + 1), at(0, h + 2, 30), sphere: "s-work"),
+            event("e-lunch", "Lunch with Anna", at(0, h - 2), at(0, h - 1), sphere: nil, invited: true, location: "Café Riche"),
+            event("e-gym", "Gym", at(0, h + 3), at(0, h + 4), sphere: "s-health"),
+            event("e-review", "Design review", at(1, h), at(1, h + 1), sphere: "s-work"),
+            event("e-dinner", "Dinner with family", at(1, h + 2), at(1, h + 4), sphere: "s-people"),
             event("e-trip", "Trip to the coast", day(3), day(4), sphere: "s-rest", allDay: true),
             event("e-yday", "Morning run", at(-1, 7), at(-1, 8), sphere: "s-health"),
         ]
