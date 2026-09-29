@@ -31,6 +31,13 @@ final class TourTests: XCTestCase {
         // Lets the interruption monitor answer a permission prompt, tapping nothing that matters.
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.03)).tap()
         shot("1-today")
+        if element("sessionNudge").exists {
+            element("sessionNudge").tap()
+            shot("1b-session")
+            app.swipeUp()
+            shot("1c-session-more")
+            element("closeSession").tap()
+        }
 
         let field = app.textViews["lineField"].firstMatch
         field.tap()
@@ -67,8 +74,7 @@ final class TourTests: XCTestCase {
         _ = app.textViews["lineField"].waitForExistence(timeout: 3)
         app.textViews["lineField"].firstMatch.typeText("Deep work 2h #work")
         shot("8-quick-create")
-        app.swipeDown()
-        app.swipeDown()
+        element("quickCancel").tap()
         sleep(1)
 
         app.tabBars.buttons["Balance"].tap()

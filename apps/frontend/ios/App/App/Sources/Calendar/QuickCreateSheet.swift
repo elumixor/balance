@@ -18,6 +18,10 @@ struct QuickCreateSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                .accessibilityIdentifier("quickCancel")
                 Text(Format.day(start) + ", " + Format.range(slot.start, slot.end))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
                     .contentTransition(.numericText())

@@ -89,9 +89,12 @@ struct AgendaScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { router.sessionOpen = store.session?.slot ?? store.sessionSlot } label: {
-                        Label("\(store.session?.rank.stars ?? 0)", systemImage: "star.fill")
-                            .labelStyle(.titleAndIcon)
-                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                            Text("\(store.session?.rank.stars ?? 0)").monospacedDigit()
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 4)
                     }
                     .accessibilityIdentifier("starsButton")
                 }
