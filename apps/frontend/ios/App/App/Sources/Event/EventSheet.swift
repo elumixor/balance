@@ -89,6 +89,8 @@ struct EventSheet: View {
 
             if !event.attendees.isEmpty { guests(event) }
 
+            if HealthSync.shared.available || event.source != nil { health(event) }
+
             Section {
                 ZStack(alignment: .topLeading) {
                     if notes.isEmpty {
@@ -306,6 +308,32 @@ struct EventSheet: View {
                         .foregroundStyle(person.response == "accepted" ? .green : person.response == "declined" ? .red : .secondary)
                 }
             }
+        }
+    }
+
+    /// Whether Apple Health's sleep is read into this block, and the night it recorded.
+    private func health(_ event: CalendarEvent) -> some View {
+        let linked = event.source == HealthSync.feed
+        return Section {
+            Toggle(isOn: Binding(
+                get: { linked },
+                set: { on in
+                    Task {
+                        await store.link(event, source: on ? HealthSync.feed : nil)
+                        if on { await HealthSync.shared.sync(store) }
+                    }
+                }
+            )) {
+                Label("Sleep from Apple Health", systemImage: "bed.double")
+            }
+            .accessibilityIdentifier("sleepToggle")
+            if linked, let record = event.record?.any as? [String: Any] {
+                SleepSection(record: record)
+            } else if linked {
+                Text("The night appears here once Health has recorded it.").font(.footnote).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Apple Health")
         }
     }
 

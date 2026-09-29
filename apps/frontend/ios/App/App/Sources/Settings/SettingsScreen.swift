@@ -70,6 +70,32 @@ struct SettingsScreen: View {
                     }
                 }
 
+                if HealthSync.shared.available {
+                    Section {
+                        Toggle("Read sleep from Health", isOn: Binding(
+                            get: { HealthSync.shared.connected },
+                            set: { on in
+                                if on { Task { if await HealthSync.shared.connect() { await HealthSync.shared.sync(store) } } }
+                                else { HealthSync.shared.disconnect() }
+                            }
+                        ))
+                        if HealthSync.shared.connected {
+                            Button {
+                                Task { await HealthSync.shared.sync(store) }
+                            } label: {
+                                HStack {
+                                    Text("Sync now")
+                                    if HealthSync.shared.syncing { Spacer(); ProgressView() }
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Apple Health")
+                    } footer: {
+                        Text("Link a sleep block to Health from its card; each night then lands where it was slept.")
+                    }
+                }
+
                 Section("Reminders") {
                     LabeledContent("Remind me", value: store.preferences.reminders.enabled ? "\(store.preferences.reminders.leadMinutes) min before" : "Off")
                     LabeledContent("Use each event's own reminder", value: store.preferences.reminders.useCalendarReminders ? "Yes" : "No")

@@ -24,6 +24,7 @@ protocol Backend: AnyObject {
     func commitDay(_ day: String, rest: Bool) async throws -> CommitResult
     func commitWeek(_ weekStart: String) async throws -> CommitResult
     func sessionSlots() async throws -> (enabled: Bool, slots: [SessionSlot])
+    func saveRecords(source: String, records: [(calendarId: String, eventId: String, data: JSON)]) async throws
 }
 
 // MARK: - Sync protocol (`@elumixor/synced`)
@@ -239,6 +240,11 @@ final class LiveBackend: Backend {
         struct Answer: Decodable { let enabled: Bool; let slots: [SessionSlot] }
         let answer: Answer = try await request("GET", "/mobile/planning/notifications", query: ["timeZone": zone])
         return (answer.enabled, answer.slots)
+    }
+
+    func saveRecords(source: String, records: [(calendarId: String, eventId: String, data: JSON)]) async throws {
+        let list = records.map { JSON.object(["calendarId": .string($0.calendarId), "externalEventId": .string($0.eventId), "data": $0.data]) }
+        let _: Empty = try await request("POST", "/mobile/integrations/records", body: ["source": JSON.string(source), "records": .array(list)])
     }
 
     /// Trades a provider's identity token for a Clerk sign-in ticket. The one unauthenticated call.

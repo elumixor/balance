@@ -93,6 +93,7 @@ struct MainView: View {
     private func launch() async {
         await store.refresh()
         await store.loadSession()
+        if session.mode != .fixtures { await HealthSync.shared.syncIfDue(store) }
         guard session.mode == .live, let slots = try? await store.backend.sessionSlots() else { return }
         await Reminders.shared.rescheduleSessions(enabled: slots.enabled, slots: slots.slots, sound: store.preferences.reminders.sound)
     }

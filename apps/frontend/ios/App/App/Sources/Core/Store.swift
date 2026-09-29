@@ -454,6 +454,35 @@ final class Store {
         }
     }
 
+    /// Links a block to an integration feed, or unlinks it with nil. The link lives on the series,
+    /// so a one-off block is first made a daily one — every night is then covered by one link.
+    func link(_ event: CalendarEvent, source: String?) async {
+        var target = event
+        if source != nil, event.seriesId == nil, event.movable {
+            guard await patch(event, ["recurrence": .array([.string("RRULE:FREQ=DAILY")])]) else { return }
+            target = self.event(key: event.key) ?? event
+        }
+        var body: [String: JSON] = [
+            "calendarId": .string(target.calendarId),
+            "externalEventId": .string(target.seriesId ?? target.id),
+            "scope": .string("series"),
+            "source": .from(source),
+        ]
+        if target.weights.isEmpty, let buffer = bufferSphere {
+            body["weights"] = .array([.object(["categoryId": .string(buffer.id), "weightPercent": .number(100)])])
+        }
+        var drawn = target
+        drawn.source = source
+        put(drawn, replacing: target.key)
+        do {
+            try await backend.setMapping(body)
+            await ensureWeeks(around: event.start, force: true)
+        } catch {
+            put(target, replacing: drawn.key)
+            report(error, "Couldn't link that")
+        }
+    }
+
     func setSphere(_ event: CalendarEvent, sphereId: String) async {
         await map(event, ["weights": .array([.object(["categoryId": .string(sphereId), "weightPercent": .number(100)])])]) {
             $0.weights = [Weight(categoryId: sphereId, weightPercent: 100)]

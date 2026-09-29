@@ -3,7 +3,7 @@ import Foundation
 /// A JSON value written out by hand, for the bodies whose absent and `null` fields mean different
 /// things — "leave the project alone" and "clear the project" — which a synthesized `Encodable`
 /// cannot tell apart.
-enum JSON: Encodable, Equatable {
+enum JSON: Codable, Hashable {
     case null
     case bool(Bool)
     case number(Double)
@@ -24,6 +24,30 @@ enum JSON: Encodable, Equatable {
         }
     }
 
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let v = try? c.decode(Bool.self) { self = .bool(v) }
+        else if let v = try? c.decode(Double.self) { self = .number(v) }
+        else if let v = try? c.decode(String.self) { self = .string(v) }
+        else if let v = try? c.decode([JSON].self) { self = .array(v) }
+        else { self = .object(try c.decode([String: JSON].self)) }
+    }
+
+    /// The tree as plain Foundation values, for code that reads a record by key.
+    var any: Any {
+        switch self {
+        case .null: return NSNull()
+        case .bool(let v): return v
+        case .number(let v): return v.rounded() == v && abs(v) < 1e15 ? Int(v) as Any : v
+        case .string(let v): return v
+        case .array(let v): return v.map(\.any)
+        case .object(let v): return v.mapValues(\.any)
+        }
+    }
+
+    static func from(any value: Any) -> JSON { fromAny(value) }
+
     static func from(_ string: String?) -> JSON { string.map(JSON.string) ?? .null }
     static func from(_ number: Double?) -> JSON { number.map(JSON.number) ?? .null }
 
@@ -32,10 +56,10 @@ enum JSON: Encodable, Equatable {
         guard let data = try? JSONEncoder().encode(value),
               let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
         else { return .null }
-        return from(any: object)
+        return fromAny(object)
     }
 
-    private static func from(any value: Any) -> JSON {
+    private static func fromAny(_ value: Any) -> JSON {
         switch value {
         case is NSNull: return .null
         case let n as NSNumber:
@@ -43,8 +67,8 @@ enum JSON: Encodable, Equatable {
             if CFGetTypeID(n) == CFBooleanGetTypeID() { return .bool(n.boolValue) }
             return .number(n.doubleValue)
         case let s as String: return .string(s)
-        case let a as [Any]: return .array(a.map(from(any:)))
-        case let o as [String: Any]: return .object(o.mapValues(from(any:)))
+        case let a as [Any]: return .array(a.map(fromAny))
+        case let o as [String: Any]: return .object(o.mapValues(fromAny))
         default: return .null
         }
     }

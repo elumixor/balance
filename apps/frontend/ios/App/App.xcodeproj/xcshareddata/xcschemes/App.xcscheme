@@ -41,7 +41,7 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "6873D8A972025F760C7DC1FD"
+               BlueprintIdentifier = "374258729B6DCF18BE44B544"
                BuildableName = "AppUITests.xctest"
                BlueprintName = "AppUITests"
                ReferencedContainer = "container:App.xcodeproj">

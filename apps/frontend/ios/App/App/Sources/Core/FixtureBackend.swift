@@ -194,6 +194,9 @@ final class FixtureBackend: Backend {
             }
             events[index].activityId = nil
         }
+        if let source = body["source"] {
+            if case .string(let v) = source { events[index].source = v } else { events[index].source = nil }
+        }
         if case .string(let a)? = body["activityId"], let activity = activities.first(where: { $0.id == a }) {
             events[index].weights = activity.weights
             events[index].activityId = a
@@ -283,6 +286,13 @@ final class FixtureBackend: Backend {
     }
 
     func sessionSlots() async throws -> (enabled: Bool, slots: [SessionSlot]) { (false, []) }
+
+    func saveRecords(source: String, records: [(calendarId: String, eventId: String, data: JSON)]) async throws {
+        for record in records {
+            guard let index = events.firstIndex(where: { $0.id == record.eventId }) else { continue }
+            events[index].record = record.data
+        }
+    }
 
     func watchTicket() async throws -> String { "fixture" }
 }

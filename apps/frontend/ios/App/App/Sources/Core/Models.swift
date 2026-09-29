@@ -116,6 +116,9 @@ struct CalendarEvent: Codable, Identifiable, Hashable {
     var reminders: [EventReminder]
     var timeZone: String?
     var recurrence: [String]?
+    /// The integration feed it is linked to — "apple-health:sleep" — and what that feed recorded.
+    var source: String? = nil
+    var record: JSON? = nil
 
     /// Two calendars can hold the same id; the pair cannot collide.
     var key: String { "\(calendarId)|\(id)" }
