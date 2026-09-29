@@ -22,7 +22,8 @@ around.
 
 | Path                  | What it is                                                            |
 | --------------------- | --------------------------------------------------------------------- |
-| `apps/frontend`       | SvelteKit app (static SPA), shipped to iOS inside a Capacitor webview  |
+| `apps/frontend`       | SvelteKit app (static SPA) — the web app, and the Mac app's window     |
+| `apps/frontend/ios/App/App` | The native SwiftUI iPhone app                                     |
 | `apps/frontend/ios`   | Everything Apple: the committed Xcode project, BalanceKit, fastlane    |
 | `apps/frontend/src-tauri` | The macOS shell: the menu bar item and the window around the SPA  |
 | `apps/backend`        | Nitro JSON API over Postgres (Neon) with Drizzle                       |
@@ -200,9 +201,16 @@ then the native sources are watched — saving one rebuilds and relaunches, whic
 
 Everything Apple lives under `apps/frontend/ios`: the committed Xcode project (`App/`), the watch
 app and widget sources (`App/WatchApp`, `App/WatchWidget`), the BalanceKit Swift package they
-share, and the fastlane lane. Capacitor only knows about the single iOS target, so the watch app
-and widget are wired in by `ios/wire_watch_targets.rb` — re-run it (it is idempotent) if Capacitor
-ever regenerates the project, and commit the resulting `project.pbxproj`.
+share, and the fastlane lane. The phone app's sources are in `App/App/Sources` and are put into the
+`App` target by `ios/wire_native_app.rb`; the watch app and widget are wired in by
+`ios/wire_watch_targets.rb`. Both are idempotent — re-run the one that owns what you changed and
+commit the resulting `project.pbxproj`.
+
+The phone app's own tests: `cd apps/frontend/ios/BalanceKit && swift test` checks the typed-line
+grammar, the day layout and the sleep maths on the Mac, and
+`xcodebuild test -project App/App.xcodeproj -scheme App -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`
+runs the smoke tests against the fixture week (`-fixtures`). A beta is `bunx devkit deploy iphone`
+from a laptop, or a merge into `develop`.
 
 The watch app is a tracker, not a second dashboard. `GET /mobile/watch/summary` answers the whole
 screen in one call — the week by category, everything still coming up, and any timer already
@@ -239,16 +247,16 @@ The ring's geometry is `DialLayout` in BalanceKit, not a shape in either target:
 the widget's dial are the same week drawn at two sizes, and they used to disagree about it.
 
 Reminders on the phone are the same reminders the Mac shows — when each is due is answered once, in
-`src/lib/calendar/reminders.ts` — but they cannot be delivered the same way. iOS suspends the webview seconds
-after the screen goes off, so nothing can be decided at the moment a reminder is due: the next two
+`src/lib/calendar/reminders.ts`, ported to `Reminders.swift` — but they cannot be delivered the same way. iOS
+suspends the app seconds after the screen goes off, so nothing can be decided at the moment a reminder is due: the next two
 days are worked out ahead and handed to iOS as local notifications, and the list is replaced
 whenever the calendar or the preferences move. A reminder on a locked iPhone is mirrored to the
 paired watch, which draws it with a scene of its own (`EventNotificationView.swift`) in the colour
 of whatever the event counts as. `EventAlarm.swift` covers only the case the phone cannot — a watch
 worn without the companion app installed — because a reminder scheduled on both sides buzzes twice.
 
-An `.ics` file given to the app — shared into the phone from Mail, or dropped onto the Mac app or a
-browser tab — opens as a list of what it holds, everything ticked, and the ticked events are written into Google
+An `.ics` file given to the app — dropped onto the Mac app or a browser tab (the native phone app
+does not open them yet) — opens as a list of what it holds, everything ticked, and the ticked events are written into Google
 Calendar through the same API every other write goes through — five at a time, behind a bar, since
 a term's timetable written one event after another takes as long as the round trips add up to. That is why the file goes to the app
 and not to a share extension: the Clerk session lives in the webview, and an extension would need a

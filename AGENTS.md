@@ -12,7 +12,7 @@ docs before reaching for an API you remember.
 ## The app is a client-side SPA
 
 `ssr` and `prerender` are off for every route (`src/routes/+layout.ts`) because the same bundle
-runs inside a Capacitor webview, and everything on screen depends on a Clerk session that only
+runs inside the Mac's Tauri webview, and everything on screen depends on a Clerk session that only
 exists in the browser. Don't add server-side load functions, form actions, or `+server.ts` routes —
 the API is Nitro, in `apps/backend`.
 
@@ -187,10 +187,49 @@ laptop.
   a connection: the last summary is kept in `WatchCache` and drawn before the first request goes
   out, a timer started with no signal runs on the watch alone and is written to the calendar as one
   finished block once there is one (`OfflineWrites.swift`, `POST /mobile/tracking/log`), and a stop
-  carries the moment it happened so the hours never grow while the watch is away. A calendar file shared into the
-  phone app arrives the same native-to-webview way: `IcsImportPlugin.swift` only carries it,
-  `$lib/calendar/ics.ts` parses it, and the events are written through the ordinary calendar API. A file
-  dropped on the Mac app or a browser tab goes to the same sheet through `IcsDropZone.svelte`.
+  carries the moment it happened so the hours never grow while the watch is away. A calendar file
+  dropped on the Mac app or a browser tab goes through `IcsDropZone.svelte` and `$lib/calendar/ics.ts`;
+  the native phone app does not open `.ics` files yet.
+- `apps/frontend/ios/App/App/Sources` is the phone app, and `ios/wire_native_app.rb` is what puts
+  its files into the `App` target and adds the `AppUITests` target — re-run it after adding or
+  moving a Swift file, and commit the `project.pbxproj` it writes. See "The phone app is Swift".
+
+## The phone app is Swift, and a line of text is its form
+
+The iPhone app is native SwiftUI, not the web bundle: the webview drew a desktop calendar on a
+phone and never felt like one. It speaks the same API as every other client and holds no rules of
+its own about hours — what it adds is how things are made. Everything is typed, the way it is in
+puretype: `gym tomorrow 7am 45m #health` is a block on the calendar, `write notes @atma friday` is a
+to-do, and tapping a row turns it back into its line to be retyped. `BalanceCore` (in `BalanceKit`,
+Foundation only, `swift test`) owns that grammar: `LineReader` reads a line into a day, a time, a
+length, a sphere or activity (`#`), a project (`@`) and a repeat, with the UTF-16 ranges the field
+highlights; `LineWriter` writes an event or a to-do back as the line that would make it, and the
+tests hold the two to a round trip. A time makes an event, a project without one makes a to-do, a
+day alone an all-day block. `DayLayout` (lanes for overlapping blocks) and `Sleep` (the Health
+night, a port of `integrations/sleep-*.ts` with the same cases) live there too.
+
+The app is three tabs over one `Store` (`Sources/Core/Store.swift`): the list (`Agenda/` —
+Today, Tomorrow, This week, Coming up, Someday, events and to-dos together, overdue to-dos heading
+Today), the calendar (`Calendar/` — a day, three days or a week per page, one vertical scroll so
+every page sits at the same hour, blocks held to move and held by their lower edge to stretch, an
+empty hour tapped to type a block into it), and Balance (the week's dial from `DialLayout`). An
+event's card (`Event/EventSheet.swift`) is a sheet at half height with its name, time, what it
+counts as, its project, place, call, guests, invitation answer, private notes and the Health night;
+every change is written as it is made. The sitting (`Session/`) is the review screen and a plan
+bar on the calendar that commits the day. Screens never fetch: the store draws a write ahead and
+lets the answer correct it, syncs categories, activities, projects and to-dos through the same
+`POST /mobile/sync` the web client uses, fetches events a week at a time, and keeps the last good
+copy on disk so a launch opens on a week rather than a spinner. `Backend` is a protocol with the
+deployed API behind it and `FixtureBackend` beside it: `-fixtures` launches the app on a made-up
+week with no account or network, which is what the `AppUITests` smoke tests drive
+(`xcodebuild test -scheme App`), and `TourTests` keeps a screenshot of every screen in the result
+bundle (`TEST_RUNNER_BALANCE_TOUR_LIVE=1` runs it read-only on the local backend's real account).
+
+Sign-in is a native Apple or Google sheet whose identity token `/mobile/auth/native/*` trades for a
+Clerk ticket, redeemed into a native Clerk session that ClerkKit keeps in the keychain — so the
+sign-in screen is seen once. The phone hands the watch its ticket over Watch Connectivity
+(`WatchLink.swift`). Which deployment a build talks to is `BalanceAPIBaseURL` in its Info.plist,
+written by the release lane from `VITE_API_BASE_URL`.
 
 ## The ritual is the product
 
@@ -223,7 +262,7 @@ number they would rather not fail.
 
 `server/lib/planning/copy.ts` writes what a session says, once per slot per day, into `session_copy`.
 It has to be written ahead: the phone is asleep at six in the evening, so the notification's text is
-handed to `UNUserNotificationCenter` hours early (`mobile/session-reminders.svelte.ts`), and the
+handed to `UNUserNotificationCenter` hours early (the phone's `Reminders.swift`), and the
 screen that opens when it is tapped reads the same stored row rather than asking for a fresh
 sentence that would contradict the banner.
 
@@ -294,9 +333,10 @@ yet.
 `$lib/calendar/reminders.ts` answers when a reminder is due — the event's own calendar reminder or the
 account's lead time, a second one when it is time to set off, and a fixed one right before a call
 starts. Everything else is delivery. The Mac ticks once a minute and asks "is this due now"
-(`desktop/reminders.svelte.ts`), because it is running; iOS is asleep by then, so
-`mobile/reminders.svelte.ts` works the next two days out ahead of time and hands the whole list to
-`UNUserNotificationCenter`, replacing it whenever the calendar or the preferences move.
+(`desktop/reminders.svelte.ts`), because it is running; iOS is asleep by then, so the phone's
+`Reminders.swift` works the next two days out ahead of time and hands the whole list to
+`UNUserNotificationCenter`, replacing it whenever the calendar or the preferences move — the same
+rule, without the time-to-set-off reminder, which needs a journey the phone does not ask for yet.
 
 The wrist is mostly free: a reminder on a locked iPhone is mirrored to the watch, which draws it
 with its own scene (`EventNotificationView.swift`) off the colour and glyph travelling in the
@@ -328,8 +368,8 @@ A screen is not the only place a failure has to reach. `$lib/platform/telemetry.
 what the person was doing before it sent to PostHog — one call, because a second thing to remember
 is a thing that gets forgotten. The API reports the same way (`server/lib/telemetry.ts`, wired into
 `server/error.ts`, and an `ApiError` is an answer rather than a crash), and the two Apple targets
-that are not a webview report through `BalanceTelemetry` — the phone's Swift shell, which runs
-before there is a webview, and the watch, which has no console and no room for an error card. The
+that are not a webview report through `BalanceTelemetry` — the phone app, whose failures are also
+the cards of its `ProblemBanner`, and the watch, which has no console and no room for an error card. The
 client keys are public by design and live in one place (`VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`),
 which the release lane writes into the iOS and watchOS `Info.plist`s so all four platforms report
 to one project.
@@ -565,8 +605,9 @@ Reading a source happens on the device that can — Health only on the iPhone �
 person has let it (`integrations.connect`, kept in `persist.readSetting`, never aged out). On
 launch and on resume, at most every four hours, each readable feed looks up its linked
 occurrences from the last two weeks, asks the feed for a record per occurrence
-(`HealthKitPlugin.swift` hands raw samples up and decides nothing; `sleep-sessions.ts` and
-`sleep-summary.ts` turn them into the night, and are tested) and writes them with
+(the phone's `HealthSync.swift` reads the samples, and `BalanceCore`'s `Sleep` — a port of
+`sleep-sessions.ts`, `sleep-summary.ts` and `sleep-score.ts`, with their tests — turns them into
+the night) and writes them with
 `POST /mobile/integrations/records`. `integration_records` is keyed by occurrence; `resolve`
 hangs each record on its event, but only under the feed the mapping still names, so unlinking
 orphans the records rather than showing them. The card draws the feed's own `section`
@@ -585,7 +626,8 @@ build, and the backend ignores its half in production and on Vercel.
 The watch has the same bypass one level down (`BalanceKit/DevAuth.swift`): `bunx devkit dev:iwatch`
 launches it with `BALANCE_DEV_AUTH=1`, which points `APIClient` at `http://localhost:3100` and
 sends requests without a Clerk session, so a watch on a simulator with no paired phone shows the
-real week rather than the "open Balance on your phone" card. `--real` launches it without the flag.
+real week rather than the "open Balance on your phone" card. `bunx devkit dev:iphone` launches the
+phone app the same way. `--real` launches either without the flag.
 
 ## Tests
 
