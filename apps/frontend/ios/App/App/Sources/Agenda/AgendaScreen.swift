@@ -35,6 +35,11 @@ struct AgendaScreen: View {
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
+                    if let nudge {
+                        nudge
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+                    }
                     ForEach(sections) { section in
                         Section {
                             if !collapsed.contains(section.id) {
@@ -82,6 +87,14 @@ struct AgendaScreen: View {
             .subtitle(now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { router.sessionOpen = store.session?.slot ?? store.sessionSlot } label: {
+                        Label("\(store.session?.rank.stars ?? 0)", systemImage: "star.fill")
+                            .labelStyle(.titleAndIcon)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                    }
+                    .accessibilityIdentifier("starsButton")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { router.settingsOpen = true } label: {
                         Image(systemName: "person.crop.circle")
@@ -97,6 +110,38 @@ struct AgendaScreen: View {
             }
             .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { now = $0 }
         }
+    }
+
+    /// The sitting, offered while it is due: the slot has come round and its day isn't planned.
+    private var nudge: AnyView? {
+        guard let summary = store.session, !summary.target.planned, summary.connected else { return nil }
+        let label = summary.slot == .morning ? "Morning plan" : summary.slot == .weekly ? "Week review" : "Evening review"
+        return AnyView(
+            Button { router.sessionOpen = summary.slot } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: summary.slot == .morning ? "sunrise" : "moon.stars")
+                        .font(.title3)
+                        .frame(width: 36, height: 36)
+                        .background(Color(.tertiarySystemFill), in: Circle())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(label).font(.subheadline.weight(.semibold))
+                        Text("Plan \(summary.nextDayWord)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if summary.planStars > 0 {
+                        Label("+\(summary.planStars)", systemImage: "star.fill")
+                            .labelStyle(.titleAndIcon)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.yellow)
+                    }
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+                .padding(12)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("sessionNudge")
+        )
     }
 
     // MARK: Rows

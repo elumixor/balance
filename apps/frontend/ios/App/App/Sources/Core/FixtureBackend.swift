@@ -237,5 +237,52 @@ final class FixtureBackend: Backend {
 
     func googleConnectURL() async throws -> URL { URL(string: "https://example.com")! }
 
+    private var committed: Set<String> = []
+    private var stars = 42
+
+    func sessionSummary(slot: SessionSummary.Slot) async throws -> SessionSummary {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let reviewDay = slot == .morning ? calendar.date(byAdding: .day, value: -1, to: today)! : today
+        let targetDay = slot == .morning ? today : calendar.date(byAdding: .day, value: 1, to: today)!
+        func day(_ date: Date) -> SessionSummary.Day {
+            let end = calendar.date(byAdding: .day, value: 1, to: date)!
+            let blocks = events.filter { !$0.allDay && $0.start >= date && $0.start < end }.map { e in
+                let sphere = e.weights.first.flatMap { w in spheres.first { $0.id == w.categoryId } }
+                return SessionSummary.Block(
+                    id: e.id, title: e.title, start: e.start, end: e.end, categoryId: sphere?.id, color: sphere?.color,
+                    icon: sphere?.icon, hours: e.end.timeIntervalSince(e.start) / 3600
+                )
+            }
+            let mapped = blocks.filter { $0.categoryId != nil }.reduce(0) { $0 + $1.hours }
+            return SessionSummary.Day(
+                day: DayString.string(date), planned: committed.contains(DayString.string(date)), rest: false,
+                coverage: min(1, mapped / 4), mappedHours: mapped, budgetHours: 4, blocks: blocks,
+                hours: blocks.reduce(0) { $0 + $1.hours }, categories: [], top: Array(blocks.prefix(4))
+            )
+        }
+        let target = day(targetDay)
+        return SessionSummary(
+            slot: slot, today: DayString.string(today), connected: true,
+            rank: .init(stars: stars, tier: 1, subtier: 2, toNextSubtier: 8), streak: 3, coverageThreshold: 0.7,
+            award: target.planned ? [] : [.init(reason: "daily", delta: 3)], weeklyAward: 0,
+            review: day(reviewDay), target: target, week: nil,
+            copy: .init(title: "A day that went where you sent it", body: "The focus block held, and the evening is yours.", points: [])
+        )
+    }
+
+    func commitDay(_ day: String, rest: Bool) async throws -> CommitResult {
+        let already = committed.contains(day)
+        committed.insert(day)
+        if !already { stars += 3 }
+        return CommitResult(alreadyPlanned: already, awarded: already ? [] : [.init(reason: "daily", delta: 3)], stars: stars)
+    }
+
+    func commitWeek(_ weekStart: String) async throws -> CommitResult {
+        CommitResult(alreadyPlanned: false, awarded: [], stars: stars)
+    }
+
+    func sessionSlots() async throws -> (enabled: Bool, slots: [SessionSlot]) { (false, []) }
+
     func watchTicket() async throws -> String { "fixture" }
 }

@@ -53,6 +53,12 @@ struct CalendarScreen: View {
                 Divider()
                 grid
             }
+            .safeAreaInset(edge: .bottom) {
+                if let day = store.planDay {
+                    PlanBar(day: day).transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.smooth, value: store.planDay)
             .navigationTitle(currentStart.formatted(.dateTime.month(.wide).year()))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }

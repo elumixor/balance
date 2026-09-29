@@ -133,4 +133,18 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
         element("settingsDone").tap()
     }
+
+    func testReviewThenPlanTheNextDay() {
+        let nudge = element("sessionNudge")
+        XCTAssertTrue(nudge.waitForExistence(timeout: 10))
+        nudge.tap()
+        let plan = element("planButton")
+        XCTAssertTrue(plan.waitForExistence(timeout: 5))
+        plan.tap()
+        let commit = element("commitPlan")
+        XCTAssertTrue(commit.waitForExistence(timeout: 5))
+        XCTAssertTrue(commit.isEnabled)
+        commit.tap()
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label ENDSWITH 'is planned'")).firstMatch.waitForExistence(timeout: 5))
+    }
 }

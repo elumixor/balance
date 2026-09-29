@@ -142,6 +142,7 @@ struct ReminderPreferences: Codable, Hashable {
 
 struct Preferences: Codable, Hashable {
     var reminders: ReminderPreferences
+    var sessions: SessionPreferences?
 }
 
 struct Profile: Codable, Hashable {

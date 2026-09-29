@@ -20,6 +20,10 @@ protocol Backend: AnyObject {
     func weekSummary(weekStart: Date) async throws -> WatchSummary
     func googleConnectURL() async throws -> URL
     func watchTicket() async throws -> String
+    func sessionSummary(slot: SessionSummary.Slot) async throws -> SessionSummary
+    func commitDay(_ day: String, rest: Bool) async throws -> CommitResult
+    func commitWeek(_ weekStart: String) async throws -> CommitResult
+    func sessionSlots() async throws -> (enabled: Bool, slots: [SessionSlot])
 }
 
 // MARK: - Sync protocol (`@elumixor/synced`)
@@ -215,6 +219,26 @@ final class LiveBackend: Backend {
         struct Answer: Decodable { let ticket: String }
         let answer: Answer = try await request("POST", "/mobile/auth/watch/ticket", body: [String: JSON]())
         return answer.ticket
+    }
+
+    private var zone: String { TimeZone.current.identifier }
+
+    func sessionSummary(slot: SessionSummary.Slot) async throws -> SessionSummary {
+        try await request("GET", "/mobile/planning/summary", query: ["slot": slot.rawValue, "timeZone": zone])
+    }
+
+    func commitDay(_ day: String, rest: Bool) async throws -> CommitResult {
+        try await request("POST", "/mobile/planning/day", body: ["day": JSON.string(day), "timeZone": .string(zone), "rest": .bool(rest)])
+    }
+
+    func commitWeek(_ weekStart: String) async throws -> CommitResult {
+        try await request("POST", "/mobile/planning/week", body: ["weekStart": JSON.string(weekStart), "timeZone": .string(zone)])
+    }
+
+    func sessionSlots() async throws -> (enabled: Bool, slots: [SessionSlot]) {
+        struct Answer: Decodable { let enabled: Bool; let slots: [SessionSlot] }
+        let answer: Answer = try await request("GET", "/mobile/planning/notifications", query: ["timeZone": zone])
+        return (answer.enabled, answer.slots)
     }
 
     /// Trades a provider's identity token for a Clerk sign-in ticket. The one unauthenticated call.

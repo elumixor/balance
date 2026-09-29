@@ -24,6 +24,33 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
 
     /// Where a tapped reminder asks to be taken: the event's key.
     var onOpen: ((String) -> Void)?
+    /// A tapped sitting reminder, with its slot.
+    var onSession: ((String) -> Void)?
+    static let sessionCategory = "balance.session"
+    private static let sessionPrefix = "balance.session."
+
+    /// The next two days' sitting reminders, words and all, exactly as the server wrote them —
+    /// the phone is asleep when they fire, so nothing about them is decided then.
+    func rescheduleSessions(enabled: Bool, slots: [SessionSlot], sound: Bool) async {
+        guard await ensureAuthorized() else { return }
+        let center = UNUserNotificationCenter.current()
+        let pending = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(Self.sessionPrefix) }
+        center.removePendingNotificationRequests(withIdentifiers: pending)
+        guard enabled else { return }
+        for slot in slots where slot.at.timeIntervalSinceNow > 5 {
+            let content = UNMutableNotificationContent()
+            content.title = slot.title
+            content.body = slot.body
+            content.categoryIdentifier = Self.sessionCategory
+            content.sound = sound ? .default : nil
+            content.userInfo = ["sessionSlot": slot.slot, "day": slot.day, "icon": "sunrise", "color": ""]
+            let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: slot.at)
+            try? await center.add(UNNotificationRequest(
+                identifier: "\(Self.sessionPrefix)\(slot.slot).\(slot.day)", content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
+            ))
+        }
+    }
     private var authorized: Bool?
 
     func install() {
@@ -33,6 +60,7 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
         center.setNotificationCategories([
             UNNotificationCategory(identifier: Self.category, actions: [], intentIdentifiers: []),
             UNNotificationCategory(identifier: Self.joinCategory, actions: [join], intentIdentifiers: []),
+            UNNotificationCategory(identifier: Self.sessionCategory, actions: [], intentIdentifiers: []),
         ])
     }
 
@@ -128,8 +156,11 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
         let info = response.notification.request.content.userInfo
         let join = info["joinUrl"] as? String ?? ""
         let key = info["eventId"] as? String
+        let sessionSlot = info["sessionSlot"] as? String
         await MainActor.run {
-            if response.actionIdentifier == Self.joinAction, let url = URL(string: join), !join.isEmpty {
+            if let sessionSlot {
+                onSession?(sessionSlot)
+            } else if response.actionIdentifier == Self.joinAction, let url = URL(string: join), !join.isEmpty {
                 UIApplication.shared.open(url)
             } else if let key {
                 onOpen?(key)

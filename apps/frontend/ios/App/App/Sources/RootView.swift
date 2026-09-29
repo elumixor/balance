@@ -62,14 +62,20 @@ struct MainView: View {
         .sheet(isPresented: $router.settingsOpen) {
             SettingsScreen()
         }
+        .fullScreenCover(item: $router.sessionOpen) { slot in
+            SessionScreen(slot: slot)
+        }
         .overlay(alignment: .top) { ProblemBanner() }
-        .task { await store.refresh() }
+        .task { await launch() }
         .onChange(of: phase) { _, now in
-            if now == .active { Task { await store.refresh() } }
+            if now == .active { Task { await launch() } }
             if now == .background { store.persist() }
         }
         .onChange(of: store.eventsVersion) { _, _ in plan() }
         .onAppear {
+            Reminders.shared.onSession = { raw in
+                router.sessionOpen = SessionSummary.Slot(rawValue: raw) ?? store.sessionSlot
+            }
             Reminders.shared.onOpen = { key in
                 router.tab = .calendar
                 if let event = store.event(key: key) { router.calendarFocus = event.start }
@@ -80,6 +86,15 @@ struct MainView: View {
                 WatchLink.shared.push()
             }
         }
+    }
+
+    /// Everything a launch or a return to the app refreshes: the records and weeks, the sitting
+    /// for the current slot, and the sitting reminders the server has written for the next days.
+    private func launch() async {
+        await store.refresh()
+        await store.loadSession()
+        guard session.mode == .live, let slots = try? await store.backend.sessionSlots() else { return }
+        await Reminders.shared.rescheduleSessions(enabled: slots.enabled, slots: slots.slots, sound: store.preferences.reminders.sound)
     }
 
     /// Reminders are re-planned whenever the events move — debounced, since a refresh moves them

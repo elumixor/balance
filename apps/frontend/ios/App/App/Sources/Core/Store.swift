@@ -473,6 +473,56 @@ final class Store {
         }
     }
 
+    // MARK: The sitting
+
+    /// The current slot's review and plan, when it has been asked for.
+    private(set) var session: SessionSummary?
+    /// The day being planned on the calendar, `YYYY-MM-DD`; nil outside plan mode.
+    var planDay: String?
+    /// What the last commit paid, for the plan bar to celebrate with before it closes.
+    var lastAward: CommitResult?
+
+    var sessionSlot: SessionSummary.Slot { (preferences.sessions ?? .defaults).slot(at: Date(), calendar: calendar) }
+
+    func loadSession(_ slot: SessionSummary.Slot? = nil) async {
+        do {
+            session = try await backend.sessionSummary(slot: slot ?? sessionSlot)
+        } catch {
+            report(error, "Couldn't load your review")
+        }
+    }
+
+    /// Hours of a day given a meaning — the only hours that count toward planning it.
+    func mappedHours(on day: String) -> Double {
+        guard let date = DayString.date(day) else { return 0 }
+        let start = calendar.startOfDay(for: date)
+        let end = calendar.date(byAdding: .day, value: 1, to: start)!
+        return events(from: start, to: end).filter { $0.countsTowardHours && !$0.weights.isEmpty && !$0.allDay }.reduce(0) { sum, e in
+            sum + max(0, min(e.end, end).timeIntervalSince(max(e.start, start))) / 3600
+        }
+    }
+
+    /// Writes the planned day down — and the week with it on the Sunday sitting.
+    @discardableResult
+    func commitPlan(rest: Bool = false) async -> Bool {
+        guard let day = planDay else { return false }
+        do {
+            var result = try await backend.commitDay(day, rest: rest)
+            if let session, session.slot == .weekly, session.weeklyAward > 0, let date = DayString.date(day) {
+                let monday = weekStart(date)
+                let week = try await backend.commitWeek(DayString.string(monday))
+                result = CommitResult(alreadyPlanned: result.alreadyPlanned, awarded: result.awarded + week.awarded, stars: week.stars)
+            }
+            lastAward = result
+            Telemetry.event("plan_committed", ["day": day, "rest": rest, "stars": result.awarded.reduce(0) { $0 + $1.delta }])
+            await loadSession(session?.slot)
+            return true
+        } catch {
+            report(error, "Couldn't save your plan")
+            return false
+        }
+    }
+
     // MARK: Calendars and account
 
     func calendars() async -> CalendarsResponse? {

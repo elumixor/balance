@@ -52,6 +52,8 @@ final class Router {
     /// The event whose card is open, by its key.
     var openEvent: EventRef?
     var settingsOpen = false
+    /// The sitting that is open, by its slot.
+    var sessionOpen: SessionSummary.Slot?
     /// Set to make the calendar jump to a day.
     var calendarFocus: Date?
 
@@ -76,4 +78,8 @@ final class Router {
         default: break
         }
     }
+}
+
+extension SessionSummary.Slot: Identifiable {
+    var id: String { rawValue }
 }

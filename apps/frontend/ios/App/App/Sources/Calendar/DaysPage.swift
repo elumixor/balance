@@ -87,6 +87,10 @@ struct DayColumn: View {
                 if calendar.isDateInToday(day) {
                     NowLine(hourHeight: hourHeight)
                 }
+                // While a day is being planned, every other day steps back.
+                if let plan = store.planDay, plan != DayString.string(day) {
+                    Color(.systemBackground).opacity(0.55).allowsHitTesting(false)
+                }
             }
         }
     }
