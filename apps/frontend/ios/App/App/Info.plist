@@ -36,7 +36,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>47</string>
+	<string>48</string>
 	<key>GIDClientID</key>
 	<string>836194369955-5vudcjgcu637ma5bje6idu96emjm0f1a.apps.googleusercontent.com</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -48,7 +48,7 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Balance never writes to Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Balance uses your location to work out when to leave for an event you're travelling to.</string>
+	<string>Balance uses your location to work out when to leave for an event you&#39;re travelling to.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
