@@ -8,19 +8,40 @@ import type { CalendarWrites, Drawn, EventRef } from "./writes.svelte";
  * A recurring event was just edited on this occurrence alone — offered up in case the change was
  * meant for every occurrence. Holding ⌘/Ctrl through a drag skips this and detaches the occurrence
  * on purpose, which is why the prompt only ever appears after a write that didn't ask for that.
+ *
+ * Edits to the same occurrence gather into one offer: a card open on it is a sitting of several
+ * changes — guests, a call, a new time — and the question is asked once, about all of them, when
+ * the card closes (`CalendarData.seriesPrompt` holds it back until then).
  */
 export interface SeriesPrompt {
-  /** Bumped per offer, so a second edit's card is a new card rather than the old one relabelled. */
+  /** Bumped per offer, so another event's edit is a new card rather than the old one relabelled. */
   readonly id: number;
+  /** The occurrence as the grid knows it — what an open card is matched against. */
+  readonly eventId: string;
   readonly ref: EventRef;
   readonly seriesId: string;
   readonly seriesStart: string | null;
   readonly title: string;
   readonly fields: EventFields;
+  /** Where the occurrence stood before the first gathered edit — what the server moves the rest by. */
   readonly previousStart: Date;
   readonly previousEnd: Date;
   /** The rest of what a card changes — a place, a guest list — when that is what was edited. */
   readonly patch?: EventPatch;
+  /** How many writes were gathered, so taking the offer back takes all of them back. */
+  readonly steps: number;
+}
+
+/** A gathered offer as the one write that `apply` sends series-wide. */
+function patchOf(prompt: Omit<SeriesPrompt, "id" | "steps">): EventPatch {
+  return (
+    prompt.patch ?? {
+      title: prompt.fields.title,
+      description: prompt.fields.description ?? "",
+      start: prompt.fields.start.toISOString(),
+      end: prompt.fields.end.toISOString(),
+    }
+  );
 }
 
 /**
@@ -53,14 +74,32 @@ export class CalendarSeries {
     this.#host = host;
   }
 
-  /** Every offer is its own card — see `SeriesPrompt.id`. */
-  offer(prompt: Omit<SeriesPrompt, "id">) {
-    const offered: SeriesPrompt = { ...prompt, id: ++this.#offers };
+  /**
+   * A second edit to the occurrence already on offer joins it — the latest name, notes and time,
+   * every patched field, and the place it stood before the first. Another occurrence's edit is
+   * its own card — see `SeriesPrompt.id`.
+   */
+  offer(prompt: Omit<SeriesPrompt, "id" | "steps">) {
+    const was = this.prompt;
+    const offered: SeriesPrompt =
+      was && was.eventId === prompt.eventId && was.seriesId === prompt.seriesId
+        ? {
+            ...prompt,
+            id: was.id,
+            previousStart: was.previousStart,
+            previousEnd: was.previousEnd,
+            patch: { ...patchOf(was), ...patchOf(prompt) },
+            steps: was.steps + 1,
+          }
+        : { ...prompt, id: ++this.#offers, steps: 1 };
     this.prompt = offered;
     return offered;
   }
 
-  /** The write it was asking about never landed, so neither does the question. */
+  /**
+   * The write it was asking about never landed, so neither does the question — a gathered one
+   * included, since what it would send series-wide is no longer what the occurrence holds.
+   */
   withdraw(offer: SeriesPrompt | null) {
     if (offer && this.prompt?.id === offer.id) this.prompt = null;
   }
@@ -68,6 +107,11 @@ export class CalendarSeries {
   /** Just this occurrence, then — the write already happened, so there's nothing left to do. */
   dismiss() {
     this.prompt = null;
+  }
+
+  /** Another block is being changed: an offer about this one is answered "just this occurrence". */
+  dismissUnless(eventId: string) {
+    if (this.prompt && this.prompt.eventId !== eventId) this.prompt = null;
   }
 
   offerDelete(event: CalendarEvent) {
@@ -87,12 +131,7 @@ export class CalendarSeries {
     const prompt = this.prompt;
     if (!prompt) return;
     this.prompt = null;
-    const fields = prompt.patch ?? {
-      title: prompt.fields.title,
-      description: prompt.fields.description ?? "",
-      start: prompt.fields.start.toISOString(),
-      end: prompt.fields.end.toISOString(),
-    };
+    const fields = patchOf(prompt);
     await this.#writes.run(
       () =>
         updateCalendarEvent(prompt.ref.id, {

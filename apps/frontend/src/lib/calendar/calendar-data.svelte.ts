@@ -528,9 +528,13 @@ class CalendarData {
 
   // --- the series prompt -----------------------------------------------------
 
-  /** A just-edited recurring occurrence, offered the choice to apply the same edit series-wide. */
+  /**
+   * A just-edited recurring occurrence, offered the choice to apply the same edit series-wide —
+   * held back while its card is open, so a sitting of changes is asked about once, on close.
+   */
   get seriesPrompt() {
-    return this.#series.prompt;
+    const prompt = this.#series.prompt;
+    return prompt && this.selected?.id === prompt.eventId ? null : prompt;
   }
 
   applyToSeries(scope: SeriesScope = "all") {
@@ -550,10 +554,11 @@ class CalendarData {
     this.#series.dismissDelete();
   }
 
-  /** Second thoughts about the occurrence itself: the offer goes, and so does the edit behind it. */
+  /** Second thoughts about the occurrence itself: the offer goes, and so does every edit behind it. */
   undoSeriesEdit() {
+    const steps = this.#series.prompt?.steps ?? 1;
     this.#series.dismiss();
-    return this.undo();
+    for (let i = 0; i < steps; i++) this.undo();
   }
 }
 

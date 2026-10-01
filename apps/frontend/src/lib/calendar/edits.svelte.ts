@@ -188,7 +188,7 @@ export class CalendarEdits {
     patch: { title?: string; description?: string; start?: Date; end?: Date },
     detach = false,
   ) {
-    this.#series.dismiss();
+    this.#series.dismissUnless(event.id);
     const ref = this.#writes.ref(event);
     const before = fieldsOf(event);
     const after: EventFields = {
@@ -218,6 +218,7 @@ export class CalendarEdits {
     const offer =
       event.seriesId && !detach
         ? this.#series.offer({
+            eventId: event.id,
             ref,
             seriesId: event.seriesId,
             seriesStart: event.seriesStart,
@@ -250,7 +251,7 @@ export class CalendarEdits {
    * anything else edited on an occurrence is offered to the rest of the series the way a retitle is.
    */
   async patchEvent(event: CalendarEvent, patch: EventPatch, inverse: EventPatch) {
-    this.#series.dismiss();
+    this.#series.dismissUnless(event.id);
     if (this.#writes.isDraft(event.id)) {
       diagnostics.report("Calendar", "The block is still being made.", {
         title: "Give it a second",
@@ -288,6 +289,7 @@ export class CalendarEdits {
     const offer =
       event.seriesId && !onMaster
         ? this.#series.offer({
+            eventId: event.id,
             ref,
             seriesId: event.seriesId,
             seriesStart: event.seriesStart,
