@@ -5,7 +5,6 @@
   import { deviceTimeZone } from "$lib/planning/zone";
   import { viewport } from "$lib/platform/viewport.svelte";
   import { Minus, Plus } from "lucide-svelte";
-  import type { Snippet } from "svelte";
   import TimeZonePicker from "./TimeZonePicker.svelte";
 
   /**
@@ -18,7 +17,6 @@
     headerPx,
     columnPx,
     zoneAt,
-    corner,
   }: {
     hourPx: number;
     /** The header the day headings and banners take, so the hours start level with the grid. */
@@ -27,8 +25,6 @@
     columnPx: number;
     /** The moment the columns are read at, since the gap between two zones moves with the clocks. */
     zoneAt: Date;
-    /** What sits in the top of the first column's header, above the zone's name. */
-    corner?: Snippet;
   } = $props();
 
   /** How many zones the grid will name its hours in — past this the days have no room left. */
@@ -76,9 +72,6 @@
         class="sticky top-0 z-10 flex shrink-0 items-end justify-center border-line border-b bg-surface pb-0.5 transition-[height] duration-150"
         style="height:{headerPx}px"
       >
-        {#if index === 0 && corner}
-          {@render corner()}
-        {/if}
         <!-- A rung smaller on a phone, where the gutter is narrower than the label it carries. -->
         <button
           type="button"

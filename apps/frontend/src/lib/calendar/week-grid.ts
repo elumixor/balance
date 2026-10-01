@@ -439,9 +439,12 @@ export function allDayRowCount(spans: readonly (ColumnRun & { row: number })[], 
   );
 }
 
-/** How many of the spans over the days on screen sit in a row past the first `rows` — what a fold hides. */
-export function spansBelow(spans: readonly (ColumnRun & { row: number })[], window: StripWindow, rows: number): number {
-  return spans.filter((span) => span.row >= rows && spanInWindow(span.dayIndex, span.days, window)).length;
+/** How many spans cover each day of the strip — what a folded header says in place of them. */
+export function spansPerDay(spans: readonly ColumnRun[], stripDays: number): number[] {
+  return Array.from(
+    { length: stripDays },
+    (_, day) => spans.filter((span) => span.dayIndex <= day && day < span.dayIndex + span.days).length,
+  );
 }
 
 /** A box in the grid's own units — a continuous day index and minutes into the day, both corners unsnapped. */

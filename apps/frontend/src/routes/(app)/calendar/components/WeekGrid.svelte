@@ -14,7 +14,7 @@
     inWindow,
     marqueeBox,
     placeStrip,
-    spansBelow,
+    spansPerDay,
     type StripWindow,
   } from "$lib/calendar/week-grid";
   import type { Category } from "$lib/core/records";
@@ -116,27 +116,24 @@
   /** The projects' days on the strip, rows of their own above the banners. */
   const markers = $derived(dueMarkers(stages.all, tasks.all, projects.all, [...categories.values()], data.stripStart, STRIP_DAYS));
   /**
-   * Folded, the header keeps one row of each — a week of long tasks would otherwise push the hours
-   * off the screen. It is this device's choice, since a phone and a desktop have different room.
+   * Folded, the header is one row saying how many banners and project days each day holds — a
+   * week of long tasks would otherwise push the hours off the screen. It is this device's choice,
+   * since a phone and a desktop have different room.
    */
   const FOLD_KEY = "calendar.allDayFolded";
-  const FOLDED_ROWS = 1;
   let folded = $state(readSetting<boolean>(FOLD_KEY) ?? false);
   function toggleFold() {
     folded = !folded;
     writeSetting(FOLD_KEY, folded);
   }
   /** Only the spans touching the days on screen reserve rows, so the header follows the live scroll. */
-  const allDayRowsAll = $derived(allDayRowCount(allDay, window));
-  const markerRowsAll = $derived(allDayRowCount(markers, window));
-  const allDayRows = $derived(folded ? Math.min(FOLDED_ROWS, allDayRowsAll) : allDayRowsAll);
-  const markerRows = $derived(folded ? Math.min(FOLDED_ROWS, markerRowsAll) : markerRowsAll);
-  /** Whether folding would hide anything, and how much it hides while folded. */
-  const foldable = $derived(allDayRowsAll > FOLDED_ROWS || markerRowsAll > FOLDED_ROWS);
-  const foldedAway = $derived(
-    folded ? spansBelow(allDay, window, FOLDED_ROWS) + spansBelow(markers, window, FOLDED_ROWS) : 0,
-  );
-  const headerPx = $derived(DAY_HEAD_PX + (allDayRows + markerRows) * ALL_DAY_PX);
+  const allDayRows = $derived(allDayRowCount(allDay, window));
+  const markerRows = $derived(allDayRowCount(markers, window));
+  /** Folding is offered once the header holds more than the one row it folds to. */
+  const foldable = $derived(allDayRows + markerRows > 1);
+  const showFolded = $derived(folded && foldable);
+  const counts = $derived({ events: spansPerDay(allDay, STRIP_DAYS), tasks: spansPerDay(markers, STRIP_DAYS) });
+  const headerPx = $derived(DAY_HEAD_PX + (showFolded ? 1 : allDayRows + markerRows) * ALL_DAY_PX);
 
   const todayStart = $derived(clock.todayStart);
   const marquee = $derived(data.marquee ? marqueeBox(data.marquee, hourPx, dayWidth) : null);
@@ -191,6 +188,21 @@
 <div class="relative h-full">
   <TodayButton jumping={scroll.jumping} />
 
+  <!-- Over the top-right corner of the days rather than inside the strip, so it stays put while
+       the days slide under it. -->
+  {#if foldable}
+    <button
+      type="button"
+      onclick={toggleFold}
+      aria-label={folded ? "Show every all-day row" : "Fold the all-day rows"}
+      aria-expanded={!folded}
+      class="bare-button absolute right-1 z-30 size-6 bg-surface"
+      style="top:{(DAY_HEAD_PX - 24) / 2}px"
+    >
+      {#if folded}<ChevronDown size={14} />{:else}<ChevronUp size={14} />{/if}
+    </button>
+  {/if}
+
   <!-- No CSS snapping: a snap container turns a fling into the browser's own animation to a fixed
        offset, which overwrites the strip's recentre underneath it and runs the week away (see
        `WeekScroll`). The grid's own settle eases onto a column instead. -->
@@ -205,28 +217,7 @@
   >
     <div class="flex" style="width:{GUTTER_PX + STRIP_DAYS * dayWidth}px">
       <!-- The hours stay put while the days slide past them — a column of them per zone. -->
-      <ZoneGutter {hourPx} {headerPx} columnPx={ZONE_COLUMN_PX} {zoneAt}>
-        {#snippet corner()}
-          {#if foldable}
-            <button
-              type="button"
-              onclick={toggleFold}
-              title={folded ? "Show every all-day row" : "Fold the all-day rows"}
-              aria-label={folded ? "Show every all-day row" : "Fold the all-day rows"}
-              aria-expanded={!folded}
-              class="hoverable t-data-micro absolute left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-md px-1 py-0.5 text-fg-faint"
-              style="top:{DAY_HEAD_PX + 4}px"
-            >
-              {#if folded}
-                <ChevronDown size={12} class="shrink-0" />
-                <span>+{foldedAway}</span>
-              {:else}
-                <ChevronUp size={12} class="shrink-0" />
-              {/if}
-            </button>
-          {/if}
-        {/snippet}
-      </ZoneGutter>
+      <ZoneGutter {hourPx} {headerPx} columnPx={ZONE_COLUMN_PX} {zoneAt} />
 
       <div
         class="min-w-0"
@@ -242,6 +233,8 @@
             {markers}
             rows={allDayRows}
             {markerRows}
+            folded={showFolded ? counts : null}
+            onunfold={toggleFold}
             {window}
             {seen}
             {appear}

@@ -34,7 +34,7 @@ import {
   segmentsForRange,
   snapMinutes,
   spanInWindow,
-  spansBelow,
+  spansPerDay,
   travelBandBox,
 } from "./week-grid";
 
@@ -613,16 +613,15 @@ describe("allDayRowCount", () => {
   });
 });
 
-describe("spansBelow", () => {
-  const window: StripWindow = { offset: 7, visibleDays: 3, stripDays: 21 };
-  const span = (dayIndex: number, days: number, row: number) => ({ dayIndex, days, row });
+describe("spansPerDay", () => {
+  const run = (dayIndex: number, days: number) => ({ dayIndex, days });
 
-  it("counts what is on screen past the rows kept, and nothing off it", () => {
-    expect(spansBelow([span(7, 1, 0), span(8, 2, 1), span(9, 1, 2), span(0, 1, 3), span(6, 2, 1)], window, 1)).toBe(3);
+  it("counts every span over each day it covers", () => {
+    expect(spansPerDay([run(0, 1), run(1, 2), run(2, 1)], 4)).toEqual([1, 1, 2, 0]);
   });
 
-  it("is zero when every row is kept", () => {
-    expect(spansBelow([span(7, 1, 0), span(8, 1, 1)], window, 2)).toBe(0);
+  it("clips a span that runs off either end of the strip", () => {
+    expect(spansPerDay([run(-2, 3), run(2, 5)], 3)).toEqual([1, 0, 1]);
   });
 });
 
