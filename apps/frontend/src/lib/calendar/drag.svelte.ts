@@ -42,6 +42,8 @@ export interface DragState {
   readonly event: CalendarEvent | null;
   /** Alt held right now: dropping makes a duplicate instead of moving the original. Live — toggles mid-drag. */
   copy: boolean;
+  /** ⌘/Ctrl held on the way in: the drop changes this occurrence alone — see `endDrag`. */
+  readonly detach: boolean;
   /**
    * The rest of the gathered blocks, dragged along by the same distance as the one under the
    * finger — empty for an ordinary drag.
@@ -88,6 +90,8 @@ interface PendingDrag {
   readonly locked: boolean;
   /** Alt held on the way in — see `DragState.copy`. */
   readonly copy: boolean;
+  /** ⌘/Ctrl held on the way in — see `DragState.detach`. */
+  readonly detach: boolean;
   /** The element the press started on, and the one a started drag captures the pointer to. */
   readonly el: Element;
   timer: ReturnType<typeof setTimeout> | null;
@@ -190,18 +194,17 @@ export class CalendarDrag {
     // The category badge can sit under the resize band on a short block — its own handlers
     // stop propagation, but that only helps if the press actually reaches the button.
     if ((e.target as Element | null)?.closest("[data-category-badge]")) return;
-    // A ⌘-click is gathering blocks, not moving one — the click that follows does the gathering.
-    if (e.metaKey || e.ctrlKey) {
-      this.#dragged = false;
-      return;
-    }
+    // A ⌘-click is gathering blocks, so a ⌘-press only becomes a drag once it travels — the click
+    // a press that stays put ends in does the gathering. One that travels moves this occurrence
+    // alone, loose from its series.
+    const gathering = e.metaKey || e.ctrlKey;
     this.#arm({
       kind: "move",
       source: null,
       event,
       e,
       armed: false,
-      longPress: event.movable,
+      longPress: event.movable && !gathering,
       locked: !event.movable,
       copy: e.altKey,
     });
@@ -289,9 +292,9 @@ export class CalendarDrag {
   }
 
   /**
-   * `detach` is ⌘/Ctrl held at the moment of release: it means the occurrence is meant to come
-   * loose from its series on purpose, so the usual after-the-fact "apply to the series?" offer is
-   * skipped rather than asked and declined.
+   * `detach` is ⌘/Ctrl held when the press began or when it let go: it means the occurrence is
+   * meant to come loose from its series on purpose, so the usual after-the-fact "apply to the
+   * series?" offer is skipped rather than asked and declined.
    */
   endDrag(e?: { metaKey: boolean; ctrlKey: boolean; clientX?: number; clientY?: number }) {
     this.#cancelPending();
@@ -304,7 +307,7 @@ export class CalendarDrag {
 
     const start = instantAt(drag.day, drag.startMinutes);
     const end = instantAt(drag.day, drag.endMinutes);
-    const detach = Boolean(e?.metaKey || e?.ctrlKey);
+    const detach = drag.detach || Boolean(e?.metaKey || e?.ctrlKey);
 
     if (drag.kind === "create" && drag.source) void this.#host.create(drag.source, drag.title, start, end);
     else if (drag.kind === "create") {
@@ -421,6 +424,7 @@ export class CalendarDrag {
       source: null,
       event: null,
       copy: false,
+      detach: false,
       others: [],
       day,
       startMinutes: minutes,
@@ -532,6 +536,7 @@ export class CalendarDrag {
       event: input.event,
       locked: input.locked ?? false,
       copy: input.copy ?? false,
+      detach: input.e.metaKey || input.e.ctrlKey,
       armed: input.armed,
       timer: null,
     };
@@ -567,6 +572,7 @@ export class CalendarDrag {
         source: pending.source,
         event: null,
         copy: false,
+        detach: false,
         others: [],
         day: windowStart,
         startMinutes: 0,
@@ -620,6 +626,7 @@ export class CalendarDrag {
       source: null,
       event: pending.event,
       copy: pending.kind === "move" && pending.copy,
+      detach: pending.detach,
       others,
       day,
       startMinutes,
