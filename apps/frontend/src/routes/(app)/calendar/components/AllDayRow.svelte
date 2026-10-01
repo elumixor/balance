@@ -36,9 +36,9 @@
     columns: string;
     spans: readonly AllDaySpan[];
     markers: readonly DayMarker[];
-    /** How many rows of banners the days on screen need. */
+    /** How many rows of banners are drawn — what the days on screen need, or fewer when folded. */
     rows: number;
-    /** How many rows of project days the days on screen need. */
+    /** How many rows of project days are drawn, the same way. */
     markerRows: number;
     window: StripWindow;
     seen: ReadonlySet<string>;
@@ -54,12 +54,16 @@
       (span) =>
         span.dayIndex + span.days > drawn.first &&
         span.dayIndex <= drawn.last &&
+        // A folded header keeps its first rows and leaves the rest out.
+        span.row < rows &&
         // Same rule as the blocks below: a banner nobody has seen waits for the window rather than
         // spending its fade on the runway.
         (seen.has(span.event.id) || spanInWindow(span.dayIndex, span.days, window)),
     ),
   );
-  const drawnMarkers = $derived(markers.filter((m) => m.dayIndex + m.days > drawn.first && m.dayIndex <= drawn.last));
+  const drawnMarkers = $derived(
+    markers.filter((m) => m.row < markerRows && m.dayIndex + m.days > drawn.first && m.dayIndex <= drawn.last),
+  );
 
   /** Enter or Space on a focused banner does what a tap does. */
   function onkeydown(e: KeyboardEvent & { currentTarget: HTMLElement }, span: AllDaySpan) {

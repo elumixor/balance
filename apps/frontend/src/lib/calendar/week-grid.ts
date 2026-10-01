@@ -439,6 +439,11 @@ export function allDayRowCount(spans: readonly (ColumnRun & { row: number })[], 
   );
 }
 
+/** How many of the spans over the days on screen sit in a row past the first `rows` — what a fold hides. */
+export function spansBelow(spans: readonly (ColumnRun & { row: number })[], window: StripWindow, rows: number): number {
+  return spans.filter((span) => span.row >= rows && spanInWindow(span.dayIndex, span.days, window)).length;
+}
+
 /** A box in the grid's own units — a continuous day index and minutes into the day, both corners unsnapped. */
 export interface GridBox {
   readonly fromDay: number;

@@ -34,6 +34,7 @@ import {
   segmentsForRange,
   snapMinutes,
   spanInWindow,
+  spansBelow,
   travelBandBox,
 } from "./week-grid";
 
@@ -609,6 +610,19 @@ describe("allDayRowCount", () => {
   it("is zero when nothing on screen has a banner", () => {
     expect(allDayRowCount([span(0, 1, 0)], window)).toBe(0);
     expect(allDayRowCount([], window)).toBe(0);
+  });
+});
+
+describe("spansBelow", () => {
+  const window: StripWindow = { offset: 7, visibleDays: 3, stripDays: 21 };
+  const span = (dayIndex: number, days: number, row: number) => ({ dayIndex, days, row });
+
+  it("counts what is on screen past the rows kept, and nothing off it", () => {
+    expect(spansBelow([span(7, 1, 0), span(8, 2, 1), span(9, 1, 2), span(0, 1, 3), span(6, 2, 1)], window, 1)).toBe(3);
+  });
+
+  it("is zero when every row is kept", () => {
+    expect(spansBelow([span(7, 1, 0), span(8, 1, 1)], window, 2)).toBe(0);
   });
 });
 
