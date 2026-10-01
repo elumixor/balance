@@ -4,7 +4,7 @@ import { categories, type NotionMapping, projects } from "~/db/schema";
 import { ApiError } from "~/lib/http/api-error";
 import type { NotionClient, NotionPage } from "./client";
 import { findTasksDataSource } from "./discover";
-import { plainText, relationIds } from "./map";
+import { relationIds, runsOf } from "./map";
 import { TaskSync } from "./tasks";
 
 export interface SyncSummary {
@@ -83,9 +83,9 @@ export class NotionSync {
 
   async #writeProject(page: NotionPage, categoryId: string) {
     const titleKey = Object.entries(page.properties).find(([, value]) => (value as { type?: string }).type === "title");
-    const name = plainText(titleKey?.[1] as Record<string, unknown>) || "Untitled";
+    const name = (await this.client.text(runsOf(titleKey?.[1] as Record<string, unknown>))) || "Untitled";
     const existing = await this.#byNotionId(page.id);
-    const description = this.#description(page);
+    const description = await this.#description(page);
     const mirrored = {
       name,
       description,
@@ -113,9 +113,9 @@ export class NotionSync {
    * The sentence under a project's name, from the column somebody said holds it. Nothing is
    * guessed: a database with no such column simply has projects with no description.
    */
-  #description(page: NotionPage) {
+  async #description(page: NotionPage) {
     const key = this.config.mapping.description;
-    return key ? plainText(page.properties[key] as Record<string, unknown> | undefined) : "";
+    return key ? this.client.text(runsOf(page.properties[key] as Record<string, unknown> | undefined)) : "";
   }
 
   /** The second pass: a page can name a parent that had not been written when it was read. */

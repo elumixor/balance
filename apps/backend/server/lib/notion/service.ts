@@ -123,7 +123,7 @@ export class NotionService {
         notionConnectionId: target.connectionId,
         notionTasksDataSourceId: target.dataSourceId,
         notionViewId: target.viewId,
-        notionTasksName: source.title?.map((run) => run.plain_text).join("") || "Tasks",
+        notionTasksName: (await client.text(source.title)) || "Tasks",
         notionTaskMapping: target.mapping,
         notionTaskFilter: target.filter,
         notionUrl: project.notionPageId ? project.notionUrl : `https://www.notion.so/${database.replaceAll("-", "")}`,

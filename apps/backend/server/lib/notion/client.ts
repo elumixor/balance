@@ -1,6 +1,7 @@
 import type { NotionTaskMapping } from "~/db/schema";
 import { ApiError, UpstreamError } from "~/lib/http/api-error";
 import { optionsOf, type RawSchema, suggestTaskMapping } from "./data-source";
+import { joinRuns, type MentionTarget, mentionTargets, type RichRun, runsOf } from "./map";
 
 const API = "https://api.notion.com/v1";
 /** The version this client is written against — data sources, and pages that belong to them. */
@@ -23,7 +24,7 @@ export interface NotionPage {
 
 export interface NotionDataSourceSchema {
   readonly id: string;
-  readonly title?: { plain_text: string }[];
+  readonly title?: RichRun[];
   readonly parent?: { database_id?: string };
   readonly properties: Record<
     string,
@@ -78,6 +79,14 @@ export class NotionAuthError extends ApiError {
   }
 }
 
+/** Something this grant can't see — never shared with it, or gone. */
+export class NotionNotFoundError extends UpstreamError {
+  constructor(path: string) {
+    super(`Notion can't see ${path} — share it with Balance in Notion.`);
+    this.name = "NotionNotFoundError";
+  }
+}
+
 /**
  * Everything this app asks Notion for, in one place.
  *
@@ -85,10 +94,37 @@ export class NotionAuthError extends ApiError {
  * carries a transport and a validator of its own, and what is needed here is a handful of requests.
  */
 export class NotionClient {
+  /** Mentioned pages' titles, asked for once per client — a board mentions the same few pages a lot. */
+  readonly #titles = new Map<string, string | null>();
+
   constructor(private readonly token: string) {}
 
+  /**
+   * Some rich text as words, with every page and database it mentions said by its title. A
+   * mention of something this grant can't open is asked about once and then left out.
+   */
+  async text(runs: readonly RichRun[] | undefined) {
+    if (!runs?.length) return "";
+    const missing = mentionTargets(runs).filter((target) => !this.#titles.has(target.id));
+    await mapLimit(missing, PAGE_READS, async (target) => this.#titles.set(target.id, await this.#titleOf(target)));
+    return joinRuns(runs, this.#titles);
+  }
+
+  /** A mentioned page or database's own title — its mentions left as Notion spelled them. */
+  async #titleOf(target: MentionTarget): Promise<string | null> {
+    try {
+      if (target.kind === "database") return joinRuns((await this.database(target.id)).title) || null;
+      const page = await this.page(target.id);
+      const title = Object.values(page.properties).find((one) => (one as { type?: string }).type === "title");
+      return joinRuns(runsOf(title as Record<string, unknown> | undefined)) || null;
+    } catch (error) {
+      if (error instanceof NotionNotFoundError) return null;
+      throw error;
+    }
+  }
+
   async database(databaseId: string) {
-    return this.#request<{ title: { plain_text: string }[]; data_sources: { id: string; name: string }[] }>(
+    return this.#request<{ title: RichRun[]; data_sources: { id: string; name: string }[] }>(
       `/databases/${databaseId}`,
     );
   }
@@ -201,17 +237,17 @@ export class NotionClient {
     const answer = await this.#request<{
       results: (RawSchema & {
         id: string;
-        title?: { plain_text: string }[];
+        title?: RichRun[];
         parent?: { database_id?: string };
         properties?: RawSchema["properties"];
       })[];
     }>("/search", "POST", { filter: { property: "object", value: "data_source" }, page_size: PAGE_SIZE });
-    return answer.results.map((result) => {
+    return mapLimit(answer.results, PAGE_READS, async (result) => {
       const schema = { id: result.id, properties: result.properties ?? {} };
       const database = result.parent?.database_id ?? result.id;
       return {
         id: result.id,
-        name: result.title?.map((run) => run.plain_text).join("") || "Untitled",
+        name: (await this.text(result.title)) || "Untitled",
         url: `https://www.notion.so/${database.replaceAll("-", "")}`,
         properties: Object.entries(schema.properties).map(([name, property]) => ({
           id: property.id ?? name,
@@ -261,6 +297,7 @@ export class NotionClient {
     }
 
     const detail = await response.text();
+    if (response.status === 404) throw new NotionNotFoundError(path);
     if (response.status === 401 || response.status === 403)
       throw new NotionAuthError("Notion refused the token — reconnect the workspace.");
     throw new UpstreamError(`Notion answered ${response.status}: ${detail.slice(0, 200)}`);

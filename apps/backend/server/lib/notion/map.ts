@@ -3,12 +3,61 @@ import type { TaskPriority, TaskStatus } from "~/db/schema";
 /** A property value as Notion sends it: a tagged union this file is the only reader of. */
 type Property = Record<string, unknown> & { type?: string };
 
-/** Every text-ish property reduced to the words in it — titles, rich text, and nothing else. */
-export function plainText(property: Property | undefined): string {
-  if (!property) return "";
-  const runs = (property.title ?? property.rich_text) as { plain_text?: string }[] | undefined;
-  if (Array.isArray(runs)) return runs.map((run) => run.plain_text ?? "").join("");
-  return "";
+/**
+ * One run of Notion rich text. A mention — "@Hypocrisy", "@Ana", "@today" — is a run of its own,
+ * and for a page this grant can't open Notion spells it "Untitled".
+ */
+export interface RichRun {
+  readonly type?: string;
+  readonly plain_text?: string;
+  readonly mention?: {
+    readonly type?: string;
+    readonly page?: { readonly id: string };
+    readonly database?: { readonly id: string };
+  };
+}
+
+/** What a page or database mention points at, so its title can be asked for. */
+export interface MentionTarget {
+  readonly id: string;
+  readonly kind: "page" | "database";
+}
+
+/** Titles of mentioned pages, by id; null for one this grant can't open. */
+export type MentionTitles = ReadonlyMap<string, string | null>;
+
+const NO_TITLES: MentionTitles = new Map();
+/** Notion's word for a mentioned page it won't name — never a name worth showing. */
+const UNNAMED = "Untitled";
+
+/** The runs of a title or rich-text property, or none. */
+export function runsOf(property: Property | undefined): readonly RichRun[] {
+  const runs = (property?.title ?? property?.rich_text) as RichRun[] | undefined;
+  return Array.isArray(runs) ? runs : [];
+}
+
+export function mentionTargets(runs: readonly RichRun[]): MentionTarget[] {
+  return runs.flatMap((run): MentionTarget[] => {
+    if (run.mention?.page) return [{ id: run.mention.page.id, kind: "page" }];
+    if (run.mention?.database) return [{ id: run.mention.database.id, kind: "database" }];
+    return [];
+  });
+}
+
+/**
+ * The words in some rich text, with every page and database mention said by its title. A mention
+ * nobody could name is left out rather than read as "Untitled", so "@ATMA Tasks" with ATMA unshared
+ * reads "Tasks" — the words somebody actually typed.
+ */
+export function joinRuns(runs: readonly RichRun[], titles: MentionTitles = NO_TITLES): string {
+  const words = runs.map((run) => {
+    const target = run.mention?.page?.id ?? run.mention?.database?.id;
+    if (!target) return run.plain_text ?? "";
+    const title = titles.get(target);
+    if (title) return title;
+    return run.plain_text && run.plain_text !== UNNAMED ? run.plain_text : "";
+  });
+  return words.join("").replace(/ {2,}/g, " ").trim();
 }
 
 export function selectName(property: Property | undefined): string {

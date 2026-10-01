@@ -1,5 +1,5 @@
 import type { NotionClient, NotionPage, NotionPerson } from "./client";
-import { assigneeKeys, plainText } from "./map";
+import { assigneeKeys, runsOf } from "./map";
 
 /** One person a task board can be narrowed to, and whether it is the account's own Notion login. */
 export interface Assignable {
@@ -38,7 +38,8 @@ async function candidates(
   if (property.type === "relation") {
     const target = property.relation?.data_source_id;
     if (!target) return [];
-    return (await client.queryDataSource(target)).map((page) => ({ id: page.id, name: titleOf(page) }));
+    const pages = await client.queryDataSource(target);
+    return Promise.all(pages.map(async (page) => ({ id: page.id, name: await client.text(titleRuns(page)) })));
   }
   const mentioned = new Set(
     (await client.queryDataSource(dataSourceId)).flatMap((page) =>
@@ -48,8 +49,8 @@ async function candidates(
   return [...mentioned].map((one) => ({ id: one, name: one }));
 }
 
-function titleOf(page: NotionPage) {
-  return plainText(
+function titleRuns(page: NotionPage) {
+  return runsOf(
     Object.values(page.properties).find((one) => (one as { type?: string }).type === "title") as
       | Record<string, unknown>
       | undefined,

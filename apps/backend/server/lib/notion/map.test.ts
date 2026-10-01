@@ -1,13 +1,56 @@
 import { describe, expect, it } from "bun:test";
-import { dateOf, plainText, priorityOf, relationIds, taskStatus } from "./map";
+import { dateOf, joinRuns, mentionTargets, priorityOf, relationIds, runsOf, taskStatus } from "./map";
 
-describe("plainText", () => {
+const mention = (id: string, shown: string) => ({
+  type: "mention",
+  plain_text: shown,
+  mention: { type: "page", page: { id } },
+});
+const text = (content: string) => ({ type: "text", plain_text: content });
+
+describe("joinRuns", () => {
   it("joins the runs of a title", () => {
-    expect(plainText({ type: "title", title: [{ plain_text: "Hypo" }, { plain_text: "crisy" }] })).toBe("Hypocrisy");
+    expect(joinRuns(runsOf({ type: "title", title: [text("Hypo"), text("crisy")] }))).toBe("Hypocrisy");
   });
 
   it("is empty for a property that isn't there", () => {
-    expect(plainText(undefined)).toBe("");
+    expect(joinRuns(runsOf(undefined))).toBe("");
+  });
+
+  it("says a mentioned page by its title", () => {
+    const titles = new Map([["atma", "ATMA"]]);
+    expect(joinRuns([mention("atma", "Untitled"), text(" Tasks")], titles)).toBe("ATMA Tasks");
+  });
+
+  it("leaves out a mention nobody could name rather than reading it as Untitled", () => {
+    const titles = new Map([["atma", null]]);
+    expect(joinRuns([mention("atma", "Untitled"), text(" Tasks")], titles)).toBe("Tasks");
+    expect(joinRuns([text("Fix "), mention("x", "Untitled"), text(" bug")])).toBe("Fix bug");
+  });
+
+  it("keeps Notion's own spelling of a mention it could name", () => {
+    expect(joinRuns([text("Ask "), { type: "mention", plain_text: "@Ana", mention: { type: "user" } }])).toBe(
+      "Ask @Ana",
+    );
+    expect(joinRuns([mention("p", "Combat")])).toBe("Combat");
+  });
+
+  it("keeps line breaks in a description", () => {
+    expect(joinRuns([text("one\ntwo")])).toBe("one\ntwo");
+  });
+});
+
+describe("mentionTargets", () => {
+  it("lists the pages and databases a text mentions", () => {
+    const runs = [
+      mention("p", "x"),
+      text("y"),
+      { type: "mention", plain_text: "d", mention: { type: "database", database: { id: "d" } } },
+    ];
+    expect(mentionTargets(runs)).toEqual([
+      { id: "p", kind: "page" },
+      { id: "d", kind: "database" },
+    ]);
   });
 });
 

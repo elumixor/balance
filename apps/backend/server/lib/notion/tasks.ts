@@ -1,11 +1,11 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { db } from "~/db";
-import { type NotionTaskMapping, people, type TaskStatus, tasks } from "~/db/schema";
+import { type NotionTaskMapping, people, projects, type TaskStatus, tasks } from "~/db/schema";
 import { colorFor } from "~/lib/people/color";
 import type { NotionClient, NotionPage } from "./client";
 import { resolveTaskFields, type TaskFields } from "./data-source";
 import { keepAssigned } from "./filter";
-import { dateOf, plainText, priorityOf, relationIds, selectName, taskStatus } from "./map";
+import { dateOf, priorityOf, relationIds, runsOf, selectName, taskStatus } from "./map";
 
 /** One entry of a people property, as Notion sends it. */
 interface NotionUser {
@@ -47,7 +47,17 @@ export class TaskSync {
    * either is archived here like a deleted one.
    */
   async run(projectId: string, source: TaskSource) {
-    const fields = resolveTaskFields(await this.client.dataSource(source.dataSourceId), source.mapping);
+    const schema = await this.client.dataSource(source.dataSourceId);
+    const fields = resolveTaskFields(schema, source.mapping);
+    // The board's name follows Notion's, mentions said by name, so the project's chip stays right.
+    const name = await this.client.text(schema.title);
+    if (name)
+      await db
+        .update(projects)
+        .set({ notionTasksName: name, updatedAt: new Date() })
+        .where(
+          and(eq(projects.id, projectId), or(isNull(projects.notionTasksName), ne(projects.notionTasksName, name))),
+        );
     await this.#push(projectId, source.dataSourceId, fields);
     const pages = source.viewId
       ? await this.client.queryView(source.viewId)
@@ -86,8 +96,8 @@ export class TaskSync {
     const { startsOn, endsOn } = dateOf(property(page, fields.dates));
     const assignees = await this.#assignees(property(page, fields.assignee));
     const mirrored = {
-      title: plainText(property(page, fields.title)) || "Untitled",
-      description: plainText(property(page, "Description")),
+      title: (await this.client.text(runsOf(property(page, fields.title)))) || "Untitled",
+      description: await this.client.text(runsOf(property(page, "Description"))),
       status: taskStatus(label, fields.groups[label] ?? null),
       statusLabel: label,
       priority: priorityOf(selectName(property(page, fields.priority))),
@@ -150,7 +160,7 @@ export class TaskSync {
   async #pageName(notionPageId: string) {
     const page = await this.client.page(notionPageId);
     const title = Object.values(page.properties).find((one) => (one as { type?: string }).type === "title");
-    return { name: plainText(title as Record<string, unknown>), email: null };
+    return { name: await this.client.text(runsOf(title as Record<string, unknown> | undefined)), email: null };
   }
 
   /**
