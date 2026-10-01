@@ -55,6 +55,7 @@ export class NotionSync {
           dataSourceId,
           mapping: project.notionTaskMapping,
           viewId: project.notionViewId,
+          assignees: project.notionTaskFilter?.assignees ?? [],
         });
     }
     this.#counts.people = tasks.peopleSeen;

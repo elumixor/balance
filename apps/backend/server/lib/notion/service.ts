@@ -1,10 +1,17 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "~/db";
-import { type NotionMapping, type NotionTaskMapping, notionConnections, projects } from "~/db/schema";
+import {
+  type NotionMapping,
+  type NotionTaskFilter,
+  type NotionTaskMapping,
+  notionConnections,
+  projects,
+} from "~/db/schema";
 import { decryptSecret, encryptSecret } from "~/lib/calendar/crypto";
 import { ApiError, NotFoundError } from "~/lib/http/api-error";
 import { NotionAuthError, NotionClient } from "./client";
 import { type NotionGrant, notionOAuth } from "./oauth";
+import { assignablePeople } from "./people";
 import { NotionSync, type SyncSummary } from "./sync";
 
 /**
@@ -62,6 +69,11 @@ export class NotionService {
     return (await this.#client(await this.#row(connectionId))).databases();
   }
 
+  /** Who a task board's assignee property can name, with the account's own login marked. */
+  async assignees(connectionId: string, dataSourceId: string, propertyId: string) {
+    return assignablePeople(await this.#client(await this.#row(connectionId)), dataSourceId, propertyId);
+  }
+
   /** A database's saved views — each a filter Notion runs, so one board can feed many projects. */
   async views(connectionId: string, dataSourceId: string) {
     return (await this.#client(await this.#row(connectionId))).views(dataSourceId);
@@ -89,7 +101,13 @@ export class NotionService {
    */
   async link(
     projectId: string,
-    target: { connectionId: string; dataSourceId: string; viewId: string | null; mapping: NotionTaskMapping },
+    target: {
+      connectionId: string;
+      dataSourceId: string;
+      viewId: string | null;
+      mapping: NotionTaskMapping;
+      filter: NotionTaskFilter;
+    },
   ) {
     const project = await db.query.projects.findFirst({
       where: and(eq(projects.id, projectId), eq(projects.userId, this.userId)),
@@ -107,6 +125,7 @@ export class NotionService {
         notionViewId: target.viewId,
         notionTasksName: source.title?.map((run) => run.plain_text).join("") || "Tasks",
         notionTaskMapping: target.mapping,
+        notionTaskFilter: target.filter,
         notionUrl: project.notionPageId ? project.notionUrl : `https://www.notion.so/${database.replaceAll("-", "")}`,
         updatedAt: new Date(),
       })
@@ -125,6 +144,7 @@ export class NotionService {
         notionViewId: null,
         notionTasksName: null,
         notionTaskMapping: null,
+        notionTaskFilter: null,
         notionUrl: null,
         updatedAt: new Date(),
       })

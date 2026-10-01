@@ -37,7 +37,7 @@ export interface TaskFields extends NotionTaskMapping {
 export const MAPPABLE_TYPES: Readonly<Record<keyof NotionTaskMapping, readonly string[]>> = {
   status: ["status", "select", "checkbox"],
   dates: ["date"],
-  assignee: ["people", "relation"],
+  assignee: ["people", "relation", "created_by", "select", "multi_select", "formula"],
   parent: ["relation"],
 };
 
@@ -75,7 +75,7 @@ function suggestByName(schema: RawSchema): NotionTaskMapping {
   return {
     status: byType("status")[0] ?? byType("select").find((name) => name.toLowerCase() === "status") ?? null,
     dates: byType("date")[0] ?? null,
-    assignee: named(ASSIGNEE_NAMES, MAPPABLE_TYPES.assignee) ?? byType("people")[0] ?? null,
+    assignee: named(ASSIGNEE_NAMES, ["people", "relation"]) ?? byType("people")[0] ?? null,
     parent: named(PARENT_NAMES, MAPPABLE_TYPES.parent) ?? selfRelation,
   };
 }

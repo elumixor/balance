@@ -15,7 +15,15 @@ import {
 } from "./queries";
 import { completionOf } from "./rollup";
 import { descendantsOf, pathTo, rowsOf, treeOf } from "./tree";
-import type { NotionConnection, NotionTaskMapping, Project, ProjectStatus, Stage, Task } from "./types";
+import type {
+  NotionConnection,
+  NotionTaskFilter,
+  NotionTaskMapping,
+  Project,
+  ProjectStatus,
+  Stage,
+  Task,
+} from "./types";
 
 /** How long after the last keystroke an edit burst counts as finished — one press of undo. */
 const BURST_MS = 700;
@@ -192,7 +200,13 @@ class ProjectsData {
   /** Point one project at the database its tasks live in, and pull what it holds straight away. */
   async link(
     projectId: string,
-    target: { connectionId: string; dataSourceId: string; viewId: string | null; mapping: NotionTaskMapping },
+    target: {
+      connectionId: string;
+      dataSourceId: string;
+      viewId: string | null;
+      mapping: NotionTaskMapping;
+      filter: NotionTaskFilter;
+    },
   ) {
     // A project made a moment ago may still be in the write queue, and the server refuses a link
     // to a project it hasn't heard of; a sync that joined a round trip already out can miss it.
@@ -239,6 +253,7 @@ class ProjectsData {
         notionViewId: null,
         notionTasksName: null,
         notionTaskMapping: null,
+        notionTaskFilter: null,
       }),
     );
     this.focusId = created.id;

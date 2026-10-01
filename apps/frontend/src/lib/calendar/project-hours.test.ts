@@ -47,6 +47,7 @@ function project(partial: Partial<Project>): Project {
     notionViewId: null,
     notionTasksName: null,
     notionTaskMapping: null,
+    notionTaskFilter: null,
     ...partial,
   };
 }

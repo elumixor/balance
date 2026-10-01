@@ -563,7 +563,11 @@ the saved view whose filter picks this project's rows, then which property is it
 status, select or checkbox), its dates, its assignee and its parent task — each offering only
 properties of the right type, pre-set to what `suggestTaskMapping` finds. A view is how one board of
 every task feeds a project each: Notion runs the view's filter (`client.queryView`), because a view
-stores conditions in a shape the query endpoint refuses. The mapping is kept on the project by
+stores conditions in a shape the query endpoint refuses. "Only tasks for" narrows further to some
+people (`notionTaskFilter`, `filter.ts`, pure and tested): matched by id where the assignee names
+Notion users or pages of a people database, by name where it is a select or a formula that spells
+names out, with the grant's own login marked as "you" (`people.ts`), and every task a kept one sits
+under kept too, so subtasks keep their place. The mapping is kept on the project by
 property id (`notionTaskMapping`), so a rename in Notion keeps it; a property that has since gone
 reads as none rather than a guess. Separately, the import dialog (`NotionSetup`) brings a whole database of projects
 in, and each imported project's task database is found under its page by walking down to the first

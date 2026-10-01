@@ -16,6 +16,7 @@ export default authed(
       dataSourceId: z.string().trim().min(1),
       viewId: z.string().trim().min(1).nullable().default(null),
       mapping: z.object({ status: column, dates: column, assignee: column, parent: column }),
+      filter: z.object({ assignees: z.array(z.string().min(1)) }).default({ assignees: [] }),
     },
   },
   async ({ body: { projectId, ...target }, user }) => new NotionService(user.id).link(projectId, target),

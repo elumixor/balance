@@ -26,6 +26,8 @@ export interface Project {
   notionTasksName: string | null;
   /** Which of its columns mean what; null while they are read by type and name. */
   notionTaskMapping: NotionTaskMapping | null;
+  /** Whose tasks to keep; null or empty keeps every row. */
+  notionTaskFilter: NotionTaskFilter | null;
 }
 
 /** A band across a project's timeline. With no dates of its own it spans the tasks in it. */
@@ -117,6 +119,18 @@ export interface NotionDatabase {
   url: string;
   properties: NotionColumn[];
   suggested: NotionTaskMapping;
+}
+
+/** Whose rows of a task board are one project's — ids, or names where the property has only names. */
+export interface NotionTaskFilter {
+  assignees: string[];
+}
+
+/** Somebody a board's assignee property can name; `me` is the account's own Notion login. */
+export interface NotionAssignable {
+  id: string;
+  name: string;
+  me: boolean;
 }
 
 /** A saved view of a database — a filter Notion runs, so one board can feed many projects. */

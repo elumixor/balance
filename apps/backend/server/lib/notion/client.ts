@@ -25,7 +25,10 @@ export interface NotionDataSourceSchema {
   readonly id: string;
   readonly title?: { plain_text: string }[];
   readonly parent?: { database_id?: string };
-  readonly properties: Record<string, { type: string; status?: { groups: NotionStatusGroup[] } }>;
+  readonly properties: Record<
+    string,
+    { id?: string; type: string; status?: { groups: NotionStatusGroup[] }; relation?: { data_source_id?: string } }
+  >;
 }
 
 export interface NotionStatusGroup {
@@ -40,6 +43,13 @@ export interface NotionDatabase {
   readonly url: string;
   readonly properties: readonly { id: string; name: string; type: string; options: string[] }[];
   readonly suggested: NotionTaskMapping;
+}
+
+/** A Notion user, as the users endpoints and a people property describe one. */
+export interface NotionPerson {
+  readonly id: string;
+  readonly name?: string | null;
+  readonly person?: { email?: string };
 }
 
 interface Paged<T> {
@@ -144,6 +154,27 @@ export class NotionClient {
       cursor = page.has_more ? page.next_cursor : null;
     }
     return mapLimit(ids, PAGE_READS, (id) => this.page(id));
+  }
+
+  /** The Notion login this grant was made by — whose tasks "mine" means. */
+  async owner() {
+    const me = await this.#request<{ bot?: { owner?: { user?: NotionPerson } } }>("/users/me");
+    return me.bot?.owner?.user ?? null;
+  }
+
+  /** Every person in the workspace — guests and bots left out. */
+  async people() {
+    const found: NotionPerson[] = [];
+    let cursor: string | null = null;
+    do {
+      const query: string = `?page_size=${PAGE_SIZE}${cursor ? `&start_cursor=${cursor}` : ""}`;
+      const page: Paged<NotionPerson & { type?: string }> = await this.#request<
+        Paged<NotionPerson & { type?: string }>
+      >(`/users${query}`);
+      found.push(...page.results.filter((user) => user.type === "person"));
+      cursor = page.has_more ? page.next_cursor : null;
+    } while (cursor);
+    return found;
   }
 
   async page(pageId: string) {

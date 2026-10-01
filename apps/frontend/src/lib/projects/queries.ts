@@ -1,10 +1,12 @@
 import { api, apiGet, callApi } from "$lib/core/api";
 import type { Assisted, WeekNote } from "$lib/projects/assist";
 import type {
+  NotionAssignable,
   NotionDatabase,
   NotionMapping,
   NotionStatus,
   NotionSyncResult,
+  NotionTaskFilter,
   NotionTaskMapping,
   NotionView,
   Progress,
@@ -38,12 +40,18 @@ export const listNotionDatabases = (connectionId: string) =>
 export const listNotionViews = (connectionId: string, dataSourceId: string) =>
   apiGet<{ views: NotionView[] }>("/notion/views", { connectionId, dataSourceId }).then((r) => r.views);
 
+export const listNotionAssignees = (connectionId: string, dataSourceId: string, propertyId: string) =>
+  apiGet<{ people: NotionAssignable[] }>("/notion/assignees", { connectionId, dataSourceId, propertyId }).then(
+    (r) => r.people,
+  );
+
 export const linkProjectToNotion = (input: {
   projectId: string;
   connectionId: string;
   dataSourceId: string;
   viewId: string | null;
   mapping: NotionTaskMapping;
+  filter: NotionTaskFilter;
 }) => callApi(api.notion.link.$post(input)) as Promise<NotionSyncResult>;
 
 export const unlinkProjectFromNotion = (projectId: string) =>

@@ -25,6 +25,14 @@ export interface NotionTaskMapping {
 }
 
 /**
+ * Which of a task database's rows are one project's, beyond what a view already filters: the
+ * people (Notion user ids, or the pages of a people database) whose tasks to keep. Empty keeps all.
+ */
+export interface NotionTaskFilter {
+  assignees: string[];
+}
+
+/**
  * One Notion workspace an account has granted this app, as the account that granted it.
  *
  * A grant is per workspace — Notion's consent screen is where somebody picks one — so an account

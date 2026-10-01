@@ -13,7 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { categories } from "./categories";
-import { type NotionTaskMapping, notionConnections } from "./notion";
+import { type NotionTaskFilter, type NotionTaskMapping, notionConnections } from "./notion";
 import { users } from "./users";
 
 /**
@@ -84,6 +84,8 @@ export const projects = pgTable("projects", {
   notionTasksName: text("notion_tasks_name"),
   /** Which of its columns mean what, when somebody said so; null reads them by type and name. */
   notionTaskMapping: jsonb("notion_task_mapping").$type<NotionTaskMapping>(),
+  /** Whose tasks to keep, read through the mapped assignee; null keeps every row. */
+  notionTaskFilter: jsonb("notion_task_filter").$type<NotionTaskFilter>(),
   /** What Notion said this page was last edited at, so a pull knows which half is newer. */
   notionEditedAt: timestamp("notion_edited_at", { withTimezone: true }),
   archived: boolean("archived").notNull().default(false),

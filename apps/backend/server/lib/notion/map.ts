@@ -73,3 +73,30 @@ export function taskStatus(label: string, group: string | null): TaskStatus {
   if (/progress|doing|review|test/.test(name)) return "doing";
   return "todo";
 }
+
+/** Text that lists people, "Ana, Bo" — a formula's answer or a select's options. */
+const NAME_LIST = /\s*,\s*/;
+
+/**
+ * Who a row says it is for, as keys a filter can match: ids where the property names Notion users
+ * or pages of people, and the names themselves where it only has words — a formula, a select.
+ */
+export function assigneeKeys(property: Property | undefined): string[] {
+  switch (property?.type) {
+    case "people":
+    case "relation":
+      return relationIds(property);
+    case "created_by":
+      return [(property.created_by as { id?: string } | undefined)?.id ?? ""].filter(Boolean);
+    case "select":
+      return [selectName(property)].filter(Boolean);
+    case "multi_select":
+      return ((property.multi_select ?? []) as { name: string }[]).map((one) => one.name);
+    case "formula": {
+      const text = (property.formula as { string?: string | null } | undefined)?.string ?? "";
+      return text.split(NAME_LIST).filter(Boolean);
+    }
+    default:
+      return [];
+  }
+}

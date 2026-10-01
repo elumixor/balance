@@ -1,18 +1,27 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "~/db";
 import { type NotionTaskMapping, people, type TaskStatus, tasks } from "~/db/schema";
+import { colorFor } from "~/lib/people/color";
+import type { NotionClient, NotionPage } from "./client";
+import { resolveTaskFields, type TaskFields } from "./data-source";
+import { keepAssigned } from "./filter";
+import { dateOf, plainText, priorityOf, relationIds, selectName, taskStatus } from "./map";
+
+/** One entry of a people property, as Notion sends it. */
+interface NotionUser {
+  readonly id: string;
+  readonly name?: string;
+  readonly person?: { email?: string };
+}
 
 /** Where one project's tasks are read from: a board, how its columns read, and which view. */
 export interface TaskSource {
   readonly dataSourceId: string;
   readonly mapping: NotionTaskMapping | null;
   readonly viewId: string | null;
+  /** Whose tasks to keep; empty keeps every row the view or board holds. */
+  readonly assignees: readonly string[];
 }
-
-import { colorFor } from "~/lib/people/color";
-import type { NotionClient, NotionPage } from "./client";
-import { resolveTaskFields, type TaskFields } from "./data-source";
-import { dateOf, plainText, priorityOf, relationIds, selectName, taskStatus } from "./map";
 
 /** A row edited within a second of what Notion reported is the sync's own write coming back. */
 const SKEW_MS = 1000;
@@ -34,7 +43,8 @@ export class TaskSync {
 
   /**
    * A view, when one is chosen, decides which rows are this project's — one board of every task
-   * can feed a project per view — and a row that leaves the view is archived here like a deleted one.
+   * can feed a project per view — and the people chosen narrow it further. A row that leaves
+   * either is archived here like a deleted one.
    */
   async run(projectId: string, source: TaskSource) {
     const fields = resolveTaskFields(await this.client.dataSource(source.dataSourceId), source.mapping);
@@ -42,7 +52,7 @@ export class TaskSync {
     const pages = source.viewId
       ? await this.client.queryView(source.viewId)
       : await this.client.queryDataSource(source.dataSourceId);
-    return this.#pull(projectId, pages, fields);
+    return this.#pull(projectId, keepAssigned(pages, fields, source.assignees), fields);
   }
 
   async #push(projectId: string, dataSourceId: string, fields: TaskFields) {
@@ -74,7 +84,7 @@ export class TaskSync {
   async #write(projectId: string, page: NotionPage, fields: TaskFields) {
     const label = labelOf(property(page, fields.status), fields);
     const { startsOn, endsOn } = dateOf(property(page, fields.dates));
-    const assignees = await this.#assignees(relationIds(property(page, fields.assignee)));
+    const assignees = await this.#assignees(property(page, fields.assignee));
     const mirrored = {
       title: plainText(property(page, fields.title)) || "Untitled",
       description: plainText(property(page, "Description")),
@@ -117,27 +127,63 @@ export class TaskSync {
     }
   }
 
-  async #assignees(notionIds: readonly string[]) {
+  /**
+   * Whose a task is, as this account's people. A people or created-by property already carries
+   * each name and address; a relation names pages of a people database, read for their titles. A
+   * property that only spells names out says nothing a person can be made from.
+   */
+  async #assignees(value: Record<string, unknown> | undefined) {
     const ids: string[] = [];
-    for (const notionId of notionIds) ids.push(await this.#person(notionId));
+    if (value?.type === "people" || value?.type === "created_by") {
+      const users = (value.type === "people" ? value.people : [value.created_by]) as NotionUser[] | undefined;
+      for (const user of users ?? [])
+        ids.push(
+          await this.#person(user.id, async () => ({ name: user.name ?? "", email: user.person?.email ?? null })),
+        );
+      return ids;
+    }
+    if (value?.type !== "relation") return ids;
+    for (const notionId of relationIds(value)) ids.push(await this.#person(notionId, () => this.#pageName(notionId)));
     return ids;
   }
 
-  /** A name for a relation id, asked for once and then remembered as a person of this account. */
-  async #person(notionPageId: string) {
+  async #pageName(notionPageId: string) {
+    const page = await this.client.page(notionPageId);
+    const title = Object.values(page.properties).find((one) => (one as { type?: string }).type === "title");
+    return { name: plainText(title as Record<string, unknown>), email: null };
+  }
+
+  /**
+   * A Notion person, asked about once and then remembered as a person of this account — the one
+   * already known by that address when there is one, so a colleague met in the calendar and
+   * assigned in Notion is one face.
+   */
+  async #person(notionId: string, describe: () => Promise<{ name: string; email: string | null }>) {
     await this.#loadPeople();
-    const known = this.#people.get(notionPageId);
+    const known = this.#people.get(notionId);
     if (known) return known;
 
-    const page = await this.client.page(notionPageId);
-    const title = Object.values(page.properties).find((value) => (value as { type?: string }).type === "title");
-    const name = plainText(title as Record<string, unknown>) || "Someone";
+    const { name, email } = await describe();
+    const byEmail = email
+      ? await db.query.people.findFirst({ where: and(eq(people.userId, this.userId), eq(people.email, email)) })
+      : undefined;
+    if (byEmail) {
+      await db.update(people).set({ notionPageId: notionId }).where(eq(people.id, byEmail.id));
+      this.#people.set(notionId, byEmail.id);
+      return byEmail.id;
+    }
     const [row] = await db
       .insert(people)
-      .values({ userId: this.userId, name, color: colorFor(notionPageId), notionPageId })
+      .values({
+        userId: this.userId,
+        name: name || "Someone",
+        email,
+        color: colorFor(notionId),
+        notionPageId: notionId,
+      })
       .returning();
     if (!row) throw new Error("A person was written and could not be read back");
-    this.#people.set(notionPageId, row.id);
+    this.#people.set(notionId, row.id);
     this.peopleSeen += 1;
     return row.id;
   }

@@ -33,6 +33,7 @@ export const projectSchema = z.object({
       parent: z.string().nullable(),
     })
     .nullable(),
+  notionTaskFilter: z.object({ assignees: z.array(z.string()) }).nullable(),
 });
 
 export type SyncedProject = z.infer<typeof projectSchema>;
@@ -59,6 +60,7 @@ export const projectsModel = syncedModel({
       notionViewId: row.notionViewId,
       notionTasksName: row.notionTasksName,
       notionTaskMapping: row.notionTaskMapping,
+      notionTaskFilter: row.notionTaskFilter,
     }),
     toRow: (userId, r) => ({
       id: r.id,
