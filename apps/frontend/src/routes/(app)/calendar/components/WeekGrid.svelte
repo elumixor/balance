@@ -112,9 +112,9 @@
   const allDay = $derived(allDaySpansForRange(data.events, data.stripStart, STRIP_DAYS));
   /** Only the banners touching the days on screen reserve rows, so the header follows the live scroll. */
   const allDayRows = $derived(allDayRowCount(allDay, window));
-  /** The projects' days on the strip take a row of their own, only when one of them is in view. */
+  /** The projects' days on the strip take rows of their own, as many as the ones in view need. */
   const markers = $derived(dueMarkers(stages.all, tasks.all, projects.all, [...categories.values()], data.stripStart, STRIP_DAYS));
-  const markerRows = $derived(markers.some((marker) => inWindow(marker.dayIndex, window)) ? 1 : 0);
+  const markerRows = $derived(allDayRowCount(markers, window));
   const headerPx = $derived(DAY_HEAD_PX + (allDayRows + markerRows) * ALL_DAY_PX);
 
   const todayStart = $derived(clock.todayStart);

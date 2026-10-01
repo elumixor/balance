@@ -38,7 +38,7 @@
     markers: readonly DayMarker[];
     /** How many rows of banners the days on screen need. */
     rows: number;
-    /** One when a marker is on the days in view, otherwise none. */
+    /** How many rows of project days the days on screen need. */
     markerRows: number;
     window: StripWindow;
     seen: ReadonlySet<string>;
@@ -59,7 +59,7 @@
         (seen.has(span.event.id) || spanInWindow(span.dayIndex, span.days, window)),
     ),
   );
-  const drawnMarkers = $derived(markers.filter((m) => m.dayIndex >= drawn.first && m.dayIndex <= drawn.last));
+  const drawnMarkers = $derived(markers.filter((m) => m.dayIndex + m.days > drawn.first && m.dayIndex <= drawn.last));
 
   /** Enter or Space on a focused banner does what a tap does. */
   function onkeydown(e: KeyboardEvent & { currentTarget: HTMLElement }, span: AllDaySpan) {
@@ -70,9 +70,9 @@
 </script>
 
 {#if markerRows > 0}
-  <div class="grid" style="grid-template-columns:{columns};height:{ALL_DAY_PX}px">
+  <div class="grid" style="grid-template-columns:{columns};height:{markerRows * ALL_DAY_PX}px">
     {#each days as _, index}
-      <div class="border-line border-l" style="grid-row:1;grid-column:{index + 1}"></div>
+      <div class="border-line border-l" style="grid-row:1 / span {markerRows};grid-column:{index + 1}"></div>
     {/each}
     {#each drawnMarkers as marker (marker.key)}
       <a
@@ -80,9 +80,7 @@
         title={marker.label}
         class="t-micro relative flex min-w-0 items-center gap-1 self-center truncate rounded-sm px-1 py-px
           {marker.kind === 'stage' ? 'text-fg' : 'text-fg-muted'}"
-        style="grid-row:1;grid-column:{marker.dayIndex + 1};margin-right:{BLOCK_GUTTER_PX}px;{marker.kind === 'stage'
-          ? `background:color-mix(in oklab,${marker.color} 18%,transparent)`
-          : ''}"
+        style="grid-row:{marker.row + 1};grid-column:{marker.dayIndex + 1} / span {marker.days};margin-right:{BLOCK_GUTTER_PX}px;background:color-mix(in oklab,{marker.color} {marker.kind === 'stage' ? 18 : 10}%,transparent)"
       >
         {#if marker.kind === "stage"}
           <Flag size={10} style="color:{marker.color}" class="shrink-0" />

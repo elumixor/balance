@@ -178,14 +178,26 @@ export function allDaySpansForRange(
     })
     .sort((a, b) => a.dayIndex - b.dayIndex || b.days - a.days);
 
-  // Greedily drop each span into the first row whose occupied days don't overlap it, so a week
-  // with two overlapping banners grows to two rows instead of stacking them on top of each other.
+  return packRows(spans);
+}
+
+/** A run of whole day columns. */
+export interface ColumnRun {
+  readonly dayIndex: number;
+  readonly days: number;
+}
+
+/**
+ * Greedily drops each span into the first row whose occupied days don't overlap it, so a week with
+ * two overlapping banners grows to two rows instead of stacking them on top of each other. Spans
+ * are taken in the order given — sort them by first day.
+ */
+export function packRows<T extends ColumnRun>(spans: readonly T[]): (T & { row: number })[] {
   const rowEnds: number[] = [];
   return spans.map((span) => {
-    const lastDay = span.dayIndex + span.days;
     let row = rowEnds.findIndex((end) => end <= span.dayIndex);
     if (row === -1) row = rowEnds.length;
-    rowEnds[row] = lastDay;
+    rowEnds[row] = span.dayIndex + span.days;
     return { ...span, row };
   });
 }
@@ -419,8 +431,8 @@ export function spanInWindow(dayIndex: number, days: number, window: StripWindow
   return dayIndex + days > window.offset && dayIndex < window.offset + window.visibleDays;
 }
 
-/** How many rows the banners over the days on screen take — none when there are none. */
-export function allDayRowCount(spans: readonly AllDaySpan[], window: StripWindow): number {
+/** How many rows the spans over the days on screen take — none when there are none. */
+export function allDayRowCount(spans: readonly (ColumnRun & { row: number })[], window: StripWindow): number {
   return spans.reduce(
     (max, span) => (spanInWindow(span.dayIndex, span.days, window) ? Math.max(max, span.row + 1) : max),
     0,
