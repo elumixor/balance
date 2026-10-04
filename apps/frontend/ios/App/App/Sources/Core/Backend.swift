@@ -137,7 +137,8 @@ final class LiveBackend: Backend {
             }
             request.httpBody = try encoder.encode(body)
         }
-        let (data, response) = try await session.data(for: request)
+        // A read, or a sync whose writes carry their own ids, is safe to send twice.
+        let (data, response) = try await send(request, retrying: method == "GET" || path == "/mobile/sync")
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             if status == 401 { throw BackendError.notSignedIn }
@@ -149,6 +150,22 @@ final class LiveBackend: Backend {
         guard type.contains("json") else { throw BackendError.notJSON(path) }
         return try Self.decoder.decode(T.self, from: data)
     }
+
+    /// The phone wakes with the radio still coming up, so the first request after a resume is often
+    /// lost in transit rather than refused. One more try after a pause, before it counts.
+    private func send(_ request: URLRequest, retrying: Bool) async throws -> (Data, URLResponse) {
+        do {
+            return try await session.data(for: request)
+        } catch let error as URLError where retrying && Self.lostInTransit.contains(error.code) {
+            try await Task.sleep(for: .seconds(3))
+            return try await session.data(for: request)
+        }
+    }
+
+    private static let lostInTransit: Set<URLError.Code> = [
+        .networkConnectionLost, .notConnectedToInternet, .timedOut, .cannotConnectToHost,
+        .cannotFindHost, .dnsLookupFailed, .dataNotAllowed, .secureConnectionFailed,
+    ]
 
     func sync(_ request: SyncRequest) async throws -> SyncResponse {
         try await self.request("POST", "/mobile/sync", body: request)

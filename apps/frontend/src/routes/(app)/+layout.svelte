@@ -66,9 +66,13 @@
   // The write queue answers to nobody: it runs whether or not a screen is open, and a transport
   // failure there is why categories can quietly stop arriving. A refused write has a screen to
   // show it — see `syncStatus.rejected` — but a sync that can't reach the server has none.
+  // A sync that goes up fine later takes its cards back with it — a lid closed mid-sync otherwise
+  // leaves one saying nothing saved over changes that have since arrived.
+  const syncProblems: (number | undefined)[] = [];
   $effect(() => {
     const error = syncStatus.error;
-    if (error) diagnostics.report("Sync", error, { title: "Couldn’t save your changes" });
+    if (!error) return void diagnostics.dismiss(...syncProblems.splice(0));
+    syncProblems.push(diagnostics.report("Sync", error, { title: "Couldn’t save your changes" }));
   });
 
   // The menu bar item, the Dock icon, the reminders, the watch handoff: things that outlive every

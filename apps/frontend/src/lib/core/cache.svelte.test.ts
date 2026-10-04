@@ -154,6 +154,25 @@ describe("failure", () => {
     expect(cached.error).toBeNull();
   });
 
+  /**
+   * The Mac sleeps through a request, wakes to a card, and the next tick loads the week fine. The
+   * card was about that failure, so it goes with it — it used to stay until the app restarted.
+   */
+  it("takes its card back once a later request works", async () => {
+    const other = diagnostics.report("Elsewhere", new Error("unrelated"));
+    const { calls, fetcher } = deferred<string>();
+    const cached = new Cached(fetcher, "Couldn't load that week.");
+    const first = cached.ensure();
+    calls[0].reject(new Error("offline"));
+    await first;
+    expect(diagnostics.problems).toHaveLength(2);
+
+    const second = cached.refresh();
+    calls[1].resolve("rows");
+    await second;
+    expect(diagnostics.problems.map((problem) => problem.id)).toEqual([other]);
+  });
+
   it("tries again after a failed check, too", async () => {
     const { calls, fetcher } = deferred<string>();
     const cached = new Cached(fetcher, "nope");

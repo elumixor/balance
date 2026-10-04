@@ -63,6 +63,12 @@ export class Cached<T> {
    */
   #generation = 0;
   #inflight: Promise<void> | null = null;
+  /**
+   * The cards this cache put in the corner and hasn't taken back. A Mac that slept through a
+   * request wakes to a card, and the tick a minute later loads the week fine — the card has to go
+   * with the failure, or it sits over a calendar that works until the app is restarted.
+   */
+  #reported: (number | undefined)[] = [];
   readonly #key: string | undefined;
 
   /**
@@ -110,6 +116,7 @@ export class Cached<T> {
       // Invalidated while this was in flight: the value is newer than what was on screen, and
       // still older than the write that came in behind it.
       if (generation !== this.#generation) this.#stale = true;
+      if (this.#reported.length > 0) diagnostics.dismiss(...this.#reported.splice(0));
     } catch (e) {
       // Asked before there was a session to ask with: not a failure and not an answer either, so
       // the value stays unfetched and this refetches when `warmStore` runs behind the sign-in.
@@ -117,10 +124,11 @@ export class Cached<T> {
       this.error = e instanceof Error ? e.message : this.fallbackError;
       // The card says what this cache is for and carries the way out, since this is the thing
       // that knows how to ask again. The fallback sentence was always written for a person.
-      diagnostics.report(this.#scope ?? "Loading", e, {
+      const card = diagnostics.report(this.#scope ?? "Loading", e, {
         title: this.fallbackError.replace(/\.$/, ""),
         retry: () => this.refresh(),
       });
+      this.#reported.push(card);
     } finally {
       this.loading = false;
     }

@@ -57,9 +57,12 @@ class Diagnostics {
   /**
    * Untracked throughout: reporting reads the list it is about to write to, and an `$effect` that
    * reports a failure would otherwise be re-running itself for as long as the app is open.
+   *
+   * Answers with the card's id — none when nothing was shown — so whatever reported it can take it
+   * back once it has recovered.
    */
-  report(scope: string, error: unknown, options?: ReportOptions) {
-    untrack(() => this.#report(scope, error, options));
+  report(scope: string, error: unknown, options?: ReportOptions): number | undefined {
+    return untrack(() => this.#report(scope, error, options));
   }
 
   #report(scope: string, error: unknown, options?: ReportOptions) {
@@ -72,8 +75,9 @@ class Diagnostics {
     // The same failure every 30 seconds from a loop that keeps retrying is that many failures,
     // each with its own time and its own stack. The card shows them as one leaning pile rather
     // than a number, because "×12" was never something anybody could act on.
+    const id = this.#nextId++;
     this.problems.push({
-      id: this.#nextId++,
+      id,
       at: new Date(),
       scope,
       title: options?.title ?? "Something went wrong",
@@ -86,13 +90,14 @@ class Diagnostics {
     // The card is what the person sees; this is what the person fixing it sees. Every failure
     // the app knows how to say already comes through here, so there is nothing else to remember.
     telemetry.capture(scope, error, fullDetail || undefined);
+    return id;
   }
 
   /**
    * A pile closed by hand — every failure under it, since the pile is what a person sees as one
    * thing. They are gone rather than hidden, which is why the copy comes before the close.
    */
-  dismiss(...ids: number[]) {
+  dismiss(...ids: (number | undefined)[]) {
     const closing = new Set(ids);
     this.problems = this.problems.filter((problem) => !closing.has(problem.id));
   }
