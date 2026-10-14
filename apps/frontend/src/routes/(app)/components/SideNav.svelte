@@ -10,9 +10,9 @@
 
 {#if shellSlots.panel}
   <aside class="hidden h-full w-60 shrink-0 flex-col overflow-hidden border-r border-line bg-surface pt-[52px] md:flex">
-    <!-- The panel scrolls, the top doesn't: the strip sits on solid surface rather than on
-         whatever row has been scrolled up under it. -->
-    <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-6">
+    <!-- The panel decides what scrolls inside it; the top never does, so the strip sits on solid
+         surface rather than on whatever row has been scrolled up under it. -->
+    <div class="flex min-h-0 flex-1 flex-col px-3">
       {@render shellSlots.panel()}
     </div>
   </aside>
