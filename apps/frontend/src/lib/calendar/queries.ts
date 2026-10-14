@@ -149,3 +149,7 @@ export const assistEndPlace = (input: {
   location: string | null;
   places: { label: string; address: string }[];
 }) => callApi(api.calendar.assist.endPlace.$post(input));
+
+/** Files the window's grey blocks the decision model hasn't been asked about — see `auto-file.ts`. */
+export const classifyCalendarEvents = (range: { from: string; to: string }) =>
+  callApi(api.calendar.classify.$post(range));

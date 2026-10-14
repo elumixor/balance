@@ -5,6 +5,7 @@ import { calendarWeek, store } from "$lib/core/store.svelte";
 import { projects, synced } from "$lib/core/synced.svelte";
 import { clock } from "$lib/platform/clock.svelte";
 import { viewport } from "$lib/platform/viewport.svelte";
+import { autoFile } from "./auto-file";
 import { addDays, DAYS_PER_WEEK, daysBetween, startOfDay, startOfWeek, weekKey } from "./dates";
 import { CalendarDrag, type DragHost, type DragSource, dropMoves } from "./drag.svelte";
 import { CalendarEdits } from "./edits.svelte";
@@ -288,7 +289,11 @@ class CalendarData {
 
   ensureWeeks() {
     this.#resolveWeeks();
-    return Promise.all(this.#stripWeeks.map((week) => week.ensure()));
+    const loads = Promise.all(this.#stripWeeks.map((week) => week.ensure()));
+    // The week on screen first, then its neighbours: grey blocks are filed once they're drawn.
+    const keys = [this.key, ...stripKeysFrom(this.stripStart).filter((key) => key !== this.key)];
+    void loads.then(() => autoFile(keys));
+    return loads;
   }
 
   refreshWeeks() {
@@ -595,8 +600,12 @@ export async function ensureZoom() {
 }
 
 /** The caches for the three weeks drawn from `start`, made if the store hasn't got them yet. */
+function stripKeysFrom(start: Date) {
+  return Array.from({ length: STRIP_WEEKS }, (_, i) => weekKey(addDays(start, i * DAYS_PER_WEEK)));
+}
+
 function stripWeeksFrom(start: Date) {
-  return Array.from({ length: STRIP_WEEKS }, (_, i) => calendarWeek(weekKey(addDays(start, i * DAYS_PER_WEEK))));
+  return stripKeysFrom(start).map((key) => calendarWeek(key));
 }
 
 export const calendarData = new CalendarData();

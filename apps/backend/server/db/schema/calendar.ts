@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { EventTimer } from "~/lib/calendar/types";
 import { activities, categories } from "./categories";
 import { practices, projects, tasks } from "./projects";
@@ -139,6 +139,44 @@ export const integrationRecords = pgTable(
       table.source,
       table.provider,
       table.calendarId,
+      table.externalEventId,
+    ),
+  ],
+);
+
+/**
+ * Every time the decision model was asked what an unmapped event is for — once per event, or once
+ * per series for a repeating one, whatever it answered. The row is what stops the same grey block
+ * being asked about on every read of its week; `filed` says the answer was sure enough to become
+ * the event's mapping, which is how an auto-filed block is told from one a person filed.
+ */
+export const eventClassifications = pgTable(
+  "event_classifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("google"),
+    calendarId: text("calendar_id").notNull(),
+    /** "instance" | "series", the same scope the mapping it may have written has. */
+    scope: text("scope").notNull(),
+    externalEventId: text("external_event_id").notNull(),
+    /** The option picked: a sphere or a project id, or null for "none of them". */
+    categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    probability: real("probability"),
+    confidence: real("confidence"),
+    filed: boolean("filed").notNull().default(false),
+    model: text("model").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("event_classifications_unique").on(
+      table.userId,
+      table.provider,
+      table.calendarId,
+      table.scope,
       table.externalEventId,
     ),
   ],

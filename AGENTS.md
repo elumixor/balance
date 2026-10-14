@@ -103,6 +103,17 @@ card's last section and open even on an invitation nothing else about can be cha
 `EventMappingService.annotate` is how a write that isn't about what the hour counts as reaches a
 block that counts as nothing — it becomes buffer time first, the same rule the card follows.
 
+A grey block files itself when the answer is obvious. Once a week has been drawn the device asks
+`POST /mobile/calendar/classify` about it, once a session, and `calendar/classify-service.ts` hands
+each event that counts as nothing — a series once for all of it — to Jev (`typesafe-ai/jev`, a
+decision model over the AI Gateway, `lib/ai/decision.ts`): spheres and active projects as the
+options with "none" first, the event's words and shape as the state, and the person's own filings
+of similar titles as precedent. A sure answer (`THRESHOLDS` in `classify.ts`, pure and tested)
+becomes the same mapping a person's choice would write; every answer, sure or not, is a row in
+`event_classifications`, which is what stops a block being asked about twice and what tells an
+auto-filed block from a hand-filed one. A series somebody files one occurrence at a time is left
+alone, and a model that is down leaves the week grey rather than failing it.
+
 Two consequences worth knowing before changing anything here. "Not connected" and "the grant
 expired" are states the screens render, returned as 200 with `connected` / `needsReconnect` — never
 a 401, which the frontend reads as a dead Clerk session and bounces to sign-in. And every write
