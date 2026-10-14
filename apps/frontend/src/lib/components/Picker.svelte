@@ -9,6 +9,8 @@
     color: string;
     icon?: string;
     practice?: boolean;
+    /** Drawn under the row before it — a project under its sphere. */
+    indent?: boolean;
   }
 </script>
 
@@ -39,6 +41,12 @@
     /** Given when a name nothing answers to can be made into something, rather than sending anyone away. */
     oncreate,
     createLabel,
+    /**
+     * What to filter by when the typing happens somewhere else — the `/` in an event's name. The
+     * picker then draws no field of its own and leaves focus where it is; the field it belongs to
+     * hands it its keys through `handleKey`.
+     */
+    search,
   }: {
     rect: DOMRect | null;
     width?: number;
@@ -51,9 +59,11 @@
     onclear?: () => void;
     oncreate?: (name: string) => void;
     createLabel?: (name: string) => string;
+    search?: string;
   } = $props();
 
-  let query = $state("");
+  let typed = $state("");
+  const query = $derived(search ?? typed);
   let list = $state<HTMLElement>();
 
   const ROW_ICON = 22;
@@ -102,22 +112,25 @@
     else if (newName) oncreate?.(newName);
   }
 
-  function onkeydown(e: KeyboardEvent) {
+  /** Arrows walk the list and Enter takes the lit row. Answers whether the key was used. */
+  export function handleKey(e: KeyboardEvent) {
     if (e.key === "ArrowDown") move(1);
     else if (e.key === "ArrowUp") move(-1);
     else if (e.key === "Enter" && active < options) pick(active);
-    else return;
+    else return false;
     e.preventDefault();
+    return true;
   }
 </script>
 
 <AnchoredPopup {rect} {width} {onclose}>
   <div class="flex flex-col gap-1.5 p-1.5">
+    {#if search === undefined}
     <div class="relative shrink-0">
       <input
         use:focusWhenReady
-        bind:value={query}
-        {onkeydown}
+        bind:value={typed}
+        onkeydown={handleKey}
         {placeholder}
         spellcheck="false"
         autocomplete="off"
@@ -135,6 +148,7 @@
         </button>
       {/if}
     </div>
+    {/if}
 
     <div bind:this={list} class="max-h-60 overflow-y-auto">
       {#each matches as item, i (item.key)}
@@ -143,7 +157,7 @@
           onclick={() => onchoose(item.key)}
           onpointermove={() => (active = i)}
           aria-pressed={item.key === value}
-          class="menu-row {i === active ? 'bg-surface-alt' : ''}"
+          class="menu-row {i === active ? 'bg-surface-alt' : ''} {item.indent && !query.trim() ? 'pl-6' : ''}"
         >
           {#if item.icon}
             <CategoryIcon icon={item.icon} color={item.color} size={ROW_ICON} />

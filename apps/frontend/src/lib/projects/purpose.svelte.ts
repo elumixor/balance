@@ -1,4 +1,5 @@
 import type { PickerItem } from "$lib/components/Picker.svelte";
+import type { Category } from "$lib/core/records";
 import { categories, practices, projects } from "$lib/core/synced.svelte";
 import { restColor } from "$lib/ui/colors";
 import { pathTo } from "./tree";
@@ -11,6 +12,7 @@ export interface Purpose {
 
 const PROJECT = "project";
 const PRACTICE = "practice";
+const CATEGORY = "category";
 
 /** A purpose as one string, so a picker can name it the way it names anything else. */
 export function purposeKey(purpose: { projectId?: string | null; practiceId?: string | null }) {
@@ -46,4 +48,40 @@ export function purposeItems(): PickerItem[] {
       practice: true,
     })),
   ];
+}
+
+/**
+ * What an hour counts as and what it was for, as one list: each sphere, with its projects and
+ * practices under it, so the card asks one question rather than two. A row whose sphere isn't
+ * on offer still comes last, unindented, rather than vanishing.
+ */
+export function filingItems(spheres: readonly Category[]): PickerItem[] {
+  const work = purposeItems();
+  const sphereOf = (key: string) => {
+    const { projectId, practiceId } = purposeOf(key);
+    if (projectId) return projects.all.find((p) => p.id === projectId)?.categoryId;
+    return practices.all.find((p) => p.id === practiceId)?.categoryId;
+  };
+  const offered = new Set(spheres.map((sphere) => sphere.id));
+  return [
+    ...spheres.flatMap((sphere) => [
+      { key: `${CATEGORY}:${sphere.id}`, name: sphere.name, color: sphere.color, icon: sphere.icon },
+      ...work.filter((item) => sphereOf(item.key) === sphere.id).map((item) => ({ ...item, indent: true })),
+    ]),
+    ...work.filter((item) => !offered.has(sphereOf(item.key) ?? "")),
+  ];
+}
+
+/** A row of `filingItems`: the sphere it names, or the work it names. */
+export function filingOf(key: string): { categoryId: string } | Purpose {
+  const [kind, id] = key.split(":");
+  return kind === CATEGORY ? { categoryId: id } : purposeOf(key);
+}
+
+/** The row a block is filed under: its project or practice when it has one, its sphere otherwise. */
+export function filingKey(
+  purpose: { projectId?: string | null; practiceId?: string | null },
+  categoryId?: string | null,
+) {
+  return purposeKey(purpose) || (categoryId ? `${CATEGORY}:${categoryId}` : "");
 }

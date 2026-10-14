@@ -306,7 +306,10 @@ because that is where the star is actually earned.
 told, where and with whom, what it says — each a section component beside it (`EditorHeader`,
 `TimeSection`, `RemindersSection`, `MeetingSection`, `DescriptionSection`, `EditorFooter`), with
 the typed-and-saved state in `$lib/calendar/event-draft.svelte.ts`, which is what makes the
-debounce and the carried-over-id rule testable. Every write a section makes goes through
+debounce and the carried-over-id rule testable. What the hour counts as and what it was for are
+one question with one list (`filingItems`: each sphere with its projects under it), opened from
+the badge or by a `/` typed into the name (`$lib/calendar/slash.ts`, pure and tested), where
+Escape closes the list and not the card. Every write a section makes goes through
 `draft.write(title, promise)`, so a refused one reaches the screen. Everything the meeting carries — a place, its time zone,
 how it repeats, its reminders, its guests, its call — is written straight back to Google through
 one `PATCH /calendar/events/:id` and `calendarData.patchEvent`, which draws the answer ahead and
@@ -532,8 +535,8 @@ Hours are still the point. `ProjectProgressService` reads the calendar through t
 for — and answers twice for a project holding others: what was booked against it by name, and what
 its whole tree came to. Tagging a grey block to a project after the fact is how a real week is
 reconciled, so it is on the block's card and its context menu. Filling the week is a solver
-(`calendar/filler.ts`): remaining claims into free working hours, biggest claim first, shown as a
-diff of blocks to accept or trim.
+(`calendar/filler.ts`): remaining claims into free working hours, biggest claim first; nothing
+draws it since the rail was cut down to the month and the calendars.
 
 The model's two moments are `server/lib/projects/assist/` (schemas, prompts, both over one
 `lib/ai/gateway.ts`) and the `projects/assist/*` routes, and both are proposals: a note over the

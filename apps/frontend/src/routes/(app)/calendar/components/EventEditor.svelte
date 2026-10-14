@@ -1,8 +1,10 @@
 <script lang="ts" module>
   /** Which of the card's own pickers is open, and where. The card stays up while any is. */
   export interface Pickers {
-    category: DOMRect | null;
-    project: DOMRect | null;
+    /** What it counts as and what it was for — one list. */
+    purpose: DOMRect | null;
+    /** The same list, opened by a `/` typed into the name. */
+    slash: DOMRect | null;
     zone: DOMRect | null;
     repeat: DOMRect | null;
   }
@@ -120,9 +122,9 @@
   const meeting = $derived(meetingOf(event));
   const accountEmail = $derived(accountEmailOf(event.calendarId));
 
-  const NO_PICKERS: Pickers = { category: null, project: null, zone: null, repeat: null };
+  const NO_PICKERS: Pickers = { purpose: null, slash: null, zone: null, repeat: null };
   let pickers = $state<Pickers>({ ...NO_PICKERS });
-  const nested = $derived(Boolean(pickers.category || pickers.project || pickers.zone || pickers.repeat));
+  const nested = $derived(Boolean(pickers.purpose || pickers.slash || pickers.zone || pickers.repeat));
 
   let titleEl = $state<HTMLInputElement | null>(null);
   /** Whether the cursor has already been put in the name of the block on show — see below. */

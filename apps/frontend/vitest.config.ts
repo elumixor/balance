@@ -61,6 +61,7 @@ export default defineConfig({
         "src/lib/calendar/project-hours.ts",
         "src/lib/calendar/purpose.ts",
         "src/lib/calendar/recurrence.ts",
+        "src/lib/calendar/slash.ts",
         "src/lib/projects/gantt.ts",
         "src/lib/projects/rollup.ts",
         "src/lib/projects/tree.ts",
