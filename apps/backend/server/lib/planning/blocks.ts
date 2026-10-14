@@ -1,5 +1,6 @@
 import type { PlannedBlock } from "~/db/schema";
 import type { ResolvedEvent } from "~/lib/calendar/events-service";
+import { sharedDurations } from "~/lib/stats/overlap";
 import type { Block } from "./coverage";
 import type { CategoryHours, PlanCategory, SessionBlock } from "./types";
 
@@ -12,20 +13,23 @@ export function claimedHours(plan: readonly PlanCategory[]): number {
   return plan.reduce((sum, category) => (category.isBuffer ? sum : sum + category.targetHoursPerWeek), 0);
 }
 
-/** Hours per category over a range, split the way each event is mapped, biggest first. */
+/** Hours per category over a range, split the way each event is mapped and shared where events overlap, biggest first. */
 export function categoryHours(
   events: readonly ResolvedEvent[],
   plan: readonly PlanCategory[],
   range: { start: Date; end: Date },
 ): CategoryHours[] {
   const hours = new Map<string, number>();
+  // Only what counts as something shares its time: a grey block beside a meeting takes nothing from it.
+  const counted = events.filter((event) => event.countsTowardHours && event.weights.length > 0);
+  const shares = sharedDurations(
+    counted.map((event) => ({ start: event.start.getTime(), end: event.end.getTime() })),
+    { start: range.start.getTime(), end: range.end.getTime() },
+  );
 
-  for (const event of events) {
-    if (!event.countsTowardHours) continue;
-    const from = Math.max(event.start.getTime(), range.start.getTime());
-    const to = Math.min(event.end.getTime(), range.end.getTime());
-    if (to <= from) continue;
-    const span = (to - from) / MS_PER_HOUR;
+  for (const [index, event] of counted.entries()) {
+    const span = shares[index] / MS_PER_HOUR;
+    if (span <= 0) continue;
     for (const weight of event.weights) {
       hours.set(weight.categoryId, (hours.get(weight.categoryId) ?? 0) + span * (weight.weightPercent / 100));
     }

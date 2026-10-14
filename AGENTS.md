@@ -544,7 +544,9 @@ Hours are still the point. `ProjectProgressService` reads the calendar through t
 `CalendarEventsService.resolve` as everything else and counts blocks whose mapping carries a
 `projectId` — the same `event_mappings` row that says what an hour counts as also says what it was
 for — and answers twice for a project holding others: what was booked against it by name, and what
-its whole tree came to. Tagging a grey block to a project after the fact is how a real week is
+its whole tree came to. Blocks that overlap share the time: wherever several run at once each
+gets an equal part of it (`server/lib/stats/overlap.ts`, tested), so the ring, the planning
+hours and a project's bars never count one hour twice. Tagging a grey block to a project after the fact is how a real week is
 reconciled, so it is on the block's card and its context menu. Filling the week is a solver
 (`calendar/filler.ts`): remaining claims into free working hours, biggest claim first; nothing
 draws it since the rail was cut down to the month and the calendars.

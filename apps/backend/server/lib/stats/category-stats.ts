@@ -1,3 +1,4 @@
+import { sharedDurations } from "./overlap";
 import { periodResolver } from "./period";
 import type { BalanceStatus, CategoryBreakdownItem, CategoryInput, CategoryStat, EventInput, Period } from "./types";
 import { MS_PER_HOUR } from "./types";
@@ -41,12 +42,20 @@ class CategoryStatsCalculator {
     return [...stats].sort((a, b) => Math.abs(b.diffHours) - Math.abs(a.diffHours));
   }
 
-  /** Splits every event's hours across the categories it counts toward, clipped to the period. */
+  /**
+   * Splits every event's hours across the categories it counts toward, clipped to the period.
+   * Events running at the same time share it: each gets an equal part of the overlap.
+   */
   accumulate(events: EventInput[], period: Period): Map<string, CategoryHours> {
     const result = new Map<string, CategoryHours>();
+    const window = { start: period.start.getTime(), end: period.end.getTime() };
+    const shares = sharedDurations(
+      events.map((event) => ({ start: event.startedAt.getTime(), end: event.endedAt.getTime() })),
+      window,
+    );
 
-    for (const event of events) {
-      const eventHours = this.overlapHours(event, period);
+    for (const [index, event] of events.entries()) {
+      const eventHours = shares[index] / MS_PER_HOUR;
       if (eventHours <= 0) continue;
 
       for (const weight of event.weights) {
@@ -75,14 +84,6 @@ class CategoryStatsCalculator {
     const relDiff = Math.abs(diffHours) / targetHours;
     if (relDiff <= ON_TARGET_EPSILON) return "on-target";
     return diffHours > 0 ? "over" : "under";
-  }
-
-  /** Clipping to the period is also what makes multi-day and week-crossing events come out right. */
-  private overlapHours(event: EventInput, period: Period): number {
-    const start = event.startedAt > period.start ? event.startedAt : period.start;
-    const end = event.endedAt < period.end ? event.endedAt : period.end;
-    const ms = end.getTime() - start.getTime();
-    return ms > 0 ? ms / MS_PER_HOUR : 0;
   }
 }
 

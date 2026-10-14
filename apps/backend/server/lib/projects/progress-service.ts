@@ -4,6 +4,7 @@ import { practices, projects } from "~/db/schema";
 import type { ResolvedEvent } from "~/lib/calendar/events-service";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { addDays, type Day, startOf } from "~/lib/planning/days";
+import { sharedDurations } from "~/lib/stats/overlap";
 
 /** How far back a card's bars go, and how far a practice is judged over. */
 export const WEEKS_SHOWN = 8;
@@ -61,14 +62,24 @@ export class ProjectProgressService {
     // Only what has happened is evidence: a block booked for tomorrow is a plan, not hours.
     const now = new Date();
     const done = range.events.filter((event) => event.countsTowardHours && event.end <= now);
+    // Two blocks at once share the hour, so each week's credits are worked out across everything
+    // that counts as something before any one project takes its part.
+    const counted = done.filter((event) => event.weights.length > 0);
+    const credit = weeks.map((week) => {
+      const shares = sharedDurations(
+        counted.map((event) => ({ start: event.start.getTime(), end: event.end.getTime() })),
+        { start: week.from.getTime(), end: week.to.getTime() },
+      );
+      return new Map(counted.map((event, index) => [event, shares[index]]));
+    });
 
     const own = new Map(
       projectRows.map((project) => [
         project.id,
-        weeks.map((week) =>
+        weeks.map((_, index) =>
           this.#hoursIn(
             done.filter((e) => e.mapping?.projectId === project.id),
-            week,
+            credit[index],
           ),
         ),
       ]),
@@ -91,8 +102,8 @@ export class ProjectProgressService {
     const practicesOut: Record<string, PracticeProgress> = {};
     for (const practice of practiceRows) {
       const events = done.filter((event) => event.mapping?.practiceId === practice.id);
-      const byWeek = weeks.map((week) =>
-        practice.unit === "hours" ? this.#hoursIn(events, week) : this.#timesIn(events, week),
+      const byWeek = weeks.map((week, index) =>
+        practice.unit === "hours" ? this.#hoursIn(events, credit[index]) : this.#timesIn(events, week),
       );
       // The four whole weeks before this one — a week still being lived can't be judged yet.
       const judged = byWeek.slice(-BUDGET_WEEKS - 1, -1).reduce((sum, count) => sum + count, 0);
@@ -119,13 +130,8 @@ export class ProjectProgressService {
     });
   }
 
-  #hoursIn(events: readonly ResolvedEvent[], week: { from: Date; to: Date }) {
-    let ms = 0;
-    for (const event of events) {
-      const start = Math.max(event.start.getTime(), week.from.getTime());
-      const end = Math.min(event.end.getTime(), week.to.getTime());
-      if (end > start) ms += end - start;
-    }
+  #hoursIn(events: readonly ResolvedEvent[], credit: ReadonlyMap<ResolvedEvent, number>) {
+    const ms = events.reduce((sum, event) => sum + (credit.get(event) ?? 0), 0);
     return Math.round((ms / MS_PER_HOUR) * 100) / 100;
   }
 
