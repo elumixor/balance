@@ -34,6 +34,9 @@ async function fileWeek(key: string) {
       asked.delete(key);
       return;
     }
+    // A deployment that doesn't have the route yet is a server behind the app, not a failure
+    // anybody holding it can act on.
+    if (error.status === 404) return;
     diagnostics.report("Calendar", error, { title: "Couldn't file this week's blocks by themselves." });
   }
 }
