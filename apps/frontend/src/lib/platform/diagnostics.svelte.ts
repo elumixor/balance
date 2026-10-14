@@ -98,8 +98,15 @@ class Diagnostics {
    * thing. They are gone rather than hidden, which is why the copy comes before the close.
    */
   dismiss(...ids: (number | undefined)[]) {
-    const closing = new Set(ids);
-    this.problems = this.problems.filter((problem) => !closing.has(problem.id));
+    // Untracked for the same reason as `report`: an `$effect` that takes its cards back would
+    // otherwise read the list it writes and run itself until Svelte gives up on the whole app.
+    // Nothing to close writes nothing, so an effect that dismisses on every quiet run stays quiet.
+    const closing = new Set(ids.filter((id) => id !== undefined));
+    if (closing.size === 0) return;
+    untrack(() => {
+      if (!this.problems.some((problem) => closing.has(problem.id))) return;
+      this.problems = this.problems.filter((problem) => !closing.has(problem.id));
+    });
   }
 
   clear() {
