@@ -7,9 +7,9 @@ import { clock } from "$lib/platform/clock.svelte";
 import { viewport } from "$lib/platform/viewport.svelte";
 import { autoFile } from "./auto-file";
 import { addDays, DAYS_PER_WEEK, daysBetween, startOfDay, startOfWeek, weekKey } from "./dates";
-import { CalendarDrag, type DragHost, type DragSource, dropMoves } from "./drag.svelte";
+import { CalendarDrag, type DragHost, type DragSource } from "./drag.svelte";
 import { CalendarEdits } from "./edits.svelte";
-import { instantAt, SIDE_WEEKS, STRIP_DAYS, STRIP_WEEKS } from "./geometry";
+import { SIDE_WEEKS, STRIP_DAYS, STRIP_WEEKS } from "./geometry";
 import type { Answer } from "./purpose";
 import { startZoomConnect } from "./queries";
 import { CalendarSelection } from "./selection.svelte";
@@ -139,33 +139,6 @@ class CalendarData {
     const primaryIds = new Set(allCalendars.filter((c) => c.primary).map((c) => c.id));
     const shownIds = prefs.visibleCalendarIds.length === 0 ? primaryIds : new Set(prefs.visibleCalendarIds);
     return [...byId.values()].filter((event) => shownIds.has(event.calendarId));
-  });
-
-  /**
-   * What the meters total against: `events`, with whatever a live move or resize would do to a
-   * block laid over the top — so a category's number follows the pointer instead of waiting for
-   * the drop's write. Kept apart from `events` itself, which the grid positions blocks from and
-   * which alt-drag's ghost already covers on its own.
-   */
-  readonly eventsForTotals = $derived.by(() => {
-    const drag = this.drag;
-    if (!drag?.event || (drag.kind !== "move" && drag.kind !== "resize" && drag.kind !== "resize-start")) {
-      return this.events;
-    }
-    const moves = dropMoves(drag, instantAt(drag.day, drag.startMinutes), instantAt(drag.day, drag.endMinutes));
-    const moved = moves.map(({ event, start, end }) => ({
-      ...event,
-      start: start.toISOString(),
-      end: end.toISOString(),
-    }));
-
-    // Alt-drag drops a duplicate and leaves the original where it was, so the total gains a block
-    // instead of moving one.
-    if (drag.copy) return [...this.events, ...moved.map((event) => ({ ...event, id: `${event.id}:drag-copy` }))];
-
-    const byId = new Map(this.events.map((event) => [event.id, event]));
-    for (const event of moved) byId.set(event.id, event);
-    return [...byId.values()];
   });
 
   /**
