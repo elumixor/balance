@@ -56,7 +56,7 @@
     if (icsImport.open) void store.calendars.ensure();
   });
 
-  /** The buffer is rest, and rest has a colour of its own — see `week-totals.ts`. */
+  /** The buffer is rest, and rest has a colour of its own. */
   function markColor(category: Category | null) {
     return category && !category.isBuffer ? category.color : restColor;
   }
@@ -88,7 +88,7 @@
   {/if}
 {/snippet}
 
-<!-- The buffer is drawn as rest wherever it is drawn — see `week-totals.ts`. -->
+<!-- The buffer is drawn as rest wherever it is drawn. -->
 {#snippet categoryMark(category: Category)}
   <CategoryIcon icon={category.isBuffer ? DEFAULT_ICON : category.icon} color={markColor(category)} size={20} />
 {/snippet}
