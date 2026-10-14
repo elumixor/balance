@@ -85,6 +85,8 @@ export class NotionSync {
     const titleKey = Object.entries(page.properties).find(([, value]) => (value as { type?: string }).type === "title");
     const name = (await this.client.text(runsOf(titleKey?.[1] as Record<string, unknown>))) || "Untitled";
     const existing = await this.#byNotionId(page.id);
+    // Deleted here stays deleted: Notion owns what a project says, not whether it is wanted.
+    if (existing?.archived) return;
     const description = await this.#description(page);
     const mirrored = {
       name,
@@ -92,7 +94,6 @@ export class NotionSync {
       icon: page.icon?.emoji ?? null,
       notionUrl: page.url,
       notionEditedAt: new Date(page.last_edited_time),
-      archived: false,
       updatedAt: new Date(),
     };
     if (existing) {

@@ -46,3 +46,4 @@ export { default as Textarea } from "./Textarea.svelte";
 export { default as TimeField } from "./TimeField.svelte";
 export { default as Tooltip } from "./Tooltip.svelte";
 export { default as TooltipAnchor } from "./TooltipAnchor.svelte";
+export { default as UndoCard } from "./UndoCard.svelte";

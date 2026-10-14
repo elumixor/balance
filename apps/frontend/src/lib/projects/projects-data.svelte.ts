@@ -1,3 +1,5 @@
+import { toast } from "svelte-sonner";
+import UndoCard from "$lib/components/UndoCard.svelte";
 import { oauthConnect } from "$lib/core/oauth-connect";
 import type { Category } from "$lib/core/records";
 import { invalidate, store } from "$lib/core/store.svelte";
@@ -271,18 +273,35 @@ class ProjectsData {
     invalidate.projects();
   }
 
-  /** Deleting takes the whole subtree — the confirmation says how much of one there is. */
+  /**
+   * Deleting takes the whole subtree, straight away, and the card in the corner offers it back —
+   * the same ids written again, which the server reads as the rows coming back to life.
+   */
   remove(project: Project) {
-    const under = descendantsOf(projects.all, project.id);
-    const also = under.length > 0 ? ` and the ${under.length} under it` : "";
-    if (!confirm(`Delete "${project.name || "this project"}"${also}? The hours already logged stay logged.`))
-      return false;
+    const gone = [project, ...descendantsOf(projects.all, project.id)].map((one) => ({ ...one }));
     this.#closeBurst();
     synced.transaction(() => {
-      for (const child of under) projects.delete(child.id);
-      projects.delete(project.id);
+      for (const one of gone.toReversed()) projects.delete(one.id);
     });
     invalidate.projects();
+
+    const name = project.name.trim() || "Untitled project";
+    const also = gone.length > 1 ? ` and ${gone.length - 1} under it` : "";
+    const id = `project-deleted-${project.id}`;
+    toast.custom(UndoCard, {
+      id,
+      duration: 8000,
+      componentProps: {
+        id,
+        message: `Deleted “${name}”${also}`,
+        onundo: () => {
+          synced.transaction(() => {
+            for (const one of gone) projects.create(one);
+          });
+          invalidate.projects();
+        },
+      },
+    });
     return true;
   }
 
