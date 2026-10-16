@@ -18,6 +18,9 @@ evidence: a block tagged to a project counts against its claim. A Notion workspa
 into that layer, so the projects and tasks already written there are the ones the week is planned
 around.
 
+The API also speaks the Model Context Protocol at `/mcp`, so Claude can read and write a week
+directly — see [Connecting an assistant (MCP)](#connecting-an-assistant-mcp).
+
 ## Layout
 
 | Path                  | What it is                                                            |
