@@ -26,4 +26,3 @@ export async function ask<T>(options: { schema: z.ZodType<T>; system: string; pr
     return null;
   }
 }
-

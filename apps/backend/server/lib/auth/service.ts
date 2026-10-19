@@ -15,6 +15,15 @@ export const clerkClient = createClerkClient({
 
 const BEARER = /^Bearer (.+)$/;
 
+function describeBearerShape(token: string) {
+  const underscore = token.indexOf("_");
+  return {
+    prefix: underscore === -1 ? "none" : token.slice(0, underscore + 1),
+    length: token.length,
+    shape: token.startsWith("balance_mcp_") ? "mcp" : token.split(".").length === 3 ? "jwt" : "opaque",
+  };
+}
+
 /**
  * Verifies the request's `Authorization: Bearer <session-token>` header against Clerk, then looks
  * up (or JIT-provisions) the internal `users` row for that Clerk identity — mirrors the web app's
@@ -43,10 +52,18 @@ class AuthService {
     const token = authHeader?.match(BEARER)?.[1];
     if (!token) throw new NotAuthenticatedError();
 
-    const requestState = await clerkClient.authenticateRequest(
-      new Request("https://balance-app.internal/", { headers: { authorization: `Bearer ${token}` } }),
-      { acceptsToken: "session_token" },
-    );
+    let requestState: Awaited<ReturnType<typeof clerkClient.authenticateRequest>>;
+    try {
+      requestState = await clerkClient.authenticateRequest(
+        new Request("https://balance-app.internal/", { headers: { authorization: `Bearer ${token}` } }),
+        { acceptsToken: "session_token" },
+      );
+    } catch (error) {
+      // Never the token itself — just enough shape to tell a misplaced MCP/refresh token from an
+      // expired browser session next time Clerk rejects one of these outright.
+      console.warn("[auth] Clerk rejected a bearer", describeBearerShape(token));
+      throw error;
+    }
 
     const auth = requestState.toAuth();
     if (!auth?.userId) throw new NotAuthenticatedError();

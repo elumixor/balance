@@ -59,3 +59,6 @@ dist/
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Claude Code worktrees and local state
+.claude/
