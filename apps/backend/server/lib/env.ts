@@ -6,8 +6,9 @@ import { z } from "zod";
  * Every key is required: a deployment with one missing fails here, at start-up, with the names
  * of what is missing — not on the first request that happens to need it, hours later, as a
  * `fetch` to `undefined` or a cipher built on an empty key. The exceptions are `DEV_AUTH_EMAIL`,
- * which is a switch rather than a setting and is ignored in production regardless, and the three
- * `ZOOM_*` keys, which are the switch for an integration a deployment is allowed not to have.
+ * which is a switch rather than a setting and is ignored in production regardless, the three
+ * `ZOOM_*` keys, which are the switch for an integration a deployment is allowed not to have, and
+ * `ANTHROPIC_CREDITS_API_KEY`, which the gateway stands in for.
  *
  * The `VERCEL*` and `NODE_ENV` keys are the platform's own and arrive on their own; they are
  * parsed here so that `process.env` is read in exactly one file.
@@ -43,6 +44,8 @@ const schema = z.object({
   /** The blob store the macOS app and its update manifest are published to — see `/download`. */
   DOWNLOAD_BASE_URL: z.url(),
   AI_GATEWAY_API_KEY: z.string().min(1),
+  /** Anthropic's own key, on the account's monthly API credits; without it every ask goes through the gateway. */
+  ANTHROPIC_CREDITS_API_KEY: z.string().min(1).optional(),
   SENTRY_DSN: z.url(),
   POSTHOG_KEY: z.string().min(1),
   POSTHOG_HOST: z.url(),

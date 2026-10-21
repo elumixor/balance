@@ -59,7 +59,8 @@ missing one stops the backend at start-up and the frontend at build time with it
 authentication method), `TOKEN_ENCRYPTION_KEY` and `OAUTH_STATE_SECRET` (the last two are
 `openssl rand -base64 32`), `GOOGLE_MAPS_API_KEY` for travel times through the Google Routes API
 and address suggestions through the Places API, `AI_GATEWAY_API_KEY` for the session copy and the
-project proposals, `SENTRY_DSN`, `POSTHOG_KEY`, `POSTHOG_HOST` for its own failures, and `APPLE_BUNDLE_ID` and
+project proposals (optional `ANTHROPIC_CREDITS_API_KEY` sends them to Anthropic directly on the
+account's API credits first, the gateway taking over when it is refused), `SENTRY_DSN`, `POSTHOG_KEY`, `POSTHOG_HOST` for its own failures, and `APPLE_BUNDLE_ID` and
 `GOOGLE_IOS_CLIENT_ID`, which say who a native sign-in token has to be addressed to. The
 frontend needs `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`,
 `VITE_POSTHOG_HOST` and `VITE_API_BASE_URL`. With
