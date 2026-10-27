@@ -11,12 +11,10 @@ app adds is meaning: each event is mapped to an *activity* (a template that spli
 several categories), or, as an exception, straight to categories. Drag an activity onto the week
 and it becomes a real event in your calendar.
 
-On top of the ring sits a projects layer: each sphere's hours are claimed by projects — work with
-a name that can hold other work, nested as deeply as it needs to be, with stages across its
-timeline and tasks under them — or kept by practices that never complete. The calendar is the
-evidence: a block tagged to a project counts against its claim. A Notion workspace can be mirrored
-into that layer, so the projects and tasks already written there are the ones the week is planned
-around.
+Each sphere can hold practices — something recurring that never completes, measured by whether it
+kept happening — and the calendar is the evidence: a block tagged to a practice counts toward it.
+Projects and tasks live in [Keep](https://keep.atmagaming.com), not here. A block names the Keep
+task it is for by URN (`keep:page/<id>`, the `urn` on its mapping), and the event card links to it.
 
 The API also speaks the Model Context Protocol at `/mcp`, so Claude can read and write a week
 directly — see [Connecting an assistant (MCP)](#connecting-an-assistant-mcp).
@@ -53,13 +51,10 @@ Both apps read the one `.env` at the root (symlinked into each). Every key is re
 missing one stops the backend at start-up and the frontend at build time with its name — see
 `apps/backend/server/lib/env.ts` for the full list. The backend needs `DATABASE_URL`,
 `DATABASE_URL_UNPOOLED`, `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
-`GOOGLE_OAUTH_REDIRECT_URI`, the same three for Notion (`NOTION_OAUTH_CLIENT_ID`,
-`NOTION_OAUTH_CLIENT_SECRET`, `NOTION_OAUTH_REDIRECT_URI` — a connection made at
-[notion.so/profile/integrations](https://www.notion.so/profile/integrations) with OAuth as its
-authentication method), `TOKEN_ENCRYPTION_KEY` and `OAUTH_STATE_SECRET` (the last two are
+`GOOGLE_OAUTH_REDIRECT_URI`, `TOKEN_ENCRYPTION_KEY` and `OAUTH_STATE_SECRET` (the last two are
 `openssl rand -base64 32`), `GOOGLE_MAPS_API_KEY` for travel times through the Google Routes API
 and address suggestions through the Places API, `AI_GATEWAY_API_KEY` for the session copy and the
-project proposals (optional `ANTHROPIC_CREDITS_API_KEY` sends them to Anthropic directly on the
+day assistant (optional `ANTHROPIC_CREDITS_API_KEY` sends them to Anthropic directly on the
 account's API credits first, the gateway taking over when it is refused), `SENTRY_DSN`, `POSTHOG_KEY`, `POSTHOG_HOST` for its own failures, and `APPLE_BUNDLE_ID` and
 `GOOGLE_IOS_CLIENT_ID`, which say who a native sign-in token has to be addressed to. The
 frontend needs `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`,
@@ -126,7 +121,7 @@ backend's route handlers — run `cd apps/backend && bunx nitro-client` after ch
 ## Connecting an assistant (MCP)
 
 The API speaks the Model Context Protocol at `/mcp`, so an assistant can read the week, the
-spheres and the projects, and write blocks back. Thirteen tools, four of which write; the same
+spheres and the practices, and write blocks back. Fifteen tools, seven of which write; the same
 services the app's own routes call sit behind them.
 
 What gets in is a key, made in **Settings → Assistants**. It is shown once — only its hash is
