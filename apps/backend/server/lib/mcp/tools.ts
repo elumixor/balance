@@ -107,7 +107,7 @@ function conferenceOf(args: {
 }
 
 const URN_DESCRIPTION =
-  "The Keep task this block is for, as its URN — `keep:page/<id>`. Projects and tasks live in Keep; " +
+  "The Kip task this block is for, as its URN — `kip:page/<id>`. Projects and tasks live in Kip; " +
   "Balance only keeps the link.";
 
 /**
@@ -421,7 +421,7 @@ export const mcpTools: McpTool[] = [
     title: "Say what a block counts as",
     description:
       "Maps an event that is already on the calendar to a sphere or an activity, and optionally links " +
-      "the Keep task it was for — how a grey week is reconciled after the fact. `scope: series` covers " +
+      "the Kip task it was for — how a grey week is reconciled after the fact. `scope: series` covers " +
       "every occurrence.",
     readOnly: false,
     inputSchema: {
@@ -568,7 +568,7 @@ export const mcpTools: McpTool[] = [
     description:
       "The practices that never complete — sleep, the gym — each with what it asks for a week. " +
       "Pass `progress` for what the calendar says each has actually had. Projects and tasks are " +
-      "not in Balance: they live in Keep.",
+      "not in Balance: they live in Kip.",
     inputSchema: {
       progress: z.boolean().optional().describe("Also count what the calendar says each has had."),
       timeZone: z.string().optional(),

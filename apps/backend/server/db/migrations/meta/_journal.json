@@ -190,6 +190,13 @@
       "when": 1793064806130,
       "tag": "0026_drop_projects_keep_urn",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793087671088,
+      "tag": "0027_rename_keep_urns_to_kip",
+      "breakpoints": true
     }
   ]
 }

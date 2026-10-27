@@ -57,10 +57,10 @@ describe("mappingOf", () => {
       choice: { activityId: "a1" },
       purpose: NO_PURPOSE,
     });
-    expect(mappingOf(event({ mappingScope: "series", weights, urn: "keep:page/p1" }))).toEqual({
+    expect(mappingOf(event({ mappingScope: "series", weights, urn: "kip:page/p1" }))).toEqual({
       scope: "series",
       choice: { weights },
-      purpose: { ...NO_PURPOSE, urn: "keep:page/p1" },
+      purpose: { ...NO_PURPOSE, urn: "kip:page/p1" },
     });
   });
 });
@@ -91,11 +91,11 @@ describe("purposeOf and mappingFieldsOf", () => {
 
   it("leaves absent purpose fields out rather than sending nulls", () => {
     const timer = { kind: "parts" as const, count: 3 };
-    expect(mappingFieldsOf(event({ urn: "keep:page/t1", timer, source: "s", hidden: [] }))).toEqual({
+    expect(mappingFieldsOf(event({ urn: "kip:page/t1", timer, source: "s", hidden: [] }))).toEqual({
       activityId: undefined,
       weights: undefined,
       practiceId: undefined,
-      urn: "keep:page/t1",
+      urn: "kip:page/t1",
       timer,
       source: "s",
       hidden: [],

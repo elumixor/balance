@@ -67,7 +67,7 @@ struct CalendarEvent: Codable, Identifiable, Hashable {
     var activityId: String?
     var activityName: String?
     var weights: [Weight]
-    /// What the block is for in another app — `keep:page/<id>` for a page in Keep.
+    /// What the block is for in another app — `kip:page/<id>` for a page in Kip.
     var urn: String?
     var endLocation: String?
     var notes: String?
@@ -90,14 +90,14 @@ struct CalendarEvent: Codable, Identifiable, Hashable {
     var isRepeating: Bool { seriesId != nil }
     var durationMinutes: Int { Int(end.timeIntervalSince(start) / 60) }
 
-    /// The Keep page the block points at, when its urn names one.
-    var keepURL: URL? {
-        guard let urn, urn.hasPrefix(Self.keepPagePrefix) else { return nil }
-        return URL(string: Self.keepEmbedBase + urn.dropFirst(Self.keepPagePrefix.count))
+    /// The Kip page the block points at, when its urn names one.
+    var kipURL: URL? {
+        guard let urn, urn.hasPrefix(Self.kipPagePrefix) else { return nil }
+        return URL(string: Self.kipEmbedBase + urn.dropFirst(Self.kipPagePrefix.count))
     }
 
-    static let keepPagePrefix = "keep:page/"
-    static let keepEmbedBase = "https://keep.atmagaming.com/embed/page/"
+    static let kipPagePrefix = "kip:page/"
+    static let kipEmbedBase = "https://kip.dsk.atmagaming.com/embed/page/"
 
     /// The sphere its hours mostly go to: the heaviest weight that isn't the buffer.
     func sphere(in spheres: [String: Sphere]) -> Sphere? {

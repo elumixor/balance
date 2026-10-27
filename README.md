@@ -13,8 +13,8 @@ and it becomes a real event in your calendar.
 
 Each sphere can hold practices — something recurring that never completes, measured by whether it
 kept happening — and the calendar is the evidence: a block tagged to a practice counts toward it.
-Projects and tasks live in [Keep](https://keep.atmagaming.com), not here. A block names the Keep
-task it is for by URN (`keep:page/<id>`, the `urn` on its mapping), and the event card links to it.
+Projects and tasks live in [Kip](https://kip.dsk.atmagaming.com), not here. A block names the Kip
+task it is for by URN (`kip:page/<id>`, the `urn` on its mapping), and the event card links to it.
 
 The API also speaks the Model Context Protocol at `/mcp`, so Claude can read and write a week
 directly — see [Connecting an assistant (MCP)](#connecting-an-assistant-mcp).

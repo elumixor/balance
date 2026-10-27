@@ -223,7 +223,7 @@ Today, Tomorrow, This week, Coming up), the calendar (`Calendar/` — a day, thr
 every page sits at the same hour, blocks held to move and held by their lower edge to stretch, an
 empty hour tapped to type a block into it), and Balance (the week's dial from `DialLayout`). An
 event's card (`Event/EventSheet.swift`) is a sheet at half height with its name, time, what it
-counts as, the Keep page it links to (read-only, its `urn`), place, call, guests, invitation answer, private notes and the Health night;
+counts as, the Kip page it links to (read-only, its `urn`), place, call, guests, invitation answer, private notes and the Health night;
 every change is written as it is made. The sitting (`Session/`) is the review screen and a plan
 bar on the calendar that commits the day. Screens never fetch: the store draws a write ahead and
 lets the answer correct it, pulls categories and activities through the same
@@ -495,16 +495,16 @@ jump to rather than resolved events. A hit opens as `/calendar?event=<id>&at=<in
 `calendarData.openEvent` turns into the week and the card beside its block. `isSearchKey` is ⌘K everywhere, a text field included; the strip has a
 button and the phone's menu a row for the same box.
 
-## Projects and tasks live in Keep; a block only points at one
+## Projects and tasks live in Kip; a block only points at one
 
-Balance has no projects, stages or tasks of its own any more: they are Keep's
-(`keep.atmagaming.com`), and Keep never knows Balance. What an hour was for is the `urn` on its
-`event_mappings` row — `keep:page/<id>` names a Keep task — validated only as a URN
+Balance has no projects, stages or tasks of its own any more: they are Kip's
+(`kip.dsk.atmagaming.com`), and Kip never knows Balance. What an hour was for is the `urn` on its
+`event_mappings` row — `kip:page/<id>` names a Kip task — validated only as a URN
 (`urnField` in `lib/http/schemas.ts`) and never read. It is written by the block routes
 (`POST /mobile/calendar/events`, `POST /mobile/calendar/mappings`) and the MCP tools
 (`create_event`, `update_event`, `categorize_event`), and drawn by the card as a small link
-(`$lib/calendar/urn.ts` turns a `keep:page` URN into Keep's embed URL off `KEEP_ORIGIN` in
-`$lib/core/env.ts`; any other URN is shown as text). No Keep code is imported anywhere.
+(`$lib/calendar/urn.ts` turns a `kip:page` URN into Kip's embed URL off `KIP_ORIGIN` in
+`$lib/core/env.ts`; any other URN is shown as text). No Kip code is imported anywhere.
 
 A sphere is a category on the ring, and `/spheres` is its screen: the ring on one side is the
 picture of the list on the other, where each sphere is named, sized in hours and percent, and holds

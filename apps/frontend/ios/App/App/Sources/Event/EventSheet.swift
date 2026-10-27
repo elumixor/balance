@@ -80,7 +80,7 @@ struct EventSheet: View {
             Section("Counts as") {
                 SpherePicker(event: event)
                     .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
-                if let urn = event.urn { linkRow(urn, url: event.keepURL) }
+                if let urn = event.urn { linkRow(urn, url: event.kipURL) }
             }
 
             Section("When") { timeRows(event) }

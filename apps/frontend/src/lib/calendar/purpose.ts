@@ -8,12 +8,12 @@ import type { CalendarEvent, EventResponse, EventTimer, MappingScope } from "./t
  */
 
 /**
- * What the hour was for — a practice, a Keep task — on top of what it counts as, and how a timer
+ * What the hour was for — a practice, a Kip task — on top of what it counts as, and how a timer
  * run for it is broken up. All of it rides on the mapping, so all of it travels together.
  */
 export interface Purpose {
   readonly practiceId: string | null;
-  /** The work it was for in another app, by URN — `keep:page/<id>`. */
+  /** The work it was for in another app, by URN — `kip:page/<id>`. */
   readonly urn: string | null;
   readonly timer: EventTimer | null;
   /** The integration feed it is linked to — "apple-health:sleep" — which is also on the mapping. */

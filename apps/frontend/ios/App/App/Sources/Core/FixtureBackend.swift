@@ -50,7 +50,7 @@ final class FixtureBackend: Backend {
         let h = min(max(calendar.component(.hour, from: now), 3), 19)
         events = [
             event("e-standup", "Standup", at(0, h), at(0, h, 30), sphere: "s-work", call: "https://meet.google.com/abc-defg-hij"),
-            event("e-focus", "Focus block", at(0, h + 1), at(0, h + 2, 30), sphere: "s-work", urn: "keep:page/fixture-combat-notes"),
+            event("e-focus", "Focus block", at(0, h + 1), at(0, h + 2, 30), sphere: "s-work", urn: "kip:page/fixture-combat-notes"),
             event("e-lunch", "Lunch with Anna", at(0, h - 2), at(0, h - 1), sphere: nil, invited: true, location: "Café Riche"),
             event("e-gym", "Gym", at(0, h + 3), at(0, h + 4), sphere: "s-health"),
             event("e-review", "Design review", at(1, h), at(1, h + 1), sphere: "s-work"),
