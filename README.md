@@ -16,6 +16,8 @@ kept happening — and the calendar is the evidence: a block tagged to a practic
 Projects and tasks live in [Keep](https://keep.desk.atmagaming.com), not here. A block names the Keep
 task it is for by URN (`keep:page/<id>`, the `urn` on its mapping), and the event card links to it.
 
+Live at https://balance.desk.atmagaming.com (part of the desk suite; https://balance-app-mauve.vercel.app is the same deployment, and what the native apps call).
+
 The API also speaks the Model Context Protocol at `/mcp`, so Claude can read and write a week
 directly — see [Connecting an assistant (MCP)](#connecting-an-assistant-mcp).
 

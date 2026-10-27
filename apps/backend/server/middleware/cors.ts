@@ -12,6 +12,7 @@ import { isProduction } from "~/lib/env";
  * is up. Anything else with a token is not one of ours.
  */
 const ALLOWED_ORIGINS = [
+  "https://balance.desk.atmagaming.com",
   "https://balance-app-mauve.vercel.app",
   "https://balance-app-dev.vercel.app",
   "https://localhost",

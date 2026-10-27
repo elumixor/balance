@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { AccountPill, Tooltip } from "$lib/components";
-  import { isDesktop } from "$lib/desktop/platform";
+  import { isDesktop, isNativeShell } from "$lib/desktop/platform";
   import { isActive, NAV_TABS } from "$lib/nav";
   import { shellSlots } from "$lib/nav/shell-slots.svelte";
   import { palette } from "$lib/search";
@@ -78,6 +78,11 @@
   {/if}
 
   <div data-tauri-drag-region={isDesktop ? true : undefined} class="flex-1"></div>
+
+  <!-- The desk suite's app switcher, from `bar.js` (loaded by `app.html` in a browser only). -->
+  {#if !isNativeShell}
+    <desk-bar class="mr-1"></desk-bar>
+  {/if}
 
   <AccountPill compact />
 </div>

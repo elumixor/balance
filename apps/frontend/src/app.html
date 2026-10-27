@@ -8,6 +8,7 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
@@ -23,6 +24,16 @@
           ((!stored || stored === "system") && window.matchMedia("(prefers-color-scheme: dark)").matches);
         if (dark) document.documentElement.classList.add("dark");
       } catch {}
+    </script>
+    <script>
+      // The desk suite's app switcher (`<desk-bar>`), in a browser only: the iOS and macOS shells serve
+      // this bundle from localhost and stay offline-first.
+      if (location.hostname !== "localhost" && location.protocol === "https:") {
+        const bar = document.createElement("script");
+        bar.type = "module";
+        bar.src = "https://desk.atmagaming.com/bar.js";
+        document.head.appendChild(bar);
+      }
     </script>
     %sveltekit.head%
   </head>

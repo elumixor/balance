@@ -18,7 +18,7 @@
 
 import { existsSync, lstatSync } from "node:fs";
 import { mkdir, rename, rm, symlink } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
 const iosDir = join(root, "apps/frontend/ios");
@@ -27,8 +27,16 @@ const derived = ["App/build/iphone", "App/build/sim"].map((path) => join(iosDir,
 
 if (!existsSync(join(iosDir, "App"))) process.exit(0);
 
+// Relative, so the link survives the checkout moving to another directory.
+const target = (path: string) => relative(dirname(path), shared);
+
 for (const path of derived) {
-  if (lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink()) continue;
+  const link = lstatSync(path, { throwIfNoEntry: false });
+  if (link?.isSymbolicLink()) {
+    if (existsSync(path)) continue;
+    // A link left pointing at where the checkout used to be.
+    await rm(path);
+  }
 
   await mkdir(join(path, ".."), { recursive: true });
   // The first real directory found becomes the shared one, so nothing has to be re-downloaded.
@@ -37,6 +45,6 @@ for (const path of derived) {
     else await rename(path, shared);
   }
   await mkdir(shared, { recursive: true });
-  await symlink(shared, path);
+  await symlink(target(path), path);
   console.log(`SourcePackages: ${path.slice(root.length + 1)} -> ios/SourcePackages`);
 }
