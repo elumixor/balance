@@ -1,19 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <title>Balance</title>
-  <rect width="128" height="128" rx="28" fill="#F4F1EA"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <clipPath id="a"><circle cx="64" cy="49" r="28"/></clipPath>
-    <clipPath id="b"><circle cx="48.4" cy="76" r="28"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2EE6C4"/>
+      <stop offset="1" stop-color="#159BD8"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.5" cy="0" r="0.75">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glyph" x1="0.3" y1="0" x2="0.1" y2="1">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="0.55" stop-color="#fff" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.78"/>
+    </linearGradient>
+    <filter id="glass" x="-25%" y="-25%" width="150%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="22"/>
+      <feOffset dy="20" result="blur"/>
+      <feFlood flood-color="#0A0A28" flood-opacity="0.26"/>
+      <feComposite in2="blur" operator="in" result="shadow"/>
+      <feOffset in="SourceAlpha" dy="10" result="down"/>
+      <feComposite in="SourceAlpha" in2="down" operator="out"/>
+      <feGaussianBlur stdDeviation="3"/>
+      <feComposite in2="SourceAlpha" operator="in"/>
+      <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0" result="spec"/>
+      <feOffset in="SourceAlpha" dy="-14" result="up"/>
+      <feComposite in="SourceAlpha" in2="up" operator="out"/>
+      <feGaussianBlur stdDeviation="8"/>
+      <feComposite in2="SourceAlpha" operator="in"/>
+      <feColorMatrix values="0 0 0 0 0.1  0 0 0 0 0.12  0 0 0 0 0.3  0 0 0 0.16 0" result="shade"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/><feMergeNode in="shade"/><feMergeNode in="spec"/></feMerge>
+    </filter>
+    
   </defs>
-  <g fill="#1D1D1F">
-    <circle cx="64" cy="49" r="28"/>
-    <circle cx="48.4" cy="76" r="28"/>
-    <circle cx="79.6" cy="76" r="28"/>
-  </g>
-  <g clip-path="url(#a)"><circle cx="79.6" cy="76" r="28" fill="#14B8A6" clip-path="url(#b)"/></g>
-  <g fill="none" stroke="#F4F1EA" stroke-width="3">
-    <circle cx="64" cy="49" r="28"/>
-    <circle cx="48.4" cy="76" r="28"/>
-    <circle cx="79.6" cy="76" r="28"/>
+  <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="228" fill="url(#sheen)"/>
+  <g filter="url(#glass)">
+    <circle cx="512" cy="386" r="196" fill="url(#glyph)" opacity="0.84"/>
+    <circle cx="398" cy="584" r="196" fill="url(#glyph)" opacity="0.84"/>
+    <circle cx="626" cy="584" r="196" fill="url(#glyph)" opacity="0.84"/>
   </g>
 </svg>
