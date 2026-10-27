@@ -20,7 +20,7 @@ the API is Nitro, in `apps/backend`.
 
 `src/lib/components/` holds only what two or more screens draw — buttons, fields, popovers, the
 ring. Anything a single route owns sits in that route's `components/` folder
-(`routes/(app)/calendar/components/`, `routes/(app)/projects/[id]/components/`), and what only
+(`routes/(app)/calendar/components/`, `routes/(app)/spheres/components/`), and what only
 the app shell draws — the nav, the settings dialog and its panes — is in `routes/(app)/components/`.
 Every such folder has an `index.ts`, and a screen imports from the folder, not the file
 (`import { WeekGrid } from "./components"`, `import { Button } from "$lib/components"`); siblings in
@@ -31,7 +31,7 @@ plumbing every screen stands on — the API client, the caches and the store, th
 persisted copy, `env.ts`; `platform/` is what the device does around the app — the clock, the
 viewport, hotkeys, diagnostics, telemetry, the watchdog; `ui/` is colour, icons, theme and
 formatting; `account/` is the session and the account's preferences; `calendar/`, `planning/`,
-`projects/`, `travel/`, `integrations/` are the domains, each with its own `types.ts` and its own
+`practices/`, `travel/`, `integrations/` are the domains, each with its own `types.ts` and its own
 `queries.ts` — the only files that name an endpoint. A new module goes into the folder its
 subject already lives in; a new folder is a new subject, not a new kind of file.
 
@@ -93,8 +93,7 @@ with the calendar's own cipher, refresh token rotated on every renewal — and w
 is the link it answered with. The three `ZOOM_*` keys are the one optional part of `env.ts`,
 because they are a feature's switch rather than its settings; without them every screen still
 boots and says Zoom isn't set up. Nothing sends anybody to Settings first: the card's Zoom option
-asks for the grant at the moment it is pressed (`ensureZoom`), the same errand-free rule the
-Notion entry points follow.
+asks for the grant at the moment it is pressed (`ensureZoom`), so nobody is sent on an errand first.
 
 An event's description belongs to everyone invited to it — Google puts it in the invitation — so
 what one person wants to remember about a meeting has nowhere on the calendar to go. Private
@@ -106,7 +105,7 @@ block that counts as nothing — it becomes buffer time first, the same rule the
 A grey block files itself when the answer is obvious. Once a week has been drawn the device asks
 `POST /mobile/calendar/classify` about it, once a session, and `calendar/classify-service.ts` hands
 each event that counts as nothing — a series once for all of it — to Jev (`typesafe-ai/jev`, a
-decision model over the AI Gateway, `lib/ai/decision.ts`): spheres and active projects as the
+decision model over the AI Gateway, `lib/ai/decision.ts`): spheres as the
 options with "none" first, the event's words and shape as the state, and the person's own filings
 of similar titles as precedent. A sure answer (`THRESHOLDS` in `classify.ts`, pure and tested)
 becomes the same mapping a person's choice would write; every answer, sure or not, is a row in
@@ -248,7 +247,7 @@ the app worth having: twice a day the phone asks you to look at what happened an
 happens next, and committing that decision is what earns stars.
 
 Four pure modules hold every rule, and they are the only things here with tests
-(`cd apps/backend && bun test`, alongside the Notion translations): `stars.ts` says what a commit pays and what a total means, `coverage.ts`
+(`cd apps/backend && bun test`): `stars.ts` says what a commit pays and what a total means, `coverage.ts`
 says how full a day is and how closely it was kept, `days.ts` turns `YYYY-MM-DD` plus a zone into
 instants, and `schedule.ts` says when the next reminders fall. Everything else is a database or a
 calendar away from them.
@@ -317,7 +316,7 @@ told, where and with whom, what it says — each a section component beside it (
 `TimeSection`, `RemindersSection`, `MeetingSection`, `DescriptionSection`, `EditorFooter`), with
 the typed-and-saved state in `$lib/calendar/event-draft.svelte.ts`, which is what makes the
 debounce and the carried-over-id rule testable. What the hour counts as and what it was for are
-one question with one list (`filingItems`: each sphere with its projects under it), opened from
+one question with one list (`filingItems`: each sphere with its practices under it), opened from
 the badge or by a `/` typed into the name (`$lib/calendar/slash.ts`, pure and tested), where
 Escape closes the list and not the card. Every write a section makes goes through
 `draft.write(title, promise)`, so a refused one reaches the screen. Everything the meeting carries — a place, its time zone,
@@ -424,7 +423,7 @@ would mint itself another the moment the key stopped working.
 
 ## A route is a signature, a service is the work
 
-`server/lib/` is one folder per subject — `auth`, `categories`, `calendar`, `planning`, `projects`,
+`server/lib/` is one folder per subject — `auth`, `categories`, `calendar`, `planning`, `practices`,
 `preferences`, `tracking`, `travel`, `stats`, `sync`, `watch` — and `db/schema/` is split the same
 way, re-exported from its `index.ts`. Every import is `~/lib/...`, never a relative climb. A route
 under `routes/mobile/**` is `authed(schemas, fn)` from `lib/http/authed.ts`: the schemas, the user
@@ -476,8 +475,8 @@ in settings).
 
 On the device `$lib/people/directory.svelte.ts` is the one way in: `ensure(typed)` finds the row
 for an address or a name and makes one otherwise, so a stranger invited from the event card is
-offered on the next task. `PersonField` is the only component that names a person — the guest
-field, a project's members, a task's assignees — and `suggest.ts` (pure, tested) is its ranking:
+offered on the next event. `PersonField` is the only component that names a person — the guest
+field — and `suggest.ts` (pure, tested) is its ranking:
 the start of a word of the name or of the address first, whoever is already on the list left out.
 A face is `Avatar` everywhere it is drawn, initials on a colour until there is a picture, and an
 uploaded one is shrunk to a 128px JPEG data URL on the device (`avatar.ts`) so it travels as a
@@ -487,131 +486,37 @@ face, and a person the calendar never met is added.
 ## ⌘K finds anything
 
 `$lib/search/` is the palette: `items.ts` (pure, tested) ranks rows of one shape from every
-source — the screens, the settings sections, the projects, their tasks, the people — and
+source — the screens, the settings sections, the people — and
 `palette.svelte.ts` builds them from what the device already holds, so every keystroke answers
 at once. Only the calendar is asked, after a pause and from two letters on:
 `GET /mobile/calendar/search` is Google's own full-text search over the visible calendars
 (`CalendarSearchService`, a year either way, a dozen hits nearest today first), returning rows to
 jump to rather than resolved events. A hit opens as `/calendar?event=<id>&at=<instant>`, which
-`calendarData.openEvent` turns into the week and the card beside its block; a task opens as
-`/projects/<id>?task=<id>`. `isSearchKey` is ⌘K everywhere, a text field included; the strip has a
+`calendarData.openEvent` turns into the week and the card beside its block. `isSearchKey` is ⌘K everywhere, a text field included; the strip has a
 button and the phone's menu a row for the same box.
 
-## Projects are the layer between a sphere's hours and Tuesday 9:00
+## Projects and tasks live in Keep; a block only points at one
 
-A sphere is a category on the ring; `server/lib/projects/` and `src/lib/projects/` are what those
-hours are _for_. A project is work with a name under a sphere, and it can hold other work: nesting
-is the whole shape of it — "ATMA / Hypocrisy / Combat" is three rows with a `parentId` each, and
-every level is a project with the same fields, so there is no second kind of thing for the level
-above or below. A child carries its parent's sphere, because hours have to land on the ring
-somewhere. Everything but a name and a sphere is optional, and a project has to be creatable in ten
-seconds.
+Balance has no projects, stages or tasks of its own any more: they are Keep's
+(`keep.atmagaming.com`), and Keep never knows Balance. What an hour was for is the `urn` on its
+`event_mappings` row — `keep:page/<id>` names a Keep task — validated only as a URN
+(`urnField` in `lib/http/schemas.ts`) and never read. It is written by the block routes
+(`POST /mobile/calendar/events`, `POST /mobile/calendar/mappings`) and the MCP tools
+(`create_event`, `update_event`, `categorize_event`), and drawn by the card as a small link
+(`$lib/calendar/urn.ts` turns a `keep:page` URN into Keep's embed URL off `KEEP_ORIGIN` in
+`$lib/core/env.ts`; any other URN is shown as text). No Keep code is imported anywhere.
 
-Spheres and projects are one screen, `/projects`: the ring on one side is the picture of the list
-on the other, where each sphere is named, sized in hours and percent, and holds its projects and
-practices. A seam dragged on the ring and a number typed in a sphere's heading move the same hours
-(`$lib/planning/category-drafts.svelte.ts`), and a sphere's menu — split, remove — is the same from
-a slice and from its heading.
-
-Under a project: **stages**, which are bands across its timeline and hold no work of their own, and
-**tasks**, which nest the same way projects do. A task carries its days, who it is for, what board
-column it sits in and how big it is thought to be. A parent's dates are its own when it has them
-and its children's span otherwise (`gantt.ts`), so a plan can be written from the top down or from
-the bottom up. A project has no list of arbitrary fields: what it says about itself is its sphere,
-its hours a week, its status, its people and its Notion link, each drawn as its own chip under the
-name (`ProjectProperties`). Practices are the exception that never becomes a project: something recurring, measured by
-adherence over the last four whole weeks.
-
-Projects, people, stages and tasks are all synced models (`server/lib/sync/`, one `TableStore`
-each) and live in `src/lib/core/synced.svelte.ts`, so a row is written the way a category is. The
-three pure modules are tested to 100%: `tree.ts` (nesting, breadcrumbs, and what to do about a
-cycle), `gantt.ts` (spans, the scrolling window, where a bar and each header column sits, and
-what a drag makes of a span) and `rollup.ts` (a stage's progress, counted on the leaves, because a
-parent is a heading over its subtasks). A project's tasks are read one way — the timeline — since
-a list and a board of the same rows were two more places to keep saying the same thing.
-
-The timeline is a grid that scrolls under a name column that doesn't: two header rows (months over
-days, weeks or months, depending on the zoom slider), a line for today, and a bar per task. The
-stages share one band row above them, each across the days it covers, with its edges carried down
-the grid — a stage is a stretch of the plan, not a lane of its own.
-Everything on it is edited where it is read — a bar is carried to move the work and pulled by an
-edge to lengthen it, a row with no dates takes them from wherever on it is pressed — and a drag is
-one write, made when the pointer is let go, because what the row draws meanwhile is
-`timeline.svelte.ts`'s preview rather than the record.
-
-Hours are still the point. `ProjectProgressService` reads the calendar through the same
-`CalendarEventsService.resolve` as everything else and counts blocks whose mapping carries a
-`projectId` — the same `event_mappings` row that says what an hour counts as also says what it was
-for — and answers twice for a project holding others: what was booked against it by name, and what
-its whole tree came to. Blocks that overlap share the time: wherever several run at once each
-gets an equal part of it (`server/lib/stats/overlap.ts`, tested), so the ring, the planning
-hours and a project's bars never count one hour twice. Tagging a grey block to a project after the fact is how a real week is
-reconciled, so it is on the block's card and its context menu. Filling the week is a solver
-(`calendar/filler.ts`): remaining claims into free working hours, biggest claim first; nothing
-draws it since the rail was cut down to the month and the calendars.
-
-The model's two moments are `server/lib/projects/assist/` (schemas, prompts, both over one
-`lib/ai/gateway.ts`) and the `projects/assist/*` routes, and both are proposals: a note over the
-week's fill about what to drop, and a calendar block worked out into a project, a task, steps and a
-length (the route exists; the card's assistant button does not call it yet). Neither writes a
-record, and a model that answers nothing leaves every screen as it was.
-
-## Notion is mirrored, and the rule about who wins is one line
-
-`server/lib/notion/` mirrors Notion workspaces into that layer. A grant is per workspace — Notion's
-consent screen is where somebody picks one, as whichever Notion login they are in — so
-`notion_connections` holds a row per workspace, named by the login that granted it, and every run
-syncs each of them. The protocol is written out rather than pulled in, the same way `lib/mcp/` is:
-`client.ts` is a handful of requests against one API version, and `map.ts` and `data-source.ts`
-are the pure translations (both tested with `bun test`) — a column into a status, whatever a board
-calls "Ready For Test" into one of the five the app counts by.
-
-Nothing here asks somebody to connect an account first. Every picker of workspaces
-(`NotionWorkspaces`) ends in "Add a workspace", which opens the consent screen and selects what
-landed (`projectsData.connectNotion()`). An errand ("connect this, then come back and do what you
-wanted") is the thing being designed out.
-
-There are two ways in and a run does both. A project is linked to the database its tasks and
-subtasks live in from its own Notion chip, or made from one with a sphere's "From Notion"
-(`NotionLinkDialog`, `/mobile/notion/link`): dropdowns that follow each other — workspace, database,
-the saved view whose filter picks this project's rows, then which property is its status (a
-status, select or checkbox), its dates, its assignee and its parent task — each offering only
-properties of the right type, pre-set to what `suggestTaskMapping` finds. A view is how one board of
-every task feeds a project each: Notion runs the view's filter (`client.queryView`), because a view
-stores conditions in a shape the query endpoint refuses. "Only tasks for" narrows further to some
-people (`notionTaskFilter`, `filter.ts`, pure and tested): matched by id where the assignee names
-Notion users or pages of a people database, by name where it is a select or a formula that spells
-names out, with the grant's own login marked as "you" (`people.ts`), and every task a kept one sits
-under kept too, so subtasks keep their place. The mapping is kept on the project by
-property id (`notionTaskMapping`), so a rename in Notion keeps it; a property that has since gone
-reads as none rather than a guess. Separately, the import dialog (`NotionSetup`) brings a whole database of projects
-in, and each imported project's task database is found under its page by walking down to the first
-one whose name says tasks (`discover.ts`). Unlinking keeps the tasks, because by then they are this
-app's records.
-
-**Notion owns everything it is shown**: a project's name, its description, which tasks
-exist and what they are called. The app owns the three things a person changes while doing the work
-rather than while planning it — a task's status, its dates, and who it is for — and those go up
-first, so a pull can never overwrite a tap made a second ago. A page that has gone archives its row
-here rather than leaving a bar nothing will move.
-
-The grant is OAuth (`lib/notion/oauth.ts`), for the UX rather than the security: Notion's own
-consent screen is where somebody ticks the pages this app may read, so nothing is pasted into a
-text field and no database has to be shared with an integration by hand. It rides the calendar's
-machinery — the signed `state` of `calendar/state.ts`, the HTML `callback-page.ts`, and
-`core/oauth-connect.ts` on the device, which opens a real browser and polls, because a consent
-screen inside an embedded webview is refused. Access tokens now expire, so the refresh token is
-kept too (both encrypted with `calendar/crypto.ts`) and a run renews before it starts rather than
-failing once and reconnecting.
-
-Importing is one dialog, because it is one decision: which workspace, which data source holds
-the projects, which sphere their hours come out of, and which column is the sentence under a name.
-It is asked against what the grant can actually see (`/mobile/notion/databases?connectionId=`
-answers each database with its columns and a suggested task mapping) and kept on the connection,
-so opening it again is changing the answers rather than starting over. "The grant expired" is a
-state each workspace's row draws, returned as 200 with `needsReconnect` — never a 401, which the
-frontend reads as a dead Clerk session. The projects screen asks for a run when it opens, at most every five minutes, and
-its failure is a card in the corner: what was pulled last time is still on the device.
+A sphere is a category on the ring, and `/spheres` is its screen: the ring on one side is the
+picture of the list on the other, where each sphere is named, sized in hours and percent, and holds
+its practices. A seam dragged on the ring and a number typed in a sphere's heading move the same
+hours (`$lib/planning/category-drafts.svelte.ts`), and a sphere's menu — split, remove — is the same
+from a slice and from its heading. Practices are synced records: something recurring, measured by
+adherence over the last four whole weeks. `PracticeProgressService` (`server/lib/practices/`,
+`GET /mobile/practices/progress`) reads the calendar through the same
+`CalendarEventsService.resolve` as everything else and counts blocks whose mapping carries the
+`practiceId`. Blocks that overlap share the time: wherever several run at once each gets an equal
+part of it (`server/lib/stats/overlap.ts`, tested), so the ring, the planning hours and a
+practice's count never count one hour twice.
 
 ## Integrations hang off the events that planned them
 
