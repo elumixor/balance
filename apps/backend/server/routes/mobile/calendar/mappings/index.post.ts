@@ -23,7 +23,7 @@ export default authed(
         .optional(),
       /** What the hour was for. Absent leaves it alone; null clears it. */
       practiceId: z.string().nullable().optional(),
-      /** The work it was for in another app — `kip:page/<id>`. Absent leaves it; null clears it. */
+      /** The work it was for in another app — `keep:page/<id>`. Absent leaves it; null clears it. */
       urn: urnField.nullable().optional(),
       /** The integration feed it is linked to. Absent leaves it alone; null unlinks. */
       source: integrationSourceField.nullable().optional(),

@@ -5,7 +5,7 @@ import { users } from "./users";
 
 /**
  * Something recurring that never completes — sleep, meals, sadhana — measured only by whether it
- * kept happening. It has no end, so it is never a project in Kip.
+ * kept happening. It has no end, so it is never a project in Keep.
  */
 export const practices = pgTable("practices", {
   id: uuid("id").primaryKey().defaultRandom(),

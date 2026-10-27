@@ -21,7 +21,7 @@
    * called. Both are one question with one list — a sphere, or a practice inside one — because
    * tagging a grey block after the fact is how a real week is reconciled and it should cost one
    * tap. The same list opens from the name: a `/` typed into it looks up a sphere or a practice
-   * without the hands leaving the keys, and Escape closes the list rather than the card. The Kip
+   * without the hands leaving the keys, and Escape closes the list rather than the card. The Keep
    * task a block is for, when it names one, is a link at the end of the same line.
    */
   let {
@@ -191,7 +191,7 @@
         }}
         class="press-sm t-micro flex shrink-0 items-center gap-1 rounded px-1 py-0.5 text-fg-muted hover:text-fg"
       >
-        Kip task
+        Keep task
         <ExternalLink size={11} />
       </a>
     {:else}

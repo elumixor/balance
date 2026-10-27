@@ -31,8 +31,8 @@ const INSTRUCTIONS =
   "each, and a calendar those hours are actually spent in. Read `list_spheres` before writing " +
   "anything — every other tool names spheres by id. Times are instants: send them with an " +
   "offset. The calendar is the source of truth, so a block only counts once it is on it. " +
-  "Projects and tasks are not here: they live in Kip, and a block links the Kip task it is " +
-  "for by its `urn` (`kip:page/<id>`), which `create_event`, `update_event` and " +
+  "Projects and tasks are not here: they live in Keep, and a block links the Keep task it is " +
+  "for by its `urn` (`keep:page/<id>`), which `create_event`, `update_event` and " +
   "`categorize_event` take and `list_events` gives back.";
 
 const JSON_RPC_VERSION = "2.0";

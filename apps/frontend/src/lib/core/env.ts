@@ -61,7 +61,7 @@ export const APPLE_CLIENT_ID = "com.elumixor.balance";
 export const WEB_APP_ORIGIN = IS_DEV ? "http://localhost:8081" : "https://balance-app-mauve.vercel.app";
 
 /**
- * Where projects and tasks live — Kip. A block names its task by URN and the card links there;
- * nothing of Kip is loaded into this app.
+ * Where projects and tasks live — Keep. A block names its task by URN and the card links there;
+ * nothing of Keep is loaded into this app.
  */
-export const KIP_ORIGIN = "https://kip.dsk.atmagaming.com";
+export const KEEP_ORIGIN = "https://keep.desk.atmagaming.com";

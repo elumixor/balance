@@ -25,11 +25,11 @@ export function parseInstant(value: string, field: string): Date {
 export const integrationSourceField = z.string().regex(/^[a-z][a-z0-9-]{1,40}:[a-z][a-z0-9-]{1,40}$/);
 
 /**
- * A pointer to a record in another app — `kip:page/<uuid>` names a Kip task. Only the shape is
+ * A pointer to a record in another app — `keep:page/<uuid>` names a Keep task. Only the shape is
  * checked: the scheme, a colon, and something after it. What it names is never read here.
  */
 export const urnField = z
   .string()
   .trim()
   .max(512)
-  .regex(/^[a-z][a-z0-9-]*:.+$/, "must be a URN like kip:page/<id>");
+  .regex(/^[a-z][a-z0-9-]*:.+$/, "must be a URN like keep:page/<id>");

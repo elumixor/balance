@@ -14,7 +14,7 @@ export default authed(
         .array(z.object({ categoryId: z.string(), weightPercent: z.number().int().min(0).max(100) }))
         .optional(),
       practiceId: z.string().min(1).optional(),
-      /** The work it is for in another app — `kip:page/<id>`. */
+      /** The work it is for in another app — `keep:page/<id>`. */
       urn: urnField.optional(),
       /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
       timer: z

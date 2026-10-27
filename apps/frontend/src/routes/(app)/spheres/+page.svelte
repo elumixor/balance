@@ -15,7 +15,7 @@
    * section, and a seam dragged on the ring moves the same hours the sections show.
    *
    * What fills those hours is the calendar's job; this screen only says how much of the week
-   * each sphere is owed. The work those hours are for lives in Kip.
+   * each sphere is owed. The work those hours are for lives in Keep.
    */
   void week.enter();
   void data.enter();

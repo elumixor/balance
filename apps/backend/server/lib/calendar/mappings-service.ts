@@ -16,7 +16,7 @@ export interface MappingKey {
 /** What an hour was for, on top of what it counts as. Any may be null. */
 export interface MappingPurpose {
   readonly practiceId: string | null;
-  /** The work it was for in another app, by URN — `kip:page/<id>`. */
+  /** The work it was for in another app, by URN — `keep:page/<id>`. */
   readonly urn: string | null;
   /** How a timer for the event is broken up; null when it just runs to the end. */
   readonly timer: EventTimer | null;

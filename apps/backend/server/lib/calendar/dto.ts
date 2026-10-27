@@ -72,7 +72,7 @@ export class CalendarEventDTO {
   readonly weights: ActivityWeightDTO[];
   /** What the hour was for — a practice — on top of what it counts as. */
   readonly practiceId: string | null;
-  /** The work it was for in another app, by URN — `kip:page/<id>` — or null. */
+  /** The work it was for in another app, by URN — `keep:page/<id>` — or null. */
   readonly urn: string | null;
   /** How a timer for it is broken up; null when it just runs to the end. */
   readonly timer: EventTimer | null;

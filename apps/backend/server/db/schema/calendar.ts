@@ -67,7 +67,7 @@ export const eventMappings = pgTable(
      */
     practiceId: uuid("practice_id").references(() => practices.id, { onDelete: "set null" }),
     /**
-     * The work it was for, named in another app — a Kip task is `kip:page/<id>`. Only ever a
+     * The work it was for, named in another app — a Keep task is `keep:page/<id>`. Only ever a
      * pointer: nothing here reads what it names.
      */
     urn: text("urn"),

@@ -37,7 +37,7 @@ export interface CalendarEvent {
   weights: ActivityWeight[];
   /** The practice the hour kept, on top of what it counts as. */
   practiceId: string | null;
-  /** The work it was for in another app, by URN — `kip:page/<id>` — see `$lib/calendar/urn.ts`. */
+  /** The work it was for in another app, by URN — `keep:page/<id>` — see `$lib/calendar/urn.ts`. */
   urn: string | null;
   /** How a timer run for it is broken up; null when it just runs to the end. */
   timer: EventTimer | null;
