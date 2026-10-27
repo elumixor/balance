@@ -72,7 +72,7 @@
       <div class="space-y-2 rounded-md border border-line bg-surface-alt p-3">
         <p class="t-label text-fg">It would be able to</p>
         <ul class="t-body space-y-1 text-fg-muted">
-          <li>Read your week, your spheres, your projects and your stars</li>
+          <li>Read your week, your spheres and your stars</li>
           <li>Add, move, delete and categorise blocks on your calendar</li>
           <li>Start and stop tracking</li>
         </ul>

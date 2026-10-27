@@ -48,18 +48,12 @@ export class NotSignedInError extends ApiClientError {
 const REQUEST_TIMEOUT_MS = 20_000;
 
 /**
- * The requests whose answer is a whole run of somebody else's API — a Notion workspace read page
- * by page under its rate limit, a model asked about a week of events — get longer. Twenty seconds
- * was cutting the mirror off while the server was still writing it, and the card in the corner
- * blamed the connection for a sync that went on to succeed.
+ * The requests whose answer is a whole run of somebody else's API — a model asked about a week of
+ * events — get longer. Twenty seconds cut them off while the server was still answering, and the
+ * card in the corner blamed the connection for a run that went on to succeed.
  */
 const SLOW_REQUEST_TIMEOUT_MS = 120_000;
-const SLOW_PATHS = [
-  "/mobile/notion/sync",
-  "/mobile/notion/link",
-  "/mobile/calendar/classify",
-  "/mobile/projects/assist/",
-];
+const SLOW_PATHS = ["/mobile/calendar/classify"];
 
 function timeoutFor(input: Parameters<typeof fetch>[0]) {
   const path = describe(input);

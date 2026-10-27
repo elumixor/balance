@@ -1,7 +1,7 @@
 import { model, type Signals, type SyncedStorage, syncedClient } from "@elumixor/synced/client";
 import type { SyncResponse } from "@elumixor/synced/protocol";
 import type { Person } from "$lib/people/types";
-import type { Practice, Project, Stage, Task } from "$lib/projects/types";
+import type { Practice } from "$lib/practices/types";
 import { api, callApi } from "./api";
 import type { Activity, Category } from "./records";
 
@@ -17,9 +17,6 @@ const models = {
   activities: model<Activity>()({}),
   practices: model<Practice>()({}),
   people: model<Person>()({}),
-  projects: model<Project>()({ compare: (a, b) => a.ordinal - b.ordinal }),
-  stages: model<Stage>()({ compare: (a, b) => a.ordinal - b.ordinal }),
-  tasks: model<Task>()({ compare: (a, b) => a.ordinal - b.ordinal }),
 };
 
 /** `$state` in a box, which is the only thing the library wants from Svelte. */
@@ -35,11 +32,11 @@ const runes: Signals = { state: <T>(initial: T) => new Cell(initial) };
 
 /**
  * The device's copy is versioned, and the version is bumped when a model's shape changes: records
- * written by an older build are hydrated before anything can check them, so a project from before
- * projects had members would reach the screens as one with no `memberIds` at all — and a `.map`
- * on it takes every effect in the app down with it.
+ * written by an older build are hydrated before anything can check them, so a record from before
+ * a field existed would reach the screens without it — and a `.map` on it takes every effect in
+ * the app down with it. v5 dropped projects, stages and tasks, which a v4 copy still holds.
  */
-const PREFIX = "balance:synced:v4";
+const PREFIX = "balance:synced:v5";
 
 /**
  * The device's copy. `localStorage` rather than Capacitor's `Preferences` because it answers
@@ -124,9 +121,6 @@ export const categories = synced.models.categories;
 export const activities = synced.models.activities;
 export const practices = synced.models.practices;
 export const people = synced.models.people;
-export const projects = synced.models.projects;
-export const stages = synced.models.stages;
-export const tasks = synced.models.tasks;
 
 /** What earlier versions of the copy left behind, swept once so it isn't carried forever. */
 function forgetOlderVersions() {

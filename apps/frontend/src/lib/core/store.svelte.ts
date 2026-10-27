@@ -7,7 +7,7 @@ import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
 import { getIntegrations } from "$lib/integrations/queries";
 import { listMcpKeys } from "$lib/mcp/queries";
 import { deviceTimeZone, localDay } from "$lib/planning/zone";
-import { getNotionStatus, getProjectProgress } from "$lib/projects/queries";
+import { getPracticeProgress } from "$lib/practices/queries";
 import { Cached } from "./cache.svelte";
 import * as persist from "./persist";
 import { synced } from "./synced.svelte";
@@ -29,15 +29,13 @@ export const store = {
   mcpKeys: new Cached(listMcpKeys, "Couldn't load your assistant keys.", undefined, "Assistants"),
   /** Whether a Zoom account is connected, so the card can offer to make a room in it. */
   zoom: new Cached(getZoomStatus, "Couldn't check your Zoom connection.", "zoom", "Calendars"),
-  /** Whether a Notion workspace is mirrored, and what the last run of it did. */
-  notion: new Cached(getNotionStatus, "Couldn't check your Notion connection.", "notion", "Projects"),
   /**
-   * What the calendar says every project has had — read fresh from the device's own day, since a
-   * week is a week where the person is. Its failure is the projects screen's to show.
+   * What the calendar says every practice has had — read fresh from the device's own day, since a
+   * week is a week where the person is. Its failure is the spheres screen's to show.
    */
   progress: new Cached(
-    () => getProjectProgress(deviceTimeZone(), localDay()),
-    "Couldn't read your projects' hours.",
+    () => getPracticeProgress(deviceTimeZone(), localDay()),
+    "Couldn't read your practices.",
     "progress",
   ),
 };
@@ -102,7 +100,7 @@ export const syncing = {
   get calendar() {
     return store.integrations.syncing || [...weeks.values()].some((week) => week.syncing);
   },
-  get projects() {
+  get spheres() {
     return synced.syncing || store.progress.syncing;
   },
 };
@@ -133,10 +131,6 @@ export const invalidate = {
   calendarNow() {
     invalidate.calendar();
     return Promise.all([...weeks.values()].filter((week) => week.hasValue).map((week) => week.refresh()));
-  },
-  /** A stage opened or decided, a manual count added: what the cards say about evidence moved. */
-  projects() {
-    store.progress.invalidate();
   },
   /** Connecting or disconnecting replaces every event on screen. */
   integrations() {

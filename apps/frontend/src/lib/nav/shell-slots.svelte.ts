@@ -2,7 +2,7 @@ import type { Snippet } from "svelte";
 
 /**
  * What a screen hands the shell to draw for it. A screen owns the controls that only make sense
- * on it — which calendars get drawn, which project is open — and hands them here rather than
+ * on it — which calendars get drawn — and hands them here rather than
  * spending its own width and its own line on chrome the shell is already drawing.
  */
 class ShellSlots {

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { CategoryIcon, Field, Picker } from "$lib/components";
   import type { Category } from "$lib/core/records";
-  import { practices, projects, tasks } from "$lib/core/synced.svelte";
-  import { filingItems, filingKey, filingOf, type Purpose } from "$lib/projects/purpose.svelte";
-  import { projectsData } from "$lib/projects/projects-data.svelte";
+  import { practices } from "$lib/core/synced.svelte";
+  import { openExternal } from "$lib/desktop/open";
+  import { filingItems, filingKey, filingOf } from "$lib/practices/filing.svelte";
   import { restColor } from "$lib/ui/colors";
   import { DEFAULT_ICON } from "$lib/ui/icons";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
@@ -11,15 +11,18 @@
   import { purposeOf as heldPurpose } from "$lib/calendar/purpose";
   import { type Slash, slashAt, withoutSlash } from "$lib/calendar/slash";
   import type { CalendarEvent, MappingScope } from "$lib/calendar/types";
+  import { urnHref } from "$lib/calendar/urn";
+  import { ExternalLink } from "lucide-svelte";
   import { tick } from "svelte";
   import type { Pickers } from "./EventEditor.svelte";
 
   /**
    * The top of the card: what the hour counts as and what it was for on one line, then what it's
-   * called. Both are one question with one list — a sphere, or a project or practice inside one —
-   * because tagging a grey block after the fact is how a real week is reconciled and it should
-   * cost one tap. The same list opens from the name: a `/` typed into it looks up a sphere or a
-   * project without the hands leaving the keys, and Escape closes the list rather than the card.
+   * called. Both are one question with one list — a sphere, or a practice inside one — because
+   * tagging a grey block after the fact is how a real week is reconciled and it should cost one
+   * tap. The same list opens from the name: a `/` typed into it looks up a sphere or a practice
+   * without the hands leaving the keys, and Escape closes the list rather than the card. The Keep
+   * task a block is for, when it names one, is a link at the end of the same line.
    */
   let {
     event,
@@ -28,7 +31,7 @@
     /** What the block counts as, resolved by the card — the same badge the block on the grid wears. */
     category,
     /** Whether what the hour was for is drawn beside the sphere. */
-    withProject,
+    withPurpose,
     pickers = $bindable(),
     /** The name field, for the card to put the cursor in. */
     titleEl = $bindable(null),
@@ -39,7 +42,7 @@
     draft: EventDraft;
     categories: readonly Category[];
     category: Category | null;
-    withProject: boolean;
+    withPurpose: boolean;
     pickers: Pickers;
     titleEl: HTMLInputElement | null;
     onclose: () => void;
@@ -56,19 +59,15 @@
   const scope: MappingScope = $derived(event.seriesId ? "series" : "instance");
 
   const items = $derived(filingItems(categories));
-  const key = $derived(filingKey(event, category?.id));
+  const key = $derived(filingKey(event.practiceId, category?.id));
 
-  /** "Project / task", by name — the tag is the id, the card says the thing. */
-  const purpose = $derived.by(() => {
-    const task = event.taskId ? tasks.all.find((t) => t.id === event.taskId) : null;
-    if (event.projectId) {
-      const project = projects.all.find((p) => p.id === event.projectId)?.name ?? "A project";
-      return task ? `${project} / ${task.title}` : project;
-    }
-    if (event.practiceId) return practices.all.find((p) => p.id === event.practiceId)?.name ?? "A practice";
-    return null;
-  });
-  /** The project wears its sphere's colour, so the line reads as one thing with the badge. */
+  /** The practice, by name — the tag is the id, the card says the thing. */
+  const purpose = $derived(
+    event.practiceId ? (practices.all.find((p) => p.id === event.practiceId)?.name ?? "A practice") : null,
+  );
+  /** Where the linked task opens, or null for a URN this app has no address for. */
+  const workHref = $derived(event.urn ? urnHref(event.urn) : null);
+  /** The practice wears its sphere's colour, so the line reads as one thing with the badge. */
   const purposeColor = $derived(items.find((item) => item.key === key)?.color ?? category?.color ?? restColor);
 
   // --- the `/` in the name -------------------------------------------------------------------
@@ -131,30 +130,18 @@
 
   // --- what it counts as, and what it was for -------------------------------------------------
 
-  /** One row of the list: a sphere, or a project or practice that brings its sphere with it. */
+  /** One row of the list: a sphere, or a practice that brings its sphere with it. */
   function file(choice: string) {
     pickers.purpose = null;
     const next = filingOf(choice);
     if ("categoryId" in next) chooseCategory(next.categoryId);
-    else choosePurpose(next);
-  }
-
-  function choosePurpose(next: Purpose) {
-    void draft.write("The project wasn’t saved", data.tagEvent(event, next));
-  }
-
-  function createProject(name: string) {
-    pickers.purpose = null;
-    const created = projectsData.create(null, category?.id);
-    if (!created) return;
-    projectsData.update(created.id, { name });
-    choosePurpose({ projectId: created.id, practiceId: null });
+    else void draft.write("The practice wasn’t saved", data.tagEvent(event, next));
   }
 
   /**
    * One category, whole: a split across several is a thing the week screen sets, not this card.
    * With other blocks gathered, the choice applies to the whole batch rather than just this one.
-   * A project from another sphere doesn't come along — its hours have to land on its own ring.
+   * A practice from another sphere doesn't come along — its hours have to land on its own ring.
    */
   function chooseCategory(categoryId: string) {
     const weights = [{ categoryId, weightPercent: 100 }];
@@ -164,10 +151,8 @@
       return;
     }
     const held = heldPurpose(event);
-    const sphereOfWork =
-      projects.all.find((p) => p.id === held.projectId)?.categoryId ??
-      practices.all.find((p) => p.id === held.practiceId)?.categoryId;
-    const kept = sphereOfWork && sphereOfWork !== categoryId ? { ...held, projectId: null, practiceId: null, taskId: null } : held;
+    const sphereOfWork = practices.all.find((p) => p.id === held.practiceId)?.categoryId;
+    const kept = sphereOfWork && sphereOfWork !== categoryId ? { ...held, practiceId: null } : held;
     void draft.write("The category wasn’t saved", data.mapEvent(event, scope, { weights }, kept));
   }
 
@@ -181,22 +166,38 @@
 <div class="flex min-w-0 items-center gap-2 px-3 pt-2 pr-28">
   <button
     type="button"
-    aria-label="Change category or project"
-    title="Change category or project"
+    aria-label="Change category or practice"
+    title="Change category or practice"
     class="press-sm flex min-w-0 items-center gap-2 rounded-md"
     onclick={(e) => (pickers.purpose = e.currentTarget.getBoundingClientRect())}
   >
     <span class="shrink-0">
       <CategoryIcon icon={category?.icon ?? DEFAULT_ICON} color={category?.color ?? restColor} size={BADGE} />
     </span>
-    {#if withProject}
-      {#if purpose}
-        <span class="t-micro min-w-0 truncate px-1 py-0.5" style="color:{purposeColor}">{purpose}</span>
-      {:else}
-        <span class="t-micro shrink-0 px-1 py-0.5 text-fg-faint hover:text-fg">Add Project</span>
-      {/if}
+    {#if withPurpose && purpose}
+      <span class="t-micro min-w-0 truncate px-1 py-0.5" style="color:{purposeColor}">{purpose}</span>
     {/if}
   </button>
+  {#if withPurpose && event.urn}
+    {#if workHref}
+      <a
+        href={workHref}
+        target="_blank"
+        rel="noreferrer"
+        title={event.urn}
+        onclick={(e) => {
+          e.preventDefault();
+          void openExternal(workHref);
+        }}
+        class="press-sm t-micro flex shrink-0 items-center gap-1 rounded px-1 py-0.5 text-fg-muted hover:text-fg"
+      >
+        Keep task
+        <ExternalLink size={11} />
+      </a>
+    {:else}
+      <span class="t-micro min-w-0 truncate px-1 py-0.5 text-fg-faint">{event.urn}</span>
+    {/if}
+  {/if}
 </div>
 
 <!-- What it's called. -->
@@ -226,12 +227,10 @@
     width={280}
     {items}
     value={key}
-    placeholder="Category or project"
-    ariaLabel="Search categories and projects"
+    placeholder="Category or practice"
+    ariaLabel="Search categories and practices"
     onchoose={file}
     onclear={unmap}
-    oncreate={createProject}
-    createLabel={(name) => `New project “${name}”`}
     onclose={() => (pickers.purpose = null)}
   />
 {/if}
@@ -244,8 +243,8 @@
     {items}
     value={key}
     search={slash.query}
-    placeholder="Category or project"
-    ariaLabel="Categories and projects"
+    placeholder="Category or practice"
+    ariaLabel="Categories and practices"
     onchoose={(choice) => void fileFromSlash(choice)}
     onclose={() => {
       if (slash) dismissedAt = slash.start;

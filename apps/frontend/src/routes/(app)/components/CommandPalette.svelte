@@ -4,7 +4,7 @@
   import { viewport } from "$lib/platform/viewport.svelte";
   import { groupItems, KIND_LABELS, palette, type SearchItem, type SearchKind } from "$lib/search";
   import { focusWhenReady } from "$lib/ui/focus";
-  import { CalendarDays, Hexagon, LayoutGrid, Search, Settings2, SquareCheck } from "lucide-svelte";
+  import { CalendarDays, LayoutGrid, Search, Settings2 } from "lucide-svelte";
   import { cubicOut } from "svelte/easing";
   import { fade, fly } from "svelte/transition";
 
@@ -16,8 +16,6 @@
   const ICONS: Record<Exclude<SearchKind, "person">, typeof Search> = {
     screen: LayoutGrid,
     setting: Settings2,
-    project: Hexagon,
-    task: SquareCheck,
     event: CalendarDays,
   };
 
@@ -89,7 +87,7 @@
           use:focusWhenReady
           value={palette.query}
           oninput={(e) => palette.typed(e.currentTarget.value)}
-          placeholder="Search events, projects, people, settings…"
+          placeholder="Search events, people, settings…"
           aria-label="Search"
           autocomplete="off"
           autocapitalize="off"
@@ -125,7 +123,7 @@
           {/each}
         {:else}
           <p class="t-micro px-3 py-6 text-center text-fg-faint">
-            {palette.query.trim() ? "Nothing matches." : "Type to find an event, a project, a task, a person or a setting."}
+            {palette.query.trim() ? "Nothing matches." : "Type to find an event, a person or a setting."}
           </p>
         {/each}
       </div>

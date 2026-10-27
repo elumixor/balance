@@ -8,13 +8,13 @@ import type { CalendarEvent, EventResponse, EventTimer, MappingScope } from "./t
  */
 
 /**
- * What the hour was for — a project, a practice, a task — on top of what it counts as, and how a
- * timer run for it is broken up. All of it rides on the mapping, so all of it travels together.
+ * What the hour was for — a practice, a Keep task — on top of what it counts as, and how a timer
+ * run for it is broken up. All of it rides on the mapping, so all of it travels together.
  */
 export interface Purpose {
-  readonly projectId: string | null;
   readonly practiceId: string | null;
-  readonly taskId: string | null;
+  /** The work it was for in another app, by URN — `keep:page/<id>`. */
+  readonly urn: string | null;
   readonly timer: EventTimer | null;
   /** The integration feed it is linked to — "apple-health:sleep" — which is also on the mapping. */
   readonly source: string | null;
@@ -27,9 +27,8 @@ export interface Purpose {
 }
 
 export const NO_PURPOSE: Purpose = {
-  projectId: null,
   practiceId: null,
-  taskId: null,
+  urn: null,
   timer: null,
   source: null,
   hidden: null,
@@ -65,26 +64,10 @@ export function mappingOf(event: CalendarEvent): Mapping | null {
   };
 }
 
-/** One purpose at a time: a task belongs to a project, and a project is not a practice. */
-export function mergePurpose(was: Purpose, change: Partial<Purpose>): Purpose {
-  const merged = { ...was, ...change };
-  if (change.practiceId)
-    return {
-      ...merged,
-      projectId: null,
-      taskId: null,
-      practiceId: change.practiceId,
-    };
-  if (change.projectId === null) return { ...merged, taskId: null };
-  if (change.projectId || change.taskId) return { ...merged, practiceId: null };
-  return merged;
-}
-
 export function purposeOf(event: CalendarEvent): Purpose {
   return {
-    projectId: event.projectId,
     practiceId: event.practiceId,
-    taskId: event.taskId,
+    urn: event.urn,
     timer: event.timer,
     source: event.source,
     hidden: event.hidden,
@@ -98,9 +81,8 @@ export function mappingFieldsOf(was: CalendarEvent) {
   return {
     activityId: was.activityId ?? undefined,
     weights: !was.activityId && was.mappingScope === "instance" && was.weights.length > 0 ? was.weights : undefined,
-    projectId: was.projectId ?? undefined,
     practiceId: was.practiceId ?? undefined,
-    taskId: was.taskId ?? undefined,
+    urn: was.urn ?? undefined,
     timer: was.timer ?? undefined,
     source: was.source ?? undefined,
     hidden: was.hidden ?? undefined,

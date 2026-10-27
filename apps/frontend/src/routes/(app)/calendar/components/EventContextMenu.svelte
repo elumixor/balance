@@ -2,9 +2,9 @@
   import { AnchoredPopup, Picker, PopoverItem } from "$lib/components";
 import type { Category } from "$lib/core/records";
   import type { CalendarEvent } from "$lib/calendar/types";
-  import { Copy, Hexagon, Tag, Trash2 } from "lucide-svelte";
+  import { Copy, Repeat, Tag, Trash2 } from "lucide-svelte";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
-  import { purposeItems, purposeKey, purposeOf, type Purpose } from "$lib/projects/purpose.svelte";
+  import { practiceItems, practiceKey, practiceOf } from "$lib/practices/filing.svelte";
   import { categoryItems } from "$lib/ui/picker";
 
   /**
@@ -26,7 +26,7 @@ import type { Category } from "$lib/core/records";
   const plannable = $derived(categories);
 
   let categoryRect = $state<DOMRect | null>(null);
-  let projectRect = $state<DOMRect | null>(null);
+  let practiceRect = $state<DOMRect | null>(null);
 
   function close() {
     data.closeContextMenu();
@@ -43,11 +43,11 @@ import type { Category } from "$lib/core/records";
     else void data.mapEvent(event, event.seriesId ? "series" : "instance", { weights: [{ categoryId: id, weightPercent: 100 }] });
   }
 
-  /** What the block was for. On a batch, every gathered block is tagged the same way. */
-  function chooseProject(purpose: Purpose) {
-    projectRect = null;
+  /** The practice the block kept. On a batch, every gathered block is tagged the same way. */
+  function choosePractice(practiceId: string | null) {
+    practiceRect = null;
     close();
-    for (const target of targets) void data.tagEvent(target, purpose);
+    for (const target of targets) void data.tagEvent(target, { practiceId });
   }
 
   function duplicate() {
@@ -74,8 +74,8 @@ import type { Category } from "$lib/core/records";
       {#snippet icon()}<Tag size={15} class="shrink-0 text-fg-faint" />{/snippet}
     </PopoverItem>
 
-    <PopoverItem label="Tag to project" onclick={() => (projectRect = rect)}>
-      {#snippet icon()}<Hexagon size={15} class="shrink-0 text-fg-faint" />{/snippet}
+    <PopoverItem label="Tag to practice" onclick={() => (practiceRect = rect)}>
+      {#snippet icon()}<Repeat size={15} class="shrink-0 text-fg-faint" />{/snippet}
     </PopoverItem>
 
     <PopoverItem label="Duplicate{batch ? ` ${targets.length}` : ''}" onclick={duplicate}>
@@ -102,16 +102,16 @@ import type { Category } from "$lib/core/records";
   />
 {/if}
 
-{#if projectRect}
+{#if practiceRect}
   <Picker
-    rect={projectRect}
+    rect={practiceRect}
     width={260}
-    items={purposeItems()}
-    value={batch ? "" : purposeKey(event)}
-    placeholder="Project or practice"
-    ariaLabel="Search projects"
-    onchoose={(key) => chooseProject(purposeOf(key))}
-    onclear={() => chooseProject({ projectId: null, practiceId: null })}
-    onclose={() => (projectRect = null)}
+    items={practiceItems()}
+    value={batch ? "" : practiceKey(event.practiceId)}
+    placeholder="Practice"
+    ariaLabel="Search practices"
+    onchoose={(key) => choosePractice(practiceOf(key))}
+    onclear={() => choosePractice(null)}
+    onclose={() => (practiceRect = null)}
   />
 {/if}

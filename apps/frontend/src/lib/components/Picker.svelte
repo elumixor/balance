@@ -1,6 +1,6 @@
 <script lang="ts" module>
   /**
-   * A row in the list. A sphere carries its own icon; a project or a practice is a dot or a
+   * A row in the list. A sphere carries its own icon; a practice is a dot or a
    * repeat glyph in its sphere's colour.
    */
   export interface PickerItem {
@@ -9,7 +9,7 @@
     color: string;
     icon?: string;
     practice?: boolean;
-    /** Drawn under the row before it — a project under its sphere. */
+    /** Drawn under the row before it — a practice under its sphere. */
     indent?: boolean;
   }
 </script>
@@ -22,7 +22,7 @@
   import { Plus, Repeat, Trash2 } from "lucide-svelte";
 
   /**
-   * One thing chosen by typing — a sphere, a project, a practice. The list is the same wherever
+   * One thing chosen by typing — a sphere, a practice, a call. The list is the same wherever
    * it opens, so what a block counts as and what it was for are picked the same way, beside
    * whatever was pressed. Clearing lives in the field rather than beside the thing it clears: a
    * cross on a label is a press away from a change nobody meant.

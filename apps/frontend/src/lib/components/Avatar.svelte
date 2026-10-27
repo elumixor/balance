@@ -4,7 +4,7 @@
   /**
    * One person, as a circle: their picture when there is one, and their initials on their own
    * colour otherwise. Everything that draws a face draws it through here, so a face is the same
-   * face on a project row, under a guest field and in the settings list.
+   * face under a guest field and in the settings list.
    */
   let {
     person,

@@ -11,9 +11,8 @@ const DEFAULT_COLOR = "#8b8b8b";
 /**
  * The people the account knows, and the one way anyone joins the list.
  *
- * Every field that names a person — a guest, a member, an assignee — reads `all` and writes
- * through `ensure`, so a name typed into a task and an address typed into an invitation land in
- * the same row and are offered back everywhere else. The rows are synced records; this is the
+ * Every field that names a person — a guest, today — reads `all` and writes through `ensure`, so
+ * an address typed into one invitation lands in the same row and are offered back everywhere else. The rows are synced records; this is the
  * lookup around them, and the seeding pass that fills the list from recent events before anybody
  * has typed a thing.
  */

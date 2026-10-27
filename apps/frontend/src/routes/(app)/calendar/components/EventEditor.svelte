@@ -23,7 +23,7 @@
   import { EventDraft, samePreview } from "$lib/calendar/event-draft.svelte";
   import { fromRecurrence, NEVER, toRRule } from "$lib/calendar/recurrence";
   import type { CalendarEvent, MappingScope } from "$lib/calendar/types";
-  import { AlignLeft, FolderKanban, MapPin, NotebookPen, Sparkles, Timer, Trash2, Users, Video, X } from "lucide-svelte";
+  import { AlignLeft, Link2, MapPin, NotebookPen, Sparkles, Timer, Trash2, Users, Video, X } from "lucide-svelte";
   import { untrack } from "svelte";
   import CardSettings, { type CardSection } from "./CardSettings.svelte";
   import DescriptionSection from "./DescriptionSection.svelte";
@@ -55,13 +55,13 @@
   } = $props();
 
   const WIDTH = 380;
-  /** The quiet buttons on the top line, in the same type as the project beside them. */
+  /** The quiet buttons on the top line, in the same type as the practice beside them. */
   const ACTION = "press-sm shrink-0 rounded p-1 text-fg-faint hover:text-fg";
   const ACTION_ICON = 13;
 
   /** The sections that can be folded away, in card order. Time and reminders are always drawn. */
   const SECTIONS: readonly CardSection[] = [
-    { id: "project", label: "Project", icon: FolderKanban },
+    { id: "purpose", label: "Practice and task", icon: Link2 },
     { id: "timer", label: "Timer", icon: Timer },
     { id: "conferencing", label: "Conferencing", icon: Video },
     { id: "participants", label: "Participants", icon: Users },
@@ -247,10 +247,10 @@
 <AnchoredPopup {rect} width={WIDTH} dismiss={!nested} onclose={close}>
   <div class="relative">
     <!--
-      What can be done to it, pinned to the corner: on the project line when there is one, and
-      beside the name when the project has been folded away.
+      What can be done to it, pinned to the corner: on the practice line when there is one, and
+      beside the name when that line has been folded away.
     -->
-    <div class="absolute right-3 flex items-center gap-0.5 {shown('project') ? 'top-2' : 'top-3.5'}">
+    <div class="absolute right-3 flex items-center gap-0.5 {shown('purpose') ? 'top-2' : 'top-3.5'}">
       <!-- The assistant's seat at the table. What it does when pressed is the next thing to build. -->
       <button type="button" title="Ask about this event" class={ACTION} onclick={() => undefined}>
         <Sparkles size={ACTION_ICON} />
@@ -275,7 +275,7 @@
       </button>
     </div>
 
-    <EditorHeader {event} {draft} {categories} {category} withProject={shown("project")} bind:pickers bind:titleEl onclose={close} />
+    <EditorHeader {event} {draft} {categories} {category} withPurpose={shown("purpose")} bind:pickers bind:titleEl onclose={close} />
   </div>
 
   <TimeSection {event} {draft} {rule} {heldBy} bind:pickers />

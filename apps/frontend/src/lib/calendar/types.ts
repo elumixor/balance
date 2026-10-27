@@ -35,10 +35,10 @@ export interface CalendarEvent {
   activityId: string | null;
   activityName: string | null;
   weights: ActivityWeight[];
-  /** What the hour was for — a project, a practice, a task — on top of what it counts as. */
-  projectId: string | null;
+  /** The practice the hour kept, on top of what it counts as. */
   practiceId: string | null;
-  taskId: string | null;
+  /** The work it was for in another app, by URN — `keep:page/<id>` — see `$lib/calendar/urn.ts`. */
+  urn: string | null;
   /** How a timer run for it is broken up; null when it just runs to the end. */
   timer: EventTimer | null;
   /** The integration feed it is linked to — "apple-health:sleep" — or null. */
@@ -86,9 +86,8 @@ export interface EventReminder {
  * Drafts and drag ghosts are events on the grid without being events in anyone's calendar yet.
  */
 export const NOT_A_MEETING = {
-  projectId: null,
   practiceId: null,
-  taskId: null,
+  urn: null,
   timer: null,
   source: null,
   hidden: null,
@@ -107,9 +106,8 @@ export const NOT_A_MEETING = {
   recurrence: null,
 } satisfies Pick<
   CalendarEvent,
-  | "projectId"
   | "practiceId"
-  | "taskId"
+  | "urn"
   | "timer"
   | "source"
   | "hidden"

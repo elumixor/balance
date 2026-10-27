@@ -59,3 +59,9 @@ export const APPLE_CLIENT_ID = "com.elumixor.balance";
  * to, which the macOS shell needs for its sign-in hand-off.
  */
 export const WEB_APP_ORIGIN = IS_DEV ? "http://localhost:8081" : "https://balance-app-mauve.vercel.app";
+
+/**
+ * Where projects and tasks live — Keep. A block names its task by URN and the card links there;
+ * nothing of Keep is loaded into this app.
+ */
+export const KEEP_ORIGIN = "https://keep.atmagaming.com";

@@ -5,7 +5,6 @@ import {
   type EventFields,
   mappingFieldsOf,
   mappingOf,
-  mergePurpose,
   NO_PURPOSE,
   purposeOf,
   sameFields,
@@ -58,33 +57,11 @@ describe("mappingOf", () => {
       choice: { activityId: "a1" },
       purpose: NO_PURPOSE,
     });
-    expect(mappingOf(event({ mappingScope: "series", weights, projectId: "p1" }))).toEqual({
+    expect(mappingOf(event({ mappingScope: "series", weights, urn: "keep:page/p1" }))).toEqual({
       scope: "series",
       choice: { weights },
-      purpose: { ...NO_PURPOSE, projectId: "p1" },
+      purpose: { ...NO_PURPOSE, urn: "keep:page/p1" },
     });
-  });
-});
-
-describe("mergePurpose", () => {
-  const was = { ...NO_PURPOSE, projectId: "p1", taskId: "t1" };
-
-  it("a practice takes the project and its task with it", () => {
-    expect(mergePurpose(was, { practiceId: "pr1" })).toEqual({ ...NO_PURPOSE, practiceId: "pr1" });
-  });
-
-  it("clearing the project clears its task", () => {
-    expect(mergePurpose(was, { projectId: null })).toEqual(NO_PURPOSE);
-  });
-
-  it("a project or a task takes the practice's place", () => {
-    const practised = { ...NO_PURPOSE, practiceId: "pr1" };
-    expect(mergePurpose(practised, { projectId: "p2" })).toEqual({ ...NO_PURPOSE, projectId: "p2" });
-    expect(mergePurpose(practised, { taskId: "t2" })).toEqual({ ...NO_PURPOSE, taskId: "t2" });
-  });
-
-  it("anything else lays over what was there", () => {
-    expect(mergePurpose(was, { hidden: ["where"] })).toEqual({ ...was, hidden: ["where"] });
   });
 });
 
@@ -114,12 +91,11 @@ describe("purposeOf and mappingFieldsOf", () => {
 
   it("leaves absent purpose fields out rather than sending nulls", () => {
     const timer = { kind: "parts" as const, count: 3 };
-    expect(mappingFieldsOf(event({ projectId: "p1", taskId: "t1", timer, source: "s", hidden: [] }))).toEqual({
+    expect(mappingFieldsOf(event({ urn: "keep:page/t1", timer, source: "s", hidden: [] }))).toEqual({
       activityId: undefined,
       weights: undefined,
-      projectId: "p1",
       practiceId: undefined,
-      taskId: "t1",
+      urn: "keep:page/t1",
       timer,
       source: "s",
       hidden: [],

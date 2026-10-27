@@ -3,7 +3,7 @@ import { groupItems, rankItems, type SearchItem } from "./items";
 
 const item = (label: string, over: Partial<SearchItem> = {}): SearchItem => ({
   id: label,
-  kind: "project",
+  kind: "person",
   label,
   run: () => {},
   ...over,
@@ -39,10 +39,10 @@ describe("rankItems", () => {
 
 describe("groupItems", () => {
   it("groups by kind in a fixed order and leaves out empty kinds", () => {
-    const items = [item("t", { kind: "task" }), item("s", { kind: "screen" }), item("t2", { kind: "task" })];
+    const items = [item("t", { kind: "event" }), item("s", { kind: "screen" }), item("t2", { kind: "event" })];
     expect(groupItems(items).map((g) => [g.kind, g.items.length])).toEqual([
       ["screen", 1],
-      ["task", 2],
+      ["event", 2],
     ]);
   });
 });

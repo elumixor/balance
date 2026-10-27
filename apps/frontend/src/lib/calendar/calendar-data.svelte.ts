@@ -2,7 +2,7 @@ import { tick } from "svelte";
 import { oauthConnect } from "$lib/core/oauth-connect";
 import type { ActivityWeight } from "$lib/core/records";
 import { calendarWeek, store } from "$lib/core/store.svelte";
-import { projects, synced } from "$lib/core/synced.svelte";
+import { synced } from "$lib/core/synced.svelte";
 import { clock } from "$lib/platform/clock.svelte";
 import { viewport } from "$lib/platform/viewport.svelte";
 import { autoFile } from "./auto-file";
@@ -392,25 +392,6 @@ class CalendarData {
     this.#drag.beginCreate(source, e);
   }
 
-  /** A block the week filler proposed and the person accepted — the same write a drop makes. */
-  placeBlock(source: DragSource, start: Date, end: Date) {
-    return this.#edits.create(source, source.title, start, end);
-  }
-
-  /** A project from the rail: a block that counts toward its sphere and is evidence for its gate. */
-  sourceForProject(projectId: string, taskId: string | null = null): DragSource | null {
-    const project = projects.all.find((p) => p.id === projectId);
-    if (!project) return null;
-    const task = taskId ? (synced.models.tasks.all.find((t) => t.id === taskId)?.title ?? null) : null;
-    return {
-      title: task ? `${project.name}: ${task}` : project.name,
-      weights: [{ categoryId: project.categoryId, weightPercent: 100 }],
-      activityId: null,
-      projectId,
-      taskId,
-    };
-  }
-
   beginMove(event: CalendarEvent, e: PointerEvent) {
     this.#drag.beginMove(event, e);
   }
@@ -554,7 +535,7 @@ export function accountEmailOf(calendarId: string) {
 
 /**
  * A Zoom account, connected if it isn't already — pressed for at the moment it is wanted rather
- * than sent somebody off to Settings first, the same rule the Notion entry points are under.
+ * than sent somebody off to Settings first.
  * False when the deployment has no Zoom app at all, or the person walked away from the consent
  * screen, in which case nothing else should happen either.
  */

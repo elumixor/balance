@@ -11,7 +11,7 @@ import type { Category } from "$lib/core/records";
   import { calendarData } from "$lib/calendar/calendar-data.svelte";
   import { categoryItems } from "$lib/ui/picker";
   import { eventCategory } from "$lib/calendar/event-category";
-  import { practices, projects, tasks } from "$lib/core/synced.svelte";
+  import { practices } from "$lib/core/synced.svelte";
   import { MapPinCheck } from "lucide-svelte";
 
   /**
@@ -61,13 +61,8 @@ import type { Category } from "$lib/core/records";
   const plannable = $derived([...categories.values()]);
 
   /** What the hour is for, on top of what it counts as. */
-  const purpose = $derived(
-    (event.projectId && projects.all.find((p) => p.id === event.projectId)?.name) ||
-      (event.practiceId && practices.all.find((p) => p.id === event.practiceId)?.name) ||
-      (event.taskId && tasks.all.find((t) => t.id === event.taskId)?.title) ||
-      null,
-  );
-  /** What it is for when that is known — "Balance app" — and the sphere's name otherwise. */
+  const purpose = $derived((event.practiceId && practices.all.find((p) => p.id === event.practiceId)?.name) || null);
+  /** What it is for when that is known — "Gym" — and the sphere's name otherwise. */
   const caption = $derived(purpose ?? category?.name ?? "");
 
   const selected = $derived(data.selected?.id === event.id);

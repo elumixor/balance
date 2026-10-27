@@ -62,7 +62,7 @@
     void draft.write("The location wasn’t saved", data.patchEvent(event, { location }, { location: event.location ?? "" }));
   }
 
-  /** Where it leaves you: the app's own record, so it is written like a project tag. */
+  /** Where it leaves you: the app's own record, so it is written like a practice tag. */
   function chooseEndPlace(endLocation: string | null) {
     void draft.write("The end place wasn’t saved", data.tagEvent(event, { endLocation }));
   }
@@ -83,7 +83,7 @@
   /**
    * A Zoom room, made in the connected account. Nothing asks anybody to go and connect Zoom
    * first: the grant is asked for at the moment it is needed and the room is made straight
-   * after, which is the same errand-free rule the Notion entry points are under.
+   * after, so nobody is sent off on an errand first.
    */
   async function addZoomCall() {
     if (!(await ensureZoom())) return;

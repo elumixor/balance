@@ -13,7 +13,7 @@
    * read-down list with their names spelled out — the icons are the whole vocabulary, and
    * hovering one says the name and the key that gets there.
    *
-   * A screen that is somewhere in particular — one project out of a tree of them — says so on this
+   * A screen that is somewhere in particular says so on this
    * same line rather than spending a row of its own on a breadcrumb (`ShellSlot slot="where"`).
    * The strip keeps the rail's width when nothing is handed to it, so the calendar's panel and the
    * account still line up the way they always have.

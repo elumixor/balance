@@ -48,7 +48,7 @@
 
   /**
    * The block the mouse is over. It slides out to the column's width and says what the card
-   * would — the sphere and the project, the whole time — so the week can be read without opening
+   * would — the sphere and the practice, the whole time — so the week can be read without opening
    * anything. Its height never moves: the grid is minutes, and a block that grew taller would
    * claim time it doesn't have. Only a mouse hovers: a finger is either dragging or tapping.
    */

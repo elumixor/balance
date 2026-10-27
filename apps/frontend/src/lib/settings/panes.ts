@@ -56,7 +56,7 @@ export const PANES: PaneInfo[] = [
     value: "integrations",
     label: "Integrations",
     icon: Plug,
-    keywords: "apple health sleep sync feed notion projects tasks workspace mirror",
+    keywords: "apple health sleep sync feed",
   },
   {
     value: "assistants",

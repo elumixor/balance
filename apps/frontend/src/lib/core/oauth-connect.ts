@@ -22,7 +22,7 @@ export interface OAuthConnect {
 /**
  * A consent flow, wherever the app is running.
  *
- * Google refuses OAuth inside an embedded webview and Notion's screen is no nicer in one, so the
+ * Google refuses OAuth inside an embedded webview and Zoom's screen is no nicer in one, so the
  * flow always runs in a real browser: Safari on iOS, the system browser on macOS (Tauri's webview
  * is embedded too). Nothing comes back through it — no custom scheme, no universal link — so the
  * app watches for the grant three ways instead: the sheet closing, the app resuming, and a short

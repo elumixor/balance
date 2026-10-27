@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Button, Field, NumberField, ProgressBar, Select } from "$lib/components";
-  import type { Practice, PracticeProgress } from "$lib/projects/types";
+  import type { Practice, PracticeProgress } from "$lib/practices/types";
   import { Repeat, X } from "lucide-svelte";
-  import { projectsData as data } from "$lib/projects/projects-data.svelte";
+  import { practicesData as data } from "$lib/practices/practices-data.svelte";
 
   /**
    * A practice is a row, not a card: it never completes, so there is nothing to open. The bar is
@@ -35,7 +35,7 @@
         variant="bare-sm"
         value={practice.name}
         placeholder="Practice"
-        oninput={(name) => data.updatePractice(practice.id, { name })}
+        oninput={(name) => data.update(practice.id, { name })}
         ariaLabel="Practice name"
         class="min-w-0 flex-1"
       />
@@ -44,7 +44,7 @@
         unit=""
         size="sm"
         ariaLabel="Target per week"
-        onchange={(targetPerWeek) => data.updatePractice(practice.id, { targetPerWeek })}
+        onchange={(targetPerWeek) => data.update(practice.id, { targetPerWeek })}
       />
       <Select
         width={92}
@@ -54,7 +54,7 @@
           { value: "times", label: "×/wk" },
           { value: "hours", label: "h/wk" },
         ]}
-        onchange={(unit) => data.updatePractice(practice.id, { unit })}
+        onchange={(unit) => data.update(practice.id, { unit })}
       />
     </div>
     <div class="flex items-center gap-2">
@@ -64,7 +64,7 @@
       </span>
     </div>
   </div>
-  <Button variant="bare" title="Remove practice" onclick={() => data.removePractice(practice.id)}>
+  <Button variant="bare" title="Remove practice" onclick={() => data.remove(practice.id)}>
     {#snippet icon()}<X size={14} class="text-fg-faint" />{/snippet}
   </Button>
 </div>

@@ -20,16 +20,13 @@ const DOUBLE_TAP_PX = 24;
 export type DragKind = "create" | "move" | "resize" | "resize-start";
 
 /**
- * What a chip dragged in from the rail becomes: an activity, or a project (or one of its tasks)
- * counting toward its sphere. Title and weights are what the ghost draws; the ids are what the
- * event is mapped as when it lands.
+ * What a chip dragged in from the rail becomes: an activity. Title and weights are what the ghost
+ * draws; the id is what the event is mapped as when it lands.
  */
 export interface DragSource {
   readonly title: string;
   readonly weights: ActivityWeight[];
   readonly activityId: string | null;
-  readonly projectId: string | null;
-  readonly taskId: string | null;
 }
 
 export interface DragState {

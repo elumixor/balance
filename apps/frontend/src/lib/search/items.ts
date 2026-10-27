@@ -1,19 +1,19 @@
 /**
  * What the palette can find, and how the rows are ordered for what was typed.
  *
- * Every source — the screens, the settings sections, the projects and their tasks, the people,
- * the calendar's hits — hands over rows of the same shape, and this puts them in one order: the
- * start of a word of the label first, then anywhere in the label, then a keyword nobody sees.
- * Within a rank the sources keep their own order, so a project stays above its tasks.
+ * Every source — the screens, the settings sections, the people, the calendar's hits — hands over
+ * rows of the same shape, and this puts them in one order: the start of a word of the label first,
+ * then anywhere in the label, then a keyword nobody sees. Within a rank the sources keep their own
+ * order.
  */
 
-export type SearchKind = "screen" | "setting" | "project" | "task" | "person" | "event";
+export type SearchKind = "screen" | "setting" | "person" | "event";
 
 export interface SearchItem {
   readonly id: string;
   readonly kind: SearchKind;
   readonly label: string;
-  /** A second line: the sphere a project is under, the date an event is on, an address. */
+  /** A second line: the date an event is on, an address. */
   readonly hint?: string;
   /** Words to match that aren't shown — what a settings section is about. */
   readonly keywords?: string;
@@ -53,8 +53,6 @@ function scoreOf(item: SearchItem, needle: string): number {
 export const KIND_LABELS: Record<SearchKind, string> = {
   screen: "Go to",
   setting: "Settings",
-  project: "Projects",
-  task: "Tasks",
   person: "People",
   event: "Events",
 };

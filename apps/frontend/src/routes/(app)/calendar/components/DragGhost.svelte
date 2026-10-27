@@ -95,8 +95,6 @@
       activityName: null,
       weights: drag.weights,
       ...NOT_A_MEETING,
-      projectId: drag.source?.projectId ?? null,
-      taskId: drag.source?.taskId ?? null,
     };
   });
 </script>

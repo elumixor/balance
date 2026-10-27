@@ -3,7 +3,6 @@
   import { calendarData, STRIP_DAYS } from "$lib/calendar/calendar-data.svelte";
   import { addDays } from "$lib/calendar/dates";
   import { freeScroll } from "$lib/calendar/free-scroll";
-  import { dueMarkers } from "$lib/calendar/markers";
   import { pinch } from "$lib/calendar/pinch";
   import { anchoredScrollTop, timeScale } from "$lib/calendar/time-scale.svelte";
   import {
@@ -19,7 +18,6 @@
   } from "$lib/calendar/week-grid";
   import type { Category } from "$lib/core/records";
   import { readSetting, writeSetting } from "$lib/core/persist";
-  import { projects, stages, tasks } from "$lib/core/synced.svelte";
   import { clock } from "$lib/platform/clock.svelte";
   import { viewport } from "$lib/platform/viewport.svelte";
   import { theme } from "$lib/ui/theme.svelte";
@@ -113,11 +111,9 @@
 
   const placedByDay = $derived(placeStrip(data.events, data.stripStart, STRIP_DAYS, hourPx, dayWidth));
   const allDay = $derived(allDaySpansForRange(data.events, data.stripStart, STRIP_DAYS));
-  /** The projects' days on the strip, rows of their own above the banners. */
-  const markers = $derived(dueMarkers(stages.all, tasks.all, projects.all, [...categories.values()], data.stripStart, STRIP_DAYS));
   /**
-   * Folded, the header is one row saying how many banners and project days each day holds — a
-   * week of long tasks would otherwise push the hours off the screen. It is this device's choice,
+   * Folded, the header is one row saying how many banners each day holds — a week of long
+   * banners would otherwise push the hours off the screen. It is this device's choice,
    * since a phone and a desktop have different room.
    */
   const FOLD_KEY = "calendar.allDayFolded";
@@ -128,12 +124,11 @@
   }
   /** Only the spans touching the days on screen reserve rows, so the header follows the live scroll. */
   const allDayRows = $derived(allDayRowCount(allDay, window));
-  const markerRows = $derived(allDayRowCount(markers, window));
   /** Folding is offered once the header holds more than the one row it folds to. */
-  const foldable = $derived(allDayRows + markerRows > 1);
+  const foldable = $derived(allDayRows > 1);
   const showFolded = $derived(folded && foldable);
-  const counts = $derived({ events: spansPerDay(allDay, STRIP_DAYS), tasks: spansPerDay(markers, STRIP_DAYS) });
-  const headerPx = $derived(DAY_HEAD_PX + (showFolded ? 1 : allDayRows + markerRows) * ALL_DAY_PX);
+  const counts = $derived({ events: spansPerDay(allDay, STRIP_DAYS) });
+  const headerPx = $derived(DAY_HEAD_PX + (showFolded ? 1 : allDayRows) * ALL_DAY_PX);
 
   const todayStart = $derived(clock.todayStart);
   const marquee = $derived(data.marquee ? marqueeBox(data.marquee, hourPx, dayWidth) : null);
@@ -230,9 +225,7 @@
             {days}
             {columns}
             spans={allDay}
-            {markers}
             rows={allDayRows}
-            {markerRows}
             folded={showFolded ? counts : null}
             onunfold={toggleFold}
             {window}

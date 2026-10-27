@@ -28,7 +28,7 @@
     onclick,
     children,
   }: {
-    /** A lucide glyph, or any small mark drawn the same way — the Notion mark, say. */
+    /** A lucide glyph, or any small mark drawn the same way — an integration's own, say. */
     icon?: typeof IconType | Component<{ size?: number; class?: string }>;
     label: string;
     note?: string | Snippet;

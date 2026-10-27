@@ -1,7 +1,7 @@
 import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import type { ActivityWeight } from "$lib/core/records";
 import { applyCalendarEvent, invalidate, store } from "$lib/core/store.svelte";
-import { activities, categories, practices, projects } from "$lib/core/synced.svelte";
+import { activities, categories, practices } from "$lib/core/synced.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
 import type { DragSource } from "./drag.svelte";
 import { CalendarHistory, type HistoryStep } from "./history.svelte";
@@ -13,7 +13,6 @@ import {
   type EventFields,
   mappingFieldsOf,
   mappingOf,
-  mergePurpose,
   type Purpose,
   purposeOf,
   sameFields,
@@ -117,25 +116,22 @@ export class CalendarEdits {
 
   /**
    * What an hour was for, decided after the fact. Retro-tagging is how a real week gets
-   * reconciled: a grey block somebody else booked becomes evidence for a gate, and an hour that
-   * already counted toward a sphere is told which project in that sphere it belonged to. A block
-   * that counted as nothing starts counting toward the project's own sphere in the same write.
+   * reconciled: a grey block somebody else booked becomes evidence for a practice. A block that
+   * counted as nothing starts counting toward the practice's own sphere in the same write.
    */
   async tagEvent(event: CalendarEvent, purpose: Partial<Purpose>) {
-    const merged = mergePurpose(purposeOf(event), purpose);
+    const merged = { ...purposeOf(event), ...purpose };
     const existing = mappingOf(event);
     const scope: MappingScope = existing?.scope ?? (event.seriesId ? "series" : "instance");
-    // A block that counts as nothing is first made to count as the project's sphere, or as the
+    // A block that counts as nothing is first made to count as the practice's sphere, or as the
     // buffer — the same place an hour nobody planned already lands — so the purpose has a row.
     const sphere =
-      projects.all.find((p) => p.id === merged.projectId)?.categoryId ??
-      practices.all.find((p) => p.id === merged.practiceId)?.categoryId ??
-      categories.all.find((c) => c.isBuffer)?.id;
+      practices.all.find((p) => p.id === merged.practiceId)?.categoryId ?? categories.all.find((c) => c.isBuffer)?.id;
     const own = sphere ? { weights: [{ categoryId: sphere, weightPercent: 100 }] } : null;
-    // Picking a project moves the hour to that project's sphere: a project's hours have to land
-    // on its own ring, and the sphere a block wore before was only ever a guess about what it was
-    // for. A write that names no project — a task, a note — leaves the sphere alone.
-    const picked = Boolean(purpose.projectId || purpose.practiceId);
+    // Picking a practice moves the hour to that practice's sphere: its hours have to land on its
+    // own ring, and the sphere a block wore before was only ever a guess about what it was for. A
+    // write that names no practice — a linked task, a note — leaves the sphere alone.
+    const picked = Boolean(purpose.practiceId);
     const choice = picked ? own : (existing?.choice ?? own);
     if (!choice) return;
     // How the card is drawn, and what you wrote down about the meeting, are neither of them what
@@ -436,8 +432,6 @@ export class CalendarEdits {
       ...NOT_A_MEETING,
       // What the calendar will answer with, so the card's guest line doesn't appear a beat later.
       organizer: selfOrganizer(store.calendars.value, calendarId),
-      projectId: source?.projectId ?? null,
-      taskId: source?.taskId ?? null,
     };
     // The handle is taken on the draft, so the editor's writes queue up behind the create against
     // a made-up id and land on the real one — nothing here waits on Google to be usable.
@@ -453,8 +447,6 @@ export class CalendarEdits {
         const event = await createCalendarEvent({
           activityId: activityId ?? undefined,
           weights: source && !activityId ? source.weights : undefined,
-          projectId: source?.projectId ?? undefined,
-          taskId: source?.taskId ?? undefined,
           title,
           start: start.toISOString(),
           end: end.toISOString(),

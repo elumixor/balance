@@ -2,7 +2,6 @@ import { goto } from "$app/navigation";
 import { NAV_TABS } from "$lib/nav";
 import { peopleDirectory } from "$lib/people/directory.svelte";
 import { diagnostics } from "$lib/platform/diagnostics.svelte";
-import { projectsData } from "$lib/projects/projects-data.svelte";
 import { PANES, settings } from "$lib/settings";
 import { formatClock, formatDayDate } from "$lib/ui/format";
 import { rankItems, type SearchItem } from "./items";
@@ -14,8 +13,8 @@ const DEBOUNCE_MS = 220;
 const MIN_EVENT_QUERY = 2;
 
 /**
- * ⌘K: one box that finds anything — a screen, a settings section, a project, a task, a person,
- * an event — and goes there. Everything but the events is already on the device and answers each
+ * ⌘K: one box that finds anything — a screen, a settings section, a person, an event — and goes
+ * there. Everything but the events is already on the device and answers each
  * keystroke; the calendar is asked once the typing pauses, and its rows join the list when they
  * arrive, under the ones that were there already.
  */
@@ -99,31 +98,6 @@ class Palette {
         run: () => settings.show(pane.value),
       }),
     );
-    const projects = projectsData.live.map(
-      (project): SearchItem => ({
-        id: `project:${project.id}`,
-        kind: "project",
-        label: project.name || "Untitled project",
-        hint:
-          projectsData
-            .pathOf(project.id)
-            .slice(0, -1)
-            .map((one) => one.name)
-            .join(" / ") || projectsData.categoryById.get(project.categoryId)?.name,
-        run: () => void goto(`/projects/${project.id}`),
-      }),
-    );
-    const tasks = projectsData.live.flatMap((project) =>
-      projectsData.tasksOf(project.id).map(
-        (task): SearchItem => ({
-          id: `task:${task.id}`,
-          kind: "task",
-          label: task.title || "Untitled task",
-          hint: project.name,
-          run: () => void goto(`/projects/${project.id}?task=${task.id}`),
-        }),
-      ),
-    );
     const people = peopleDirectory.all.map(
       (person): SearchItem => ({
         id: `person:${person.id}`,
@@ -133,7 +107,7 @@ class Palette {
         run: () => settings.show("people"),
       }),
     );
-    return [...screens, ...panes, ...projects, ...tasks, ...people];
+    return [...screens, ...panes, ...people];
   });
 
   readonly #events = $derived(

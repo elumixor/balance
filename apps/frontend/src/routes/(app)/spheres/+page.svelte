@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { NotionMark, NotionSetup, Screen, Skeleton } from "$lib/components";
+  import { Screen, Skeleton } from "$lib/components";
   import WeekRing from "$lib/components/ring/WeekRing.svelte";
   import { synced } from "$lib/core/synced.svelte";
   import { categoryDrafts as week, WEEK_HOURS } from "$lib/planning/category-drafts.svelte";
-  import { projectsData as data } from "$lib/projects/projects-data.svelte";
+  import { practicesData as data } from "$lib/practices/practices-data.svelte";
   import { iconFor } from "$lib/ui/icons";
-  import { CircleDashed, Plus, RefreshCw } from "lucide-svelte";
+  import { CircleDashed, Plus } from "lucide-svelte";
   import { IconPicker, SphereMenu, SphereSection } from "./components";
 
   /**
    * The week as it is meant to go, top to bottom: the ring cutting 168 hours into spheres, and
-   * beside it each sphere with the projects and practices those hours are for. The ring is the
+   * beside it each sphere with the practices kept in it. The ring is the
    * list's picture rather than a second list — a sphere is named, coloured and sized in its own
    * section, and a seam dragged on the ring moves the same hours the sections show.
    *
    * What fills those hours is the calendar's job; this screen only says how much of the week
-   * each sphere is owed and which work is owed it.
+   * each sphere is owed. The work those hours are for lives in Keep.
    */
   void week.enter();
   void data.enter();
@@ -23,13 +23,11 @@
   const claimedHours = $derived(WEEK_HOURS - week.restHours);
   const claimedPercent = $derived(Math.round((claimedHours / WEEK_HOURS) * 100));
   const icons = $derived(week.drafts.map((draft) => draft.icon));
-  const importing = $derived(data.connections.find((connection) => connection.dataSourceId) ?? null);
 
   /** The sphere whose menu is open — an index into the ring's segments — and where it was asked. */
   let menu = $state<{ index: number; at: DOMRect } | null>(null);
-  let setup = $state(false);
 
-  /** ⌘Z takes back the last edit here — a sphere cut or resized, a project made, a practice renamed. */
+  /** ⌘Z takes back the last edit here — a sphere cut or resized, a practice renamed. */
   function onkeydown(e: KeyboardEvent) {
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     const key = e.key.toLowerCase();
@@ -45,7 +43,7 @@
 
 <svelte:window {onkeydown} />
 
-<Screen title="Projects" wide>
+<Screen title="Spheres" wide>
   {#if !week.ready || !data.ready}
     <div class="grid gap-10 lg:grid-cols-[260px_1fr]">
       <Skeleton width={232} height={232} radius={116} />
@@ -110,16 +108,6 @@
               <Plus size={12} />
               Sphere
             </button>
-            <button type="button" onclick={() => (setup = true)} class="bare-button t-micro h-7 px-2">
-              <NotionMark size={12} />
-              Import projects from Notion
-            </button>
-            {#if importing}
-              <button type="button" onclick={() => void data.mirror(true)} class="bare-button t-micro h-7 px-2">
-                <RefreshCw size={11} />
-                Sync now
-              </button>
-            {/if}
           </div>
         </div>
       </div>
@@ -138,4 +126,3 @@
   />
 {/if}
 
-<NotionSetup open={setup} onclose={() => (setup = false)} />

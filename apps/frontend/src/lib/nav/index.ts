@@ -3,7 +3,7 @@ import { syncing } from "$lib/core/store.svelte";
 
 /**
  * The two views of the app: the week as it happens, and the week as you mean it to go — the
- * spheres it is cut into and the projects those hours are for, on one screen.
+ * spheres it is cut into and the practices kept in them, on one screen.
  * The daily sitting is not among them — it is something the app asks for on the two days a day it
  * is worth asking, and a tab for it sat there saying nothing for the other twenty-three hours.
  * `SessionNudge` is where it appears instead, only while it is owed.
@@ -23,15 +23,15 @@ export const NAV_TABS = [
     syncing: () => syncing.calendar,
   },
   {
-    href: "/projects",
-    label: "Projects",
-    key: "p",
+    href: "/spheres",
+    label: "Spheres",
+    key: "s",
     icon: ChartPie,
-    syncing: () => syncing.projects,
+    syncing: () => syncing.spheres,
   },
 ];
 
-/** A tab stays lit for everything under it, so an open project doesn't unlight the rail. */
+/** A tab stays lit for everything under it, so a screen inside one doesn't unlight the rail. */
 export function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }

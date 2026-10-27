@@ -16,15 +16,14 @@ vi.mock("$lib/calendar/queries", () => ({
 }));
 vi.mock("$lib/integrations/queries", () => ({ getIntegrations: async () => [] }));
 vi.mock("$lib/account/queries", () => ({ getPreferences: async () => ({}) }));
-vi.mock("$lib/projects/queries", () => ({
-  getProjectProgress: (timeZone: string, today: string) => progress(timeZone, today),
-  getNotionStatus: async () => ({ connections: [] }),
+vi.mock("$lib/mcp/queries", () => ({ listMcpKeys: async () => [] }));
+vi.mock("$lib/practices/queries", () => ({
+  getPracticeProgress: (timeZone: string, today: string) => progress(timeZone, today),
 }));
 const progress = vi.fn(async (_timeZone: string, _today: string) => ({
   connected: true,
   needsReconnect: false,
   weeks: [],
-  projects: {},
   practices: {},
 }));
 const syncedMock = {
@@ -260,35 +259,33 @@ describe("the session's rows", () => {
     expect(week).toHaveBeenCalledTimes(1);
   });
 
-  it("asks for the projects' evidence as the device's own day, in its own zone", async () => {
+  it("asks for the practices' evidence as the device's own day, in its own zone", async () => {
     progress.mockClear();
     await store.progress.refresh();
     const [timeZone, today] = progress.mock.calls[0];
     expect(timeZone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
     expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    // A tag on an event moves a card's hours, so the calendar's writes mark it stale too.
+    // A tag on an event moves a practice's count, so the calendar's writes mark it stale too.
     invalidate.calendar();
     await store.progress.ensure();
-    invalidate.projects();
-    await store.progress.ensure();
-    expect(progress).toHaveBeenCalledTimes(3);
+    expect(progress).toHaveBeenCalledTimes(2);
   });
 
-  it("says the projects tab is checking while its evidence is being read", async () => {
+  it("says the spheres tab is checking while its evidence is being read", async () => {
     await store.progress.ensure();
-    expect(syncing.projects).toBe(false);
+    expect(syncing.spheres).toBe(false);
     let release: (() => void) | undefined;
     progress.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
-          release = () => resolve({ connected: true, needsReconnect: false, weeks: [], projects: {}, practices: {} });
+          release = () => resolve({ connected: true, needsReconnect: false, weeks: [], practices: {} });
         }),
     );
     const out = store.progress.refresh();
-    expect(syncing.projects).toBe(true);
+    expect(syncing.spheres).toBe(true);
     release?.();
     await out;
-    expect(syncing.projects).toBe(false);
+    expect(syncing.spheres).toBe(false);
   });
 
   it("says a week is being checked only behind rows already on screen", async () => {

@@ -22,11 +22,10 @@ export const getCalendarWeek = (from: string, to: string) => apiGet<CalendarWeek
 export const createCalendarEvent = (input: {
   /** Absent for an event that counts as nothing — putting back a deleted one, say. */
   activityId?: string;
-  /** For a block that counts straight toward categories — a project's sphere, say. */
+  /** For a block that counts straight toward categories rather than as one activity. */
   weights?: ActivityWeight[];
-  projectId?: string;
   practiceId?: string;
-  taskId?: string;
+  urn?: string;
   timer?: EventTimer;
   start: string;
   end: string;
@@ -106,9 +105,8 @@ export const saveEventMapping = (input: {
   activityId?: string | null;
   weights?: ActivityWeight[];
   /** What the hour was for. Absent leaves it alone; null clears it. */
-  projectId?: string | null;
   practiceId?: string | null;
-  taskId?: string | null;
+  urn?: string | null;
   /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
   timer?: EventTimer | null;
   /** The integration feed it is linked to. Absent leaves it alone; null unlinks. */

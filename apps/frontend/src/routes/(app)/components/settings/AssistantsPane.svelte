@@ -80,7 +80,7 @@
     <SettingRow
       icon={Plug}
       label="Balance speaks MCP"
-      note="An assistant holding a key can read your week, your spheres and your projects, and write blocks back."
+      note="An assistant holding a key can read your week and your spheres, and write blocks back."
       flat
     />
     <SettingRow icon={Bot} label="Server address" note={endpoint} flat>
