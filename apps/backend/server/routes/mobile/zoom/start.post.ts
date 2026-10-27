@@ -5,8 +5,8 @@ import { authed } from "~/lib/http/authed";
 import { ZoomService } from "~/lib/zoom/service";
 
 /**
- * Hands back the consent URL rather than redirecting to it, the way the calendar's and Notion's
- * do: the browser that runs the flow can't carry the app's Clerk bearer, so the app asks for the
+ * Hands back the consent URL rather than redirecting to it, the way the calendar's
+ * does: the browser that runs the flow can't carry the app's Clerk bearer, so the app asks for the
  * URL over its authenticated channel and opens it itself.
  */
 export default authed({ body: { mode: z.enum(["app", "web"]), origin: z.string() } }, async ({ body, user }) => {

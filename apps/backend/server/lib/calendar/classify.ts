@@ -18,18 +18,9 @@ export interface SphereOption {
   readonly name: string;
 }
 
-export interface ProjectOption {
-  readonly id: string;
-  readonly parentId: string | null;
-  readonly categoryId: string;
-  readonly name: string;
-  readonly description: string;
-}
-
-/** What an option stands for: always a sphere, and a project when the option was one. */
+/** What an option stands for: the sphere the hours are filed under. */
 export interface Choice {
   readonly categoryId: string;
-  readonly projectId: string | null;
 }
 
 export interface Options {
@@ -37,14 +28,8 @@ export interface Options {
   readonly choices: ReadonlyMap<string, Choice>;
 }
 
-/**
- * Spheres and projects as one list of options. A project carries its sphere, so picking it files
- * the hours on the ring and against the project at once. Keys are short and positional — an id
- * is forty characters the model reads for nothing.
- */
-export function buildOptions(spheres: readonly SphereOption[], projects: readonly ProjectOption[]): Options {
-  const sphereName = new Map(spheres.map((sphere) => [sphere.id, sphere.name]));
-  const byId = new Map(projects.map((project) => [project.id, project]));
+/** Spheres as options. Keys are short and positional — an id is forty characters the model reads for nothing. */
+export function buildOptions(spheres: readonly SphereOption[]): Options {
   const criteria: Record<string, string | null> = {
     [NONE]: "None of these clearly fits — a social plan, an errand, somebody else's meeting; a person must decide",
   };
@@ -52,35 +37,11 @@ export function buildOptions(spheres: readonly SphereOption[], projects: readonl
 
   spheres.forEach((sphere, i) => {
     const key = `s${i + 1}`;
-    criteria[key] = `The "${sphere.name}" part of life in general, when no project below is clearly what it was for`;
-    choices.set(key, { categoryId: sphere.id, projectId: null });
+    criteria[key] = `The "${sphere.name}" part of life`;
+    choices.set(key, { categoryId: sphere.id });
   });
 
-  projects
-    .filter((project) => sphereName.has(project.categoryId))
-    .forEach((project, i) => {
-      const key = `p${i + 1}`;
-      const path = pathOf(project, byId).join(" › ");
-      const about = project.description.trim().slice(0, 200);
-      criteria[key] =
-        `Work on the project "${path}" (part of ${sphereName.get(project.categoryId)})` + (about ? `: ${about}` : "");
-      choices.set(key, { categoryId: project.categoryId, projectId: project.id });
-    });
-
   return { criteria, choices };
-}
-
-/** A project's name with every parent's above it; a cycle stops rather than spins. */
-function pathOf(project: ProjectOption, byId: ReadonlyMap<string, ProjectOption>) {
-  const path = [project.name.trim() || "Untitled"];
-  const seen = new Set([project.id]);
-  let parent = project.parentId ? byId.get(project.parentId) : undefined;
-  while (parent && !seen.has(parent.id)) {
-    seen.add(parent.id);
-    path.unshift(parent.name.trim() || "Untitled");
-    parent = parent.parentId ? byId.get(parent.parentId) : undefined;
-  }
-  return path;
 }
 
 /** One event the person filed themselves, as the model is shown it: the words and where it went. */

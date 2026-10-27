@@ -2,7 +2,7 @@ import { z } from "zod";
 import { splitCalendarId } from "~/lib/calendar/ids";
 import { EventMappingService } from "~/lib/calendar/mappings-service";
 import { authed } from "~/lib/http/authed";
-import { integrationSourceField } from "~/lib/http/schemas";
+import { integrationSourceField, urnField } from "~/lib/http/schemas";
 
 const MAX_HIDDEN_SECTIONS = 20;
 const MAX_SECTION_ID_LENGTH = 40;
@@ -22,9 +22,9 @@ export default authed(
         .array(z.object({ categoryId: z.string(), weightPercent: z.number().int().min(0).max(100) }))
         .optional(),
       /** What the hour was for. Absent leaves it alone; null clears it. */
-      projectId: z.string().nullable().optional(),
       practiceId: z.string().nullable().optional(),
-      taskId: z.string().nullable().optional(),
+      /** The work it was for in another app — `keep:page/<id>`. Absent leaves it; null clears it. */
+      urn: urnField.nullable().optional(),
       /** The integration feed it is linked to. Absent leaves it alone; null unlinks. */
       source: integrationSourceField.nullable().optional(),
       /** The card sections folded away on it. Absent leaves it alone; null means the default. */

@@ -2,7 +2,7 @@ import { relations } from "drizzle-orm";
 import { boolean, integer, jsonb, pgTable, real, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { EventTimer } from "~/lib/calendar/types";
 import { activities, categories } from "./categories";
-import { practices, projects, tasks } from "./projects";
+import { practices } from "./practices";
 import { users } from "./users";
 
 /**
@@ -63,13 +63,14 @@ export const eventMappings = pgTable(
     activityId: uuid("activity_id").references(() => activities.id, { onDelete: "cascade" }),
     /**
      * What the hour was *for*, on top of what it counts as. The category says which sphere an
-     * hour belongs to; these say which project, practice or task earned it — the evidence a gate
-     * counts and the hours a project's card compares against its claim. Any of them may be null:
-     * most hours are for nothing in particular.
+     * hour belongs to; the practice is the habit it kept. Null for most hours.
      */
-    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     practiceId: uuid("practice_id").references(() => practices.id, { onDelete: "set null" }),
-    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    /**
+     * The work it was for, named in another app — a Keep task is `keep:page/<id>`. Only ever a
+     * pointer: nothing here reads what it names.
+     */
+    urn: text("urn"),
     /**
      * How a timer run for this event is broken up — a nudge every N minutes, or the event split
      * into N parts. The length is never stored: the event's own duration is the timer's. Null
@@ -162,9 +163,8 @@ export const eventClassifications = pgTable(
     /** "instance" | "series", the same scope the mapping it may have written has. */
     scope: text("scope").notNull(),
     externalEventId: text("external_event_id").notNull(),
-    /** The option picked: a sphere or a project id, or null for "none of them". */
+    /** The sphere picked, or null for "none of them". */
     categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
-    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     probability: real("probability"),
     confidence: real("confidence"),
     filed: boolean("filed").notNull().default(false),
@@ -201,9 +201,7 @@ export const eventMappingsRelations = relations(eventMappings, ({ one, many }) =
   user: one(users, { fields: [eventMappings.userId], references: [users.id] }),
   activity: one(activities, { fields: [eventMappings.activityId], references: [activities.id] }),
   weights: many(eventMappingWeights),
-  project: one(projects, { fields: [eventMappings.projectId], references: [projects.id] }),
   practice: one(practices, { fields: [eventMappings.practiceId], references: [practices.id] }),
-  task: one(tasks, { fields: [eventMappings.taskId], references: [tasks.id] }),
 }));
 
 export const eventMappingWeightsRelations = relations(eventMappingWeights, ({ one }) => ({

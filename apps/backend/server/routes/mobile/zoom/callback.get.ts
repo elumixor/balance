@@ -6,7 +6,7 @@ import { captureError } from "~/lib/telemetry";
 import { ZoomService } from "~/lib/zoom/service";
 
 /**
- * Where Zoom sends the browser back to. Unauthenticated, like the calendar's and Notion's: the
+ * Where Zoom sends the browser back to. Unauthenticated, like the calendar's: the
  * signed `state` is the only thing that says whose account this grant belongs to, and the answer
  * is a page rather than JSON because a browser tab is the only thing that will read it.
  */

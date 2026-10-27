@@ -63,9 +63,8 @@ const DISCONNECTED: ResolvedCalendarRange = {
 export interface CreateEventOptions {
   activityId?: string;
   weights?: ActivityWeightInput[];
-  projectId?: string;
   practiceId?: string;
-  taskId?: string;
+  urn?: string;
   timer?: EventTimer | null;
   /** The integration writing it, so a later pass can tell its own events from everyone else's. */
   source?: string;
@@ -180,7 +179,6 @@ export class CalendarEventsService {
    *
    * The activity is optional because undoing a delete has to put back events that counted as
    * nothing, or as a split of categories the caller re-applies itself; those come with a title.
-   * A block dragged in from a project carries its sphere as weights and the project as purpose.
    */
   async create(input: CreateEventOptions): Promise<ResolvedEvent> {
     const { connection, calendarId } = await resolveTarget(this.userId, input.calendarId);
@@ -214,24 +212,29 @@ export class CalendarEventsService {
     });
 
     const weights = input.weights?.length ? input.weights : undefined;
-    if (!activity && !weights) {
+    if (!activity && !weights && !input.urn) {
       eventCache.invalidate(this.userId);
       return { ...attachMappings([{ ...created, calendarId }], [])[0], accountId: connection.accountId };
     }
 
-    // The mapping write is what forgets the cached week — see `EventMappingService`.
-    const mapping = await this.#mappings.upsert({
-      calendarId,
-      scope: "instance",
-      externalEventId: created.id,
-      activityId: activity?.id ?? null,
-      weights: activity ? undefined : weights,
-      projectId: input.projectId ?? null,
+    const key = { calendarId, scope: "instance" as const, externalEventId: created.id };
+    const purpose = {
       practiceId: input.practiceId ?? null,
-      taskId: input.taskId ?? null,
+      urn: input.urn ?? null,
       timer: input.timer ?? null,
       source: input.source ?? null,
-    });
+    };
+    // The mapping write is what forgets the cached week — see `EventMappingService`. A block that
+    // only names the work it is for counts as nothing yet, which `annotate` files as buffer time.
+    const mapping =
+      activity || weights
+        ? await this.#mappings.upsert({
+            ...key,
+            ...purpose,
+            activityId: activity?.id ?? null,
+            weights: activity ? undefined : weights,
+          })
+        : await this.#mappings.annotate(key, purpose);
     return { ...attachMappings([{ ...created, calendarId }], [mapping])[0], accountId: connection.accountId };
   }
 
@@ -528,9 +531,8 @@ function attachMappings(
             scope: mapping.scope,
             activityId: mapping.activityId,
             activityName: mapping.activityName,
-            projectId: mapping.projectId,
             practiceId: mapping.practiceId,
-            taskId: mapping.taskId,
+            urn: mapping.urn,
             timer: mapping.timer,
             source: mapping.source,
             hidden: mapping.hidden,

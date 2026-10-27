@@ -8,7 +8,7 @@ import { ZoomAuthError, type ZoomGrant, zoomConfigured, zoomOAuth } from "./oaut
 
 /**
  * What the settings row draws. "Zoom isn't set up here", "not connected" and "the grant expired"
- * are three states with a row each rather than errors — the same rule the calendar and Notion are
+ * are three states with a row each rather than errors — the same rule the calendar is
  * under, and for the same reason: a 401 out of here reads as a dead session and bounces somebody
  * to sign-in.
  */

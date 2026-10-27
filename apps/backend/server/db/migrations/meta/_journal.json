@@ -183,6 +183,13 @@
       "when": 1791972630921,
       "tag": "0025_needy_owl",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793064806130,
+      "tag": "0026_drop_projects_keep_urn",
+      "breakpoints": true
     }
   ]
 }

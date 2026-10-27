@@ -1,18 +1,18 @@
 import { and, eq } from "drizzle-orm";
 import { type ZodRawShape, z } from "zod";
 import { db } from "~/db";
-import { practices, projects, stages, tasks } from "~/db/schema";
+import { practices } from "~/db/schema";
 import type { DbUser } from "~/lib/auth/service";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { qualifyCalendarId, splitCalendarId } from "~/lib/calendar/ids";
 import { EventMappingService } from "~/lib/calendar/mappings-service";
 import type { ConferenceInput } from "~/lib/calendar/types";
 import { CategoryService } from "~/lib/categories/service";
-import { parseInstant, parseInstantRange } from "~/lib/http/schemas";
+import { parseInstant, parseInstantRange, urnField } from "~/lib/http/schemas";
 import { dayIn } from "~/lib/planning/days";
 import { PlanningService } from "~/lib/planning/service";
+import { PracticeProgressService } from "~/lib/practices/progress-service";
 import { PreferencesService } from "~/lib/preferences/service";
-import { ProjectProgressService } from "~/lib/projects/progress-service";
 import { StatsService } from "~/lib/stats/stats-service";
 import { TrackingSessionsService } from "~/lib/tracking/sessions-service";
 import { ZoomService } from "~/lib/zoom/service";
@@ -106,14 +106,30 @@ function conferenceOf(args: {
   return args.meet ? "create" : "remove";
 }
 
-/** Notes ride on this app's record of the event, one occurrence at a time — see `set_notes`. */
-function writeNotes(user: DbUser, qualifiedCalendarId: string, eventId: string, notes: string | null) {
-  return new EventMappingService(user.id)
-    .annotate(
-      { calendarId: splitCalendarId(qualifiedCalendarId).calendarId, externalEventId: eventId, scope: "instance" },
-      { notes },
-    )
-    .then((mapping) => mapping.notes);
+const URN_DESCRIPTION =
+  "The Keep task this block is for, as its URN — `keep:page/<id>`. Projects and tasks live in Keep; " +
+  "Balance only keeps the link.";
+
+/**
+ * Notes and the linked task ride on this app's record of the event, one occurrence at a time —
+ * see `set_notes`. Only what was given is written, and only that is said back: a null in the
+ * answer would read as "there is none".
+ */
+async function annotateEvent(
+  user: DbUser,
+  qualifiedCalendarId: string,
+  eventId: string,
+  fields: { notes?: string | null; urn?: string | null },
+) {
+  if (fields.notes === undefined && fields.urn === undefined) return {};
+  const mapping = await new EventMappingService(user.id).annotate(
+    { calendarId: splitCalendarId(qualifiedCalendarId).calendarId, externalEventId: eventId, scope: "instance" },
+    fields,
+  );
+  return {
+    ...(fields.notes === undefined ? {} : { notes: mapping.notes }),
+    ...(fields.urn === undefined ? {} : { urn: mapping.urn }),
+  };
 }
 const MS_PER_DAY = 86_400_000;
 const MS_PER_HOUR = 3_600_000;
@@ -131,9 +147,8 @@ const hours = (from: Date, to: Date) => Math.round(((to.getTime() - from.getTime
 const purposeSchema = {
   activityId: z.string().optional().describe("An activity, which carries its own split of spheres."),
   categoryId: z.string().optional().describe("A sphere, when the block counts wholly toward one."),
-  projectId: z.string().optional(),
-  practiceId: z.string().optional(),
-  taskId: z.string().optional(),
+  practiceId: z.string().optional().describe("A practice from `list_practices` the block kept."),
+  urn: urnField.optional().describe(URN_DESCRIPTION),
 };
 
 /** A sphere is written as the whole of the block's weights; the buffer takes whatever is left. */
@@ -250,7 +265,7 @@ export const mcpTools: McpTool[] = [
           notes: e.mapping?.notes ?? null,
           activity: e.mapping?.activityName ?? null,
           weights: e.weights,
-          projectId: e.mapping?.projectId ?? null,
+          urn: e.mapping?.urn ?? null,
           movable: e.movable,
           seriesId: e.seriesId ?? null,
           organizer: e.organizer?.email ?? null,
@@ -299,15 +314,14 @@ export const mcpTools: McpTool[] = [
         end,
       });
       const calendarId = qualifyCalendarId(created.accountId, created.calendarId);
-      // Said back only when it was asked for: a null here would read as "there are none".
-      const notes =
-        args.notes === undefined ? {} : { notes: await writeNotes(user, calendarId, created.id, args.notes) };
+      const notes = await annotateEvent(user, calendarId, created.id, { notes: args.notes });
       return {
         id: created.id,
         calendarId,
         title: created.title,
         attendees: created.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: created.conferenceUrl,
+        urn: created.mapping?.urn ?? null,
         ...notes,
       };
     },
@@ -349,6 +363,7 @@ export const mcpTools: McpTool[] = [
         .nullable()
         .optional()
         .describe(`${NOTES_DESCRIPTION} Null clears them; use \`set_notes\` to write them on a whole series.`),
+      urn: urnField.nullable().optional().describe(`${URN_DESCRIPTION} Null unlinks it.`),
     },
     async run(args, user) {
       const service = new CalendarEventsService(user.id);
@@ -365,8 +380,7 @@ export const mcpTools: McpTool[] = [
         attendees,
         conference: conferenceOf(args),
       });
-      const notes =
-        args.notes === undefined ? {} : { notes: await writeNotes(user, args.calendarId, args.id, args.notes) };
+      const annotated = await annotateEvent(user, args.calendarId, args.id, { notes: args.notes, urn: args.urn });
       return {
         id: updated.id,
         title: updated.title,
@@ -374,7 +388,7 @@ export const mcpTools: McpTool[] = [
         end: updated.end.toISOString(),
         attendees: updated.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: updated.conferenceUrl,
-        ...notes,
+        ...annotated,
       };
     },
   }),
@@ -406,8 +420,9 @@ export const mcpTools: McpTool[] = [
     name: "categorize_event",
     title: "Say what a block counts as",
     description:
-      "Maps an event that is already on the calendar to a sphere, an activity or a project — how " +
-      "a grey week is reconciled after the fact. `scope: series` covers every occurrence.",
+      "Maps an event that is already on the calendar to a sphere or an activity, and optionally links " +
+      "the Keep task it was for — how a grey week is reconciled after the fact. `scope: series` covers " +
+      "every occurrence.",
     readOnly: false,
     inputSchema: {
       id: z.string().min(1).describe("The event id from `list_events`."),
@@ -422,9 +437,8 @@ export const mcpTools: McpTool[] = [
         scope: args.scope,
         activityId: args.activityId ?? null,
         weights: weightsOf(args.categoryId),
-        projectId: args.projectId ?? null,
         practiceId: args.practiceId ?? null,
-        taskId: args.taskId ?? null,
+        urn: args.urn,
       });
       return { mapping };
     },
@@ -549,53 +563,24 @@ export const mcpTools: McpTool[] = [
   }),
 
   tool({
-    name: "list_projects",
-    title: "List projects and practices",
+    name: "list_practices",
+    title: "List practices",
     description:
-      "What the hours are for: the tree of projects with what each claims a week, the stages and " +
-      "open tasks under them, and the practices that never complete. Pass `progress` for the hours " +
-      "the calendar says each has actually had.",
+      "The practices that never complete — sleep, the gym — each with what it asks for a week. " +
+      "Pass `progress` for what the calendar says each has actually had. Projects and tasks are " +
+      "not in Balance: they live in Keep.",
     inputSchema: {
       progress: z.boolean().optional().describe("Also count what the calendar says each has had."),
       timeZone: z.string().optional(),
     },
     async run(args, user) {
-      const [projectRows, stageRows, taskRows, practiceRows] = await Promise.all([
-        db.query.projects.findMany({ where: and(eq(projects.userId, user.id), eq(projects.archived, false)) }),
-        db.query.stages.findMany({ where: and(eq(stages.userId, user.id), eq(stages.archived, false)) }),
-        db.query.tasks.findMany({ where: and(eq(tasks.userId, user.id), eq(tasks.archived, false)) }),
-        db.query.practices.findMany({ where: and(eq(practices.userId, user.id), eq(practices.archived, false)) }),
-      ]);
+      const rows = await db.query.practices.findMany({
+        where: and(eq(practices.userId, user.id), eq(practices.archived, false)),
+      });
       const zone = await zoneOf(user, args.timeZone);
-      const progress = args.progress ? await new ProjectProgressService(user.id, zone, dayIn(zone)).compute() : null;
+      const progress = args.progress ? await new PracticeProgressService(user.id, zone, dayIn(zone)).compute() : null;
       return {
-        projects: projectRows.map((project) => ({
-          id: project.id,
-          name: project.name,
-          parentId: project.parentId,
-          categoryId: project.categoryId,
-          status: project.status,
-          hoursPerWeek: Number(project.hoursPerWeek),
-          notionUrl: project.notionUrl,
-          stages: stageRows
-            .filter((stage) => stage.projectId === project.id)
-            .sort((a, b) => a.ordinal - b.ordinal)
-            .map((stage) => ({ id: stage.id, name: stage.name, startsOn: stage.startsOn, endsOn: stage.endsOn })),
-          // Only what is still to do: a project's finished tasks are its history, not its state.
-          openTasks: taskRows
-            .filter((task) => task.projectId === project.id && task.status !== "done" && task.status !== "dropped")
-            .map((task) => ({
-              id: task.id,
-              title: task.title,
-              status: task.status,
-              stageId: task.stageId,
-              parentId: task.parentId,
-              startsOn: task.startsOn,
-              endsOn: task.endsOn,
-            })),
-          progress: progress?.projects[project.id] ?? null,
-        })),
-        practices: practiceRows.map((practice) => ({
+        practices: rows.map((practice) => ({
           id: practice.id,
           name: practice.name,
           categoryId: practice.categoryId,

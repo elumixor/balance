@@ -13,11 +13,11 @@ export interface MappingKey {
   readonly externalEventId: string;
 }
 
-/** What an hour was for, on top of what it counts as. Any may be null; a task implies its project. */
+/** What an hour was for, on top of what it counts as. Any may be null. */
 export interface MappingPurpose {
-  readonly projectId: string | null;
   readonly practiceId: string | null;
-  readonly taskId: string | null;
+  /** The work it was for in another app, by URN — `keep:page/<id>`. */
+  readonly urn: string | null;
   /** How a timer for the event is broken up; null when it just runs to the end. */
   readonly timer: EventTimer | null;
   /** The integration feed the event is linked to, or null. A series link covers every occurrence. */
@@ -70,9 +70,8 @@ export class EventMappingService {
       scope: input.scope,
       externalEventId: input.externalEventId,
       activityId: input.activityId ?? null,
-      projectId: input.projectId ?? null,
       practiceId: input.practiceId ?? null,
-      taskId: input.taskId ?? null,
+      urn: input.urn ?? null,
       timer: input.timer ?? null,
       source: input.source ?? null,
       hidden: input.hidden ?? null,
@@ -91,12 +90,11 @@ export class EventMappingService {
           eventMappings.externalEventId,
         ],
         // A purpose left out of the write is left as it was: setting a category must not untag
-        // the project, and tagging a project must not touch what the event counts as.
+        // the work it links, and linking work must not touch what the event counts as.
         set: {
           activityId: values.activityId,
-          ...(input.projectId === undefined ? {} : { projectId: values.projectId }),
           ...(input.practiceId === undefined ? {} : { practiceId: values.practiceId }),
-          ...(input.taskId === undefined ? {} : { taskId: values.taskId }),
+          ...(input.urn === undefined ? {} : { urn: values.urn }),
           ...(input.timer === undefined ? {} : { timer: values.timer }),
           ...(input.source === undefined ? {} : { source: values.source }),
           ...(input.hidden === undefined ? {} : { hidden: values.hidden }),
@@ -157,9 +155,8 @@ export class EventMappingService {
       weights: source.activityId
         ? undefined
         : source.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent })),
-      projectId: source.projectId,
       practiceId: source.practiceId,
-      taskId: source.taskId,
+      urn: source.urn,
       timer: source.timer as EventTimer | null,
       source: source.source,
       hidden: source.hidden,
@@ -263,9 +260,8 @@ export class EventMappingService {
     scope: string;
     externalEventId: string;
     activityId: string | null;
-    projectId: string | null;
     practiceId: string | null;
-    taskId: string | null;
+    urn: string | null;
     timer: EventTimer | null;
     source: string | null;
     hidden: string[] | null;
@@ -281,9 +277,8 @@ export class EventMappingService {
       externalEventId: row.externalEventId,
       activityId: row.activityId,
       activityName: row.activity?.name ?? null,
-      projectId: row.projectId,
       practiceId: row.practiceId,
-      taskId: row.taskId,
+      urn: row.urn,
       timer: row.timer,
       source: row.source,
       hidden: row.hidden,

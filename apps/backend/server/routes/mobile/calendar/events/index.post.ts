@@ -3,19 +3,19 @@ import { z } from "zod";
 import { CalendarEventDTO } from "~/lib/calendar/dto";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { authed } from "~/lib/http/authed";
-import { parseInstantRange } from "~/lib/http/schemas";
+import { parseInstantRange, urnField } from "~/lib/http/schemas";
 
 export default authed(
   {
     body: {
       activityId: z.string().min(1).optional(),
-      /** For a block that counts straight toward categories — a project's sphere, say. */
+      /** For a block that counts straight toward categories rather than as one activity. */
       weights: z
         .array(z.object({ categoryId: z.string(), weightPercent: z.number().int().min(0).max(100) }))
         .optional(),
-      projectId: z.string().min(1).optional(),
       practiceId: z.string().min(1).optional(),
-      taskId: z.string().min(1).optional(),
+      /** The work it is for in another app — `keep:page/<id>`. */
+      urn: urnField.optional(),
       /** How a timer for it is broken up. Absent leaves it alone; null clears it. */
       timer: z
         .union([

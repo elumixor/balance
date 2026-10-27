@@ -32,7 +32,7 @@ export interface MeetingRequest {
 const SCHEDULED = 2;
 
 /**
- * Zoom's API, written out rather than pulled in — the same call the Notion client makes for the
+ * Zoom's API, written out rather than pulled in — the same call `lib/mcp/` makes for the
  * same reason: two endpoints do not need an SDK, and an SDK built around Node's `req`/`res` does
  * not survive being a Vercel function.
  */

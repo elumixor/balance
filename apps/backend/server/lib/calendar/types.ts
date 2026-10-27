@@ -172,7 +172,7 @@ export interface UpdateEventInput {
   readonly conference?: ProviderConference;
 }
 
-/** What a calendar integration has to be able to do. Google today, Notion later. */
+/** What a calendar integration has to be able to do. Google today. */
 export interface CalendarProvider {
   readonly name: string;
   listCalendars(): Promise<CalendarRef[]>;

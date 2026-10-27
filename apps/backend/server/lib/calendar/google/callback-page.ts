@@ -25,7 +25,7 @@ export function callbackPage({
 }: {
   mode: ConnectMode;
   origin: string;
-  /** The screen the flow belongs to — a calendar grant lands on the week, Notion's on projects. */
+  /** The screen the flow belongs to — a calendar grant lands on the week. */
   back?: string;
   title: string;
   body: string;

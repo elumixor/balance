@@ -1,7 +1,7 @@
 import { experimental_decide as decide } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "~/db";
-import { categories, eventClassifications, eventMappings, projects } from "~/db/schema";
+import { categories, eventClassifications, eventMappings } from "~/db/schema";
 import { DECISION_MODEL, decisionModel } from "~/lib/ai/decision";
 import { captureError } from "~/lib/telemetry";
 import {
@@ -44,21 +44,16 @@ export class EventClassificationService {
     const range = await new CalendarEventsService(this.userId).resolve(new Date(from.getTime() - HISTORY_MS), to);
     if (!range.connected) return { classified: 0 };
 
-    const [spheres, open] = await Promise.all([
-      db.query.categories.findMany({
-        where: and(eq(categories.userId, this.userId), eq(categories.archived, false), eq(categories.isBuffer, false)),
-      }),
-      db.query.projects.findMany({
-        where: and(eq(projects.userId, this.userId), eq(projects.archived, false), eq(projects.status, "active")),
-      }),
-    ]);
+    const spheres = await db.query.categories.findMany({
+      where: and(eq(categories.userId, this.userId), eq(categories.archived, false), eq(categories.isBuffer, false)),
+    });
     if (spheres.length === 0) return { classified: 0 };
 
     const todo = await this.#unasked(candidatesOf(range.events, from, to));
     if (todo.length === 0) return { classified: 0 };
 
-    const options = buildOptions(spheres, open);
-    const filed = filedExamples(range.events, spheres, open);
+    const options = buildOptions(spheres);
+    const filed = filedExamples(range.events, spheres);
     const verdicts = await mapLimited(todo, (candidate) => this.#ask(candidate, options, filed));
 
     let classified = 0;
@@ -98,9 +93,9 @@ export class EventClassificationService {
       purpose: {
         type: "choice" as const,
         instructions:
-          "What was the time in this calendar `event` spent on? Pick the project it was work on when one clearly " +
-          "matches, the part of life it belongs to when only that is clear, and `none` when the event does not say " +
-          "enough. `previouslyFiledAs` lists how the person filed similar events themselves — follow it.",
+          "What was the time in this calendar `event` spent on? Pick the part of life it belongs to when that is " +
+          "clear, and `none` when the event does not say enough. `previouslyFiledAs` lists how the person filed " +
+          "similar events themselves — follow it.",
         criteria: options.criteria,
       },
     };
@@ -133,7 +128,6 @@ export class EventClassificationService {
       .values({
         ...key,
         categoryId: verdict.choice?.categoryId ?? null,
-        projectId: verdict.choice?.projectId ?? null,
         probability: verdict.probability,
         confidence: verdict.confidence,
         filed: verdict.filed,
@@ -164,27 +158,19 @@ export class EventClassificationService {
       scope: key.scope,
       externalEventId: key.externalEventId,
       weights: [{ categoryId: choice.categoryId, weightPercent: 100 }],
-      projectId: choice.projectId,
     });
     return true;
   }
 }
 
 /** The person's own filings in view, named the way the options name them. */
-function filedExamples(
-  events: readonly ResolvedEvent[],
-  spheres: readonly { id: string; name: string }[],
-  open: readonly { id: string; name: string }[],
-): Example[] {
+function filedExamples(events: readonly ResolvedEvent[], spheres: readonly { id: string; name: string }[]): Example[] {
   const sphereName = new Map(spheres.map((sphere) => [sphere.id, sphere.name]));
-  const projectName = new Map(open.map((project) => [project.id, project.name]));
   return events.flatMap((event) => {
     if (!event.mapping) return [];
-    const project = event.mapping.projectId ? projectName.get(event.mapping.projectId) : undefined;
     const top = [...event.weights].sort((a, b) => b.weightPercent - a.weightPercent)[0];
     const sphere = top ? sphereName.get(top.categoryId) : undefined;
-    const filedAs = project ? `project ${project}` : sphere ? `${sphere} in general` : null;
-    return filedAs ? [{ title: event.title, filedAs }] : [];
+    return sphere ? [{ title: event.title, filedAs: sphere }] : [];
   });
 }
 

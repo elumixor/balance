@@ -6,12 +6,6 @@ const spheres = [
   { id: "work", name: "Work" },
   { id: "health", name: "Health" },
 ];
-const projects = [
-  { id: "atma", parentId: null, categoryId: "work", name: "ATMA", description: "" },
-  { id: "combat", parentId: "atma", categoryId: "work", name: "Combat", description: "  Melee system  " },
-  { id: "orphan", parentId: null, categoryId: "gone", name: "Orphan", description: "" },
-];
-
 function event(overrides: Partial<ResolvedEvent> = {}): ResolvedEvent {
   return {
     id: "e1",
@@ -46,40 +40,26 @@ function event(overrides: Partial<ResolvedEvent> = {}): ResolvedEvent {
 }
 
 describe("buildOptions", () => {
-  test("puts none first, then spheres, then projects with their path and sphere", () => {
-    const { criteria, choices } = buildOptions(spheres, projects);
-    expect(Object.keys(criteria)).toEqual([NONE, "s1", "s2", "p1", "p2"]);
-    expect(criteria.p2).toBe('Work on the project "ATMA › Combat" (part of Work): Melee system');
-    expect(choices.get("s2")).toEqual({ categoryId: "health", projectId: null });
-    expect(choices.get("p2")).toEqual({ categoryId: "work", projectId: "combat" });
-  });
-
-  test("drops a project whose sphere is not on the ring", () => {
-    const { choices } = buildOptions(spheres, projects);
-    expect([...choices.values()].some((choice) => choice.projectId === "orphan")).toBe(false);
-  });
-
-  test("survives a parent cycle and names an unnamed project", () => {
-    const loop = [
-      { id: "a", parentId: "b", categoryId: "work", name: "", description: "" },
-      { id: "b", parentId: "a", categoryId: "work", name: "B", description: "" },
-    ];
-    expect(buildOptions(spheres, loop).criteria.p1).toBe('Work on the project "B › Untitled" (part of Work)');
+  test("puts none first, then one option per sphere", () => {
+    const { criteria, choices } = buildOptions(spheres);
+    expect(Object.keys(criteria)).toEqual([NONE, "s1", "s2"]);
+    expect(criteria.s2).toBe('The "Health" part of life');
+    expect(choices.get("s2")).toEqual({ categoryId: "health" });
   });
 });
 
 describe("examplesFor", () => {
   const filed = [
-    { title: "Daily standup", filedAs: "project ATMA" },
-    { title: "Daily standup", filedAs: "project ATMA" },
-    { title: "Standup retro planning", filedAs: "Work in general" },
-    { title: "Gym", filedAs: "Health in general" },
+    { title: "Daily standup", filedAs: "Work" },
+    { title: "Daily standup", filedAs: "Work" },
+    { title: "Standup retro planning", filedAs: "Admin" },
+    { title: "Gym", filedAs: "Health" },
   ];
 
   test("ranks by shared words and drops repeats", () => {
     expect(examplesFor("Standup retro", filed)).toEqual([
-      { title: "Standup retro planning", filedAs: "Work in general" },
-      { title: "Daily standup", filedAs: "project ATMA" },
+      { title: "Standup retro planning", filedAs: "Admin" },
+      { title: "Daily standup", filedAs: "Work" },
     ]);
   });
 
@@ -94,11 +74,11 @@ describe("examplesFor", () => {
 });
 
 describe("judge", () => {
-  const { choices } = buildOptions(spheres, projects);
+  const { choices } = buildOptions(spheres);
 
   test("files a sure answer", () => {
-    expect(judge({ choice: "p1", probabilities: { p1: 0.9 } }, 0.8, choices)).toEqual({
-      choice: { categoryId: "work", projectId: "atma" },
+    expect(judge({ choice: "s1", probabilities: { s1: 0.9 } }, 0.8, choices)).toEqual({
+      choice: { categoryId: "work" },
       probability: 0.9,
       confidence: 0.8,
       filed: true,
@@ -116,7 +96,7 @@ describe("judge", () => {
       choice: null,
       filed: false,
     });
-    expect(judge({ choice: "p9", probabilities: { p9: 1 } }, 1, choices).filed).toBe(false);
+    expect(judge({ choice: "s9", probabilities: { s9: 1 } }, 1, choices).filed).toBe(false);
   });
 });
 

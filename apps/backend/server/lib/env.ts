@@ -23,10 +23,6 @@ const schema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1),
   GOOGLE_OAUTH_REDIRECT_URI: z.url(),
-  /** The Notion connection projects are mirrored through — OAuth, so nobody pastes a secret. */
-  NOTION_OAUTH_CLIENT_ID: z.string().min(1),
-  NOTION_OAUTH_CLIENT_SECRET: z.string().min(1),
-  NOTION_OAUTH_REDIRECT_URI: z.url(),
   /**
    * Zoom is the one integration a deployment can be without: these three say whether minting a
    * Zoom room is offered at all, so they are a feature's switch rather than its settings. Absent,

@@ -39,7 +39,7 @@ function keys() {
 }
 
 /**
- * Zoom's half of connecting. The same shape as Notion's, because it is the same problem: a
+ * Zoom's half of connecting. The same shape as the calendar's, because it is the same problem: a
  * consent screen the person actually sees, and an exchange that turns what comes back into a
  * grant this app can keep.
  */

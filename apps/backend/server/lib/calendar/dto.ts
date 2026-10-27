@@ -70,10 +70,10 @@ export class CalendarEventDTO {
   readonly activityId: string | null;
   readonly activityName: string | null;
   readonly weights: ActivityWeightDTO[];
-  /** What the hour was for — a project, a practice, a task — on top of what it counts as. */
-  readonly projectId: string | null;
+  /** What the hour was for — a practice — on top of what it counts as. */
   readonly practiceId: string | null;
-  readonly taskId: string | null;
+  /** The work it was for in another app, by URN — `keep:page/<id>` — or null. */
+  readonly urn: string | null;
   /** How a timer for it is broken up; null when it just runs to the end. */
   readonly timer: EventTimer | null;
   /** The integration feed this event is linked to — "apple-health:sleep" — or null. */
@@ -120,9 +120,8 @@ export class CalendarEventDTO {
     this.activityId = e.mapping?.activityId ?? null;
     this.activityName = e.mapping?.activityName ?? null;
     this.weights = e.weights.map((w) => ({ categoryId: w.categoryId, weightPercent: w.weightPercent }));
-    this.projectId = e.mapping?.projectId ?? null;
     this.practiceId = e.mapping?.practiceId ?? null;
-    this.taskId = e.mapping?.taskId ?? null;
+    this.urn = e.mapping?.urn ?? null;
     this.timer = e.mapping?.timer ?? null;
     this.source = e.mapping?.source ?? null;
     this.hidden = e.mapping?.hidden ?? null;
