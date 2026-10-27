@@ -1,8 +1,8 @@
 import BalanceCore
 import SwiftUI
 
-/// The list: today and what follows, events and to-dos together, all of it made and changed by
-/// typing. A row is retyped in place by tapping it; the field at the bottom adds anything.
+/// The list: today and what follows, all of it made and changed by typing. A row is retyped in
+/// place by tapping it; the field at the bottom adds anything.
 struct AgendaScreen: View {
     @Environment(Store.self) private var store
     @Environment(Router.self) private var router
@@ -25,10 +25,7 @@ struct AgendaScreen: View {
     private var sections: [AgendaSection] {
         let today = store.calendar.startOfDay(for: now)
         let end = store.calendar.date(byAdding: .day, value: AgendaModel.horizonDays, to: today)!
-        return AgendaModel.sections(
-            events: store.events(from: today, to: end), tasks: Array(store.tasks.values),
-            projects: store.projects, now: now, calendar: store.calendar, ticked: store.ticked
-        )
+        return AgendaModel.sections(events: store.events(from: today, to: end), now: now, calendar: store.calendar)
     }
 
     var body: some View {
@@ -44,9 +41,9 @@ struct AgendaScreen: View {
                         Section {
                             if !collapsed.contains(section.id) {
                                 let long = section.items.count > AgendaModel.preview + 2 && !expanded.contains(section.id)
-                                ForEach(long ? Array(section.items.prefix(AgendaModel.preview)) : section.items) { item in
-                                    row(item, in: section)
-                                        .id(item.id)
+                                ForEach(long ? Array(section.items.prefix(AgendaModel.preview)) : section.items, id: \.key) { event in
+                                    row(event, in: section)
+                                        .id(event.key)
                                 }
                                 if long {
                                     Button {
@@ -150,117 +147,85 @@ struct AgendaScreen: View {
     // MARK: Rows
 
     @ViewBuilder
-    private func row(_ item: AgendaItem, in section: AgendaSection) -> some View {
-        if editing == item.id {
-            editor(for: item)
+    private func row(_ event: CalendarEvent, in section: AgendaSection) -> some View {
+        if editing == event.key {
+            editor(for: event)
                 .listRowBackground(Color(.secondarySystemBackground))
         } else {
-            switch item {
-            case .event(let event):
-                EventRow(event: event, now: now, showDay: section.kind == .week || section.kind == .later)
-                    .contentShape(Rectangle())
-                    .onTapGesture { beginEdit(item) }
-                    .listRowBackground(flash == item.id ? Color.primary.opacity(0.06) : Color.clear)
-                    .swipeActions(edge: .trailing) {
-                        if event.movable {
-                            Button(role: .destructive) { Task { await store.delete(event) } } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .swipeActions(edge: .leading) {
-                        Button { router.open(event) } label: { Label("Details", systemImage: "info.circle") }
-                            .tint(.gray)
-                    }
-                    .contextMenu {
-                        Button { beginEdit(item) } label: { Label("Retype", systemImage: "character.cursor.ibeam") }
-                        Button { router.open(event) } label: { Label("Details", systemImage: "info.circle") }
-                        Button { router.show(day: event.start) } label: { Label("Show in calendar", systemImage: "calendar") }
-                        if event.movable {
-                            Button(role: .destructive) { Task { await store.delete(event) } } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-            case .task(let task):
-                TaskRow(task: task, showDay: section.kind != .today && section.kind != .tomorrow) {
-                    toggleDone(task)
-                }
+            EventRow(event: event, now: now, showDay: section.kind == .week || section.kind == .later)
                 .contentShape(Rectangle())
-                .onTapGesture { beginEdit(item) }
-                .listRowBackground(flash == item.id ? Color.primary.opacity(0.06) : Color.clear)
-                .swipeActions(edge: .leading) {
-                    Button { toggleDone(task) } label: {
-                        Label(task.isDone ? "Not done" : "Done", systemImage: task.isDone ? "arrow.uturn.backward" : "checkmark")
-                    }
-                    .tint(.green)
-                }
+                .onTapGesture { beginEdit(event) }
+                .listRowBackground(flash == event.key ? Color.primary.opacity(0.06) : Color.clear)
                 .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) { store.deleteTask(task) } label: { Label("Delete", systemImage: "trash") }
+                    if event.movable {
+                        Button(role: .destructive) { Task { await store.delete(event) } } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
+                .swipeActions(edge: .leading) {
+                    Button { router.open(event) } label: { Label("Details", systemImage: "info.circle") }
+                        .tint(.gray)
                 }
                 .contextMenu {
-                    Button { beginEdit(item) } label: { Label("Retype", systemImage: "character.cursor.ibeam") }
-                    Button { toggleDone(task) } label: { Label(task.isDone ? "Not done" : "Done", systemImage: "checkmark.circle") }
-                    Button(role: .destructive) { store.deleteTask(task) } label: { Label("Delete", systemImage: "trash") }
+                    Button { beginEdit(event) } label: { Label("Retype", systemImage: "character.cursor.ibeam") }
+                    Button { router.open(event) } label: { Label("Details", systemImage: "info.circle") }
+                    Button { router.show(day: event.start) } label: { Label("Show in calendar", systemImage: "calendar") }
+                    if event.movable {
+                        Button(role: .destructive) { Task { await store.delete(event) } } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
-            }
         }
     }
 
-    private func editor(for item: AgendaItem) -> some View {
+    private func editor(for event: CalendarEvent) -> some View {
         HStack(alignment: .top, spacing: 8) {
             LineEditor(
                 text: $editText, focused: $editFocused, placeholder: "Retype it", showPreview: false,
-                onSubmit: { commitEdit(item, $0) }, onCancel: { cancelEdit() }
+                onSubmit: { commitEdit(event, $0) }, onCancel: { cancelEdit() }
             )
-            if case .event(let event) = item {
-                Button { commitEdit(item, nil); router.open(event) } label: {
-                    Image(systemName: "info.circle").font(.title3)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
-                .accessibilityLabel("Details")
+            Button { commitEdit(event, nil); router.open(event) } label: {
+                Image(systemName: "info.circle").font(.title3)
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .padding(.top, 8)
+            .accessibilityLabel("Details")
         }
         .onChange(of: editFocused) { _, focused in
-            if !focused, editing == item.id { commitEdit(item, nil) }
+            if !focused, editing == event.key { commitEdit(event, nil) }
         }
     }
 
-    private func beginEdit(_ item: AgendaItem) {
-        if let editing, editing != item.id, let current = currentItem(editing) { commitEdit(current, nil) }
+    private func beginEdit(_ event: CalendarEvent) {
+        if let editing, editing != event.key, let current = currentEvent(editing) { commitEdit(current, nil) }
         // A trailing space, so whatever is typed next is a word of its own.
-        editText = LineActions.text(for: item, in: store) + " "
-        editing = item.id
+        editText = LineActions.text(for: event, in: store) + " "
+        editing = event.key
         editFocused = true
         UISelectionFeedbackGenerator().selectionChanged()
     }
 
-    private func currentItem(_ id: String) -> AgendaItem? {
-        sections.flatMap(\.items).first { $0.id == id }
+    private func currentEvent(_ key: String) -> CalendarEvent? {
+        sections.flatMap(\.items).first { $0.key == key }
     }
 
-    private func commitEdit(_ item: AgendaItem, _ submitted: TypedLine?) {
-        guard editing == item.id else { return }
-        let original = LineActions.text(for: item, in: store)
+    private func commitEdit(_ event: CalendarEvent, _ submitted: TypedLine?) {
+        guard editing == event.key else { return }
+        let original = LineActions.text(for: event, in: store)
         let text = editText
         editing = nil
         editFocused = false
         guard text.trimmingCharacters(in: .whitespaces) != original else { return }
         let line = submitted ?? LineReader.read(text, vocabulary: store.vocabulary)
-        Task { await LineActions.apply(line, to: item, in: store) }
+        Task { await LineActions.apply(line, to: event, in: store) }
     }
 
     private func cancelEdit() {
         editing = nil
         editFocused = false
-    }
-
-    private func toggleDone(_ task: TaskItem) {
-        let done = !task.isDone
-        withAnimation(.snappy) { store.setDone(task, done) }
-        if done { UINotificationFeedbackGenerator().notificationOccurred(.success) } else { UISelectionFeedbackGenerator().selectionChanged() }
     }
 
     private func toggle(_ id: String) {
@@ -275,7 +240,6 @@ struct AgendaScreen: View {
         HStack(alignment: .bottom, spacing: 10) {
             LineEditor(
                 text: $draft, focused: $composing, placeholder: "Add anything — gym 7pm 45m #health", revision: draftRevision,
-                defaultProject: LineActions.defaultProject(in: store),
                 onSubmit: { submit($0) }
             )
             Button { submit(LineReader.read(draft, vocabulary: store.vocabulary)) } label: {
@@ -283,7 +247,7 @@ struct AgendaScreen: View {
                     .font(.system(size: 30))
                     .symbolRenderingMode(.hierarchical)
             }
-            .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(LineReader.read(draft, vocabulary: store.vocabulary).intent == nil)
             .padding(.bottom, 4)
             .accessibilityIdentifier("addButton")
         }
@@ -295,15 +259,15 @@ struct AgendaScreen: View {
     }
 
     private func submit(_ line: TypedLine) {
-        guard !line.title.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        guard !line.title.trimmingCharacters(in: .whitespaces).isEmpty, line.intent != nil else { return }
         draft = ""
         draftRevision += 1
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         Task {
-            if let item = await LineActions.create(line, in: store) {
-                flash = item.id
+            if let event = await LineActions.create(line, in: store) {
+                flash = event.key
                 try? await Task.sleep(for: .seconds(1.2))
-                if flash == item.id { withAnimation(.smooth) { flash = nil } }
+                if flash == event.key { withAnimation(.smooth) { flash = nil } }
             }
         }
     }

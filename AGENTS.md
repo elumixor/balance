@@ -210,25 +210,24 @@ laptop.
 The iPhone app is native SwiftUI, not the web bundle: the webview drew a desktop calendar on a
 phone and never felt like one. It speaks the same API as every other client and holds no rules of
 its own about hours — what it adds is how things are made. Everything is typed, the way it is in
-puretype: `gym tomorrow 7am 45m #health` is a block on the calendar, `write notes @atma friday` is a
-to-do, and tapping a row turns it back into its line to be retyped. `BalanceCore` (in `BalanceKit`,
+puretype: `gym tomorrow 7am 45m #health` is a block on the calendar, and tapping a row turns it
+back into its line to be retyped. `BalanceCore` (in `BalanceKit`,
 Foundation only, `swift test`) owns that grammar: `LineReader` reads a line into a day, a time, a
-length, a sphere or activity (`#`), a project (`@`) and a repeat, with the UTF-16 ranges the field
-highlights; `LineWriter` writes an event or a to-do back as the line that would make it, and the
-tests hold the two to a round trip. A time makes an event, a project without one makes a to-do, a
-day alone an all-day block. `DayLayout` (lanes for overlapping blocks) and `Sleep` (the Health
+length, a sphere or activity (`#`) and a repeat, with the UTF-16 ranges the field highlights;
+`LineWriter` writes an event back as the line that would make it, and the tests hold the two to a
+round trip. A time makes an event, a day alone an all-day block, and a line with neither makes
+nothing. `DayLayout` (lanes for overlapping blocks) and `Sleep` (the Health
 night, a port of `integrations/sleep-*.ts` with the same cases) live there too.
 
 The app is three tabs over one `Store` (`Sources/Core/Store.swift`): the list (`Agenda/` —
-Today, Tomorrow, This week, Coming up, Someday, events and to-dos together, overdue to-dos heading
-Today), the calendar (`Calendar/` — a day, three days or a week per page, one vertical scroll so
+Today, Tomorrow, This week, Coming up), the calendar (`Calendar/` — a day, three days or a week per page, one vertical scroll so
 every page sits at the same hour, blocks held to move and held by their lower edge to stretch, an
 empty hour tapped to type a block into it), and Balance (the week's dial from `DialLayout`). An
 event's card (`Event/EventSheet.swift`) is a sheet at half height with its name, time, what it
-counts as, its project, place, call, guests, invitation answer, private notes and the Health night;
+counts as, the Keep page it links to (read-only, its `urn`), place, call, guests, invitation answer, private notes and the Health night;
 every change is written as it is made. The sitting (`Session/`) is the review screen and a plan
 bar on the calendar that commits the day. Screens never fetch: the store draws a write ahead and
-lets the answer correct it, syncs categories, activities, projects and to-dos through the same
+lets the answer correct it, pulls categories and activities through the same
 `POST /mobile/sync` the web client uses, fetches events a week at a time, and keeps the last good
 copy on disk so a launch opens on a week rather than a spinner. `Backend` is a protocol with the
 deployed API behind it and `FixtureBackend` beside it: `-fixtures` launches the app on a made-up

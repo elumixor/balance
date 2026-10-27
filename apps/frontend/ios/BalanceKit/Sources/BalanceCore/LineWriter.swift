@@ -1,6 +1,6 @@
 import Foundation
 
-/// The other direction: an event or a task written back as the line that would have made it.
+/// The other direction: an event written back as the line that would have made it.
 ///
 /// Editing a row is editing this text, so it has to read back through ``LineReader`` to the same
 /// thing — the tests hold the two to that. Days are said the way a person would say them relative
@@ -13,7 +13,7 @@ public enum LineWriter {
     }
 
     public static func event(
-        title: String, start: Date, end: Date, allDay: Bool, sphere: String? = nil, project: String? = nil,
+        title: String, start: Date, end: Date, allDay: Bool, sphere: String? = nil,
         now: Date = Date(), calendar: Calendar = .current, uses24h: Bool = true
     ) -> String {
         var parts = [title.trimmingCharacters(in: .whitespaces)]
@@ -26,14 +26,6 @@ public enum LineWriter {
             parts.append(range)
         }
         if let sphere { parts.append("#" + tag(sphere)) }
-        if let project { parts.append("@" + tag(project)) }
-        return parts.filter { !$0.isEmpty }.joined(separator: " ")
-    }
-
-    public static func task(title: String, day: Date?, project: String?, now: Date = Date(), calendar: Calendar = .current) -> String {
-        var parts = [title.trimmingCharacters(in: .whitespaces)]
-        if let day { parts.append(dayWord(day, now: now, calendar: calendar, force: true)) }
-        if let project { parts.append("@" + tag(project)) }
         return parts.filter { !$0.isEmpty }.joined(separator: " ")
     }
 

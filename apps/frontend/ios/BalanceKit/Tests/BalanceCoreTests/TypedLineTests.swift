@@ -13,8 +13,7 @@ final class TypedLineTests: XCTestCase {
 
     let vocabulary = Vocabulary(
         spheres: [.init(id: "health", name: "Health"), .init(id: "work", name: "Deep work"), .init(id: "rest", name: "Rest")],
-        activities: [.init(id: "gym", name: "Gym session")],
-        projects: [.init(id: "atma", name: "ATMA"), .init(id: "hyp", name: "Hypocrisy combat")]
+        activities: [.init(id: "gym", name: "Gym session")]
     )
 
     func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 0, _ min: Int = 0) -> Date {
@@ -86,7 +85,7 @@ final class TypedLineTests: XCTestCase {
         let line = read("buy 3 apples")
         XCTAssertEqual(line.title, "buy 3 apples")
         XCTAssertNil(line.time)
-        XCTAssertEqual(line.intent, .task(day: nil))
+        XCTAssertNil(line.intent)
     }
 
     func testAtWithoutTimeStaysInTitle() {
@@ -147,8 +146,8 @@ final class TypedLineTests: XCTestCase {
         assertEvent(line, date(2026, 10, 3), date(2026, 10, 4), allDay: true)
     }
 
-    func testAllDayBeatsAProject() {
-        let line = read("offsite @atma friday all day")
+    func testAllDay() {
+        let line = read("offsite friday all day")
         XCTAssertEqual(line.title, "offsite")
         assertEvent(line, date(2026, 10, 2), date(2026, 10, 3), allDay: true)
         assertEvent(read("holiday allday"), date(2026, 9, 30), date(2026, 10, 1), allDay: true)
@@ -205,7 +204,7 @@ final class TypedLineTests: XCTestCase {
         XCTAssertEqual(read("dinner for two 19:00").title, "dinner for two")
     }
 
-    // MARK: Spheres and projects
+    // MARK: Spheres
 
     func testSphereByPrefixAndSpacelessName() {
         XCTAssertEqual(read("x #hea").sphereId, "health")
@@ -213,7 +212,6 @@ final class TypedLineTests: XCTestCase {
         XCTAssertEqual(read("x #DeepWork").sphereId, "work")
         XCTAssertEqual(read("x #rest").sphereId, "rest")
         XCTAssertEqual(read("x #work").sphereId, "work")
-        XCTAssertEqual(read("x @combat").projectId, "hyp")
     }
 
     func testActivityIsASphereToken() {
@@ -229,25 +227,14 @@ final class TypedLineTests: XCTestCase {
         XCTAssertNil(line.sphereId)
     }
 
-    func testProjectMakesATask() {
-        let line = read("write combat notes @hyp")
-        XCTAssertEqual(line.projectId, "hyp")
-        XCTAssertEqual(line.title, "write combat notes")
-        XCTAssertEqual(line.intent, .task(day: nil))
-    }
-
-    func testProjectWithDayIsADatedTask() {
-        XCTAssertEqual(read("ship build @atma friday").intent, .task(day: date(2026, 10, 2)))
-    }
-
-    func testProjectWithTimeIsAnEventForThatProject() {
+    func testAtSignIsPlainText() {
         let line = read("ship build @atma friday 14:00 2h")
-        XCTAssertEqual(line.projectId, "atma")
+        XCTAssertEqual(line.title, "ship build @atma")
         assertEvent(line, date(2026, 10, 2, 14), date(2026, 10, 2, 16))
     }
 
-    func testPlainLineIsATask() {
-        XCTAssertEqual(read("buy milk").intent, .task(day: nil))
+    func testPlainLineHasNoIntent() {
+        XCTAssertNil(read("buy milk").intent)
     }
 
     func testEmptyLineHasNoIntent() {

@@ -1,7 +1,7 @@
 import BalanceKit
 import Foundation
 
-/// A whole account held in memory: a week of events, a few spheres, projects and tasks.
+/// A whole account held in memory: a week of events and a few spheres.
 ///
 /// It answers every call the way the API would, so the app launched with `-fixtures` is the real
 /// app on a made-up week — which is what the simulator smoke tests drive, and what a screenshot
@@ -10,8 +10,6 @@ import Foundation
 final class FixtureBackend: Backend {
     private var spheres: [Sphere]
     private var activities: [Activity]
-    private var projects: [Project]
-    private var tasks: [TaskItem]
     private var events: [CalendarEvent]
     private var clock: Double = 1
 
@@ -24,33 +22,21 @@ final class FixtureBackend: Backend {
             Sphere(id: "s-buffer", name: "Buffer", color: "#8A9097", icon: "circle", targetHoursPerWeek: 0, isBuffer: true),
         ]
         activities = [Activity(id: "a-gym", name: "Gym session", weights: [Weight(categoryId: "s-health", weightPercent: 100)])]
-        projects = [
-            Project(id: "p-atma", parentId: nil, categoryId: "s-work", name: "ATMA", icon: nil, status: "active", ordinal: 0),
-            Project(id: "p-home", parentId: nil, categoryId: "s-people", name: "Home", icon: nil, status: "active", ordinal: 1),
-        ]
         let today = calendar.startOfDay(for: now)
         func day(_ offset: Int) -> Date { calendar.date(byAdding: .day, value: offset, to: today)! }
         func at(_ offset: Int, _ h: Int, _ m: Int = 0) -> Date {
             calendar.date(bySettingHour: h, minute: m, second: 0, of: day(offset))!
         }
-        tasks = [
-            TaskItem(id: "t-1", projectId: "p-atma", stageId: nil, parentId: nil, title: "Write the combat notes", description: "",
-                     status: "todo", statusLabel: "", priority: nil, startsOn: nil, endsOn: DayString.string(day(0)),
-                     assigneeIds: [], estimateHours: nil, ordinal: 0, notionUrl: nil),
-            TaskItem(id: "t-2", projectId: "p-home", stageId: nil, parentId: nil, title: "Book the plumber", description: "",
-                     status: "todo", statusLabel: "", priority: nil, startsOn: nil, endsOn: nil,
-                     assigneeIds: [], estimateHours: nil, ordinal: 0, notionUrl: nil),
-        ]
         func event(
             _ id: String, _ title: String, _ start: Date, _ end: Date, sphere: String?, allDay: Bool = false,
-            invited: Bool = false, location: String? = nil, call: String? = nil
+            invited: Bool = false, location: String? = nil, call: String? = nil, urn: String? = nil
         ) -> CalendarEvent {
             CalendarEvent(
                 id: id, calendarId: "acc::primary", seriesId: nil, title: title, description: nil, start: start, end: end,
                 allDay: allDay, declined: false, tentative: false, readOnly: false, movable: !invited,
                 countsTowardHours: sphere != nil, url: nil, mappingScope: sphere == nil ? nil : "instance",
                 activityId: nil, activityName: nil,
-                weights: sphere.map { [Weight(categoryId: $0, weightPercent: 100)] } ?? [], projectId: nil, taskId: nil,
+                weights: sphere.map { [Weight(categoryId: $0, weightPercent: 100)] } ?? [], urn: urn,
                 endLocation: nil, notes: nil, location: location, conferenceUrl: call, conferenceName: call == nil ? nil : "Google Meet",
                 attendees: invited ? [
                     Attendee(email: "anna@example.com", name: "Anna", isSelf: false, response: "accepted", optional: false),
@@ -64,7 +50,7 @@ final class FixtureBackend: Backend {
         let h = min(max(calendar.component(.hour, from: now), 3), 19)
         events = [
             event("e-standup", "Standup", at(0, h), at(0, h, 30), sphere: "s-work", call: "https://meet.google.com/abc-defg-hij"),
-            event("e-focus", "Focus block", at(0, h + 1), at(0, h + 2, 30), sphere: "s-work"),
+            event("e-focus", "Focus block", at(0, h + 1), at(0, h + 2, 30), sphere: "s-work", urn: "keep:page/fixture-combat-notes"),
             event("e-lunch", "Lunch with Anna", at(0, h - 2), at(0, h - 1), sphere: nil, invited: true, location: "Café Riche"),
             event("e-gym", "Gym", at(0, h + 3), at(0, h + 4), sphere: "s-health"),
             event("e-review", "Design review", at(1, h), at(1, h + 1), sphere: "s-work"),
@@ -75,47 +61,14 @@ final class FixtureBackend: Backend {
     }
 
     func sync(_ request: SyncRequest) async throws -> SyncResponse {
-        var applied: [String] = []
-        var rejected: [SyncResponse.Rejected] = []
-        for m in request.mutations {
-            do {
-                try apply(m)
-                applied.append(m.mutationId)
-            } catch {
-                rejected.append(.init(mutationId: m.mutationId, reason: error.localizedDescription))
-            }
-        }
         clock += 1
         let stamp = clock
         func wrap<T>(_ items: [T], id: (T) -> String) -> [Envelope<T>] {
             items.map { Envelope(id: id($0), updatedAt: stamp, deleted: false, data: $0) }
         }
-        let changes = SyncResponse.Changes(
-            categories: wrap(spheres, id: \.id), activities: wrap(activities, id: \.id),
-            projects: wrap(projects, id: \.id), tasks: wrap(tasks, id: \.id)
-        )
-        let since = Dictionary(uniqueKeysWithValues: ["categories", "activities", "projects", "tasks"].map { ($0, stamp) })
-        return SyncResponse(changes: changes, since: since, applied: applied, rejected: rejected)
-    }
-
-    private func apply(_ m: Mutation) throws {
-        guard m.model == "tasks" else { return }
-        let decoder = JSONDecoder()
-        switch m.kind {
-        case "create":
-            let data = try JSONEncoder().encode(m.data)
-            tasks.append(try decoder.decode(TaskItem.self, from: data))
-        case "update":
-            guard let index = tasks.firstIndex(where: { $0.id == m.id }) else { throw BackendError.server("That task no longer exists.", status: 404) }
-            var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(tasks[index])) as! [String: Any]
-            let patch = try JSONSerialization.jsonObject(with: JSONEncoder().encode(m.patch)) as! [String: Any]
-            for (key, value) in patch { object[key] = value }
-            tasks[index] = try decoder.decode(TaskItem.self, from: JSONSerialization.data(withJSONObject: object))
-        case "delete":
-            tasks.removeAll { $0.id == m.id }
-        default:
-            break
-        }
+        let changes = SyncResponse.Changes(categories: wrap(spheres, id: \.id), activities: wrap(activities, id: \.id))
+        let since = Dictionary(uniqueKeysWithValues: ["categories", "activities"].map { ($0, stamp) })
+        return SyncResponse(changes: changes, since: since)
     }
 
     func events(from: Date, to: Date) async throws -> EventsPage {
@@ -144,13 +97,13 @@ final class FixtureBackend: Backend {
         if case .string(let t)? = body["title"] { title = t }
         var allDay = false
         if case .bool(let a)? = body["allDay"] { allDay = a }
-        var projectId: String?
-        if case .string(let p)? = body["projectId"] { projectId = p }
+        var urn: String?
+        if case .string(let u)? = body["urn"] { urn = u }
         let event = CalendarEvent(
             id: "e-\(UUID().uuidString.prefix(8).lowercased())", calendarId: "acc::primary", seriesId: nil, title: title,
             description: nil, start: start, end: end, allDay: allDay, declined: false, tentative: false, readOnly: false,
             movable: true, countsTowardHours: !weights.isEmpty, url: nil, mappingScope: weights.isEmpty ? nil : "instance",
-            activityId: nil, activityName: nil, weights: weights, projectId: projectId, taskId: nil, endLocation: nil, notes: nil,
+            activityId: nil, activityName: nil, weights: weights, urn: urn, endLocation: nil, notes: nil,
             location: nil, conferenceUrl: nil, conferenceName: nil, attendees: [], organizer: nil, invited: false,
             response: nil, reminders: [], timeZone: nil, recurrence: nil
         )
@@ -202,8 +155,8 @@ final class FixtureBackend: Backend {
             events[index].activityId = a
             events[index].activityName = activity.name
         }
-        if let p = body["projectId"] {
-            if case .string(let v) = p { events[index].projectId = v } else { events[index].projectId = nil }
+        if let u = body["urn"] {
+            if case .string(let v) = u { events[index].urn = v } else { events[index].urn = nil }
         }
         if let n = body["notes"] {
             if case .string(let v) = n { events[index].notes = v } else { events[index].notes = nil }

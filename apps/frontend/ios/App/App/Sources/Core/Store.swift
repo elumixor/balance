@@ -21,8 +21,6 @@ final class Store {
 
     private(set) var spheres: [String: Sphere] = [:]
     private(set) var activities: [String: Activity] = [:]
-    private(set) var projects: [String: Project] = [:]
-    private(set) var tasks: [String: TaskItem] = [:]
     /// Events by the Monday their week starts on — the unit they are fetched and cached in.
     private(set) var weeks: [Date: [CalendarEvent]] = [:]
     private var fetchedAt: [Date: Date] = [:]
@@ -64,16 +62,11 @@ final class Store {
 
     var bufferSphere: Sphere? { spheres.values.first { $0.isBuffer } }
 
-    var activeProjects: [Project] {
-        projects.values.filter(\.isActive).sorted { ($0.ordinal, $0.name) < ($1.ordinal, $1.name) }
-    }
-
     var vocabulary: Vocabulary {
         Vocabulary(
             // The buffer is offered last, but it is a sphere a line can name like any other.
             spheres: (sphereList + [bufferSphere].compactMap { $0 }).map { .init(id: $0.id, name: $0.name) },
-            activities: activities.values.sorted { $0.name < $1.name }.map { .init(id: $0.id, name: $0.name) },
-            projects: activeProjects.map { .init(id: $0.id, name: $0.name) }
+            activities: activities.values.sorted { $0.name < $1.name }.map { .init(id: $0.id, name: $0.name) }
         )
     }
 
@@ -162,40 +155,20 @@ final class Store {
 
     // MARK: Synced records
 
-    private var outbox: [Mutation] = []
     private var syncing = false
-    private var syncAgain = false
 
-    /// One round trip: the writes not yet acknowledged go up, everything that changed comes back.
+    /// One round trip: everything that changed since the last one comes back.
     func syncRecords() async {
-        if syncing {
-            syncAgain = true
-            return
-        }
+        guard !syncing else { return }
         syncing = true
         defer { syncing = false }
-        repeat {
-            syncAgain = false
-            let sending = outbox
-            do {
-                let answer = try await backend.sync(SyncRequest(since: since, mutations: sending))
-                let done = Set(answer.applied + answer.rejected.map(\.mutationId))
-                outbox.removeAll { done.contains($0.mutationId) }
-                merge(answer)
-                for rejected in answer.rejected {
-                    problems.append(Problem(title: "A change didn't save", detail: rejected.reason))
-                }
-                // A refused write was drawn ahead; forgetting it and pulling everything again
-                // is the whole of undoing it.
-                if !answer.rejected.isEmpty {
-                    since = [:]
-                    syncAgain = true
-                }
-            } catch {
-                report(error, "Couldn't reach Balance")
-                return
-            }
-        } while syncAgain
+        do {
+            let answer = try await backend.sync(SyncRequest(since: since))
+            merge(answer)
+        } catch {
+            report(error, "Couldn't reach Balance")
+            return
+        }
         persist()
     }
 
@@ -207,73 +180,7 @@ final class Store {
         }
         apply(answer.changes.categories, into: &spheres)
         apply(answer.changes.activities, into: &activities)
-        apply(answer.changes.projects, into: &projects)
-        apply(answer.changes.tasks, into: &tasks)
-        // Replay what is still waiting, so a pull landing mid-edit can't undo the edit on screen.
-        for mutation in outbox where mutation.model == "tasks" { replay(mutation) }
         since.merge(answer.since) { _, new in new }
-    }
-
-    private func replay(_ mutation: Mutation) {
-        switch mutation.kind {
-        case "create":
-            if let data = mutation.data, let task = decode(TaskItem.self, data) { tasks[task.id] = task }
-        case "update":
-            guard let task = tasks[mutation.id], let patch = mutation.patch else { return }
-            if let merged = patched(task, patch) { tasks[task.id] = merged }
-        case "delete":
-            tasks[mutation.id] = nil
-        default: break
-        }
-    }
-
-    private func decode<T: Decodable>(_ type: T.Type, _ json: JSON) -> T? {
-        guard let data = try? JSONEncoder().encode(json) else { return nil }
-        return try? JSONDecoder().decode(type, from: data)
-    }
-
-    private func patched(_ task: TaskItem, _ patch: JSON) -> TaskItem? {
-        guard case .object(var base) = JSON.encode(task), case .object(let changes) = patch else { return nil }
-        for (key, value) in changes { base[key] = value }
-        return decode(TaskItem.self, .object(base))
-    }
-
-    private func enqueue(_ mutation: Mutation) {
-        outbox.append(mutation)
-        replay(mutation)
-        Task { await syncRecords() }
-    }
-
-    // MARK: Tasks
-
-    @discardableResult
-    func createTask(title: String, projectId: String, day: Date?) -> TaskItem {
-        let siblings = tasks.values.filter { $0.projectId == projectId && $0.parentId == nil }
-        let task = TaskItem(
-            id: UUID().uuidString.lowercased(), projectId: projectId, stageId: nil, parentId: nil, title: title,
-            description: "", status: "todo", statusLabel: "", priority: nil,
-            startsOn: nil, endsOn: day.map(DayString.string), assigneeIds: [], estimateHours: nil,
-            ordinal: siblings.count, notionUrl: nil
-        )
-        enqueue(Mutation(mutationId: UUID().uuidString, kind: "create", model: "tasks", id: task.id, data: JSON.encode(task)))
-        Telemetry.event("task_created", ["from": "typed"])
-        return task
-    }
-
-    func updateTask(_ id: String, _ patch: [String: JSON]) {
-        enqueue(Mutation(mutationId: UUID().uuidString, kind: "update", model: "tasks", id: id, patch: .object(patch)))
-    }
-
-    /// To-dos ticked off since launch stay in the list, crossed out, so a mis-tap can be undone.
-    private(set) var ticked: Set<String> = []
-
-    func setDone(_ task: TaskItem, _ done: Bool) {
-        if done { ticked.insert(task.id) }
-        updateTask(task.id, ["status": .string(done ? "done" : "todo"), "statusLabel": .string("")])
-    }
-
-    func deleteTask(_ task: TaskItem) {
-        enqueue(Mutation(mutationId: UUID().uuidString, kind: "delete", model: "tasks", id: task.id))
     }
 
     // MARK: Events
@@ -301,7 +208,7 @@ final class Store {
         var allDay = false
         var sphereId: String?
         var activityId: String?
-        var projectId: String?
+        var urn: String?
         var recurrence: String?
     }
 
@@ -311,14 +218,14 @@ final class Store {
         var weights: [Weight] = []
         if let activity = new.activityId.flatMap({ activities[$0] }) {
             weights = activity.weights
-        } else if let sphere = new.sphereId ?? new.projectId.flatMap({ projects[$0]?.categoryId }) {
+        } else if let sphere = new.sphereId {
             weights = [Weight(categoryId: sphere, weightPercent: 100)]
         }
         let draft = CalendarEvent(
             id: "draft-\(UUID().uuidString)", calendarId: writeCalendarId ?? "", seriesId: nil, title: new.title,
             description: nil, start: new.start, end: new.end, allDay: new.allDay, declined: false, tentative: false,
             readOnly: false, movable: false, countsTowardHours: !weights.isEmpty, url: nil, mappingScope: nil,
-            activityId: new.activityId, activityName: nil, weights: weights, projectId: new.projectId, taskId: nil,
+            activityId: new.activityId, activityName: nil, weights: weights, urn: new.urn,
             endLocation: nil, notes: nil, location: nil, conferenceUrl: nil, conferenceName: nil, attendees: [],
             organizer: nil, invited: false, response: nil, reminders: [], timeZone: nil, recurrence: nil
         )
@@ -333,7 +240,7 @@ final class Store {
         } else if !weights.isEmpty {
             body["weights"] = .array(weights.map { .object(["categoryId": .string($0.categoryId), "weightPercent": .number(Double($0.weightPercent))]) })
         }
-        if let projectId = new.projectId { body["projectId"] = .string(projectId) }
+        if let urn = new.urn { body["urn"] = .string(urn) }
         do {
             var created = try await backend.createEvent(body)
             if let rule = new.recurrence {
@@ -422,9 +329,9 @@ final class Store {
         }
     }
 
-    /// What an hour counts as, or what it was for. `fields` are the mapping's own: `activityId`,
-    /// `weights`, `projectId`, `notes`. A block that counts as nothing is first made to count as
-    /// the project's sphere or the buffer, the same rule the web card follows.
+    /// What an hour counts as. `fields` are the mapping's own: `activityId`, `weights`, `notes`.
+    /// A block that counts as nothing is first made to count as the buffer, the same rule the web
+    /// card follows.
     func map(_ event: CalendarEvent, _ fields: [String: JSON], draw: (inout CalendarEvent) -> Void) async {
         var drawn = event
         draw(&drawn)
@@ -434,16 +341,10 @@ final class Store {
         body["calendarId"] = .string(event.calendarId)
         body["externalEventId"] = .string(scope == "series" ? (event.seriesId ?? event.id) : event.id)
         body["scope"] = .string(scope)
-        if fields["weights"] == nil, fields["activityId"] == nil, event.weights.isEmpty {
-            let projectSphere: String? = {
-                if case .string(let id)? = fields["projectId"] { return projects[id]?.categoryId }
-                return nil
-            }()
-            if let sphere = projectSphere ?? bufferSphere?.id {
-                body["weights"] = .array([.object(["categoryId": .string(sphere), "weightPercent": .number(100)])])
-                drawn.weights = [Weight(categoryId: sphere, weightPercent: 100)]
-                put(drawn, replacing: drawn.key)
-            }
+        if fields["weights"] == nil, fields["activityId"] == nil, event.weights.isEmpty, let sphere = bufferSphere?.id {
+            body["weights"] = .array([.object(["categoryId": .string(sphere), "weightPercent": .number(100)])])
+            drawn.weights = [Weight(categoryId: sphere, weightPercent: 100)]
+            put(drawn, replacing: drawn.key)
         }
         do {
             try await backend.setMapping(body)
@@ -588,8 +489,6 @@ final class Store {
     private struct Snapshot: Codable {
         var spheres: [Sphere]
         var activities: [Activity]
-        var projects: [Project]
-        var tasks: [TaskItem]
         var events: [CalendarEvent]
         var since: [String: Double]
         var writeCalendarId: String?
@@ -607,8 +506,6 @@ final class Store {
         else { return }
         spheres = Dictionary(uniqueKeysWithValues: snapshot.spheres.map { ($0.id, $0) })
         activities = Dictionary(uniqueKeysWithValues: snapshot.activities.map { ($0.id, $0) })
-        projects = Dictionary(uniqueKeysWithValues: snapshot.projects.map { ($0.id, $0) })
-        tasks = Dictionary(uniqueKeysWithValues: snapshot.tasks.map { ($0.id, $0) })
         since = snapshot.since
         writeCalendarId = snapshot.writeCalendarId
         for event in snapshot.events { put(event) }
@@ -620,8 +517,7 @@ final class Store {
         guard let url = snapshotURL else { return }
         let today = Date()
         let snapshot = Snapshot(
-            spheres: Array(spheres.values), activities: Array(activities.values), projects: Array(projects.values),
-            tasks: Array(tasks.values),
+            spheres: Array(spheres.values), activities: Array(activities.values),
             events: events(from: calendar.date(byAdding: .day, value: -14, to: today)!, to: calendar.date(byAdding: .day, value: 21, to: today)!)
                 .filter { !$0.id.hasPrefix("draft-") },
             since: since, writeCalendarId: writeCalendarId
@@ -640,12 +536,9 @@ final class Store {
     func wipe() {
         spheres = [:]
         activities = [:]
-        projects = [:]
-        tasks = [:]
         weeks = [:]
         fetchedAt = [:]
         since = [:]
-        outbox = []
         profile = nil
         loadedOnce = false
         if let url = snapshotURL { try? FileManager.default.removeItem(at: url) }

@@ -282,7 +282,7 @@ struct BlockMenu: View {
                     await store.createEvent(.init(
                         title: event.title, start: event.end, end: event.end.addingTimeInterval(length),
                         sphereId: event.activityId == nil ? store.sphere(of: event)?.id : nil,
-                        activityId: event.activityId, projectId: event.projectId
+                        activityId: event.activityId, urn: event.urn
                     ))
                 }
             } label: { Label("Duplicate after", systemImage: "plus.square.on.square") }

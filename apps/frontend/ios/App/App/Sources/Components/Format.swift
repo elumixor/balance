@@ -41,9 +41,7 @@ enum Format {
                 return days > 1 ? "\(day(start)) · \(days) days" : "\(day(start)) · all day"
             }
             return "\(day(start)), \(range(start, end))"
-        case .task(let day?):
-            return self.day(day)
-        default:
+        case nil:
             return nil
         }
     }

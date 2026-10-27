@@ -29,18 +29,10 @@ protocol Backend: AnyObject {
 
 // MARK: - Sync protocol (`@elumixor/synced`)
 
-struct Mutation: Encodable {
-    let mutationId: String
-    let kind: String
-    let model: String
-    let id: String
-    var data: JSON?
-    var patch: JSON?
-}
-
+/// The phone only reads the synced records, so a sync carries no writes.
 struct SyncRequest: Encodable {
     let since: [String: Double]
-    let mutations: [Mutation]
+    let mutations: [JSON] = []
 }
 
 struct Envelope<T: Decodable>: Decodable {
@@ -54,17 +46,9 @@ struct SyncResponse: Decodable {
     struct Changes: Decodable {
         var categories: [Envelope<Sphere>]?
         var activities: [Envelope<Activity>]?
-        var projects: [Envelope<Project>]?
-        var tasks: [Envelope<TaskItem>]?
-    }
-    struct Rejected: Decodable {
-        let mutationId: String
-        let reason: String
     }
     let changes: Changes
     let since: [String: Double]
-    let applied: [String]
-    let rejected: [Rejected]
 }
 
 // MARK: - The deployed API
@@ -137,7 +121,7 @@ final class LiveBackend: Backend {
             }
             request.httpBody = try encoder.encode(body)
         }
-        // A read, or a sync whose writes carry their own ids, is safe to send twice.
+        // A read, or a sync that carries no writes, is safe to send twice.
         let (data, response) = try await send(request, retrying: method == "GET" || path == "/mobile/sync")
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {

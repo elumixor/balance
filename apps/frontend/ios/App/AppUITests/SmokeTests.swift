@@ -34,7 +34,6 @@ final class SmokeTests: XCTestCase {
     func testTodayListShowsTheWeek() {
         XCTAssertTrue(element("event-Standup").waitForExistence(timeout: 10))
         XCTAssertTrue(element("event-Gym").exists)
-        XCTAssertTrue(element("task-Write the combat notes").exists)
         XCTAssertTrue(element("section-today").exists)
         XCTAssertTrue(element("section-tomorrow").exists)
     }
@@ -46,17 +45,6 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(element("linePreview").waitForExistence(timeout: 3))
         field.typeText("\n")
         XCTAssertTrue(element("event-Pitch rehearsal").waitForExistence(timeout: 5))
-    }
-
-    func testTypingALineMakesATaskAndTickingItOff() {
-        XCTAssertTrue(field.waitForExistence(timeout: 10))
-        field.tap()
-        field.typeText("Buy paint @home\n")
-        XCTAssertTrue(element("task-Buy paint").waitForExistence(timeout: 5))
-        let check = element("check-Buy paint")
-        XCTAssertTrue(check.exists)
-        check.tap()
-        XCTAssertTrue(app.buttons["Mark not done"].waitForExistence(timeout: 3))
     }
 
     func testSuggestionsCompleteASphere() {

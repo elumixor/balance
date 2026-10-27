@@ -14,10 +14,7 @@ final class LineWriterTests: XCTestCase {
         calendar.date(from: DateComponents(year: y, month: m, day: d, hour: h, minute: min))!
     }
 
-    let vocabulary = Vocabulary(
-        spheres: [.init(id: "work", name: "Deep work")],
-        projects: [.init(id: "hyp", name: "Hypocrisy combat")]
-    )
+    let vocabulary = Vocabulary(spheres: [.init(id: "work", name: "Deep work")])
 
     func testTodayIsLeftOutOfATimedLine() {
         let text = LineWriter.event(title: "Standup", start: date(2026, 9, 30, 9, 30), end: date(2026, 9, 30, 10), allDay: false, now: now, calendar: calendar)
@@ -59,22 +56,13 @@ final class LineWriterTests: XCTestCase {
             for (start, end, allDay) in cases {
                 let text = LineWriter.event(
                     title: "Plan the week", start: start, end: end, allDay: allDay, sphere: "Deep work",
-                    project: "Hypocrisy combat", now: now, calendar: calendar, uses24h: uses24h
+                    now: now, calendar: calendar, uses24h: uses24h
                 )
                 let line = LineReader.read(text, vocabulary: vocabulary, now: now, calendar: calendar)
                 XCTAssertEqual(line.title, "Plan the week", text)
                 XCTAssertEqual(line.sphereId, "work", text)
-                XCTAssertEqual(line.projectId, "hyp", text)
                 XCTAssertEqual(line.intent, .event(start: start, end: end, allDay: allDay), text)
             }
         }
-    }
-
-    func testTaskRoundTrip() {
-        let text = LineWriter.task(title: "Write notes", day: date(2026, 10, 2), project: "Hypocrisy combat", now: now, calendar: calendar)
-        XCTAssertEqual(text, "Write notes friday @HypocrisyCombat")
-        let line = LineReader.read(text, vocabulary: vocabulary, now: now, calendar: calendar)
-        XCTAssertEqual(line.intent, .task(day: date(2026, 10, 2)))
-        XCTAssertEqual(line.title, "Write notes")
     }
 }

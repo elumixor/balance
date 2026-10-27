@@ -2,10 +2,10 @@ import Foundation
 
 /// What the bar above the keyboard offers for the word under the caret.
 ///
-/// A `#` offers spheres and activities, an `@` offers projects, and the start of a day or a time
+/// A `#` offers spheres and activities, and the start of a day or a time
 /// offers the finished word — so nobody has to remember how a token is spelled, only start it.
 public struct Suggestion: Equatable, Sendable, Identifiable {
-    public enum Kind: Equatable, Sendable { case sphere, activity, project, date, time, duration }
+    public enum Kind: Equatable, Sendable { case sphere, activity, date, time, duration }
 
     public let kind: Kind
     /// What the word under the caret is replaced with (a trailing space is added on insert).
@@ -47,12 +47,6 @@ public enum Suggest {
             let activities = vocabulary.activities.filter { matches($0.name, key) }
                 .map { Suggestion(kind: .activity, insert: "#" + LineWriter.tag($0.name), label: $0.name, refId: $0.id) }
             return Array((spheres + activities).prefix(limit))
-        }
-        if word.hasPrefix("@") {
-            let key = Vocabulary.key(String(word.dropFirst()))
-            return Array(vocabulary.projects.filter { matches($0.name, key) }
-                .map { Suggestion(kind: .project, insert: "@" + LineWriter.tag($0.name), label: $0.name, refId: $0.id) }
-                .prefix(limit))
         }
         let lower = word.lowercased()
         guard lower.count >= 2 else { return [] }

@@ -11,8 +11,6 @@ struct LineEditor: View {
     /// Bumped by the owner when it sets `text` itself, as clearing it after a submit does.
     var revision = 0
     var showPreview = true
-    /// Where a task goes when the line names no project.
-    var defaultProject: Project?
     var onSubmit: (TypedLine) -> Void
     var onCancel: (() -> Void)?
 
@@ -35,7 +33,7 @@ struct LineEditor: View {
                 onSubmit: { current in onSubmit(LineReader.read(current, vocabulary: store.vocabulary)) }, onEscape: onCancel
             )
             if showPreview, !text.trimmingCharacters(in: .whitespaces).isEmpty {
-                LinePreview(line: line, defaultProject: defaultProject)
+                LinePreview(line: line)
                     .transition(.opacity)
             }
         }
@@ -49,11 +47,6 @@ struct LineEditor: View {
             if let ref = token.refId, let activity = store.activities[ref],
                let first = activity.weights.max(by: { $0.weightPercent < $1.weightPercent }),
                let sphere = store.spheres[first.categoryId] { return UIColor(sphere.tint) }
-            return nil
-        case .project:
-            if let ref = token.refId, let project = store.projects[ref], let sphere = store.spheres[project.categoryId] {
-                return UIColor(sphere.tint)
-            }
             return nil
         default:
             return nil
@@ -111,8 +104,6 @@ struct SuggestionBar: View {
             Circle().fill(item.refId.flatMap { spheres[$0]?.tint } ?? .gray).frame(width: 8, height: 8)
         case .activity:
             Image(systemName: "square.stack").font(.caption)
-        case .project:
-            Image(systemName: "folder").font(.caption)
         case .date, .time, .duration:
             Image(systemName: "calendar").font(.caption)
         }
@@ -123,7 +114,6 @@ struct SuggestionBar: View {
 struct LinePreview: View {
     @Environment(Store.self) private var store
     let line: TypedLine
-    let defaultProject: Project?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -149,21 +139,15 @@ struct LinePreview: View {
            let top = activity.weights.max(by: { $0.weightPercent < $1.weightPercent }) {
             return store.spheres[top.categoryId]
         }
-        if let id = line.projectId, let project = store.projects[id] { return store.spheres[project.categoryId] }
         return nil
     }
 
-    private var ok: Bool {
-        if line.title.isEmpty { return false }
-        if case .task = line.intent { return line.projectId != nil || defaultProject != nil }
-        return line.intent != nil
-    }
+    private var ok: Bool { !line.title.isEmpty && line.intent != nil }
 
     private var symbol: String {
         switch line.intent {
         case .event(_, _, true): return "sun.max"
         case .event: return "calendar"
-        case .task: return "checkmark.circle"
         case nil: return "text.cursor"
         }
     }
@@ -173,12 +157,8 @@ struct LinePreview: View {
         switch line.intent {
         case .event:
             return Format.when(line) ?? ""
-        case .task(let day):
-            let project = line.projectId.flatMap { store.projects[$0] } ?? defaultProject
-            guard let project else { return "Add a time for an event, or @project for a to-do" }
-            return ["To-do in \(project.name)", day.map { Format.day($0) }].compactMap { $0 }.joined(separator: " · ")
         case nil:
-            return ""
+            return "Add a day or a time"
         }
     }
 }

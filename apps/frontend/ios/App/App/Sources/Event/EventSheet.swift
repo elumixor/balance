@@ -80,7 +80,7 @@ struct EventSheet: View {
             Section("Counts as") {
                 SpherePicker(event: event)
                     .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
-                projectRow(event)
+                if let urn = event.urn { linkRow(urn, url: event.keepURL) }
             }
 
             Section("When") { timeRows(event) }
@@ -218,23 +218,24 @@ struct EventSheet: View {
         }
     }
 
-    private func projectRow(_ event: CalendarEvent) -> some View {
-        Menu {
-            Button("None") { setProject(event, nil) }
-            ForEach(store.activeProjects) { project in
-                Button(project.name) { setProject(event, project.id) }
-            }
-        } label: {
-            HStack {
-                Label("Project", systemImage: "folder")
-                Spacer()
-                Text(event.projectId.flatMap { store.projects[$0]?.name } ?? "None")
-                    .foregroundStyle(.secondary)
-                Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.tertiary)
-            }
+    /// What the block is for in another app. Read-only: the link is made where the page lives.
+    @ViewBuilder
+    private func linkRow(_ urn: String, url: URL?) -> some View {
+        let row = HStack {
+            Label("Linked", systemImage: "link")
+            Spacer()
+            Text(urn)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
-        .tint(.primary)
-        .accessibilityIdentifier("projectMenu")
+        if let url {
+            Link(destination: url) { row }
+                .tint(.primary)
+                .accessibilityIdentifier("urnLink")
+        } else {
+            row
+        }
     }
 
     @ViewBuilder
@@ -428,10 +429,6 @@ struct EventSheet: View {
         }
         if focus == .title { commitTitle(event) }
         if focus == .location { commitLocation(event) }
-    }
-
-    private func setProject(_ event: CalendarEvent, _ id: String?) {
-        Task { await store.map(event, ["projectId": .from(id)]) { $0.projectId = id } }
     }
 
     private func delete(_ event: CalendarEvent, _ scope: Store.SeriesScope) {

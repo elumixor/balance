@@ -27,41 +27,6 @@ struct Activity: Codable, Identifiable, Hashable {
     var weights: [Weight]
 }
 
-struct Project: Codable, Identifiable, Hashable {
-    let id: String
-    var parentId: String?
-    var categoryId: String
-    var name: String
-    var icon: String?
-    var status: String
-    var ordinal: Int
-
-    var isActive: Bool { status == "active" }
-}
-
-/// A to-do under a project. Days are `YYYY-MM-DD`, read in the device's own zone.
-struct TaskItem: Codable, Identifiable, Hashable {
-    let id: String
-    var projectId: String
-    var stageId: String?
-    var parentId: String?
-    var title: String
-    var description: String
-    var status: String
-    var statusLabel: String
-    var priority: String?
-    var startsOn: String?
-    var endsOn: String?
-    var assigneeIds: [String]
-    var estimateHours: Double?
-    var ordinal: Int
-    var notionUrl: String?
-
-    var isDone: Bool { status == "done" || status == "dropped" }
-    /// The day it is due by — its end when it has one, its start otherwise.
-    var day: Date? { (endsOn ?? startsOn).flatMap(DayString.date) }
-}
-
 struct Attendee: Codable, Hashable {
     let email: String?
     let name: String?
@@ -102,8 +67,8 @@ struct CalendarEvent: Codable, Identifiable, Hashable {
     var activityId: String?
     var activityName: String?
     var weights: [Weight]
-    var projectId: String?
-    var taskId: String?
+    /// What the block is for in another app — `keep:page/<id>` for a page in Keep.
+    var urn: String?
     var endLocation: String?
     var notes: String?
     var location: String?
@@ -124,6 +89,15 @@ struct CalendarEvent: Codable, Identifiable, Hashable {
     var key: String { "\(calendarId)|\(id)" }
     var isRepeating: Bool { seriesId != nil }
     var durationMinutes: Int { Int(end.timeIntervalSince(start) / 60) }
+
+    /// The Keep page the block points at, when its urn names one.
+    var keepURL: URL? {
+        guard let urn, urn.hasPrefix(Self.keepPagePrefix) else { return nil }
+        return URL(string: Self.keepEmbedBase + urn.dropFirst(Self.keepPagePrefix.count))
+    }
+
+    static let keepPagePrefix = "keep:page/"
+    static let keepEmbedBase = "https://keep.atmagaming.com/embed/page/"
 
     /// The sphere its hours mostly go to: the heaviest weight that isn't the buffer.
     func sphere(in spheres: [String: Sphere]) -> Sphere? {
@@ -162,7 +136,7 @@ struct EventsPage: Codable {
     let events: [CalendarEvent]
 }
 
-/// `YYYY-MM-DD` in the device's own calendar, which is what a task's days are.
+/// `YYYY-MM-DD` in the device's own calendar, which is what the sitting's days are.
 enum DayString {
     private static let formatter: DateFormatter = {
         let f = DateFormatter()

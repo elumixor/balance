@@ -74,7 +74,7 @@ struct QuickCreateSheet: View {
         Task {
             await store.createEvent(.init(
                 title: title, start: slot.start, end: slot.end, allDay: slot.allDay, sphereId: line.sphereId,
-                activityId: line.activityId, projectId: line.projectId, recurrence: line.recurrence
+                activityId: line.activityId, recurrence: line.recurrence
             ))
         }
     }

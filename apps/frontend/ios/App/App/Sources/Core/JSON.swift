@@ -1,7 +1,7 @@
 import Foundation
 
 /// A JSON value written out by hand, for the bodies whose absent and `null` fields mean different
-/// things — "leave the project alone" and "clear the project" — which a synthesized `Encodable`
+/// things — "leave the link alone" and "clear the link" — which a synthesized `Encodable`
 /// cannot tell apart.
 enum JSON: Codable, Hashable {
     case null
@@ -50,14 +50,6 @@ enum JSON: Codable, Hashable {
 
     static func from(_ string: String?) -> JSON { string.map(JSON.string) ?? .null }
     static func from(_ number: Double?) -> JSON { number.map(JSON.number) ?? .null }
-
-    /// Any `Encodable` as a JSON tree, by way of the encoder — used for a whole synced record.
-    static func encode<T: Encodable>(_ value: T) -> JSON {
-        guard let data = try? JSONEncoder().encode(value),
-              let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
-        else { return .null }
-        return fromAny(object)
-    }
 
     private static func fromAny(_ value: Any) -> JSON {
         switch value {

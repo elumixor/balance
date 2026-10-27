@@ -8,7 +8,7 @@ import Foundation
 /// a view is, so every rule about what a word means is tested on its own.
 public struct TypedLine: Equatable, Sendable {
     public enum TokenKind: String, Equatable, Sendable {
-        case date, time, duration, sphere, project, repeats
+        case date, time, duration, sphere, repeats
     }
 
     /// One recognised stretch of the line, for highlighting it where it was typed.
@@ -16,7 +16,7 @@ public struct TypedLine: Equatable, Sendable {
         public let kind: TokenKind
         /// UTF-16 offsets into the line, which is what a text view counts in.
         public let range: NSRange
-        /// The sphere or project it named, when it named one.
+        /// The sphere or activity it named, when it named one.
         public let refId: String?
     }
 
@@ -34,8 +34,6 @@ public struct TypedLine: Equatable, Sendable {
     public enum Intent: Equatable, Sendable {
         /// A block on the calendar. `allDay` blocks run from `start` to the midnight after `end`'s day.
         case event(start: Date, end: Date, allDay: Bool)
-        /// A to-do under a project, on a day when one was named.
-        case task(day: Date?)
     }
 
     public let text: String
@@ -47,13 +45,13 @@ public struct TypedLine: Equatable, Sendable {
     public let durationMinutes: Int?
     public let sphereId: String?
     public let activityId: String?
-    public let projectId: String?
     /// An RRULE line, `RRULE:FREQ=WEEKLY;BYDAY=MO`, ready for the calendar.
     public let recurrence: String?
+    /// Nil when the line names neither a day nor a time, since there is nowhere to put it.
     public let intent: Intent?
 }
 
-/// What a line may name: the account's spheres, activities and projects.
+/// What a line may name: the account's spheres and activities.
 public struct Vocabulary: Sendable {
     public struct Entry: Equatable, Sendable {
         public let id: String
@@ -66,12 +64,10 @@ public struct Vocabulary: Sendable {
 
     public let spheres: [Entry]
     public let activities: [Entry]
-    public let projects: [Entry]
 
-    public init(spheres: [Entry] = [], activities: [Entry] = [], projects: [Entry] = []) {
+    public init(spheres: [Entry] = [], activities: [Entry] = []) {
         self.spheres = spheres
         self.activities = activities
-        self.projects = projects
     }
 
     public static let empty = Vocabulary()
@@ -134,7 +130,6 @@ private struct Scan {
     var duration: Int?
     var sphereId: String?
     var activityId: String?
-    var projectId: String?
     var recurrence: String?
     var allDay = false
     /// "in 2 hours" names an instant rather than a day and a time.
@@ -198,19 +193,11 @@ private struct Scan {
             }
             return 0
         }
-        if raw.hasPrefix("@"), raw.count > 1 {
-            if let project = Vocabulary.find(String(raw.dropFirst()), in: vocabulary.projects) {
-                projectId = project.id
-                take(i, 1, as: .project, ref: project.id)
-                return 1
-            }
-            return 0
-        }
 
         if let n = matchRepeat(at: i) { return n }
         if let n = matchRelative(at: i) { return n }
 
-        // "all day" is how a line asks for an all-day block when a @project would make it a task.
+        // "all day" makes a day of its own into an all-day block, today when no day is named.
         if w == "allday" || w == "all-day" || (w == "all" && key(i + 1) == "day") {
             allDay = true
             let n = w == "all" ? 2 : 1
@@ -378,7 +365,7 @@ private struct Scan {
 
         var titleWords = words.indices.filter { !used[$0] }.map { words[$0].raw }
         // "call mom at" once "at 9" became a time, or "lunch on" before a date that was taken.
-        let dangling: Set<String> = ["at", "on", "for", "from", "by", "in", "@", "#", "-", "–"]
+        let dangling: Set<String> = ["at", "on", "for", "from", "by", "in", "#", "-", "–"]
         while let last = titleWords.last, dangling.contains(last.lowercased()) { titleWords.removeLast() }
         while let first = titleWords.first, dangling.contains(first.lowercased()), titleWords.count > 1 {
             titleWords.removeFirst()
@@ -407,21 +394,17 @@ private struct Scan {
                 end = start.addingTimeInterval(TimeInterval((duration ?? LineReader.defaultMinutes) * 60))
             }
             intent = .event(start: start, end: end, allDay: false)
-        } else if projectId != nil, !allDay {
-            intent = .task(day: resolvedDay)
         } else if let base = resolvedDay {
             let end = calendar.date(byAdding: .day, value: 1, to: base) ?? base
             intent = .event(start: base, end: end, allDay: true)
-        } else if title.isEmpty {
-            intent = nil
         } else {
-            intent = .task(day: nil)
+            intent = nil
         }
 
         return TypedLine(
             text: text, title: title, tokens: utf16Tokens, day: resolvedDay, time: resolvedTime,
             endTime: endTime, durationMinutes: duration, sphereId: sphereId, activityId: activityId,
-            projectId: projectId, recurrence: recurrence, intent: intent
+            recurrence: recurrence, intent: intent
         )
     }
 }
