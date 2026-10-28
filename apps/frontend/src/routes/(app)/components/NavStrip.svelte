@@ -81,7 +81,7 @@
 
   <!-- The desk suite's app switcher, from `bar.js` (loaded by `app.html` in a browser only). -->
   {#if !isNativeShell}
-    <desk-bar class="mr-1"></desk-bar>
+    <desk-bar app="balance" class="mr-1"></desk-bar>
   {/if}
 
   <AccountPill compact />
