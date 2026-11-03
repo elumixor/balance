@@ -1,7 +1,8 @@
 name: CI
 
-# Every push runs lint and types; a green `main` is then deployed to Devkit Cloud. Vercel never deploys
-# a push on its own (vercel.json).
+# Every push runs lint and types; a green `main` is then deployed to Devkit Cloud through the dk-deploy OIDC
+# role. Vercel never deploys a push on its own (vercel.json). Inlined rather than calling desk-infra's
+# web-app.yml: this repo is public and that one is private, so GitHub refuses the call.
 on:
   push:
   workflow_dispatch:
@@ -16,12 +17,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  app:
-    uses: elumixor/desk-infra/.github/workflows/web-app.yml@main
-    with:
-      postgres: false
-      playwright: false
-      test-script: none
-      develop-branch: ""
-      host: aws
-    secrets: inherit
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.5"
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run check
+
+  deploy:
+    needs: check
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.5"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::453953529857:role/dk-deploy
+          aws-region: eu-central-1
+      # Builds here with the stage's env from SSM, runs the migrations, health-checks, then flips.
+      - name: devkit deploy
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun install --frozen-lockfile && bunx devkit deploy:aws
