@@ -1,0 +1,27 @@
+name: CI
+
+# Every push runs lint and types; a green `main` is then deployed to Devkit Cloud. Vercel never deploys
+# a push on its own (vercel.json).
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  deployments: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    uses: elumixor/desk-infra/.github/workflows/web-app.yml@main
+    with:
+      postgres: false
+      playwright: false
+      test-script: none
+      develop-branch: ""
+      host: aws
+    secrets: inherit
