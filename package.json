@@ -22,9 +22,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
-    "@elumixor/devkit": "^0.12.0",
+    "@elumixor/devkit": "^0.12.12",
     "@types/node": "^20",
-    "@vercel/blob": "^2.8.0",
     "typescript": "^5"
   },
   "devkit": {
@@ -153,8 +152,28 @@
           "updater"
         ]
       },
-      "web": {
-        "type": "vercel"
+      "aws": {
+        "type": "aws",
+        "options": {
+          "project": "balance",
+          "frontendDir": "apps/frontend",
+          "backendDir": "apps/backend",
+          "apiPrefixes": [
+            "mobile",
+            "health",
+            "download",
+            "mcp",
+            ".well-known"
+          ],
+          "predeploy": "bun run --cwd apps/backend db:migrate",
+          "healthPath": "/health",
+          "domains": {
+            "production": [
+              "balance.desk.atmagaming.com",
+              "*.desk.atmagaming.com"
+            ]
+          }
+        }
       },
       "iphone": {
         "command": "bun scripts/deploy-iphone.ts"
