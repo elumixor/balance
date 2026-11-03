@@ -15,10 +15,9 @@ import { env, isProduction } from "./env";
  * production's.
  */
 
-/** Vercel stamps the commit; a stack trace without one is a stack trace against unknown source. */
-const SHORT_SHA_LENGTH = 7;
-const RELEASE = `balance-api@${env.VERCEL_GIT_COMMIT_SHA?.slice(0, SHORT_SHA_LENGTH) ?? "dev"}`;
-const ENVIRONMENT = env.VERCEL_ENV ?? env.NODE_ENV ?? "development";
+/** The deploy id ends in the commit; a stack trace without one is a stack trace against unknown source. */
+const RELEASE = `balance-api@${env.DK_DEPLOY_ID?.split("-").pop() ?? "dev"}`;
+const ENVIRONMENT = env.DK_STAGE ?? env.NODE_ENV ?? "development";
 
 /** How long a send is given before the answer goes out without it. A report is never worth a hang. */
 const FLUSH_MS = 2_000;

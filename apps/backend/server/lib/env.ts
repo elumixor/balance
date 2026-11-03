@@ -10,7 +10,7 @@ import { z } from "zod";
  * `ZOOM_*` keys, which are the switch for an integration a deployment is allowed not to have, and
  * `ANTHROPIC_CREDITS_API_KEY`, which the gateway stands in for.
  *
- * The `VERCEL*` and `NODE_ENV` keys are the platform's own and arrive on their own; they are
+ * The `DK_*` and `NODE_ENV` keys are the platform's own (Devkit Cloud) and arrive on their own; they are
  * parsed here so that `process.env` is read in exactly one file.
  */
 const schema = z.object({
@@ -47,9 +47,9 @@ const schema = z.object({
   POSTHOG_HOST: z.url(),
   DEV_AUTH_EMAIL: z.email().optional(),
   NODE_ENV: z.string().optional(),
-  VERCEL: z.string().optional(),
-  VERCEL_ENV: z.string().optional(),
-  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
+  /** `<timestamp>-<short sha>`, set by Devkit Cloud on every deploy. */
+  DK_DEPLOY_ID: z.string().optional(),
+  DK_STAGE: z.string().optional(),
 });
 
 class EnvError extends Error {
@@ -73,7 +73,7 @@ export const env = load(process.env);
 
 /**
  * Whether this process is one somebody could be relying on. A production build and anything
- * running on Vercel count; a local `nitro dev` does not. The dev sign-in bypass reads it one way
+ * deployed to Devkit Cloud count; a local `nitro dev` does not. The dev sign-in bypass reads it one way
  * round, telemetry the other.
  */
-export const isProduction = env.NODE_ENV === "production" || Boolean(env.VERCEL);
+export const isProduction = env.NODE_ENV === "production" || Boolean(env.DK_STAGE);
