@@ -16,7 +16,7 @@ kept happening — and the calendar is the evidence: a block tagged to a practic
 Projects and tasks live in [Keep](https://keep.desk.atmagaming.com), not here. A block names the Keep
 task it is for by URN (`keep:page/<id>`, the `urn` on its mapping), and the event card links to it.
 
-Live at https://balance.desk.atmagaming.com (part of the desk suite; https://balance-app-mauve.vercel.app is the same deployment, and what the native apps call).
+Live at https://balance.desk.atmagaming.com (part of the desk suite), served by Devkit Cloud.
 
 The API also speaks the Model Context Protocol at `/mcp`, so Claude can read and write a week
 directly — see [Connecting an assistant (MCP)](#connecting-an-assistant-mcp).
@@ -130,7 +130,7 @@ What gets in is a key, made in **Settings → Assistants**. It is shown once —
 stored — and the panel writes out the line that uses it:
 
 ```bash
-claude mcp add --transport http balance https://balance-app-mauve.vercel.app/mcp \
+claude mcp add --transport http balance https://balance.desk.atmagaming.com/mcp \
   --header "Authorization: Bearer balance_mcp_…"
 ```
 
@@ -144,7 +144,7 @@ A web connector is given a URL and nothing else — there is no field for a head
 goes through OAuth instead. In Claude, **Settings → Connectors → Add custom connector**, and paste:
 
 ```
-https://balance-app-mauve.vercel.app/mcp
+https://balance.desk.atmagaming.com/mcp
 ```
 
 Nothing else is needed: no client id, no secret. Claude reads the `401`'s `WWW-Authenticate`
@@ -164,24 +164,17 @@ it covers everything else — no key needed against a local backend.
 ## Deploying the web app + API
 
 ```bash
-bun run build  # SvelteKit static build -> apps/backend/public, then Nitro's Vercel build output
+bunx devkit deploy:aws  # SvelteKit static build + Nitro -> Devkit Cloud (S3 + one Lambda)
 ```
 
-Both halves ship as one Vercel deployment: the static SPA for the app, one function for `/mobile/*`
-and `/health`. Any path that isn't an API prefix answers with the app shell, and the client router
-takes it from there.
+Both halves ship as one Devkit Cloud deploy (project `balance`): the static SPA for the app, one
+function for `/mobile/*`, `/mcp`, `/download/*`, `/.well-known/*` and `/health`. Any path that isn't
+an API prefix answers with the app shell, and the client router takes it from there.
 
-There are two of those deployments, and a branch decides which one a merge lands on:
-
-| Branch    | Environment                | Address                                                                            |
-| --------- | -------------------------- | ---------------------------------------------------------------------------------- |
-| `develop` | `develop` (Vercel custom)  | [balance-app-dev.vercel.app](https://balance-app-dev.vercel.app)                     |
-| `main`    | production                 | [balance-app-mauve.vercel.app](https://balance-app-mauve.vercel.app)                 |
-
-Everything else — a feature branch, a pull request — builds nothing: `vercel.json`'s
-`ignoreCommand` answers "skip" for any ref that isn't one of those two, so pushing work in
-progress costs no build and changes no address. Each environment has its own variables in Vercel,
-so what `develop` connects to is a question of configuration rather than of code.
+A push to `main` runs CI (`.github/workflows/ci.yml`: lint, types, then `devkit deploy:aws`) and
+lands on production at https://balance.desk.atmagaming.com. The stage's variables live in SSM
+(`devkit cloud env ls`); migrations run before the new version takes traffic (`predeploy`).
+The database is the Neon project `balance` (eu-central-1) in our own Neon org.
 
 `bun run deploy` still ships production straight from a laptop (see "Releasing"), which is what a
 release with a new Mac app in it has to be — a Linux build container cannot make one.
@@ -335,7 +328,7 @@ bun run check      # svelte-check over the frontend
 
 ```bash
 bun run deploy            # every platform, in dependency order
-bunx devkit deploy:web    # builds here, uploads the finished output (`vercel deploy --prebuilt --prod`)
+bunx devkit deploy:aws    # builds here, deploys to Devkit Cloud
 bunx devkit deploy:iphone # web bundle -> Xcode project -> fastlane `beta` -> TestFlight
 bunx devkit deploy:mac    # macOS app + updater manifest -> `dist/download`, which the web serves
 ```
@@ -343,8 +336,7 @@ bunx devkit deploy:mac    # macOS app + updater manifest -> `dist/download`, whi
 What each platform runs and what it waits for live in the `devkit.deploy` block of the root
 `package.json`; `devkit deploy` runs them, drawing a line per platform and keeping the full logs in
 `.devkit/deploy/`. The iOS half runs alongside the other two. The macOS app doesn't: the website
-hands it out, so the DMG has to exist before Vercel packages the site, and a web deploy builds it
-first. `updater` runs between them, packing the same `.app` as a signed tarball beside the DMG —
+hands it out, so the DMG is built and published to the blob store first. `updater` runs between them, packing the same `.app` as a signed tarball beside the DMG —
 see `apps/frontend/scripts/stage-updater.ts`.
 
 A release is built on this machine; CI builds what a merge asks for (see "What a merge ships"). The
@@ -354,15 +346,14 @@ Store Connect API key. The key is read from `APP_STORE_CONNECT_API_KEY_PATH`, or
 `~/.appstoreconnect/private_keys/AuthKey_<key id>.p8` by default; its id and issuer id go in the
 repo's `.env` as `APP_STORE_CONNECT_API_KEY_ID` and `APP_STORE_CONNECT_API_KEY_ISSUER_ID`.
 
-The app is bundled against `https://balance-app-mauve.vercel.app` — override with
+The iOS app is bundled against `https://balance-app-mauve.vercel.app` — override with
 `DEPLOY_API_BASE_URL` to point a TestFlight build somewhere else. `fastlane beta` picks the next
 build number from TestFlight itself and writes it into the Xcode project and both watch targets'
 `Info.plist`, so a release leaves those files changed — commit them.
 
 Every native shell carries its own copy of the web app, built with its own API base URL, and both
 `devkit build` and `devkit deploy` build them beside each other — so each gets its own output
-directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`) and `.vercelignore` keeps Vercel's file scan
-out of them. The typed API client every one of those builds reads is generated once up front
+directories (`BUILD_DIR`, `KIT_DIR`, `VITE_CACHE_DIR`). The typed API client every one of those builds reads is generated once up front
 (`devkit.generate`), rather than by each of them while the others are reading it.
 
 Every version number in the repo is stamped from one place — `version` in
@@ -374,10 +365,10 @@ disagree. Bump that one field to release a new version.
 ### The Mac app, from the website
 
 `bun run deploy` builds the macOS bundle, stages `dist/download/` (the DMG plus a small
-`desktop.json`) and publishes it to the `balance-downloads` blob store, which `/download/*`
-redirects into — so the app is handed out at `/download/Balance.dmg` whatever built the site last.
-The upload needs `BLOB_READ_WRITE_TOKEN`, and the redirect needs `DOWNLOAD_BASE_URL`; both are in
-the repo's `.env` and in every deployed environment. Settings
+`desktop.json`) and publishes it to the Devkit Cloud blob store (`/_blob/download/*`), which
+`/download/*` redirects into — so the app is handed out at `/download/Balance.dmg` whatever built the
+site last. The upload uses the `devkit` AWS profile, and the redirect needs `DOWNLOAD_BASE_URL`
+(`https://balance.desk.atmagaming.com/_blob`), in the repo's `.env` and in the stage's env. Settings
 offers it — in a browser only, since the two app shells are already what it would install — and
 draws the button from `desktop.json`, so a deployment that carries no DMG simply doesn't offer one.
 
@@ -395,10 +386,10 @@ bump the version (`bun run version:sync`), deploy, and every copy picks it up wi
 Work happens on a branch off `develop` and nothing is built while it sits there. Merging is what
 deploys:
 
-- **into `develop`** — Vercel builds the development deployment, and the iOS beta goes to
+- **into `develop`** — the iOS beta goes to
   TestFlight pointed at it. The TestFlight half is skipped when the merge only moved the API: that
   is already live on the deployment every existing build talks to.
-- **into `main`** — Vercel builds production. Nothing native is rebuilt, because a release with a
+- **into `main`** — CI deploys production to Devkit Cloud. Nothing native is rebuilt, because a release with a
   new phone or Mac app in it is `bun run deploy` from a laptop, or an `ios-v*` tag.
 
 ```bash
