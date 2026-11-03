@@ -7,7 +7,7 @@
   "build": {
     "devUrl": "http://localhost:8081",
     "frontendDist": "../build",
-    "beforeBuildCommand": "VITE_API_BASE_URL=https://balance-app-mauve.vercel.app vite build"
+    "beforeBuildCommand": "VITE_API_BASE_URL=https://balance.desk.atmagaming.com vite build"
   },
   "app": {
     "withGlobalTauri": false,
@@ -28,7 +28,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYyOEI3MkYzMURDNzEyM0IKUldRN0VzY2Q4M0tMOGloRXRWUGpzbmRHZVNOWVFVRnQ1MzJacEFvVEEvd0FoNHRlSHp5SDBVR2sK",
-      "endpoints": ["https://wgao3owbgwirgycn.public.blob.vercel-storage.com/download/latest.json"]
+      "endpoints": ["https://balance.desk.atmagaming.com/_blob/download/latest.json"]
     },
     "deep-link": {
       "desktop": {

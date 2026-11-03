@@ -25,7 +25,7 @@ function deployedApiUrl(cwd: string) {
 }
 
 /**
- * Where the app looks for the API. A release web build talks to its own origin — the same Vercel
+ * Where the app looks for the API. A release web build talks to its own origin — the same Devkit Cloud
  * deployment owns the static files and `/mobile/*` — so the base is empty and requests stay
  * same-origin. Native builds and dev servers need an absolute URL; in dev that's the machine's LAN
  * address, so a phone on the same network reaches the backend without extra configuration.

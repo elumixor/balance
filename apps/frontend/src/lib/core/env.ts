@@ -58,7 +58,7 @@ export const APPLE_CLIENT_ID = "com.elumixor.balance";
  * Where the hosted web app lives — the one origin with https that a browser can be sent back
  * to, which the macOS shell needs for its sign-in hand-off.
  */
-export const WEB_APP_ORIGIN = IS_DEV ? "http://localhost:8081" : "https://balance-app-mauve.vercel.app";
+export const WEB_APP_ORIGIN = IS_DEV ? "http://localhost:8081" : "https://balance.desk.atmagaming.com";
 
 /**
  * Where projects and tasks live — Keep. A block names its task by URN and the card links there;

@@ -8,7 +8,7 @@
  * whole reason a stolen deployment can't push code onto anybody's machine.
  *
  * Runs after devkit's `desktop` deploy target, in the same `dist/download` it staged the DMG into,
- * and before the Vercel build that packages that directory into the site.
+ * and before `scripts/publish-download.ts` puts that directory into the blob store.
  */
 
 import { existsSync } from "node:fs";
