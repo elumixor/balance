@@ -3,11 +3,13 @@ import { type ZodRawShape, z } from "zod";
 import { db } from "~/db";
 import { practices } from "~/db/schema";
 import type { DbUser } from "~/lib/auth/service";
+import { allDayRange, calendarDate, spanDays } from "~/lib/calendar/all-day";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { qualifyCalendarId, splitCalendarId } from "~/lib/calendar/ids";
 import { EventMappingService } from "~/lib/calendar/mappings-service";
 import type { ConferenceInput } from "~/lib/calendar/types";
 import { CategoryService } from "~/lib/categories/service";
+import { ApiError } from "~/lib/http/api-error";
 import { parseInstant, parseInstantRange, urnField } from "~/lib/http/schemas";
 import { dayIn } from "~/lib/planning/days";
 import { PlanningService } from "~/lib/planning/service";
@@ -49,6 +51,46 @@ function tool<S extends ZodRawShape>(definition: {
     readOnly: definition.readOnly ?? true,
     run: (args, user) => definition.run(args as never, user),
   };
+}
+
+/**
+ * An event's times as a model should read them: instants, or for an all-day event its dates —
+ * the instant Google's date resolves to is midnight in the calendar's zone, which in UTC is the
+ * evening before for anyone east of Greenwich, and reads as the wrong day.
+ */
+function timesFor(event: { start: Date; end: Date; allDay: boolean }) {
+  return event.allDay
+    ? { start: calendarDate(event.start), end: calendarDate(event.end) }
+    : { start: event.start.toISOString(), end: event.end.toISOString() };
+}
+
+/** A field only some shapes of a call can leave out. */
+function required(value: string | undefined, field: string): string {
+  if (value === undefined) throw new ApiError(`${field} is required`);
+  return value;
+}
+
+/**
+ * The times an update writes. An all-day event's are dates, read from what the caller wrote and
+ * sent as dates — Google refuses a date-time on one — so the event is read first to know which it
+ * is, and a new start alone carries the event's own length with it.
+ */
+async function timesOf(
+  service: CalendarEventsService,
+  args: { calendarId: string; id: string; start?: string; end?: string },
+): Promise<{ start?: Date; end?: Date; allDay?: true }> {
+  if (!args.start && !args.end) return {};
+  const current = await service.get(args.calendarId, args.id);
+  if (!current.allDay) {
+    return {
+      start: args.start ? parseInstant(args.start, "start") : undefined,
+      end: args.end ? parseInstant(args.end, "end") : undefined,
+    };
+  }
+  const days = spanDays(current.start, current.end);
+  if (args.start) return { ...allDayRange(args.start, args.end, days), allDay: true };
+  const { end } = allDayRange(calendarDate(current.start), args.end);
+  return { end, allDay: true };
 }
 
 /** The zone the account last said it was in — a planning day is a day in a place. */
@@ -255,8 +297,7 @@ export const mcpTools: McpTool[] = [
           // and it is this string the write tools take back.
           calendarId: qualifyCalendarId(e.accountId, e.calendarId),
           title: e.title,
-          start: e.start.toISOString(),
-          end: e.end.toISOString(),
+          ...timesFor(e),
           allDay: e.allDay,
           hours: e.countsTowardHours ? hours(e.start, e.end) : 0,
           location: e.location ?? null,
@@ -316,12 +357,16 @@ export const mcpTools: McpTool[] = [
       "Writes a real event to the calendar, categorised in the same breath: invites whoever is " +
       "named in `attendees`, gives it a Google Meet link when `meet` is true, and keeps `notes` " +
       "where only you can read them. Times are instants, so say them with an offset — a naked " +
-      "local time means UTC.",
+      'local time means UTC. An `allDay` block takes dates: `start` "2026-11-23" (or a date-time, ' +
+      "whose own written date is used) and an exclusive `end`, which defaults to the day after.",
     readOnly: false,
     inputSchema: {
       title: z.string().trim().min(1),
-      start: z.string().describe("ISO 8601 instant."),
-      end: z.string().describe("ISO 8601 instant, after `start`."),
+      start: z.string().describe("ISO 8601 instant, or a YYYY-MM-DD date when `allDay`."),
+      end: z
+        .string()
+        .optional()
+        .describe("ISO 8601 instant after `start`. Optional when `allDay`: a date, exclusive, default the next day."),
       description: z.string().optional(),
       location: z.string().optional(),
       allDay: z.boolean().optional(),
@@ -334,7 +379,9 @@ export const mcpTools: McpTool[] = [
       ...purposeSchema,
     },
     async run(args, user) {
-      const { start, end } = parseInstantRange(args.start, args.end, ["start", "end"]);
+      const { start, end } = args.allDay
+        ? allDayRange(args.start, args.end)
+        : parseInstantRange(args.start, required(args.end, "end"), ["start", "end"]);
       const created = await new CalendarEventsService(user.id).create({
         ...args,
         weights: weightsOf(args.categoryId),
@@ -371,8 +418,11 @@ export const mcpTools: McpTool[] = [
       title: z.string().optional(),
       description: z.string().optional(),
       location: z.string().optional(),
-      start: z.string().optional(),
-      end: z.string().optional(),
+      start: z
+        .string()
+        .optional()
+        .describe("ISO 8601 instant; on an all-day event a YYYY-MM-DD date, keeping its length when `end` is absent."),
+      end: z.string().optional().describe("ISO 8601 instant; on an all-day event an exclusive YYYY-MM-DD date."),
       timeZone: z.string().optional(),
       addAttendees: z
         .array(guestSchema)
@@ -404,8 +454,7 @@ export const mcpTools: McpTool[] = [
         title: args.title,
         description: args.description,
         location: args.location,
-        start: args.start ? parseInstant(args.start, "start") : undefined,
-        end: args.end ? parseInstant(args.end, "end") : undefined,
+        ...(await timesOf(service, args)),
         timeZone: args.timeZone,
         attendees,
         conference: conferenceOf(args),
@@ -414,8 +463,7 @@ export const mcpTools: McpTool[] = [
       return {
         id: updated.id,
         title: updated.title,
-        start: updated.start.toISOString(),
-        end: updated.end.toISOString(),
+        ...timesFor(updated),
         attendees: updated.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: updated.conferenceUrl,
         ...annotated,

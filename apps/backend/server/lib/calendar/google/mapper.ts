@@ -17,15 +17,6 @@ function conferenceUrl(event: GoogleEvent) {
 }
 
 /**
- * The `YYYY-MM-DD` an all-day event is written as. The instant it comes from is midnight UTC by
- * construction (see `CreateEventInput.allDay`), so the date is read straight off it — converting
- * to any other zone here is what would move the event a day.
- */
-export function calendarDate(at: Date) {
-  return at.toISOString().slice(0, 10);
-}
-
-/**
  * What the conferencing block is patched to. A request with a fresh id is how Google is asked
  * to make a Meet; null takes whatever call there is off the event.
  */

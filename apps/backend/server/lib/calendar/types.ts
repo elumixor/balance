@@ -159,6 +159,8 @@ export interface UpdateEventInput {
   readonly description?: string;
   readonly start?: Date;
   readonly end?: Date;
+  /** The times are dates, carried as midnight UTC the way `CreateEventInput.allDay` carries them. */
+  readonly allDay?: boolean;
   /** An empty string clears it, the same way the notes are cleared. */
   readonly location?: string;
   /** The zone the times are meant in. Written with the times, so it means nothing on its own. */

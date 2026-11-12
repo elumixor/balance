@@ -1,3 +1,4 @@
+import { calendarDate, eventTime } from "~/lib/calendar/all-day";
 import type { ProviderAccountService } from "~/lib/calendar/provider-accounts";
 import type {
   CalendarProvider,
@@ -10,7 +11,7 @@ import type {
 } from "~/lib/calendar/types";
 import { ConflictError } from "~/lib/http/api-error";
 import type { GoogleAttendee, GoogleCalendarListEntry, GoogleEvent, GoogleEventsResponse } from "./api-types";
-import { type CalendarContext, calendarDate, conferenceBlock, isReadOnlyRole, toExternalEvent } from "./mapper";
+import { type CalendarContext, conferenceBlock, isReadOnlyRole, toExternalEvent } from "./mapper";
 import { GooglePeople, hasContactsScope } from "./people";
 import { GoogleRequest } from "./request";
 
@@ -74,6 +75,8 @@ export class GoogleCalendarProvider implements CalendarProvider {
   }
 
   async createEvent(input: CreateEventInput): Promise<ExternalEvent> {
+    // An all-day date read back from a calendar is midnight in that calendar's zone.
+    const zoneOf = input.allDay ? (await this.#calendar(input.calendarId)).timeZone : undefined;
     const zone = input.timeZone === undefined ? {} : { timeZone: input.timeZone };
     // A guest list nobody is told about is a list of people who never heard about the meeting, so
     // a create that names guests asks Google to send the invitation the same way an edit does.
@@ -90,7 +93,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
         ...(input.description === undefined ? {} : { description: input.description }),
         ...(input.location === undefined ? {} : { location: input.location }),
         ...(input.allDay
-          ? { start: { date: calendarDate(input.start) }, end: { date: calendarDate(input.end) } }
+          ? { start: { date: calendarDate(input.start, zoneOf) }, end: { date: calendarDate(input.end, zoneOf) } }
           : {
               start: { dateTime: input.start.toISOString(), ...zone },
               end: { dateTime: input.end.toISOString(), ...zone },
@@ -126,6 +129,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
    */
   async updateEvent(calendarId: string, eventId: string, patch: UpdateEventInput): Promise<ExternalEvent> {
     const zone = patch.timeZone === undefined ? {} : { timeZone: patch.timeZone };
+    const calendarZone = patch.allDay ? (await this.#calendar(calendarId)).timeZone : undefined;
     const params = new URLSearchParams({ sendUpdates: "all", fields: SINGLE_EVENT_FIELDS });
     if (patch.conference) params.set("conferenceDataVersion", "1");
 
@@ -137,8 +141,8 @@ export class GoogleCalendarProvider implements CalendarProvider {
           ...(patch.title === undefined ? {} : { summary: patch.title }),
           ...(patch.description === undefined ? {} : { description: patch.description }),
           ...(patch.location === undefined ? {} : { location: patch.location }),
-          ...(patch.start === undefined ? {} : { start: { dateTime: patch.start.toISOString(), ...zone } }),
-          ...(patch.end === undefined ? {} : { end: { dateTime: patch.end.toISOString(), ...zone } }),
+          ...(patch.start === undefined ? {} : { start: eventTime(patch.start, patch.allDay, zone, calendarZone) }),
+          ...(patch.end === undefined ? {} : { end: eventTime(patch.end, patch.allDay, zone, calendarZone) }),
           ...(patch.recurrence === undefined ? {} : { recurrence: [...patch.recurrence] }),
           ...(patch.reminders === undefined
             ? {}
