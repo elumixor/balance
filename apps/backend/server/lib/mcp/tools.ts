@@ -280,6 +280,36 @@ export const mcpTools: McpTool[] = [
   }),
 
   tool({
+    name: "get_event",
+    title: "Get one calendar event",
+    description:
+      "One block by its id alone — what a `balance:block/<id>` link names — with the sphere it " +
+      "counts as most toward, and `path`, the address on this app that opens it on its week. " +
+      "Answers `found: false` when no connected calendar has it.",
+    inputSchema: { id: z.string().min(1).describe("The event id, as in `balance:block/<id>`.") },
+    async run(args, user) {
+      const e = await new CalendarEventsService(user.id).find(args.id);
+      if (!e) return { found: false, id: args.id };
+      const top = [...e.weights].sort((a, b) => b.weightPercent - a.weightPercent)[0];
+      const sphere = top ? (await new CategoryService(user.id).list()).find((c) => c.id === top.categoryId) : undefined;
+      return {
+        found: true,
+        id: e.id,
+        calendarId: qualifyCalendarId(e.accountId, e.calendarId),
+        title: e.title,
+        start: e.start.toISOString(),
+        end: e.end.toISOString(),
+        allDay: e.allDay,
+        location: e.location ?? null,
+        cancelled: e.status === "cancelled",
+        urn: e.mapping?.urn ?? null,
+        sphere: sphere ? { id: sphere.id, name: sphere.name, color: sphere.color } : null,
+        path: `/calendar?${new URLSearchParams({ event: e.id, at: e.start.toISOString() })}`,
+      };
+    },
+  }),
+
+  tool({
     name: "create_event",
     title: "Create a calendar block",
     description:

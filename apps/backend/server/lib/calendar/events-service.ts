@@ -274,6 +274,29 @@ export class CalendarEventsService {
   }
 
   /**
+   * One event by its id alone — what a link elsewhere holds (`balance:block/<id>`), with no calendar
+   * beside it. A calendar its mapping names is asked first, then every visible calendar in turn;
+   * Google's event ids are unique, so the first that has it is the one. Null when none does.
+   */
+  async find(eventId: string): Promise<ResolvedEvent | null> {
+    const [connections, mappings] = await Promise.all([calendarConnections(this.userId), this.#mappings.all()]);
+    const mapped = mappings.find((m) => m.externalEventId === eventId)?.calendarId;
+    const places = connections
+      .filter((c) => !c.account.revokedAt)
+      .flatMap((connection) => visibleCalendarIds(connection).map((calendarId) => ({ connection, calendarId })))
+      .sort((a, b) => Number(b.calendarId === mapped) - Number(a.calendarId === mapped));
+    for (const { connection, calendarId } of places) {
+      try {
+        const found = await connection.provider.getEvent(calendarId, eventId);
+        return { ...attachMappings([{ ...found, calendarId }], mappings)[0], accountId: connection.accountId };
+      } catch (error) {
+        if (!(error instanceof NotFoundError)) throw error;
+      }
+    }
+    return null;
+  }
+
+  /**
    * A series-scoped write lands on the master event instead of the occurrence: title and notes
    * copy straight across, but a time change has to become a delta first — the master's own start
    * isn't the occurrence's start, so shifting every occurrence by the same amount means moving the

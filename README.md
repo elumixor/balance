@@ -123,7 +123,7 @@ backend's route handlers — run `cd apps/backend && bunx nitro-client` after ch
 ## Connecting an assistant (MCP)
 
 The API speaks the Model Context Protocol at `/mcp`, so an assistant can read the week, the
-spheres and the practices, and write blocks back. Fifteen tools, seven of which write; the same
+spheres and the practices, and write blocks back. Sixteen tools, seven of which write; the same
 services the app's own routes call sit behind them.
 
 What gets in is a key, made in **Settings → Assistants**. It is shown once — only its hash is

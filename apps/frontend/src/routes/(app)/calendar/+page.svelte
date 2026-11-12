@@ -57,7 +57,8 @@
     untrack(() => data.goToDate(new Date(year, month - 1, date - (viewport.md ? 0 : 1))));
   });
 
-  // `?event=<id>&at=<instant>` is a hit from the palette: the week it is on, with its card open.
+  // `?event=<id>&at=<instant>` is a hit from the palette or a pill in another app (`get_event`'s `path`): the
+  // week it is on, with its card open.
   // The parameters are taken off the address once used, so a reload is the week and not the jump.
   $effect(() => {
     const id = page.url.searchParams.get("event");
