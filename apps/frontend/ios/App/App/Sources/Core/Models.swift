@@ -67,7 +67,7 @@ struct CalendarEvent: Codable, Identifiable, Hashable {
     var activityId: String?
     var activityName: String?
     var weights: [Weight]
-    /// What the block is for in another app — `keep:page/<id>` for a page in Keep.
+    /// What the block is for in another app — `https://keep.desk.atmagaming.com/p/<id>` for a page in Keep.
     var urn: String?
     var endLocation: String?
     var notes: String?
@@ -92,11 +92,12 @@ struct CalendarEvent: Codable, Identifiable, Hashable {
 
     /// The Keep page the block points at, when its urn names one.
     var keepURL: URL? {
-        guard let urn, urn.hasPrefix(Self.keepPagePrefix) else { return nil }
-        return URL(string: Self.keepEmbedBase + urn.dropFirst(Self.keepPagePrefix.count))
+        guard let urn, let prefix = Self.keepPagePrefixes.first(where: { urn.hasPrefix($0) }) else { return nil }
+        return URL(string: Self.keepEmbedBase + urn.dropFirst(prefix.count))
     }
 
-    static let keepPagePrefix = "keep:page/"
+    /// The page's link, and the legacy URN older blocks still carry.
+    static let keepPagePrefixes = ["https://keep.desk.atmagaming.com/p/", "keep:page/"]
     static let keepEmbedBase = "https://keep.desk.atmagaming.com/embed/page/"
 
     /// The sphere its hours mostly go to: the heaviest weight that isn't the buffer.

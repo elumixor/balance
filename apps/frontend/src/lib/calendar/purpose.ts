@@ -13,7 +13,7 @@ import type { CalendarEvent, EventResponse, EventTimer, MappingScope } from "./t
  */
 export interface Purpose {
   readonly practiceId: string | null;
-  /** The work it was for in another app, by URN — `keep:page/<id>`. */
+  /** The work it was for in another app, by link — `https://keep.desk.atmagaming.com/p/<id>`. */
   readonly urn: string | null;
   readonly timer: EventTimer | null;
   /** The integration feed it is linked to — "apple-health:sleep" — which is also on the mapping. */

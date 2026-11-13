@@ -14,7 +14,7 @@ and it becomes a real event in your calendar.
 Each sphere can hold practices — something recurring that never completes, measured by whether it
 kept happening — and the calendar is the evidence: a block tagged to a practice counts toward it.
 Projects and tasks live in [Keep](https://keep.desk.atmagaming.com), not here. A block names the Keep
-task it is for by URN (`keep:page/<id>`, the `urn` on its mapping), and the event card links to it.
+task it is for by link (`https://keep.desk.atmagaming.com/p/<id>`, the `urn` on its mapping), and the event card links to it.
 
 Live at https://balance.desk.atmagaming.com (part of the desk suite), served by Devkit Cloud.
 

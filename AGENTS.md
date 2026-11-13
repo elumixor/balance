@@ -499,12 +499,13 @@ button and the phone's menu a row for the same box.
 
 Balance has no projects, stages or tasks of its own any more: they are Keep's
 (`keep.desk.atmagaming.com`), and Keep never knows Balance. What an hour was for is the `urn` on its
-`event_mappings` row — `keep:page/<id>` names a Keep task — validated only as a URN
-(`urnField` in `lib/http/schemas.ts`) and never read. It is written by the block routes
+`event_mappings` row — the Keep task's link, `https://keep.desk.atmagaming.com/p/<id>` (a legacy
+`keep:page/<id>` URN is stored as that link) — checked only for shape (`urnField` in
+`lib/http/schemas.ts`) and never read. It is written by the block routes
 (`POST /mobile/calendar/events`, `POST /mobile/calendar/mappings`) and the MCP tools
 (`create_event`, `update_event`, `categorize_event`), and drawn by the card as a small link
-(`$lib/calendar/urn.ts` turns a `keep:page` URN into Keep's embed URL off `KEEP_ORIGIN` in
-`$lib/core/env.ts`; any other URN is shown as text). No Keep code is imported anywhere.
+(`$lib/calendar/urn.ts` turns a Keep page link into Keep's embed URL off `KEEP_ORIGIN` in
+`$lib/core/env.ts`; another https link opens as is, anything else is shown as text). No Keep code is imported anywhere.
 
 A sphere is a category on the ring, and `/spheres` is its screen: the ring on one side is the
 picture of the list on the other, where each sphere is named, sized in hours and percent, and holds

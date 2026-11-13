@@ -32,7 +32,7 @@ const INSTRUCTIONS =
   "anything — every other tool names spheres by id. Times are instants: send them with an " +
   "offset. The calendar is the source of truth, so a block only counts once it is on it. " +
   "Projects and tasks are not here: they live in Keep, and a block links the Keep task it is " +
-  "for by its `urn` (`keep:page/<id>`), which `create_event`, `update_event` and " +
+  "for by its `urn`, the task's link (`https://keep.desk.atmagaming.com/p/<id>`), which `create_event`, `update_event` and " +
   "`categorize_event` take and `list_events` gives back.";
 
 const JSON_RPC_VERSION = "2.0";

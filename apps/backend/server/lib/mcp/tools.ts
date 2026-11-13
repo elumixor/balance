@@ -149,7 +149,7 @@ function conferenceOf(args: {
 }
 
 const URN_DESCRIPTION =
-  "The Keep task this block is for, as its URN — `keep:page/<id>`. Projects and tasks live in Keep; " +
+  "The Keep task this block is for, as its link — `https://keep.desk.atmagaming.com/p/<id>`. Projects and tasks live in Keep; " +
   "Balance only keeps the link.";
 
 /**

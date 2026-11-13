@@ -24,12 +24,16 @@ export function parseInstant(value: string, field: string): Date {
 /** An integration feed's name — "apple-health:sleep": the integration, then the feed under it. */
 export const integrationSourceField = z.string().regex(/^[a-z][a-z0-9-]{1,40}:[a-z][a-z0-9-]{1,40}$/);
 
+const KEEP_PAGE_URL = "https://keep.desk.atmagaming.com/p/";
+
 /**
- * A pointer to a record in another app — `keep:page/<uuid>` names a Keep task. Only the shape is
- * checked: the scheme, a colon, and something after it. What it names is never read here.
+ * A link to a record in another app — `https://keep.desk.atmagaming.com/p/<id>` names a Keep task.
+ * Only the shape is checked: the scheme, a colon, and something after it; what it names is never
+ * read here. A legacy `keep:page/<id>` URN is stored as that page's URL.
  */
 export const urnField = z
   .string()
   .trim()
   .max(512)
-  .regex(/^[a-z][a-z0-9-]*:.+$/, "must be a URN like keep:page/<id>");
+  .regex(/^[a-z][a-z0-9-]*:.+$/, "must be a link like https://keep.desk.atmagaming.com/p/<id>")
+  .transform((link) => link.replace(/^keep:page\//, KEEP_PAGE_URL));
