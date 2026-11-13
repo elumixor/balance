@@ -274,7 +274,7 @@ export class CalendarEventsService {
   }
 
   /**
-   * One event by its id alone — what a link elsewhere holds (`balance:block/<id>`), with no calendar
+   * One event by its id alone — what a link elsewhere holds (`https://balance.desk.atmagaming.com/calendar?event=<id>`), with no calendar
    * beside it. A calendar its mapping names is asked first, then every visible calendar in turn;
    * Google's event ids are unique, so the first that has it is the one. Null when none does.
    */

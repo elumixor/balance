@@ -242,6 +242,14 @@ async function withGuests(
   return current;
 }
 
+/** The event id a block's link names (`…/calendar?event=<id>`, or a legacy `balance:block/<id>`), or the id as given. */
+function eventIdOf(given: string) {
+  const text = given.trim();
+  const legacy = /^balance:block\/(.+)$/.exec(text)?.[1];
+  if (legacy) return legacy;
+  return URL.parse(text)?.searchParams.get("event") || text;
+}
+
 export const mcpTools: McpTool[] = [
   tool({
     name: "list_spheres",
@@ -324,13 +332,19 @@ export const mcpTools: McpTool[] = [
     name: "get_event",
     title: "Get one calendar event",
     description:
-      "One block by its id alone — what a `balance:block/<id>` link names — with the sphere it " +
-      "counts as most toward, and `path`, the address on this app that opens it on its week. " +
-      "Answers `found: false` when no connected calendar has it.",
-    inputSchema: { id: z.string().min(1).describe("The event id, as in `balance:block/<id>`.") },
+      "One block by its link alone — `https://balance.desk.atmagaming.com/calendar?event=<id>` — or its bare event id, " +
+      "with the sphere it counts as most toward, and `path`, the address on this app that opens it on its week. " +
+      "A block is linked elsewhere by that https address. Answers `found: false` when no connected calendar has it.",
+    inputSchema: {
+      id: z
+        .string()
+        .min(1)
+        .describe("The block's link, `https://balance.desk.atmagaming.com/calendar?event=<id>`, or its event id."),
+    },
     async run(args, user) {
-      const e = await new CalendarEventsService(user.id).find(args.id);
-      if (!e) return { found: false, id: args.id };
+      const id = eventIdOf(args.id);
+      const e = await new CalendarEventsService(user.id).find(id);
+      if (!e) return { found: false, id };
       const top = [...e.weights].sort((a, b) => b.weightPercent - a.weightPercent)[0];
       const sphere = top ? (await new CategoryService(user.id).list()).find((c) => c.id === top.categoryId) : undefined;
       return {
