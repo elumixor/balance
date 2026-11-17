@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>BalanceAPIBaseURL</key>
-	<string>https://balance-app-mauve.vercel.app</string>
+	<string>https://balance.desk.atmagaming.com</string>
 	<key>BalancePostHogHost</key>
 	<string>https://us.i.posthog.com</string>
 	<key>BalancePostHogKey</key>

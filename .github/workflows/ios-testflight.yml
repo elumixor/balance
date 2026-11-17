@@ -3,11 +3,10 @@ name: iOS TestFlight
 # The beta build of the native app, shipped by the same fastlane lane a laptop runs. The phone app
 # is Swift through and through, so nothing JavaScript is installed or built here.
 #
-# Merging into `develop` sends a build to TestFlight pointed at the development API, but only when
-# the merge touched something the app itself is made of — a backend-only change is already live on
-# the development deployment and needs no new build on anybody's phone. An `ios-v*` tag builds
-# against production instead, which is what a release is; the button does whatever branch it is
-# pressed on.
+# Merging into `develop` sends a build to TestFlight, but only when the merge touched something the
+# app itself is made of — a backend-only change needs no new build on anybody's phone. An `ios-v*`
+# tag is a release; the button does whatever branch it is pressed on. Every build talks to the one
+# Devkit Cloud deployment, production.
 on:
   push:
     branches:
@@ -47,9 +46,8 @@ jobs:
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
-      # A tag is a release and talks to production; everything else is a beta of `develop` and
-      # talks to the development deployment. The lane writes it into the app's Info.plist.
-      VITE_API_BASE_URL: ${{ startsWith(github.ref, 'refs/tags/') && 'https://balance-app-mauve.vercel.app' || 'https://balance-app-dev.vercel.app' }}
+      # The lane writes it into the app's Info.plist.
+      VITE_API_BASE_URL: https://balance.desk.atmagaming.com
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       VITE_POSTHOG_KEY: ${{ secrets.VITE_POSTHOG_KEY }}
       VITE_POSTHOG_HOST: ${{ secrets.VITE_POSTHOG_HOST }}

@@ -34,7 +34,7 @@ public final class APIClient {
 
     /// Defaults to the deployed production backend — no local dev server needed. A simulator run
     /// with the sign-in bypass on points at the local one instead (see `DevAuth`).
-    public var baseURL = DevAuth.apiBaseURL ?? URL(string: "https://balance-app-mauve.vercel.app")!
+    public var baseURL = DevAuth.apiBaseURL ?? URL(string: "https://balance.desk.atmagaming.com")!
 
     private let session = URLSession.shared
 

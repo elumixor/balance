@@ -38,7 +38,7 @@ const env = {
   APP_STORE_CONNECT_API_KEY_ID: keyId,
   APP_STORE_CONNECT_API_KEY_ISSUER_ID: required("APP_STORE_CONNECT_API_KEY_ISSUER_ID"),
   APP_STORE_CONNECT_API_KEY_PATH: keyPath,
-  VITE_API_BASE_URL: process.env.DEPLOY_API_BASE_URL ?? "https://balance-app-mauve.vercel.app",
+  VITE_API_BASE_URL: process.env.DEPLOY_API_BASE_URL ?? "https://balance.desk.atmagaming.com",
   FASTLANE_SKIP_UPDATE_CHECK: "1",
   FASTLANE_HIDE_CHANGELOG: "1",
 };

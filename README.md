@@ -346,7 +346,7 @@ Store Connect API key. The key is read from `APP_STORE_CONNECT_API_KEY_PATH`, or
 `~/.appstoreconnect/private_keys/AuthKey_<key id>.p8` by default; its id and issuer id go in the
 repo's `.env` as `APP_STORE_CONNECT_API_KEY_ID` and `APP_STORE_CONNECT_API_KEY_ISSUER_ID`.
 
-The iOS app is bundled against `https://balance-app-mauve.vercel.app` — override with
+The iOS app is bundled against `https://balance.desk.atmagaming.com` — override with
 `DEPLOY_API_BASE_URL` to point a TestFlight build somewhere else. `fastlane beta` picks the next
 build number from TestFlight itself and writes it into the Xcode project and both watch targets'
 `Info.plist`, so a release leaves those files changed — commit them.

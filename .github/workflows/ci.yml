@@ -1,7 +1,7 @@
 name: CI
 
 # Every push runs lint and types; a green `main` is then deployed to Devkit Cloud through the dk-deploy OIDC
-# role. Vercel never deploys a push on its own (vercel.json). Inlined rather than calling desk-infra's
+# role. Inlined rather than calling desk-infra's
 # web-app.yml: this repo is public and that one is private, so GitHub refuses the call.
 on:
   push:

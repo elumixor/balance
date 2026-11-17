@@ -151,12 +151,10 @@ and `CalendarEventsService.resolve` is still the one read path.
 
 ## A branch decides where the work lands
 
-Work goes on a branch off `develop`, and pushing it deploys nothing. Merging into `develop` builds
-the development deployment (`balance-app-dev.vercel.app`, its own Vercel environment with its own
-variables) and sends an iOS beta to TestFlight pointed at it; merging into `main` builds
-production (`balance-app-mauve.vercel.app`). Every other ref is skipped by `vercel.json`'s
-`ignoreCommand`, and a macOS runner is only started once a cheap job has said the app itself
-changed.
+Work goes on a branch off `develop`, and pushing it deploys nothing. Merging into `develop` sends
+an iOS beta to TestFlight; merging into `main` deploys production to Devkit Cloud
+(`balance.desk.atmagaming.com`), which every build, beta or release, talks to. A macOS runner is
+only started once a cheap job has said the app itself changed.
 
 The Tauri bundle is the one thing a cloud build can't make, so the site doesn't carry it: a Mac
 build publishes it to a blob store (`scripts/publish-download.ts`) and `/download/*` is a redirect

@@ -27,7 +27,7 @@ final class Session {
     /// Set once a live launch has a Clerk session, so the store is built for exactly one account.
     private(set) var store: Store?
 
-    static let productionAPI = URL(string: "https://balance-app-mauve.vercel.app")!
+    static let productionAPI = URL(string: "https://balance.desk.atmagaming.com")!
 
     static var apiBaseURL: URL {
         if let dev = DevAuth.apiBaseURL { return dev }

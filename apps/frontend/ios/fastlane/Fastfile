@@ -94,7 +94,7 @@ platform :ios do
 
     # Which deployment the phone app talks to: the development API for a beta of `develop`,
     # production for a release. `Session.apiBaseURL` reads it; the committed plist says production.
-    api_base_url = ENV.fetch("VITE_API_BASE_URL", "https://balance-app-mauve.vercel.app")
+    api_base_url = ENV.fetch("VITE_API_BASE_URL", "https://balance.desk.atmagaming.com")
     set_info_plist_value(path: "App/App/Info.plist", key: "BalanceAPIBaseURL", value: api_base_url)
 
     # Make sure the watch + widget identifiers exist before sigh runs.
