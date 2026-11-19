@@ -1,5 +1,15 @@
 import { relations, sql } from "drizzle-orm";
-import { type AnyPgColumn, boolean, integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  type AnyPgColumn,
+  boolean,
+  integer,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { eventMappings } from "./calendar";
 import { trackingSessions } from "./tracking";
 import { users } from "./users";

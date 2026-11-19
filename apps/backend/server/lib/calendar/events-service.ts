@@ -79,6 +79,10 @@ export interface CreateEventOptions {
   attendees?: readonly AttendeeInput[];
   /** `"create"` gives the new event a Meet link of its own. */
   conference?: ConferenceInput;
+  /** RRULE lines; a non-empty list makes the event the master of a series. */
+  recurrence?: readonly string[];
+  /** The zone the times are walls in — Google needs one on a repeating timed event. */
+  timeZone?: string;
 }
 
 /**
@@ -202,12 +206,14 @@ export class CalendarEventsService {
       start: input.start,
       end: input.end,
       allDay: input.allDay,
+      timeZone: input.timeZone,
+      recurrence: input.recurrence?.length ? input.recurrence : undefined,
       attendees: input.attendees,
       conference: await this.#resolveConference(input.conference, () => ({
         title,
         start: input.start,
         end: input.end,
-        timeZone: undefined,
+        timeZone: input.timeZone,
       })),
     });
 
@@ -217,7 +223,9 @@ export class CalendarEventsService {
       return { ...attachMappings([{ ...created, calendarId }], [])[0], accountId: connection.accountId };
     }
 
-    const key = { calendarId, scope: "instance" as const, externalEventId: created.id };
+    // A series is filed once on its master, which is what every occurrence's mapping falls back to.
+    const scope = input.recurrence?.length ? ("series" as const) : ("instance" as const);
+    const key = { calendarId, scope, externalEventId: created.id };
     const purpose = {
       practiceId: input.practiceId ?? null,
       urn: input.urn ?? null,

@@ -7,8 +7,11 @@ import { allDayRange, calendarDate, spanDays } from "~/lib/calendar/all-day";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { qualifyCalendarId, splitCalendarId } from "~/lib/calendar/ids";
 import { EventMappingService } from "~/lib/calendar/mappings-service";
+import { type Repeat, ruleOf, WEEKDAYS } from "~/lib/calendar/repeat";
 import type { ConferenceInput } from "~/lib/calendar/types";
+import { SphereProgressService } from "~/lib/categories/progress-service";
 import { CategoryService } from "~/lib/categories/service";
+import { overBudgetWarning, qualifiedNames } from "~/lib/categories/tree";
 import { ApiError } from "~/lib/http/api-error";
 import { parseInstant, parseInstantRange, urnField } from "~/lib/http/schemas";
 import { dayIn } from "~/lib/planning/days";
@@ -108,6 +111,7 @@ const rangeSchema = {
 };
 
 const DEFAULT_RANGE_DAYS = 7;
+const DEFAULT_SPHERE_COLOR = "#64748b";
 /** The same ceiling the app's own notes field has. */
 const MAX_NOTES_LENGTH = 10_000;
 
@@ -242,6 +246,81 @@ async function withGuests(
   return current;
 }
 
+const repeatSchema = z.object({
+  days: z
+    .array(z.enum(WEEKDAYS))
+    .optional()
+    .describe("Weekdays it falls on. Left out, the start's own weekday; an empty list makes it a one-off."),
+  until: z.string().optional().describe("The last day it may fall on, YYYY-MM-DD, inclusive."),
+  count: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe("How many times it happens, the first included. Not with `until`."),
+});
+
+const REPEAT_DESCRIPTION = "Makes the block repeat weekly — on which days, and until a day or for a number of times.";
+
+/** A sphere as a model reads it: where it sits, what it is for in Keep, and its weekly hours. */
+type CategoryRow = Awaited<ReturnType<CategoryService["list"]>>[number];
+const budgetOf = (c: CategoryRow) => ({ ...c, targetHoursPerWeek: Number(c.targetHoursPerWeek) });
+
+function sphereOf(c: CategoryRow, names: ReadonlyMap<string, string>) {
+  return {
+    id: c.id,
+    name: c.name,
+    qualifiedName: names.get(c.id) ?? c.name,
+    color: c.color,
+    icon: c.icon,
+    targetHoursPerWeek: Number(c.targetHoursPerWeek),
+    parentId: c.parentId,
+    urn: c.urn,
+    isBuffer: c.isBuffer,
+  };
+}
+
+/**
+ * A sphere as written, with the warning a person would see beside it: whether the parts of the
+ * sphere it sits in — or of itself, when it holds parts — now ask for more hours than the whole.
+ */
+async function writtenSphere(service: CategoryService, id: string) {
+  const rows = await service.list();
+  const spheres = rows.map(budgetOf);
+  const sphere = spheres.find((c) => c.id === id);
+  if (!sphere) throw new ApiError("That sphere no longer exists", 404);
+  const parent = spheres.find((c) => c.id === (sphere.parentId ?? id));
+  return {
+    sphere: sphereOf(rows.find((c) => c.id === id) as CategoryRow, qualifiedNames(rows)),
+    warning: parent ? overBudgetWarning(parent, spheres) : null,
+  };
+}
+
+/**
+ * What a repeat change writes. Google refuses a timed series whose start names no zone, so a
+ * one-off made to repeat is written with its times again, walled in the person's zone; a series
+ * edit lands on the master, which already has one.
+ */
+async function repeatOf(
+  user: DbUser,
+  args: { repeat?: Repeat | null; timeZone?: string },
+  current: { start: Date; end: Date; allDay: boolean; timeZone: string | null },
+  patch: { start?: Date; end?: Date },
+  onSeries: boolean,
+) {
+  const zone = await zoneOf(user, args.timeZone ?? current.timeZone ?? undefined);
+  const recurrence = args.repeat ? ruleOf(args.repeat, { allDay: current.allDay, timeZone: zone }) : [];
+  if (onSeries || current.allDay || recurrence.length === 0) return { recurrence };
+  return { recurrence, start: patch.start ?? current.start, end: patch.end ?? current.end, timeZone: zone };
+}
+
+const SPHERE_URN_DESCRIPTION =
+  "The Keep page this sphere is the hours of, as its link — `https://keep.desk.atmagaming.com/p/<id>`.";
+
+const PARENT_DESCRIPTION =
+  "The sphere this one is a part of — a project under Projects. Its hours also count toward the parent. " +
+  "Spheres nest one level only.";
+
 /** The event id a block's link names (`…/calendar?event=<id>`, or a legacy `balance:block/<id>`), or the id as given. */
 function eventIdOf(given: string) {
   const text = given.trim();
@@ -256,19 +335,102 @@ export const mcpTools: McpTool[] = [
     title: "List spheres",
     description:
       "The spheres (categories) on the ring, with how many hours a week each is meant to get. " +
-      "Every other tool that takes a `categoryId` takes one of these ids.",
+      "A sphere with a `parentId` is a part of another — a project under Projects — and its hours " +
+      "count toward the parent too; `urn` is the Keep page it is for. Every other tool that takes " +
+      "a `categoryId` takes one of these ids.",
     inputSchema: {},
     async run(_args, user) {
       const rows = await new CategoryService(user.id).list();
-      return {
-        spheres: rows.map((c) => ({
-          id: c.id,
-          name: c.name,
-          color: c.color,
-          icon: c.icon,
-          targetHoursPerWeek: Number(c.targetHoursPerWeek),
-        })),
-      };
+      const names = qualifiedNames(rows);
+      return { spheres: rows.map((c) => sphereOf(c, names)) };
+    },
+  }),
+
+  tool({
+    name: "create_sphere",
+    title: "Create a sphere",
+    description:
+      "Adds a sphere with its hours a week — or, with `parentId`, a part of one, such as a project " +
+      "with a weekly budget under Projects, linked to its Keep page by `urn`. Answers with a " +
+      "`warning` when the parts of the parent now ask for more hours than it has.",
+    readOnly: false,
+    inputSchema: {
+      name: z.string().trim().min(1),
+      hoursPerWeek: z.number().min(0).max(168).describe("The hours a week it is meant to get."),
+      parentId: z.string().optional().describe(PARENT_DESCRIPTION),
+      urn: urnField.optional().describe(SPHERE_URN_DESCRIPTION),
+      color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional()
+        .describe("A hex colour. Defaults to the parent's, or slate."),
+      icon: z.string().optional().describe("A Lucide icon name."),
+    },
+    async run(args, user) {
+      const service = new CategoryService(user.id);
+      const parent = args.parentId ? (await service.list()).find((c) => c.id === args.parentId) : undefined;
+      const created = await service.create({
+        name: args.name,
+        color: args.color ?? parent?.color ?? DEFAULT_SPHERE_COLOR,
+        icon: args.icon,
+        targetHoursPerWeek: args.hoursPerWeek,
+        parentId: args.parentId ?? null,
+        urn: args.urn ?? null,
+      });
+      return writtenSphere(service, created.id);
+    },
+  }),
+
+  tool({
+    name: "update_sphere",
+    title: "Change a sphere",
+    description:
+      "Renames a sphere, changes its hours a week, moves it under another (or out, with `parentId` null), " +
+      "or links its Keep page. Only what is given changes. Answers with a `warning` when the parts " +
+      "of the parent now ask for more hours than it has.",
+    readOnly: false,
+    inputSchema: {
+      id: z.string().min(1).describe("The sphere id from `list_spheres`."),
+      name: z.string().trim().min(1).optional(),
+      hoursPerWeek: z.number().min(0).max(168).optional(),
+      parentId: z.string().nullable().optional().describe(`${PARENT_DESCRIPTION} Null lifts it out.`),
+      urn: urnField.nullable().optional().describe(`${SPHERE_URN_DESCRIPTION} Null unlinks it.`),
+      color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional(),
+      icon: z.string().optional(),
+    },
+    async run(args, user) {
+      const service = new CategoryService(user.id);
+      const current = (await service.list()).find((c) => c.id === args.id);
+      if (!current) throw new ApiError("That sphere no longer exists", 404);
+      await service.update(args.id, {
+        name: args.name ?? current.name,
+        color: args.color ?? current.color,
+        icon: args.icon,
+        targetHoursPerWeek: args.hoursPerWeek ?? Number(current.targetHoursPerWeek),
+        parentId: args.parentId,
+        urn: args.urn,
+      });
+      return writtenSphere(service, args.id);
+    },
+  }),
+
+  tool({
+    name: "get_sphere_progress",
+    title: "How the week is going per sphere",
+    description:
+      "For the week containing `date`, each sphere and each part under one: hours already spent, " +
+      "hours still on the calendar, the weekly target and what is left of it. A part's hours count " +
+      "toward its parent too.",
+    inputSchema: {
+      date: z.string().optional().describe("Any day in the week, YYYY-MM-DD. Defaults to today."),
+      timeZone: z.string().optional().describe("IANA zone the week is in. Defaults to the account's."),
+    },
+    async run(args, user) {
+      const zone = await zoneOf(user, args.timeZone);
+      return new SphereProgressService(user.id).week(args.date ?? dayIn(zone), zone);
     },
   }),
 
@@ -389,14 +551,21 @@ export const mcpTools: McpTool[] = [
       zoom: z.boolean().optional().describe(ZOOM_DESCRIPTION),
       call: callSchema.optional().describe(CALL_DESCRIPTION),
       notes: z.string().max(MAX_NOTES_LENGTH).optional().describe(NOTES_DESCRIPTION),
+      repeat: repeatSchema.optional().describe(REPEAT_DESCRIPTION),
+      timeZone: z.string().optional().describe("IANA zone of a repeating block. Defaults to the account's."),
       ...purposeSchema,
     },
     async run(args, user) {
       const { start, end } = args.allDay
         ? allDayRange(args.start, args.end)
         : parseInstantRange(args.start, required(args.end, "end"), ["start", "end"]);
+      const zone = args.repeat || args.timeZone ? await zoneOf(user, args.timeZone) : undefined;
+      const recurrence =
+        args.repeat && zone ? ruleOf(args.repeat, { allDay: args.allDay ?? false, timeZone: zone }) : undefined;
       const created = await new CalendarEventsService(user.id).create({
         ...args,
+        recurrence,
+        timeZone: args.allDay ? undefined : zone,
         weights: weightsOf(args.categoryId),
         attendees: guestsOf(args.attendees),
         conference: conferenceOf(args),
@@ -412,6 +581,7 @@ export const mcpTools: McpTool[] = [
         attendees: created.attendees.flatMap((a) => (a.email ? [a.email] : [])),
         conferenceUrl: created.conferenceUrl,
         urn: created.mapping?.urn ?? null,
+        repeats: Boolean(recurrence?.length),
         ...notes,
       };
     },
@@ -423,7 +593,9 @@ export const mcpTools: McpTool[] = [
     description:
       "Changes an event that is already on the calendar, including who is coming, whether it has a " +
       "Google Meet call, and your own private notes about it. Only what is given is changed. An " +
-      "event whose `movable` is false takes no time or title change — but still takes notes.",
+      "event whose `movable` is false takes no time or title change — but still takes notes. On a " +
+      "repeating event, `scope` says whether the change is this occurrence, every one, or this and " +
+      "the ones after; `repeat` always changes the whole series.",
     readOnly: false,
     inputSchema: {
       id: z.string().min(1).describe("The event id from `list_events`."),
@@ -457,13 +629,22 @@ export const mcpTools: McpTool[] = [
         .optional()
         .describe(`${NOTES_DESCRIPTION} Null clears them; use \`set_notes\` to write them on a whole series.`),
       urn: urnField.nullable().optional().describe(`${URN_DESCRIPTION} Null unlinks it.`),
+      repeat: repeatSchema
+        .nullable()
+        .optional()
+        .describe(`${REPEAT_DESCRIPTION} Null stops it repeating. Always written to the whole series.`),
+      scope: z
+        .enum(["one", "series", "following"])
+        .default("one")
+        .describe("On a repeating event: this occurrence, every occurrence, or this one and the ones after."),
+      seriesId: z.string().optional().describe("The event's `seriesId` from `list_events`, for any scope but `one`."),
     },
     async run(args, user) {
       const service = new CalendarEventsService(user.id);
       const attendees = args.addAttendees?.length
         ? await withGuests(service, args.calendarId, args.id, args.addAttendees)
         : guestsOf(args.attendees);
-      const updated = await service.update(args.calendarId, args.id, {
+      const patch = {
         title: args.title,
         description: args.description,
         location: args.location,
@@ -471,7 +652,25 @@ export const mcpTools: McpTool[] = [
         timeZone: args.timeZone,
         attendees,
         conference: conferenceOf(args),
-      });
+      };
+      const wholeSeries = args.scope !== "one" || args.repeat !== undefined;
+      if (wholeSeries && args.scope !== "one" && !args.seriesId) {
+        throw new ApiError("seriesId is required to change more than one occurrence");
+      }
+      const current = wholeSeries ? await service.get(args.calendarId, args.id) : undefined;
+      const seriesId = args.seriesId ?? current?.seriesId ?? undefined;
+      const series =
+        current && seriesId && seriesId !== args.id
+          ? {
+              seriesId,
+              scope: args.scope === "following" ? ("following" as const) : ("all" as const),
+              previousStart: current.start,
+              previousEnd: current.end,
+            }
+          : undefined;
+      const repeatPatch =
+        current && args.repeat !== undefined ? await repeatOf(user, args, current, patch, !!series) : {};
+      const updated = await service.update(args.calendarId, args.id, { ...patch, ...repeatPatch }, series);
       const annotated = await annotateEvent(user, args.calendarId, args.id, { notes: args.notes, urn: args.urn });
       return {
         id: updated.id,

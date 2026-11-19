@@ -259,7 +259,10 @@ describe("progressOf", () => {
 
   test("a parent whose parts ask for too much carries the warning", () => {
     const greedy = { ...engine, targetHoursPerWeek: 30 };
-    const rows = progressOf([projects, narrative, greedy].map((s) => ({ ...s, urn: null })), new Map());
+    const rows = progressOf(
+      [projects, narrative, greedy].map((s) => ({ ...s, urn: null })),
+      new Map(),
+    );
     expect(rows[0].warning).toContain("10h more");
     expect(rows[1].warning).toBeNull();
   });
