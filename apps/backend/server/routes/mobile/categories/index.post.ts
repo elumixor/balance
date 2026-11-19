@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CategoryDTO } from "~/lib/categories/dto";
 import { CategoryService } from "~/lib/categories/service";
 import { authed } from "~/lib/http/authed";
+import { urnField } from "~/lib/http/schemas";
 
 export default authed(
   {
@@ -11,6 +12,8 @@ export default authed(
       color: z.string().trim().min(1),
       icon: z.string().trim().min(1).optional(),
       targetHoursPerWeek: z.number(),
+      parentId: z.uuid().nullable().optional(),
+      urn: urnField.nullable().optional(),
     },
   },
   async ({ body, event, user }) => {

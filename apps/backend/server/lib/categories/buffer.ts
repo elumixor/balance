@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { db } from "~/db";
 import { categories } from "~/db/schema";
 
@@ -36,13 +36,19 @@ class BufferCategoryService {
   /**
    * Recomputes the buffer category's target so it always absorbs whatever the user's
    * other (non-archived) categories haven't claimed out of a 168-hour week. Clamped to
-   * 0 if the user has over-allocated.
+   * 0 if the user has over-allocated. A part of a sphere claims nothing: its hours are already
+   * inside its parent's.
    */
   async sync(userId: string): Promise<void> {
     const buffer = await this.ensure(userId);
 
     const others = await db.query.categories.findMany({
-      where: and(eq(categories.userId, userId), eq(categories.archived, false), ne(categories.id, buffer.id)),
+      where: and(
+        eq(categories.userId, userId),
+        eq(categories.archived, false),
+        ne(categories.id, buffer.id),
+        isNull(categories.parentId),
+      ),
       columns: { targetHoursPerWeek: true },
     });
 

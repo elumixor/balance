@@ -9,6 +9,10 @@ export class CategoryDTO {
   readonly targetHoursPerWeek: number;
   readonly isBuffer: boolean;
   readonly archived: boolean;
+  /** The sphere this one is a part of, or null for a slice of the ring. */
+  readonly parentId: string | null;
+  /** The Keep page this sphere is the hours of, as its link. */
+  readonly urn: string | null;
 
   constructor(c: typeof categories.$inferSelect) {
     this.id = c.id;
@@ -18,6 +22,8 @@ export class CategoryDTO {
     this.targetHoursPerWeek = Number(c.targetHoursPerWeek);
     this.isBuffer = c.isBuffer;
     this.archived = c.archived;
+    this.parentId = c.parentId;
+    this.urn = c.urn;
   }
 }
 

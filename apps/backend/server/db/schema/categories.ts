@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { boolean, integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { type AnyPgColumn, boolean, integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { eventMappings } from "./calendar";
 import { trackingSessions } from "./tracking";
 import { users } from "./users";
@@ -18,6 +18,13 @@ export const categories = pgTable(
     targetHoursPerWeek: numeric("target_hours_per_week", { precision: 5, scale: 2 }).notNull(),
     /** The single system-managed category that absorbs all time unallocated by the user's other categories. */
     isBuffer: boolean("is_buffer").notNull().default(false),
+    /**
+     * The sphere this one is a part of: a project under Projects, with hours a week of its own.
+     * One level deep. A part is not a slice of the ring; its hours count toward its parent's.
+     */
+    parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
+    /** The Keep page this sphere is the hours of, as its https link. Never read, only shown. */
+    urn: text("urn"),
     /** Archiving is how a category is deleted: it stops being offered, past entries keep it. */
     archived: boolean("archived").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

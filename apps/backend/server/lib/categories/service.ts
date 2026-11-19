@@ -1,14 +1,19 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, or } from "drizzle-orm";
 import { db } from "~/db";
 import { activities, activityCategoryWeights, categories } from "~/db/schema";
 import { ApiError, NotFoundError } from "~/lib/http/api-error";
 import { bufferCategoryService } from "./buffer";
+import { nestingRefusal, refusalText } from "./tree";
 
 export type CategoryInput = {
   name: string;
   color: string;
   icon?: string;
   targetHoursPerWeek: number;
+  /** The sphere this one is a part of. Left out, an update keeps what it has; null lifts it out. */
+  parentId?: string | null;
+  /** The Keep page this sphere is the hours of. Left out, an update keeps what it has. */
+  urn?: string | null;
 };
 
 export type ActivityWeightInput = {
@@ -29,6 +34,24 @@ export type ActivityWithWeights = ActivityRow & { weights: (typeof activityCateg
 const BUFFER_IS_MANAGED = "The Buffer category is system-managed and can't be edited directly";
 const BUFFER_IS_MANAGED_STATUS = 403;
 
+/**
+ * Why `id` can't be made a part of `parentId`, in words, or null when it can. One rule for the
+ * API, the assistant's tools and the write queue, each of which refuses in its own way.
+ */
+export async function nestingProblem(userId: string, id: string, parentId: string): Promise<string | null> {
+  const live = await db.query.categories.findMany({
+    where: and(eq(categories.userId, userId), eq(categories.archived, false)),
+    columns: { id: true, parentId: true, isBuffer: true },
+  });
+  const refusal = nestingRefusal(id, parentId, live);
+  return refusal ? refusalText(refusal) : null;
+}
+
+/** Archiving a sphere takes its parts with it: a part has nowhere to be drawn without it. */
+export function selfAndParts(userId: string, id: string) {
+  return and(eq(categories.userId, userId), or(eq(categories.id, id), eq(categories.parentId, id)));
+}
+
 /** CRUD for a single user's categories, keeping the system-managed buffer category in sync. */
 export class CategoryService {
   constructor(private readonly userId: string) {}
@@ -47,14 +70,19 @@ export class CategoryService {
   }
 
   async create(input: CategoryInput): Promise<CategoryRow> {
+    const id = crypto.randomUUID();
+    if (input.parentId) await this.#assertNests(id, input.parentId);
     const [created] = await db
       .insert(categories)
       .values({
+        id,
         userId: this.userId,
         name: input.name,
         color: input.color,
         icon: input.icon ?? "circle",
         targetHoursPerWeek: input.targetHoursPerWeek.toString(),
+        parentId: input.parentId ?? null,
+        urn: input.urn ?? null,
       })
       .returning();
     await bufferCategoryService.sync(this.userId);
@@ -63,6 +91,7 @@ export class CategoryService {
 
   async update(id: string, input: CategoryInput): Promise<CategoryRow> {
     await this.#assertEditable(id);
+    if (input.parentId) await this.#assertNests(id, input.parentId);
     const [updated] = await db
       .update(categories)
       .set({
@@ -70,6 +99,8 @@ export class CategoryService {
         color: input.color,
         ...(input.icon ? { icon: input.icon } : {}),
         targetHoursPerWeek: input.targetHoursPerWeek.toString(),
+        ...(input.parentId === undefined ? {} : { parentId: input.parentId }),
+        ...(input.urn === undefined ? {} : { urn: input.urn }),
       })
       .where(and(eq(categories.id, id), eq(categories.userId, this.userId)))
       .returning();
@@ -90,8 +121,13 @@ export class CategoryService {
     await db
       .update(categories)
       .set({ archived })
-      .where(and(eq(categories.id, id), eq(categories.userId, this.userId)));
+      .where(archived ? selfAndParts(this.userId, id) : and(eq(categories.id, id), eq(categories.userId, this.userId)));
     await bufferCategoryService.sync(this.userId);
+  }
+
+  async #assertNests(id: string, parentId: string): Promise<void> {
+    const problem = await nestingProblem(this.userId, id, parentId);
+    if (problem) throw new ApiError(problem);
   }
 
   async #assertEditable(id: string): Promise<void> {

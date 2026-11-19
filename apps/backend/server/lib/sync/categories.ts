@@ -4,6 +4,8 @@ import { z } from "zod";
 import { db } from "~/db";
 import { categories } from "~/db/schema";
 import { bufferCategoryService } from "~/lib/categories/buffer";
+import { nestingProblem, selfAndParts } from "~/lib/categories/service";
+import { urnField } from "~/lib/http/schemas";
 
 /**
  * A category as both halves of the app agree it looks.
@@ -20,6 +22,12 @@ export const categorySchema = z.object({
   targetHoursPerWeek: z.number().min(0).max(168),
   /** Server-owned: the buffer is made and maintained here, never by a client. */
   isBuffer: z.boolean(),
+  /**
+   * The sphere this one is a part of, and the Keep page it is the hours of. Both default to
+   * nothing, so a client written before spheres nested still sends a whole record.
+   */
+  parentId: z.uuid().nullable().default(null),
+  urn: urnField.nullable().default(null),
 });
 
 export type SyncedCategory = z.infer<typeof categorySchema>;
@@ -38,6 +46,8 @@ function envelopeOf(row: Row): Envelope<SyncedCategory> {
       icon: row.icon,
       targetHoursPerWeek: Number(row.targetHoursPerWeek),
       isBuffer: row.isBuffer,
+      parentId: row.parentId,
+      urn: row.urn,
     },
   };
 }
@@ -49,6 +59,8 @@ function columnsOf(patch: Partial<SyncedCategory>) {
     ...(patch.color === undefined ? {} : { color: patch.color }),
     ...(patch.icon === undefined ? {} : { icon: patch.icon }),
     ...(patch.targetHoursPerWeek === undefined ? {} : { targetHoursPerWeek: patch.targetHoursPerWeek.toString() }),
+    ...(patch.parentId === undefined ? {} : { parentId: patch.parentId }),
+    ...(patch.urn === undefined ? {} : { urn: patch.urn }),
   };
 }
 
@@ -71,6 +83,7 @@ class CategoryStore implements SyncedStore<SyncedCategory> {
 
   /** Also how a deleted category comes back: the same id, written again by a redone step. */
   async create(userId: string, record: SyncedCategory) {
+    await this.#assertNests(userId, record.id, record.parentId);
     await db
       .insert(categories)
       .values({
@@ -80,6 +93,8 @@ class CategoryStore implements SyncedStore<SyncedCategory> {
         color: record.color,
         icon: record.icon,
         targetHoursPerWeek: record.targetHoursPerWeek.toString(),
+        parentId: record.parentId,
+        urn: record.urn,
       })
       .onConflictDoUpdate({
         target: categories.id,
@@ -90,6 +105,7 @@ class CategoryStore implements SyncedStore<SyncedCategory> {
   }
 
   async update(userId: string, id: string, patch: Partial<SyncedCategory>) {
+    await this.#assertNests(userId, id, patch.parentId);
     await db
       .update(categories)
       .set(columnsOf(patch))
@@ -97,13 +113,19 @@ class CategoryStore implements SyncedStore<SyncedCategory> {
     return this.#confirm(userId, id);
   }
 
-  /** Archiving, not deleting: the hours already counted against it stay counted. */
+  /**
+   * Archiving, not deleting: the hours already counted against it stay counted. Its parts go
+   * with it, each a tombstone of its own on the next pull.
+   */
   async remove(userId: string, id: string) {
-    await db
-      .update(categories)
-      .set({ archived: true })
-      .where(and(eq(categories.id, id), eq(categories.userId, userId)));
+    await db.update(categories).set({ archived: true }).where(selfAndParts(userId, id));
     return this.#confirm(userId, id);
+  }
+
+  async #assertNests(userId: string, id: string, parentId: string | null | undefined) {
+    if (!parentId) return;
+    const problem = await nestingProblem(userId, id, parentId);
+    if (problem) throw new RejectedError(problem);
   }
 
   async #confirm(userId: string, id: string) {
