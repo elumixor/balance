@@ -3,6 +3,7 @@ import { db } from "~/db";
 import { categories } from "~/db/schema";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
 import { bufferCategoryService } from "~/lib/categories/buffer";
+import { asRing } from "~/lib/categories/tree";
 import type { CategoryInput, EventInput } from "./types";
 
 export interface StatsData {
@@ -30,10 +31,12 @@ export class StatsRepository {
       new CalendarEventsService(this.userId).resolve(rangeStart, rangeEnd),
     ]);
 
+    // The ring has slices only: a project's hours are its parent's.
+    const ring = asRing(categoryRows, range.events);
     return {
       connected: range.connected,
       needsReconnect: range.needsReconnect,
-      categories: categoryRows.map((c) => ({
+      categories: ring.spheres.map((c) => ({
         id: c.id,
         name: c.name,
         color: c.color,
@@ -43,7 +46,7 @@ export class StatsRepository {
       })),
       // An event mapped straight to categories has no activity to name it, so it stands for
       // itself in the breakdown — which reads better than "Other" anyway.
-      events: range.events
+      events: ring.events
         .filter((e) => e.countsTowardHours && e.weights.length > 0)
         .map((e) => ({
           id: e.id,

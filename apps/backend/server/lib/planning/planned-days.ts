@@ -3,6 +3,7 @@ import { db } from "~/db";
 import { categories, plannedDays, plannedWeeks } from "~/db/schema";
 import { CalendarEventsService, type ResolvedEvent } from "~/lib/calendar/events-service";
 import { bufferCategoryService } from "~/lib/categories/buffer";
+import { asRing } from "~/lib/categories/tree";
 import { blocksOf, categoryHours } from "./blocks";
 import { balanceMatch, coverage } from "./coverage";
 import { addDays, type Day, rangeOf, weekStartOf } from "./days";
@@ -58,11 +59,13 @@ export class PlannedDays {
       new CalendarEventsService(this.userId).resolve(start, end),
     ]);
 
+    // The ritual weighs the ring's slices, so a project's hours are counted as its parent's.
+    const ring = asRing(rows, range.events);
     return {
       connected: range.connected,
       needsReconnect: range.needsReconnect,
-      events: range.events,
-      categories: rows.map(
+      events: ring.events,
+      categories: ring.spheres.map(
         (row): PlanCategory => ({
           id: row.id,
           name: row.name,

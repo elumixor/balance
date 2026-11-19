@@ -50,6 +50,36 @@ export function rollUp<T extends Weight>(weights: readonly T[], parents: Readonl
   return [...merged.values()];
 }
 
+/**
+ * A list of spheres and the events filed against them, seen as the ring sees them: only the
+ * slices, each event's parts counted as their parents. What stats and planning read.
+ */
+export function asRing<S extends SphereNode, E extends { readonly weights: readonly Weight[] }>(
+  spheres: readonly S[],
+  events: readonly E[],
+): { spheres: S[]; events: E[] } {
+  const parents = parentsOf(spheres);
+  if (parents.size === 0) return { spheres: [...spheres], events: [...events] };
+  return {
+    spheres: topLevel(spheres),
+    events: events.map((event) => ({ ...event, weights: rollUp(event.weights, parents) })),
+  };
+}
+
+/**
+ * Each sphere's name as somebody outside the app reads it: a part carries its parent's in front
+ * ("Projects › Balance"), so two projects called "Admin" under different spheres stay apart.
+ */
+export function qualifiedNames(spheres: readonly (SphereNode & { readonly name: string })[]): Map<string, string> {
+  const names = new Map(spheres.map((sphere) => [sphere.id, sphere.name]));
+  return new Map(
+    spheres.map((sphere) => {
+      const parent = sphere.parentId ? names.get(sphere.parentId) : undefined;
+      return [sphere.id, parent ? `${parent} › ${sphere.name}` : sphere.name];
+    }),
+  );
+}
+
 export type NestingRefusal = "self" | "missing" | "buffer" | "nested" | "has-parts";
 
 const REFUSALS: Record<NestingRefusal, string> = {
@@ -143,6 +173,54 @@ export function hoursBySphere(
   });
 
   return new Map([...totals].map(([id, t]) => [id, { tracked: round(t.tracked), scheduled: round(t.scheduled) }]));
+}
+
+export interface SphereProgress {
+  readonly id: string;
+  readonly name: string;
+  readonly parentId: string | null;
+  readonly urn: string | null;
+  readonly targetHours: number;
+  /** Hours already spent this week; a sphere's include its parts'. */
+  readonly trackedHours: number;
+  /** Hours still on the calendar this week. */
+  readonly scheduledHours: number;
+  /** Target left once both are counted; 0 when the week already holds enough. */
+  readonly remainingHours: number;
+  /** The sentence said when a sphere's parts ask for more than it has. */
+  readonly warning: string | null;
+}
+
+/**
+ * Every live sphere against its week, parents before their parts, in the order given. The Buffer
+ * has no target of its own to be measured against and is left out.
+ */
+export function progressOf(
+  spheres: readonly (SphereBudget & { readonly urn: string | null; readonly isBuffer: boolean })[],
+  hours: ReadonlyMap<string, HoursSoFar>,
+): SphereProgress[] {
+  const measured = spheres.filter((sphere) => !sphere.isBuffer);
+  const row = (sphere: (typeof measured)[number]): SphereProgress => {
+    const { tracked, scheduled } = hours.get(sphere.id) ?? { tracked: 0, scheduled: 0 };
+    return {
+      id: sphere.id,
+      name: sphere.name,
+      parentId: sphere.parentId,
+      urn: sphere.urn,
+      targetHours: sphere.targetHoursPerWeek,
+      trackedHours: tracked,
+      scheduledHours: scheduled,
+      remainingHours: Math.max(0, round(sphere.targetHoursPerWeek - tracked - scheduled)),
+      warning: sphere.parentId ? null : overBudgetWarning(sphere, measured),
+    };
+  };
+  const ids = new Set(measured.map((sphere) => sphere.id));
+  // A part whose parent is gone has nowhere to be drawn under, so it stands on its own.
+  const roots = measured.filter((sphere) => !sphere.parentId || !ids.has(sphere.parentId));
+  return roots.flatMap((root) => [
+    row(root),
+    ...measured.filter((sphere) => sphere.parentId === root.id && sphere !== root).map(row),
+  ]);
 }
 
 function round(hours: number): number {

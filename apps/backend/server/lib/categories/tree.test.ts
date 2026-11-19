@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  asRing,
   hoursBySphere,
   nestingRefusal,
   overBudgetHours,
   overBudgetWarning,
   parentsOf,
+  progressOf,
+  qualifiedNames,
   rollUp,
   topLevel,
 } from "./tree";
@@ -183,5 +186,81 @@ describe("hoursBySphere", () => {
 
   test("a sphere with no blocks has no entry", () => {
     expect(hoursBySphere([], window, 0, parents).size).toBe(0);
+  });
+});
+
+describe("asRing", () => {
+  test("a list with no parts passes through untouched", () => {
+    const flat = [health, buffer];
+    const events = [{ id: "e", weights: [{ categoryId: "health", weightPercent: 100 }] }];
+    expect(asRing(flat, events)).toEqual({ spheres: flat, events });
+  });
+
+  test("parts leave the spheres and their weights land on the parent", () => {
+    const events = [
+      {
+        id: "e",
+        weights: [
+          { categoryId: "narrative", weightPercent: 50 },
+          { categoryId: "engine", weightPercent: 30 },
+          { categoryId: "health", weightPercent: 20 },
+        ],
+      },
+    ];
+    const ring = asRing(spheres, events);
+    expect(ring.spheres.map((s) => s.id)).toEqual(["projects", "health", "buffer"]);
+    expect(ring.events[0].weights).toEqual([
+      { categoryId: "projects", weightPercent: 80 },
+      { categoryId: "health", weightPercent: 20 },
+    ]);
+    expect(ring.events[0].id).toBe("e");
+  });
+});
+
+describe("qualifiedNames", () => {
+  test("a part carries its parent's name, a root its own", () => {
+    const names = qualifiedNames(spheres);
+    expect(names.get("narrative")).toBe("Projects › Narrative");
+    expect(names.get("projects")).toBe("Projects");
+  });
+
+  test("a part whose parent is gone keeps its own name", () => {
+    expect(qualifiedNames([narrative]).get("narrative")).toBe("Narrative");
+  });
+});
+
+describe("progressOf", () => {
+  const withUrn = spheres.map((s) => ({ ...s, urn: null as string | null }));
+
+  test("parents come before their parts and the Buffer is left out", () => {
+    const rows = progressOf(withUrn, new Map());
+    expect(rows.map((r) => r.id)).toEqual(["projects", "narrative", "engine", "health"]);
+  });
+
+  test("remaining counts tracked and scheduled, never below zero", () => {
+    const rows = progressOf(
+      withUrn,
+      new Map([
+        ["projects", { tracked: 10, scheduled: 4 }],
+        ["narrative", { tracked: 3, scheduled: 3 }],
+      ]),
+    );
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    expect(byId.get("projects")?.remainingHours).toBe(10);
+    expect(byId.get("narrative")?.remainingHours).toBe(0);
+    expect(byId.get("health")).toMatchObject({ trackedHours: 0, scheduledHours: 0, remainingHours: 7 });
+  });
+
+  test("a part whose parent is gone stands as a root", () => {
+    const rows = progressOf([{ ...narrative, urn: "https://keep.desk.atmagaming.com/p/x" }], new Map());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: "narrative", urn: "https://keep.desk.atmagaming.com/p/x", warning: null });
+  });
+
+  test("a parent whose parts ask for too much carries the warning", () => {
+    const greedy = { ...engine, targetHoursPerWeek: 30 };
+    const rows = progressOf([projects, narrative, greedy].map((s) => ({ ...s, urn: null })), new Map());
+    expect(rows[0].warning).toContain("10h more");
+    expect(rows[1].warning).toBeNull();
   });
 });

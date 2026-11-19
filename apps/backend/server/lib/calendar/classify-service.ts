@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "~/db";
 import { categories, eventClassifications, eventMappings } from "~/db/schema";
 import { DECISION_MODEL, decisionModel } from "~/lib/ai/decision";
+import { qualifiedNames } from "~/lib/categories/tree";
 import { captureError } from "~/lib/telemetry";
 import {
   buildOptions,
@@ -52,8 +53,12 @@ export class EventClassificationService {
     const todo = await this.#unasked(candidatesOf(range.events, from, to));
     if (todo.length === 0) return { classified: 0 };
 
-    const options = buildOptions(spheres);
-    const filed = filedExamples(range.events, spheres);
+    // A project is offered under its own name and its sphere's, so a block can be filed to the
+    // project and still count toward the sphere.
+    const names = qualifiedNames(spheres);
+    const named = spheres.map((sphere) => ({ ...sphere, name: names.get(sphere.id) ?? sphere.name }));
+    const options = buildOptions(named);
+    const filed = filedExamples(range.events, named);
     const verdicts = await mapLimited(todo, (candidate) => this.#ask(candidate, options, filed));
 
     let classified = 0;
