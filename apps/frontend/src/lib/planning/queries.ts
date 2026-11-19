@@ -1,12 +1,23 @@
 import { api, apiGet, callApi } from "$lib/core/api";
 import type { Assisted, DayPlanAssist } from "$lib/planning/day-assist";
-import type { CommitResult, SessionNotification, SessionSummary, Slot, StarProgress } from "$lib/planning/types";
+import type {
+  CommitResult,
+  SessionNotification,
+  SessionSummary,
+  Slot,
+  SphereWeek,
+  StarProgress,
+} from "$lib/planning/types";
 
 /** The zone travels with every ask: a planning day is a day in a place, and only the device knows. */
 export const getSessionSummary = (slot: Slot, timeZone: string) =>
   apiGet<SessionSummary>("/planning/summary", { slot, timeZone });
 
 export const getProgress = (timeZone: string) => apiGet<StarProgress>("/planning/progress", { timeZone });
+
+/** How this week is going for every sphere, measured in the device's own week. */
+export const getSphereProgress = (timeZone: string, today: string) =>
+  apiGet<SphereWeek>("/categories/progress", { timeZone, today });
 
 export const getSessionNotifications = (timeZone: string) =>
   apiGet<{ enabled: boolean; slots: SessionNotification[] }>("/planning/notifications", { timeZone });

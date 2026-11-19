@@ -1,12 +1,14 @@
 <script lang="ts">
   import { Screen, Skeleton } from "$lib/components";
   import WeekRing from "$lib/components/ring/WeekRing.svelte";
+  import { store } from "$lib/core/store.svelte";
   import { synced } from "$lib/core/synced.svelte";
   import { categoryDrafts as week, WEEK_HOURS } from "$lib/planning/category-drafts.svelte";
+  import { parentOptions } from "$lib/planning/sphere-tree";
   import { practicesData as data } from "$lib/practices/practices-data.svelte";
   import { iconFor } from "$lib/ui/icons";
   import { CircleDashed, Plus } from "lucide-svelte";
-  import { IconPicker, SphereMenu, SphereSection } from "./components";
+  import { IconPicker, SphereMenu, SphereSection, WeekDonut } from "./components";
 
   /**
    * The week as it is meant to go, top to bottom: the ring cutting 168 hours into spheres, and
@@ -19,13 +21,18 @@
    */
   void week.enter();
   void data.enter();
+  void store.sphereProgress.ensure();
 
   const claimedHours = $derived(WEEK_HOURS - week.restHours);
   const claimedPercent = $derived(Math.round((claimedHours / WEEK_HOURS) * 100));
   const icons = $derived(week.drafts.map((draft) => draft.icon));
 
-  /** The sphere whose menu is open — an index into the ring's segments — and where it was asked. */
-  let menu = $state<{ index: number; at: DOMRect } | null>(null);
+  /** This week's hours per sphere and part, once the calendar has answered. */
+  const progress = $derived(new Map((store.sphereProgress.value?.spheres ?? []).map((s) => [s.id, s])));
+  const progressOf = (id: string) => progress.get(id) ?? null;
+
+  /** The sphere whose menu is open — null for the buffer — and where it was asked. */
+  let menu = $state<{ id: string | null; at: DOMRect } | null>(null);
 
   /** ⌘Z takes back the last edit here — a sphere cut or resized, a practice renamed. */
   function onkeydown(e: KeyboardEvent) {
@@ -59,7 +66,7 @@
         <WeekRing
           segments={week.segments}
           onchange={week.setAllHours}
-          onmenu={(index, at) => (menu = { index, at })}
+          onmenu={(index, at) => (menu = { id: week.drafts[index]?.id ?? null, at })}
           size={240}
           thickness={28}
           centerValue="{Math.round(claimedHours)}h"
@@ -85,15 +92,20 @@
         <p class="t-micro max-w-[30ch] text-center text-fg-faint">
           Drag a seam to move hours between spheres. Right-click a slice to split it.
         </p>
+        {#if store.sphereProgress.value?.connected && store.sphereProgress.value.spheres.length > 0}
+          <WeekDonut spheres={store.sphereProgress.value.spheres} />
+        {/if}
       </aside>
 
       <div class="min-w-0 space-y-8">
-        {#each week.drafts as draft, index (draft.key)}
+        {#each week.drafts as draft (draft.key)}
           <SphereSection
             {draft}
             taken={icons}
+            {progressOf}
             onupdate={(patch) => week.update(draft.key, patch)}
-            onmenu={(at) => (menu = { index, at })}
+            onmenu={(at) => (menu = { id: draft.id, at })}
+            onpartmenu={(id, at) => (menu = { id, at })}
           />
         {/each}
 
@@ -116,12 +128,18 @@
 </Screen>
 
 {#if menu}
-  {@const index = menu.index}
-  {@const draft = week.drafts[index]}
+  {@const id = menu.id}
+  {@const sphere = id === null ? undefined : week.all.find((s) => s.id === id)}
+  {@const index = sphere ? week.drafts.findIndex((d) => d.id === sphere.id) : week.drafts.length}
   <SphereMenu
     at={menu.at}
-    onsplit={() => week.split(index)}
-    onremove={draft ? () => week.remove(draft) : undefined}
+    onsplit={index >= 0 ? () => week.split(index) : undefined}
+    onremove={sphere ? () => week.remove(sphere) : undefined}
+    parentId={sphere?.parentId ?? null}
+    options={sphere ? parentOptions(sphere.id, week.all) : []}
+    onparent={sphere ? (parentId) => week.update(sphere.id, { parentId }) : undefined}
+    urn={sphere?.urn ?? null}
+    onurn={sphere ? (urn) => week.update(sphere.id, { urn }) : undefined}
     onclose={() => (menu = null)}
   />
 {/if}

@@ -10,6 +10,10 @@ export interface Category {
   targetHoursPerWeek: number;
   /** The system-managed category absorbing whatever the week hasn't been planned into. */
   isBuffer: boolean;
+  /** The sphere this one is a part of; spheres nest one level, so a parent never has one. */
+  parentId: string | null;
+  /** Where the work lives — a Keep page link — or null. */
+  urn: string | null;
 }
 
 export interface ActivityWeight {

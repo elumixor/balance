@@ -5,7 +5,17 @@ import type { CalendarEvent } from "./types";
 import { NOT_A_MEETING } from "./types";
 
 function category(id: string, extra: Partial<Category> = {}): Category {
-  return { id, name: id, color: "#C4553B", icon: "book", targetHoursPerWeek: 10, isBuffer: false, ...extra };
+  return {
+    id,
+    name: id,
+    color: "#C4553B",
+    icon: "book",
+    targetHoursPerWeek: 10,
+    isBuffer: false,
+    parentId: null,
+    urn: null,
+    ...extra,
+  };
 }
 
 function event(

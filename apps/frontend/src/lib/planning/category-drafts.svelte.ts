@@ -15,6 +15,10 @@ export type Draft = {
   color: string;
   icon: string;
   hours: number;
+  /** The sphere this one is a part of, or null for a slice of the ring. */
+  parentId: string | null;
+  /** The Keep page its work lives on, or null. */
+  urn: string | null;
 };
 
 /**
@@ -33,6 +37,8 @@ function toDraft(category: Category): Draft {
     color: category.color,
     icon: category.icon || DEFAULT_ICON,
     hours: category.targetHoursPerWeek,
+    parentId: category.parentId ?? null,
+    urn: category.urn ?? null,
   };
 }
 
@@ -63,7 +69,19 @@ class CategoryDrafts {
   #burst: ReturnType<typeof setTimeout> | null = null;
   #open = false;
 
-  drafts = $derived(categories.all.filter((category) => !category.isBuffer).map(toDraft));
+  #live = $derived(categories.all.filter((category) => !category.isBuffer));
+  /**
+   * The slices of the ring: top-level spheres. A part is drawn inside its parent's section and its
+   * hours are a share of the parent's, never more of the week — and a part whose parent is gone
+   * stands on its own, as the server counts it.
+   */
+  drafts = $derived(
+    this.#live
+      .filter((category) => !category.parentId || !this.#live.some((parent) => parent.id === category.parentId))
+      .map(toDraft),
+  );
+  /** Every sphere but the Buffer, parts included — what a parent is picked from. */
+  all = $derived(categories.all.map((category) => ({ ...toDraft(category), isBuffer: category.isBuffer })));
   /** False until these records have been heard about at all — the screen shows its skeleton. */
   ready = $derived(categories.ready);
   loadError = $derived(synced.error);
@@ -87,6 +105,9 @@ class CategoryDrafts {
 
   load = () => synced.sync();
 
+  /** The parts of one sphere, in the order they were made. */
+  parts = (parentId: string) => this.#live.filter((category) => category.parentId === parentId).map(toDraft);
+
   update(id: string, patch: Partial<Draft>) {
     this.#grouped(() =>
       categories.update(id, {
@@ -94,6 +115,8 @@ class CategoryDrafts {
         ...(patch.color === undefined ? {} : { color: patch.color }),
         ...(patch.icon === undefined ? {} : { icon: patch.icon }),
         ...(patch.hours === undefined ? {} : { targetHoursPerWeek: patch.hours }),
+        ...(patch.parentId === undefined ? {} : { parentId: patch.parentId }),
+        ...(patch.urn === undefined ? {} : { urn: patch.urn }),
       }),
     );
   }
@@ -124,7 +147,29 @@ class CategoryDrafts {
         icon: randomIcon(worn),
         targetHoursPerWeek: target ? hours : round(this.restHours - hours),
         isBuffer: false,
+        parentId: null,
+        urn: null,
       });
+    });
+    invalidate.categories();
+  };
+
+  /**
+   * A new part under a sphere, with no hours yet: a part's hours come out of its parent's, so it
+   * starts by taking nothing from it, and the parent's colour, since it is a piece of that slice.
+   */
+  createPart = (parentId: string) => {
+    this.#closeBurst();
+    const parent = this.#live.find((category) => category.id === parentId);
+    if (!parent) return;
+    categories.create({
+      name: "",
+      color: parent.color,
+      icon: parent.icon || DEFAULT_ICON,
+      targetHoursPerWeek: 0,
+      isBuffer: false,
+      parentId,
+      urn: null,
     });
     invalidate.categories();
   };

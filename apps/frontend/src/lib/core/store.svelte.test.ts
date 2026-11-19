@@ -26,6 +26,15 @@ const progress = vi.fn(async (_timeZone: string, _today: string) => ({
   weeks: [],
   practices: {},
 }));
+vi.mock("$lib/planning/queries", () => ({
+  getSphereProgress: (timeZone: string, today: string) => sphereProgress(timeZone, today),
+}));
+const sphereProgress = vi.fn(async (_timeZone: string, _today: string) => ({
+  connected: true,
+  needsReconnect: false,
+  weekStart: "2026-11-16",
+  spheres: [],
+}));
 const syncedMock = {
   ensure: vi.fn(async () => undefined),
   clear: vi.fn(async () => undefined),
@@ -269,6 +278,36 @@ describe("the session's rows", () => {
     invalidate.calendar();
     await store.progress.ensure();
     expect(progress).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the spheres' week again after a sphere or the calendar changes", async () => {
+    sphereProgress.mockClear();
+    await store.sphereProgress.refresh();
+    const [timeZone, today] = sphereProgress.mock.calls[0];
+    expect(timeZone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    for (const change of [invalidate.categories, invalidate.calendar]) {
+      sphereProgress.mockClear();
+      change();
+      await store.sphereProgress.ensure();
+      expect(sphereProgress).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("says the spheres tab is checking while the week's hours are being read", async () => {
+    await store.sphereProgress.ensure();
+    let release: (() => void) | undefined;
+    sphereProgress.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve({ connected: true, needsReconnect: false, weekStart: "2026-11-16", spheres: [] });
+        }),
+    );
+    const out = store.sphereProgress.refresh();
+    expect(syncing.spheres).toBe(true);
+    release?.();
+    await out;
+    expect(syncing.spheres).toBe(false);
   });
 
   it("says the spheres tab is checking while its evidence is being read", async () => {

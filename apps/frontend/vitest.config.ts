@@ -50,6 +50,7 @@ export default defineConfig({
         "src/lib/core/persist.ts",
         "src/lib/planning/rating.ts",
         "src/lib/planning/zone.ts",
+        "src/lib/planning/sphere-tree.ts",
         "src/lib/calendar/reminder-lead.ts",
         "src/lib/calendar/reminders.ts",
         "src/lib/calendar/time-zones.ts",

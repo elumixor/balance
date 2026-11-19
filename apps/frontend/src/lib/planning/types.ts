@@ -143,3 +143,27 @@ export interface SessionNotification {
   title: string;
   body: string;
 }
+
+/** One sphere against its week — see `server/lib/categories/tree.ts`. A sphere's hours include its parts'. */
+export interface SphereProgress {
+  id: string;
+  name: string;
+  parentId: string | null;
+  urn: string | null;
+  targetHours: number;
+  /** Hours already spent this week. */
+  trackedHours: number;
+  /** Hours still on the calendar this week. */
+  scheduledHours: number;
+  remainingHours: number;
+  /** Said when a sphere's parts ask for more hours than it has. */
+  warning: string | null;
+}
+
+/** The week containing the device's day, parents before their parts, the Buffer left out. */
+export interface SphereWeek {
+  connected: boolean;
+  needsReconnect: boolean;
+  weekStart: string;
+  spheres: SphereProgress[];
+}

@@ -6,6 +6,7 @@ import { getCalendarPrefs, getCalendarWeek, getZoomStatus } from "$lib/calendar/
 import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
 import { getIntegrations } from "$lib/integrations/queries";
 import { listMcpKeys } from "$lib/mcp/queries";
+import { getSphereProgress } from "$lib/planning/queries";
 import { deviceTimeZone, localDay } from "$lib/planning/zone";
 import { getPracticeProgress } from "$lib/practices/queries";
 import { Cached } from "./cache.svelte";
@@ -37,6 +38,12 @@ export const store = {
     () => getPracticeProgress(deviceTimeZone(), localDay()),
     "Couldn't read your practices.",
     "progress",
+  ),
+  /** Each sphere's week so far against its hours — the calendar's answer, so it moves with every write. */
+  sphereProgress: new Cached(
+    () => getSphereProgress(deviceTimeZone(), localDay()),
+    "Couldn't read this week's spheres.",
+    "sphereProgress",
   ),
 };
 
@@ -101,7 +108,7 @@ export const syncing = {
     return store.integrations.syncing || [...weeks.values()].some((week) => week.syncing);
   },
   get spheres() {
-    return synced.syncing || store.progress.syncing;
+    return synced.syncing || store.progress.syncing || store.sphereProgress.syncing;
   },
 };
 
@@ -114,6 +121,7 @@ export const invalidate = {
   /** Names, colours and targets feed every screen's labels. */
   categories() {
     invalidateWeeks();
+    store.sphereProgress.invalidate();
   },
   /** An activity's weights change what every event mapped to it counts toward. */
   activities() {
@@ -123,6 +131,7 @@ export const invalidate = {
   calendar() {
     invalidateWeeks();
     store.progress.invalidate();
+    store.sphereProgress.invalidate();
   },
   /**
    * The same, and the weeks already on screen are asked for again now rather than on the next
