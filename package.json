@@ -161,6 +161,7 @@
           "backendDir": "apps/backend",
           "apiPrefixes": [
             "mobile",
+            "api",
             "health",
             "download",
             "mcp",

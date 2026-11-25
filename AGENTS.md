@@ -406,7 +406,7 @@ once, stored as a hash, and never rotated — the holder has nowhere to write a 
 that isn't one of ours is handed to the ordinary session check, which is what makes `DEV_AUTH_EMAIL`
 cover this endpoint too. Two lines of configuration exist only for these routes and are easy to
 miss: `/mcp` is in `nitro-client.config.ts`'s `excludeRoutes` (by path, so `/mobile/mcp/keys` stays
-typed), and `mcp` and `.well-known` are in the root `package.json`'s `apiPrefixes`, without which a
+typed), and `mcp`, `api` and `.well-known` are in the `apiPrefixes` of both the `web` and `aws` targets in the root `package.json`, without which a
 production deployment answers them with the app shell and a 200.
 
 A key made by hand can't reach a chat client that is only given a URL, so `lib/mcp/oauth.ts` is an
