@@ -7,7 +7,24 @@ import { Capacitor } from "@capacitor/core";
  * `/mobile/*`, so a relative base keeps requests same-origin. Dev servers and native builds get an
  * absolute URL from `vite.config.ts`.
  */
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL = insecureFromSecurePage(import.meta.env.VITE_API_BASE_URL)
+  ? ""
+  : import.meta.env.VITE_API_BASE_URL;
+
+/**
+ * A dev server opened through an HTTPS tunnel (the box's preview URL) can't call the LAN address
+ * over plain HTTP — the browser blocks it as mixed content. There the page's own origin is used,
+ * and the dev server proxies the API prefixes to the backend (`vite.config.ts`).
+ */
+function insecureFromSecurePage(base: string) {
+  return (
+    import.meta.env.DEV &&
+    typeof location !== "undefined" &&
+    location.protocol === "https:" &&
+    location.hostname !== "localhost" &&
+    base.startsWith("http://")
+  );
+}
 
 /**
  * A native shell has no origin worth talking to: iOS serves the bundle from `https://localhost`

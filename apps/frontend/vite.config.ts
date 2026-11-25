@@ -130,7 +130,14 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [tailwindcss(), sveltekit()],
     // Rust build artefacts are far too many files to watch, and none of them change the page.
-    server: { port: 8081, watch: { ignored: ["**/src-tauri/**"] } },
+    server: {
+      port: 8081,
+      watch: { ignored: ["**/src-tauri/**"] },
+      // Same-origin API for a dev server reached over HTTPS — see `insecureFromSecurePage` in `core/env.ts`.
+      proxy: Object.fromEntries(
+        ["mobile", "health", "mcp", ".well-known"].map((prefix) => [`/${prefix}`, `http://localhost:${API_PORT}`]),
+      ),
+    },
     // A release runs two builds of this app side by side (see svelte.config.js); they can't share
     // one transform cache either.
     cacheDir: process.env.VITE_CACHE_DIR ?? "node_modules/.vite",
