@@ -135,7 +135,10 @@ export default defineConfig(({ mode }) => {
       watch: { ignored: ["**/src-tauri/**"] },
       // Same-origin API for a dev server reached over HTTPS — see `insecureFromSecurePage` in `core/env.ts`.
       proxy: Object.fromEntries(
-        ["mobile", "health", "mcp", ".well-known"].map((prefix) => [`/${prefix}`, `http://localhost:${API_PORT}`]),
+        ["mobile", "api", "health", "mcp", ".well-known"].map((prefix) => [
+          `/${prefix}`,
+          `http://localhost:${API_PORT}`,
+        ]),
       ),
     },
     // A release runs two builds of this app side by side (see svelte.config.js); they can't share

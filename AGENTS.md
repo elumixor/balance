@@ -427,6 +427,16 @@ would mint itself another the moment the key stopped working.
 calendar > a saved place's `sphereId`, so refiling a block rewrites the past lane at once.
 `ActualLane.svelte` draws the result. Contract and rules: `docs/activity.md`.
 
+## Goals are a module of their own
+
+A goal is a number to reach every day or week on a ladder of levels; apps post progress
+(`POST /api/goals/progress`, idempotent on `source` + `externalId`) and read back where each goal
+stands, its streak and the one to do next. Only goals and entries are stored: level, streak and
+nudge are replayed on every read by `lib/goals/ladder.ts` (pure). `/api/goals` is the one tree
+outside `/mobile` an app key reaches: `goalsReader` / `goalsLogger` / `goalsManager` in
+`lib/goals/access.ts` hold a `balance_goals_` key to its scopes. The only thread to the rest of
+the app is `goals.sphereId`. Contract and rules: `docs/goals.md`.
+
 ## A route is a signature, a service is the work
 
 `server/lib/` is one folder per subject — `auth`, `categories`, `calendar`, `planning`, `practices`,

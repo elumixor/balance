@@ -225,6 +225,13 @@
       "when": 1795611596140,
       "tag": "0031_activity_events",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795641680120,
+      "tag": "0032_goals",
+      "breakpoints": true
     }
   ]
 }

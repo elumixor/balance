@@ -129,10 +129,17 @@ then a saved place that names a sphere) and draws it as a thread down each day o
 `GET /mobile/activity/hours` sets observed hours against the plan. The data model, the ingest
 contract Paigram iOS speaks and the rules are in [docs/activity.md](docs/activity.md).
 
+## Goals
+
+A goal is something to keep doing, with a number to reach every day or week and a ladder of
+levels. The apps where it is done post progress to `POST /api/goals/progress` with a key made on
+the Goals screen, and read back the streak and what to do next (`GET /api/goals/next`). The data
+model, the rules and the whole API are in [`docs/goals.md`](docs/goals.md).
+
 ## Connecting an assistant (MCP)
 
 The API speaks the Model Context Protocol at `/mcp`, so an assistant can read the week, the
-spheres, the practices and what actually happened, and write blocks back. Twenty-one tools, nine of which write; the same
+spheres, the practices, the goals and what actually happened, and write blocks back. Twenty-four tools, ten of which write; the same
 services the app's own routes call sit behind them.
 
 What gets in is a key, made in **Settings → Assistants**. It is shown once — only its hash is

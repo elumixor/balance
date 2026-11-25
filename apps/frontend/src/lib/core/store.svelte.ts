@@ -6,6 +6,7 @@ import type { ActivityTimeline } from "$lib/activity/types";
 import { weekKey, weekRange } from "$lib/calendar/dates";
 import { getCalendarPrefs, getCalendarWeek, getZoomStatus } from "$lib/calendar/queries";
 import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
+import { getGoals, listGoalKeys } from "$lib/goals/queries";
 import { getIntegrations } from "$lib/integrations/queries";
 import { listMcpKeys } from "$lib/mcp/queries";
 import { getSphereProgress } from "$lib/planning/queries";
@@ -47,6 +48,10 @@ export const store = {
     "Couldn't read this week's spheres.",
     "sphereProgress",
   ),
+  /** Every goal with where it stands and which one is next: the server's answer, never worked out here. */
+  goals: new Cached(getGoals, "Couldn't load your goals.", "goals"),
+  /** Not kept on the device, like the assistant keys. */
+  goalKeys: new Cached(listGoalKeys, "Couldn't load your app keys.", undefined, "Goals"),
 };
 
 /**
@@ -138,6 +143,9 @@ export const syncing = {
   },
   get spheres() {
     return synced.syncing || store.progress.syncing || store.sphereProgress.syncing;
+  },
+  get goals() {
+    return store.goals.syncing;
   },
 };
 

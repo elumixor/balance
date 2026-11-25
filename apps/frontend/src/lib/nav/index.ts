@@ -1,9 +1,10 @@
-import { CalendarDays, ChartPie } from "lucide-svelte";
+import { CalendarDays, ChartPie, Target } from "lucide-svelte";
 import { syncing } from "$lib/core/store.svelte";
 
 /**
- * The two views of the app: the week as it happens, and the week as you mean it to go — the
- * spheres it is cut into and the practices kept in them, on one screen.
+ * The views of the app: the week as it happens, the week as you mean it to go — the
+ * spheres it is cut into and the practices kept in them, on one screen — and the goals other
+ * apps post progress toward.
  * The daily sitting is not among them — it is something the app asks for on the two days a day it
  * is worth asking, and a tab for it sat there saying nothing for the other twenty-three hours.
  * `SessionNudge` is where it appears instead, only while it is owed.
@@ -28,6 +29,13 @@ export const NAV_TABS = [
     key: "s",
     icon: ChartPie,
     syncing: () => syncing.spheres,
+  },
+  {
+    href: "/goals",
+    label: "Goals",
+    key: "g",
+    icon: Target,
+    syncing: () => syncing.goals,
   },
 ];
 
