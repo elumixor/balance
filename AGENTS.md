@@ -419,6 +419,14 @@ the whole account and the consent screen says exactly that. What it issues is an
 and revoking a row that names a client takes that client's refresh tokens with it, or the connector
 would mint itself another the moment the key stopped working.
 
+## Observed hours are stored; whose they are is not
+
+`activity_events` holds what a device observed (`POST /mobile/activity`, idempotent on
+`source` + `externalId`, an assistant key or a session via `keyed` in `lib/http/authed.ts`).
+`lib/activity/attribution.ts` (pure) settles each stretch on every read: manual > source >
+calendar > a saved place's `sphereId`, so refiling a block rewrites the past lane at once.
+`ActualLane.svelte` draws the result. Contract and rules: `docs/activity.md`.
+
 ## A route is a signature, a service is the work
 
 `server/lib/` is one folder per subject — `auth`, `categories`, `calendar`, `planning`, `practices`,

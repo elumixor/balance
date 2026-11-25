@@ -38,6 +38,8 @@ export interface SavedLocation {
   placeId?: string | null;
   latitude?: number;
   longitude?: number;
+  /** The sphere time spent here counts as, when nothing on the calendar says otherwise. */
+  sphereId?: string | null;
 }
 
 export interface TravelPrefs {

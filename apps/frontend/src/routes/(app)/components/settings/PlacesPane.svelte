@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { AddressField, Button, Divider, Field, MapPreview, NumberField, Switch, Tooltip } from "$lib/components";
+  import { AddressField, Button, Divider, Field, MapPreview, NumberField, Select, Switch, Tooltip } from "$lib/components";
+  import { categories } from "$lib/core/synced.svelte";
   import PlaceIconPicker from "./PlaceIconPicker.svelte";
   import { iconFor, PLACE_ICON } from "$lib/ui/icons";
   import type { PlaceDetails, PlaceSuggestion } from "$lib/travel/places";
@@ -52,6 +53,8 @@
   let address = $state("");
   let icon = $state<string | undefined>(undefined);
   let isDefault = $state(false);
+  /** The sphere hours spent here count as, when the calendar says nothing about them. */
+  let sphereId = $state<string | null>(null);
   /** Google's own pin for what was typed, once a suggestion was chosen or the map looked it up. */
   let pinned = $state<PlaceDetails | null>(null);
   /** The text that pin was looked up for, so a since-retyped address is saved without it. */
@@ -62,6 +65,7 @@
     label = location?.label ?? "";
     address = location?.address ?? "";
     icon = location?.icon;
+    sphereId = location?.sphereId ?? null;
     // The first place is the default without asking: somebody who named one address meant it.
     isDefault = location ? location.id === defaultId : locations.length === 0;
     pinned =
@@ -91,6 +95,7 @@
       label,
       address: address.trim(),
       icon,
+      sphereId,
       placeId: pin?.placeId ?? null,
       latitude: pin?.latitude,
       longitude: pin?.longitude,
@@ -102,6 +107,12 @@
     else if (defaultId === id) preferences.setTravel({ defaultLocationId: null });
     editing = null;
   }
+
+  const NO_SPHERE = "";
+  const sphereOptions = $derived([
+    { value: NO_SPHERE, label: "Nothing" },
+    ...categories.all.filter((sphere) => !sphere.isBuffer).map((sphere) => ({ value: sphere.id, label: sphere.name })),
+  ]);
 
   const canSave = $derived(label.trim().length > 0 && address.trim().length > 0);
 
@@ -140,6 +151,16 @@
         pinnedFor = query;
       }}
     />
+    <div class="flex items-center gap-2">
+      <span class="t-label text-fg">Time here counts as</span>
+      <Select
+        options={sphereOptions}
+        value={sphereId ?? NO_SPHERE}
+        label="Sphere time at this place counts as"
+        variant="bare"
+        onchange={(next) => (sphereId = next === NO_SPHERE ? null : next)}
+      />
+    </div>
     <div class="flex items-center gap-3">
       <label class="flex items-center gap-2">
         <Switch checked={isDefault} label="Journeys start here unless an event says otherwise" onchange={(next) => (isDefault = next)} />

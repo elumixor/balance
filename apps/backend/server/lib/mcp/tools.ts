@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { type ZodRawShape, z } from "zod";
 import { db } from "~/db";
 import { practices } from "~/db/schema";
+import { ActivityService } from "~/lib/activity/service";
 import type { DbUser } from "~/lib/auth/service";
 import { allDayRange, calendarDate, spanDays } from "~/lib/calendar/all-day";
 import { CalendarEventsService } from "~/lib/calendar/events-service";
@@ -879,6 +880,51 @@ export const mcpTools: McpTool[] = [
           progress: progress?.practices[practice.id] ?? null,
         })),
       };
+    },
+  }),
+
+  tool({
+    name: "list_activity",
+    title: "What actually happened",
+    description:
+      "The observed timeline of a stretch of the past: where the person was, slept, travelled and " +
+      "moved, as their devices reported it, with the calendar blocks that ran — and `segments`, " +
+      "the same stretch settled into one sphere at a time with who said so (`manual`, `source`, " +
+      "`calendar` or `place`). Nothing ahead of now is listed.",
+    inputSchema: {
+      from: z.string().optional().describe("Start of the window, ISO 8601. Defaults to `days` before `to`."),
+      to: z.string().optional().describe("End of the window, ISO 8601. Defaults to now."),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(31)
+        .optional()
+        .describe("Window length in days when `from` is absent. Default 7."),
+    },
+    async run(args, user) {
+      const to = args.to ? parseInstant(args.to, "to") : new Date();
+      const from = args.from ? parseInstant(args.from, "from") : new Date(to.getTime() - (args.days ?? 7) * 86_400_000);
+      if (from >= to) throw new ApiError("from must be before to");
+      return new ActivityService(user.id).timeline(from, to);
+    },
+  }),
+
+  tool({
+    name: "actual_vs_plan",
+    title: "Observed hours against the plan",
+    description:
+      "For the week containing `date`, each sphere and each part under one: the weekly target, " +
+      "the hours the calendar holds for it (`plannedHours`, past and ahead) and the hours actually " +
+      "observed so far (`actualHours`), plus the observed hours no rule could place. A part's " +
+      "hours count toward its parent too.",
+    inputSchema: {
+      date: z.string().optional().describe("Any day in the week, YYYY-MM-DD. Defaults to today."),
+      timeZone: z.string().optional().describe("IANA zone the week is in. Defaults to the account's."),
+    },
+    async run(args, user) {
+      const zone = await zoneOf(user, args.timeZone);
+      return new ActivityService(user.id).hours(args.date ?? dayIn(zone), zone);
     },
   }),
 ];

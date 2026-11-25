@@ -1,6 +1,7 @@
 import { type BaseContext, type ExecutableEventHandler, handler } from "@elumixor/nitro-client/server";
 import type { ZodType, z } from "zod";
 import { type DbUser, resolveUser } from "~/lib/auth/service";
+import { authenticateMcp } from "~/lib/mcp/authenticate";
 
 type SchemaInput = Record<string, ZodType>;
 type Schemas = { body?: SchemaInput; query?: SchemaInput };
@@ -31,4 +32,23 @@ export function authed(
   }
   const fn = maybeFn as (context: AuthedContext) => unknown;
   return handler(schemasOrFn, async (context) => fn({ ...context, user: await resolveUser(context.event) }));
+}
+
+/**
+ * `authed`, for a route something other than the app calls: a phone's background uploader or
+ * another service of the person's, holding an assistant key (Settings → Assistants) rather than a
+ * Clerk session that lasts minutes. A live session works too, so the app's own screens call the
+ * same route.
+ */
+export function keyed<S extends Schemas, R>(schemas: S, fn: (context: Inferred<S> & AuthedContext) => R): Authed<R>;
+export function keyed<R>(fn: (context: AuthedContext) => R): Authed<R>;
+export function keyed(
+  schemasOrFn: Schemas | ((context: AuthedContext) => unknown),
+  maybeFn?: (context: AuthedContext) => unknown,
+): ExecutableEventHandler<Promise<unknown>> {
+  if (typeof schemasOrFn === "function") {
+    return handler(async (context) => schemasOrFn({ ...context, user: await authenticateMcp(context.event) }));
+  }
+  const fn = maybeFn as (context: AuthedContext) => unknown;
+  return handler(schemasOrFn, async (context) => fn({ ...context, user: await authenticateMcp(context.event) }));
 }

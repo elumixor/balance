@@ -1,6 +1,8 @@
 import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { getPreferences } from "$lib/account/queries";
+import { getActivityTimeline } from "$lib/activity/queries";
+import type { ActivityTimeline } from "$lib/activity/types";
 import { weekKey, weekRange } from "$lib/calendar/dates";
 import { getCalendarPrefs, getCalendarWeek, getZoomStatus } from "$lib/calendar/queries";
 import type { CalendarEvent, CalendarWeek } from "$lib/calendar/types";
@@ -98,6 +100,33 @@ function resolveWeek(key: string) {
   return made;
 }
 
+const activityWeeks = new SvelteMap<string, Cached<ActivityTimeline>>();
+
+/**
+ * What actually happened in one week — the lane beside its blocks. Made on the spot like
+ * `calendarWeek`, and under the same rule: imperative callers only. Not kept on the device: the
+ * lane is a margin note, and a week draws whole without it.
+ */
+export function activityWeek(key: string) {
+  return untrack(() => {
+    const cached = activityWeeks.get(key);
+    if (cached) return cached;
+    const { from, to } = weekRange(key);
+    const made = new Cached(() => getActivityTimeline(from, to), "Couldn't load what happened that week.");
+    activityWeeks.set(key, made);
+    for (const oldest of activityWeeks.keys()) {
+      if (activityWeeks.size <= WEEKS_KEPT) break;
+      activityWeeks.delete(oldest);
+    }
+    return made;
+  });
+}
+
+/** The lane a week already has, for a reactive reader: makes nothing, so it writes nothing. */
+export function activityOf(key: string): ActivityTimeline | undefined {
+  return activityWeeks.get(key)?.value;
+}
+
 /**
  * Whether a tab's rows are being checked against the server right now, for the small spinner
  * the tab wears while they are. Only ever true behind rows that are already on screen — see
@@ -151,6 +180,8 @@ export const invalidate = {
 
 function invalidateWeeks() {
   for (const cached of weeks.values()) cached.invalidate();
+  // What a block counts as is half of what the lane says, so the lane goes stale with the week.
+  for (const cached of activityWeeks.values()) cached.invalidate();
 }
 
 /**

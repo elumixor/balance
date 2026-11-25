@@ -1,7 +1,7 @@
 import { tick } from "svelte";
 import { oauthConnect } from "$lib/core/oauth-connect";
 import type { ActivityWeight } from "$lib/core/records";
-import { calendarWeek, store } from "$lib/core/store.svelte";
+import { activityWeek, calendarWeek, store } from "$lib/core/store.svelte";
 import { synced } from "$lib/core/synced.svelte";
 import { clock } from "$lib/platform/clock.svelte";
 import { viewport } from "$lib/platform/viewport.svelte";
@@ -266,6 +266,8 @@ class CalendarData {
     // The week on screen first, then its neighbours: grey blocks are filed once they're drawn.
     const keys = [this.key, ...stripKeysFrom(this.stripStart).filter((key) => key !== this.key)];
     void loads.then(() => autoFile(keys));
+    // The lane of what actually happened rides along and is never waited for.
+    for (const key of keys) void activityWeek(key).ensure();
     return loads;
   }
 

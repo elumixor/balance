@@ -120,10 +120,19 @@ The frontend's typed API client (`apps/frontend/src/lib/api-client`) is generate
 backend's route handlers — run `cd apps/backend && bunx nitro-client` after changing a
 `server/routes/mobile/**` handler's schema or response shape, and commit the regenerated output.
 
+## What actually happened (activity)
+
+Devices post what they observed, such as visits, Wi-Fi stays, sleep and travel, to
+`POST /mobile/activity`, keyed by an assistant key. Balance decides which sphere each stretch
+belongs to (your own correction first, then the source, then the calendar block that was running,
+then a saved place that names a sphere) and draws it as a thread down each day on the calendar.
+`GET /mobile/activity/hours` sets observed hours against the plan. The data model, the ingest
+contract Paigram iOS speaks and the rules are in [docs/activity.md](docs/activity.md).
+
 ## Connecting an assistant (MCP)
 
 The API speaks the Model Context Protocol at `/mcp`, so an assistant can read the week, the
-spheres and the practices, and write blocks back. Sixteen tools, seven of which write; the same
+spheres, the practices and what actually happened, and write blocks back. Twenty-one tools, nine of which write; the same
 services the app's own routes call sit behind them.
 
 What gets in is a key, made in **Settings → Assistants**. It is shown once — only its hash is

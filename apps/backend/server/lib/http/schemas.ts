@@ -37,3 +37,6 @@ export const urnField = z
   .max(512)
   .regex(/^[a-z][a-z0-9-]*:.+$/, "must be a link like https://keep.desk.atmagaming.com/p/<id>")
   .transform((link) => link.replace(/^keep:page\//, KEEP_PAGE_URL));
+
+/** Who observed an activity event: "paigram", or "paigram:location" for one feed of several. */
+export const activitySourceField = z.string().regex(/^[a-z][a-z0-9-]{1,40}(:[a-z][a-z0-9-]{1,40})?$/);

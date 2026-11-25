@@ -218,6 +218,13 @@
       "when": 1795092155657,
       "tag": "0030_nested_spheres",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795611596140,
+      "tag": "0031_activity_events",
+      "breakpoints": true
     }
   ]
 }

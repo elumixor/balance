@@ -36,6 +36,8 @@ const locationSchema = z.object({
   placeId: z.string().max(200).nullable().optional(),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
+  /** The sphere time spent here counts as, when nothing on the calendar says otherwise. */
+  sphereId: z.string().uuid().nullable().optional(),
 });
 export type SavedLocation = z.infer<typeof locationSchema>;
 

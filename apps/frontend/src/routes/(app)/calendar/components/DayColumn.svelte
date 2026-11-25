@@ -5,6 +5,7 @@
   import type { Category } from "$lib/core/records";
   import { planMode } from "$lib/planning/plan-mode.svelte";
   import type { TransitionConfig } from "svelte/transition";
+  import ActualLane from "./ActualLane.svelte";
   import EventBlock from "./EventBlock.svelte";
   import NowLine from "./NowLine.svelte";
   import TravelBand from "./TravelBand.svelte";
@@ -75,6 +76,7 @@
     ? 'opacity-45'
     : ''}"
 >
+  <ActualLane {day} {hourPx} {categories} />
   {#each blocks as segment (segment.event.id)}
     <!-- Alt held: the original stays put in full, since the pointer is dragging a copy. -->
     {@const dragging = data.drag?.event?.id === segment.event.id && !data.drag?.copy}
