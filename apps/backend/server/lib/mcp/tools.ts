@@ -13,7 +13,6 @@ import type { ConferenceInput } from "~/lib/calendar/types";
 import { SphereProgressService } from "~/lib/categories/progress-service";
 import { CategoryService } from "~/lib/categories/service";
 import { overBudgetWarning, qualifiedNames } from "~/lib/categories/tree";
-import { GoalService } from "~/lib/goals/service";
 import { ApiError } from "~/lib/http/api-error";
 import { parseInstant, parseInstantRange, urnField } from "~/lib/http/schemas";
 import { dayIn } from "~/lib/planning/days";
@@ -926,60 +925,6 @@ export const mcpTools: McpTool[] = [
     async run(args, user) {
       const zone = await zoneOf(user, args.timeZone);
       return new ActivityService(user.id).hours(args.date ?? dayIn(zone), zone);
-    },
-  }),
-
-  tool({
-    name: "list_goals",
-    title: "Goals and where each stands",
-    description:
-      "Every goal the person keeps: what it measures (`metric`, per day or per week), its ladder of " +
-      "`levels`, the level in force now and its `target`, this period's `value` and what is " +
-      "`remaining`, and the streak. Read it before `log_progress`, which names a goal by its `key`.",
-    inputSchema: {},
-    async run(_args, user) {
-      return { goals: await new GoalService(user.id).list() };
-    },
-  }),
-
-  tool({
-    name: "log_progress",
-    title: "Log progress toward a goal",
-    description:
-      "Records something done toward a goal: a sitting, a run, a chapter. `metrics` carries the " +
-      "number the goal is measured on under the goal's own `metric` key, and any detail beside it " +
-      '(`{ minutes: 25, technique: "anapana", distractions: 4 }`). Sending the same ' +
-      "`externalId` again replaces the entry rather than adding one. Answers with where the goal " +
-      "now stands.",
-    inputSchema: {
-      goal: z.string().describe("The goal's `key` or id, from `list_goals`."),
-      metrics: z
-        .record(z.string(), z.union([z.number(), z.string(), z.boolean(), z.null()]))
-        .describe("What was measured. Numbers count toward the target; anything else is kept as detail."),
-      at: z.string().optional().describe("When it happened, ISO 8601 with an offset. Defaults to now."),
-      externalId: z.string().min(1).max(200).optional().describe("A stable id for this entry, to make a retry safe."),
-    },
-    readOnly: false,
-    async run(args, user) {
-      const service = new GoalService(user.id);
-      const at = args.at ? parseInstant(args.at, "at") : new Date();
-      const externalId = args.externalId ?? `mcp-${at.toISOString()}`;
-      await service.log("assistant", [{ goal: args.goal, externalId, at, metrics: args.metrics }]);
-      const goals = await service.list();
-      return { ok: true, externalId, goal: goals.find((goal) => goal.id === args.goal || goal.key === args.goal) };
-    },
-  }),
-
-  tool({
-    name: "next_goal",
-    title: "What to do next",
-    description:
-      "The one goal to do next: of those not yet met this period, the one whose period closes " +
-      "soonest. Comes with the `nudge`, a sentence that asks for it, and `open`, how many goals are " +
-      "still waiting. `next` is null when everything is done.",
-    inputSchema: {},
-    async run(_args, user) {
-      return new GoalService(user.id).next();
     },
   }),
 ];

@@ -232,6 +232,13 @@
       "when": 1795641680120,
       "tag": "0032_goals",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795652296875,
+      "tag": "0033_drop_goals",
+      "breakpoints": true
     }
   ]
 }

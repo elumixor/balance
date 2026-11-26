@@ -131,15 +131,13 @@ contract Paigram iOS speaks and the rules are in [docs/activity.md](docs/activit
 
 ## Goals
 
-A goal is something to keep doing, with a number to reach every day or week and a ladder of
-levels. The apps where it is done post progress to `POST /api/goals/progress` with a key made on
-the Goals screen, and read back the streak and what to do next (`GET /api/goals/next`). The data
-model, the rules and the whole API are in [`docs/goals.md`](docs/goals.md).
+Goals live in their own service, [goals.desk.atmagaming.com](https://goals.desk.atmagaming.com)
+(`elumixor/goals`). Nothing of them is stored or served here.
 
 ## Connecting an assistant (MCP)
 
 The API speaks the Model Context Protocol at `/mcp`, so an assistant can read the week, the
-spheres, the practices, the goals and what actually happened, and write blocks back. Twenty-four tools, ten of which write; the same
+spheres, the practices and what actually happened, and write blocks back. Twenty-one tools, nine of which write; the same
 services the app's own routes call sit behind them.
 
 What gets in is a key, made in **Settings → Assistants**. It is shown once — only its hash is

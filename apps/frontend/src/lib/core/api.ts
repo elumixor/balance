@@ -101,11 +101,7 @@ async function authenticatedFetch(input: Parameters<typeof fetch>[0], init?: Par
   }
 }
 
-const client = new NitroAPI({ baseUrl: API_BASE_URL, fetch: authenticatedFetch });
-
-export const api = client.mobile;
-/** The Goals module's own routes, `/api/goals`: the same ones another app calls with a key. */
-export const goalsApi = client.api.goals;
+export const api = new NitroAPI({ baseUrl: API_BASE_URL, fetch: authenticatedFetch }).mobile;
 
 /**
  * The generated client throws a generic `Error("API error {status}: {rawBody}")` on non-OK

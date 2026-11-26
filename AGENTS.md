@@ -406,7 +406,7 @@ once, stored as a hash, and never rotated — the holder has nowhere to write a 
 that isn't one of ours is handed to the ordinary session check, which is what makes `DEV_AUTH_EMAIL`
 cover this endpoint too. Two lines of configuration exist only for these routes and are easy to
 miss: `/mcp` is in `nitro-client.config.ts`'s `excludeRoutes` (by path, so `/mobile/mcp/keys` stays
-typed), and `mcp`, `api` and `.well-known` are in the `apiPrefixes` of both the `web` and `aws` targets in the root `package.json`, without which a
+typed), and `mcp` and `.well-known` are in the `apiPrefixes` of both the `web` and `aws` targets in the root `package.json`, without which a
 production deployment answers them with the app shell and a 200.
 
 A key made by hand can't reach a chat client that is only given a URL, so `lib/mcp/oauth.ts` is an
@@ -427,15 +427,10 @@ would mint itself another the moment the key stopped working.
 calendar > a saved place's `sphereId`, so refiling a block rewrites the past lane at once.
 `ActualLane.svelte` draws the result. Contract and rules: `docs/activity.md`.
 
-## Goals are a module of their own
+## Goals are not here
 
-A goal is a number to reach every day or week on a ladder of levels; apps post progress
-(`POST /api/goals/progress`, idempotent on `source` + `externalId`) and read back where each goal
-stands, its streak and the one to do next. Only goals and entries are stored: level, streak and
-nudge are replayed on every read by `lib/goals/ladder.ts` (pure). `/api/goals` is the one tree
-outside `/mobile` an app key reaches: `goalsReader` / `goalsLogger` / `goalsManager` in
-`lib/goals/access.ts` hold a `balance_goals_` key to its scopes. The only thread to the rest of
-the app is `goals.sphereId`. Contract and rules: `docs/goals.md`.
+Goals, their streaks and their app keys are a service of their own: `https://goals.desk.atmagaming.com`,
+repo `elumixor/goals`. Balance holds no table, route or tool of theirs.
 
 ## A route is a signature, a service is the work
 
